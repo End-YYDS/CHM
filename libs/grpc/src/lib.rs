@@ -39,7 +39,6 @@ pub mod client {
         addr: &str,
         message: &str,
     ) -> Result<CommResponse, Box<dyn std::error::Error>> {
-        // 如果需要強制使用 HTTP，這裡建構完整的 endpoint 字串
         let endpoint = format!("http://{}", addr);
         let mut client = CommunicationClient::connect(endpoint).await?;
         let request = Request::new(CommRequest {

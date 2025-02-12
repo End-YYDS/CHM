@@ -1,3 +1,4 @@
 {
-    "rust-analyzer.cargo.features": ["server", "client"]
+    "rust-analyzer.cargo.features": ["server", "client"],
+    "postman.settings.dotenv-detection-notification-visibility": false
 }
