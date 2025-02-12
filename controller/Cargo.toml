@@ -4,6 +4,6 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-grpc = { path = "../libs/grpc", features = ["server"] }
+grpc = { path = "../libs/grpc", features = ["controller_server"] }
 tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
 config = { path = "../libs/config" }

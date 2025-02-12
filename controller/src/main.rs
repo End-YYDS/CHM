@@ -1,8 +1,9 @@
 use config::Config;
-use grpc::server::start as start_grpc_server;
+use grpc::common::Return;
+use grpc::controller_server::start as start_grpc_server;
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = Config::new();
+async fn main() -> Return<()> {
+    let config = Config::default();
     start_grpc_server(&config.addr).await?;
     Ok(())
 }

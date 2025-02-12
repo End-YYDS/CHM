@@ -4,8 +4,9 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-prost = "0.13.4"
-tonic = "0.12.3"
+prost = { version = "0.13.4" }
+tonic = { version = "0.12.3" }
+tonic-health = { version = "0.12.3" }
 
 [build-dependencies]
 tonic-build = "0.12.3"
@@ -13,4 +14,5 @@ tonic-build = "0.12.3"
 [features]
 default = []
 client = []
-server = []
+ca_server = []
+controller_server = []
