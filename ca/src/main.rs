@@ -4,6 +4,6 @@ use grpc::common::Return;
 #[tokio::main]
 async fn main() -> Return<()> {
     let config = Config::new("[::1]:50052");
-    start_ca_server(&config.addr).await?;
+    start_ca_server(&config).await?;
     Ok(())
 }

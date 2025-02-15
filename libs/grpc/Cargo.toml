@@ -7,6 +7,7 @@ edition.workspace = true
 prost = { version = "0.13.4" }
 tonic = { version = "0.12.3" }
 tonic-health = { version = "0.12.3" }
+config = { path = "../config" }
 
 [build-dependencies]
 tonic-build = "0.12.3"
