@@ -1,7 +1,6 @@
 use crate::common::Return;
 use crate::communication::communication_server::{Communication, CommunicationServer};
 use crate::communication::{Request as CommRequest, Response as CommResponse};
-use config::Config;
 use tonic::transport::Server;
 use tonic::{Request, Response, Status};
 use tonic_health::server::health_reporter;
@@ -21,8 +20,8 @@ impl Communication for ControllerCommunicate {
     }
 }
 
-pub async fn start(config: &Config) -> Return<()> {
-    let addr = config.addr.parse()?;
+pub async fn start(addr: &str) -> Return<()> {
+    let addr = addr.parse().unwrap();
     let (mut health_reporter, health_server) = health_reporter();
     health_reporter
         .set_serving::<CommunicationServer<ControllerCommunicate>>()

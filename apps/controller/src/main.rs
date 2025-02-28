@@ -1,23 +1,23 @@
-use actix_web::{App, HttpServer};
-use config::Config;
 use grpc::common::Return;
 use grpc::controller_server::start as start_grpc_server;
-mod restful;
+use plugin_system::plugin_system_rest_server_handle;
 #[actix_web::main]
 async fn main() -> Return<()> {
-    console_subscriber::init();
-    let mut config = Config::default();
-    let grpc_config = config.clone();
+    // console_subscriber::init();
+    config::init_config_manager()?;
+    let cmg = config::get_config_manager();
+    let grcp_service_ip = cmg.get_grpc_service_ip();
+    let rest_service_ip = cmg.get_rest_service_ip();
     let grpc_handle = tokio::spawn(async move {
-        start_grpc_server(&grpc_config)
+        start_grpc_server(grcp_service_ip)
             .await
             .expect("Failed to start gRPC server");
     });
-    config.set_port(8080);
-    println!("Http Server 正在 {} 上運行...", config.addr);
-    let http_server = HttpServer::new(|| App::new().service(restful::rest_service()))
-        .bind(config.addr)?
-        .run();
+    println!("Http Server 正在 {} 上運行...", &rest_service_ip);
+    // let http_server = HttpServer::new(|| App::new().service(restful::rest_service()))
+    //     .bind(config.addr)?
+    //     .run();
+    let http_server = plugin_system_rest_server_handle().await?;
     let ctrl_c = async {
         tokio::signal::ctrl_c()
             .await
