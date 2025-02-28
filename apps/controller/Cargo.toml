@@ -1,0 +1,15 @@
+[package]
+name = "controller"
+version = { workspace = true }
+edition = { workspace = true }
+
+[dependencies]
+grpc = { path = "../../libs/grpc", features = ["controller_server"] }
+# tokio = { version = "1.43.0", features = [
+#     "macros",
+#     "rt-multi-thread",
+# ] }
+tokio = { version = "1.43.0", features = ["full"] }
+config = { path = "../../libs/config" }
+actix-web = "4.9.0"
+console-subscriber = "0.4.1"

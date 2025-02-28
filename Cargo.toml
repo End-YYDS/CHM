@@ -1,5 +1,5 @@
 [workspace]
-members = ["agent", "ca", "controller", "libs/*"]
+members = ["apps/*", "libs/*"]
 resolver = "2"
 [workspace.package]
 version = "0.1.0"
