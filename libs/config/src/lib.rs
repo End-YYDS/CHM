@@ -1,5 +1,6 @@
 use std::net::{IpAddr, SocketAddr};
 
+#[derive(Debug, Clone)]
 pub struct Config {
     pub ip: IpAddr,
     pub port: u16,
@@ -28,5 +29,19 @@ impl Config {
             port,
             addr: addr.to_string(),
         }
+    }
+    pub fn set_port(&mut self, port: u16) {
+        self.port = port;
+        self.addr = format!("{}:{}", self.ip, self.port);
+    }
+    pub fn set_ip(&mut self, ip: IpAddr) {
+        self.ip = ip;
+        self.addr = format!("{}:{}", self.ip, self.port);
+    }
+    pub fn set_addr(&mut self, addr: &str) {
+        let socket_addr: SocketAddr = addr.parse().expect("IP is not set");
+        self.ip = socket_addr.ip();
+        self.port = socket_addr.port();
+        self.addr = addr.to_string();
     }
 }
