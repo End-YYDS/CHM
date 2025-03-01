@@ -4,9 +4,8 @@ use plugin_system::plugin_system_rest_server_handle;
 #[actix_web::main]
 async fn main() -> Return<()> {
     // console_subscriber::init();
-    config::init_config_manager()?;
-    let cmg = config::get_config_manager();
-    let grcp_service_ip = cmg.get_grpc_service_ip();
+    let cmg = config::get_config_manager(false);
+    let grcp_service_ip = cmg.get_grpc_service_ip("controller");
     let rest_service_ip = cmg.get_rest_service_ip();
     let grpc_handle = tokio::spawn(async move {
         start_grpc_server(grcp_service_ip)
