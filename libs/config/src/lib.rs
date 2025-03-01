@@ -58,12 +58,12 @@ impl Default for Config {
 }
 impl Config {
     fn load() -> std::io::Result<Self> {
-        let mut config_path = expand_tilde(DEFAULT_CONFIG_PATH);
+        let mut config_path = std::env::current_dir()
+            .expect("Unable to get the current directory")
+            .join("config.json");
+
         if !config_path.exists() {
-            let current_pwd = std::env::current_dir()
-                .expect("Unable to get the current directory")
-                .join("config.json");
-            config_path = current_pwd;
+            config_path = expand_tilde(DEFAULT_CONFIG_PATH);
         }
         let file = std::fs::File::open(config_path)?;
         let config_data: Config = serde_json::from_reader(file)?;
