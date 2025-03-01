@@ -30,6 +30,8 @@ impl Default for Config {
         grpc_ips.insert("controller".to_string(), "127.0.0.1:50051".to_string());
         grpc_ips.insert("ca".to_string(), "127.0.0.1:50052".to_string());
         grpc_ips.insert("agent1".to_string(), "127.0.0.1:50053".to_string());
+        grpc_ips.insert("dns".to_string(), "127.0.0.1:50054".to_string());
+        grpc_ips.insert("dhcp".to_string(), "127.0.0.1:50055".to_string());
         Self {
             trusted_domains: vec![
                 "http://localhost:8080".to_string(),
