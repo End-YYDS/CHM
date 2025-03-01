@@ -20,6 +20,6 @@
         "dhcp": "127.0.0.1:50055",
         "agent1": "127.0.0.1:50053"
     },
-    "CHM_REST_SERVICE_IP": "127.0.0.1:8081",
+    "CHM_REST_SERVICE_IP": "127.0.0.1:8082",
     "DEBUG": true
 }
