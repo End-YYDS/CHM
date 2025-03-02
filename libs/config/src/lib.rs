@@ -134,7 +134,6 @@ fn init_config_manager(debug: Option<bool>) -> std::io::Result<()> {
         Some(true) => ConfigManager::new_with_init()?,
         _ => ConfigManager::new()?,
     };
-    dbg!(&config_manager);
     CONFIG_MANAGER
         .set(config_manager)
         .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Failed to set config manager"))
