@@ -51,7 +51,11 @@ pub async fn plugin_system_rest_server_handle(cmg: &ConfigManager) -> std::io::R
     } else {
         std::env::set_var("RUST_LOG", "actix_web=info");
     }
-    let plugin_dir = std::env::current_dir()?.join("plugins");
+    let plugin_dir = if is_debug{
+        std::env::current_dir()?.join("plugins")
+    }else {
+        std::env::current_exe()?.parent().unwrap().parent().unwrap().join("plugins")
+    };
     if !plugin_dir.exists() {
         std::fs::create_dir_all(&plugin_dir)?;
     }

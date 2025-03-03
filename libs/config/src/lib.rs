@@ -139,9 +139,10 @@ fn init_config_manager(debug: Option<bool>) -> std::io::Result<()> {
         .map_err(|_| std::io::Error::new(std::io::ErrorKind::Other, "Failed to set config manager"))
 }
 
-pub fn get_config_manager(debug: bool) -> &'static ConfigManager {
+pub fn get_config_manager(debug: Option<bool>) -> &'static ConfigManager {
     if CONFIG_MANAGER.get().is_none() {
-        init_config_manager(Some(debug)).expect("Unable to initialize config manager1");
+        let debug_mode = debug.unwrap_or(false);
+        init_config_manager(Some(debug_mode)).expect("Unable to initialize config manager1");
     }
     CONFIG_MANAGER
         .get()
