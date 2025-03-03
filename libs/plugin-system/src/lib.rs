@@ -1,6 +1,6 @@
-mod env_settings;
 mod manager;
 mod types;
+
 use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{
     dev::Server,
@@ -8,8 +8,8 @@ use actix_web::{
     middleware::{DefaultHeaders, Logger},
     web, App, HttpServer, Responder,
 };
+use config::ConfigManager;
 use console::Style;
-use env_settings::{get_env, get_json_array};
 use log::{info, LevelFilter};
 use manager::PluginManager;
 
@@ -20,22 +20,23 @@ async fn list_plugins(manager: web::Data<PluginManager>) -> impl Responder {
     web::Json(manager.get_plugins_meta())
 }
 
-pub async fn plugin_system_rest_server_handle() -> std::io::Result<Server> {
-    let domains = get_json_array("TRUSTED_DOMAINS");
-    let origins = get_json_array("ALLOWED_ORIGINS");
-    let allow_method = get_json_array("ALLOWED_METHODS")
+pub async fn plugin_system_rest_server_handle(cmg: &ConfigManager) -> std::io::Result<Server> {
+    let domains = cmg.get_trusted_domains().to_vec();
+    let origins = cmg.get_allowed_origins().to_vec();
+    let allow_method = cmg
+        .get_allowed_methods()
         .iter()
         .filter_map(|m| m.parse::<Method>().ok())
         .collect::<Vec<Method>>();
-    let allow_headers = get_json_array("ALLOWED_HEADERS")
+    let allow_headers = cmg
+        .get_allowed_headers()
         .iter()
         .filter_map(|h| h.parse::<HeaderName>().ok())
         .collect::<Vec<HeaderName>>();
-    let cors_timeout = get_env("CORS_TIMEOUT", 3600);
+    let cors_timeout = cmg.get_cors_max_age() as usize;
     let csp = format!("script-src 'self' {}", domains.join(" "));
-    let is_debug = get_env("DEBUG", false);
-    let port = get_env("PORT", 8080);
-    let ip = get_env("IP", "127.0.0.1".to_string());
+    let is_debug = cmg.is_debug();
+    let target = cmg.get_rest_service_ip();
 
     env_logger::builder()
         .filter_level(if is_debug {
@@ -50,12 +51,15 @@ pub async fn plugin_system_rest_server_handle() -> std::io::Result<Server> {
     } else {
         std::env::set_var("RUST_LOG", "actix_web=info");
     }
-    let plugin_dir = std::env::current_dir()?.join("plugins");
+    let plugin_dir = if is_debug{
+        std::env::current_dir()?.join("plugins")
+    }else {
+        std::env::current_exe()?.parent().unwrap().parent().unwrap().join("plugins")
+    };
     if !plugin_dir.exists() {
         std::fs::create_dir_all(&plugin_dir)?;
     }
     let blue = Style::new().blue();
-    let target = format!("{}:{}", ip, port);
     let mut manager = PluginManager::new(plugin_dir);
     manager.load_all_plugins()?;
     let plugin_manager = web::Data::new(manager);

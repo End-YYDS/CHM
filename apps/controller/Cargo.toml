@@ -10,8 +10,7 @@ plugin-system = { path = "../../libs/plugin-system" }
 #     "macros",
 #     "rt-multi-thread",
 # ] }
-config = { path = "../../libs/config" }
+config = { workspace = true }
 tokio = { version = "1.43.0", features = ["full"] }
 actix-web = "4.9.0"
 console-subscriber = "0.4.1"
-dotenv = { workspace = true }

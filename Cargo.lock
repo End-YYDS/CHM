@@ -694,7 +694,6 @@ dependencies = [
  "actix-web",
  "config",
  "console-subscriber",
- "dotenv",
  "grpc",
  "plugin-system",
  "tokio",
@@ -849,12 +848,6 @@ dependencies = [
  "quote",
  "syn",
 ]
-
-[[package]]
-name = "dotenv"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 
 [[package]]
 name = "either"
@@ -1857,8 +1850,8 @@ dependencies = [
  "actix-governor",
  "actix-web",
  "async-trait",
+ "config",
  "console",
- "dotenv",
  "env_logger",
  "libloading",
  "log",
