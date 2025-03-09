@@ -1,0 +1,12 @@
+[package]
+name = "DNS"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dotenv = "0.15.0"
+serde = { version = "1.0.218", features = ["derive"] }
+sqlx = { version = "0.8.3", features = ["postgres", "runtime-tokio", "uuid", "macros"] }
+tokio = { version = "1.43.0", features = ["full"] }
+uuid = { version = "1.14.0", features = ["v4", "serde"] }
+thiserror = "2.0.12"
