@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package dns;
+
+service DnsService {
+    rpc AddHost (AddHostRequest) returns (AddHostResponse);
+    rpc GetUuidByHostname (GetUuidByHostnameRequest) returns (UuidResponse);
+    rpc GetIpByUuid (GetIpByUuidRequest) returns (IpResponse);
+    rpc GetHostnameByUuid (GetHostnameByUuidRequest) returns (HostnameResponse);
+    rpc DeleteHost (DeleteHostRequest) returns (DeleteHostResponse);
+}
+
+message AddHostRequest {
+    string hostname = 1;
+    string ip = 2;
+}
+
+message AddHostResponse {
+    string id = 1;
+}
+
+message GetUuidByHostnameRequest {
+    string hostname = 1;
+}
+
+message GetIpByUuidRequest {
+    string id = 1;
+}
+
+message GetHostnameByUuidRequest {
+    string id = 1;
+}
+
+message UuidResponse {
+    string id = 1;
+}
+
+message IpResponse {
+    string ip = 1;
+}
+
+message HostnameResponse {
+    string hostname = 1;
+}
+
+message DeleteHostRequest {
+    string id = 1;
+}
+
+message DeleteHostResponse {
+    bool success = 1;
+}
