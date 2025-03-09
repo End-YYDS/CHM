@@ -1,8 +1,10 @@
 use dns::dns_service_server::{DnsService, DnsServiceServer};
 use dns::{
     AddHostRequest, AddHostResponse, DeleteHostRequest, DeleteHostResponse,
-    GetHostnameByUuidRequest, GetIpByUuidRequest, GetUuidByHostnameRequest, HostnameResponse,
-    IpResponse, UuidResponse,
+    GetUuidByHostnameRequest, GetUuidByIpRequest, 
+    GetHostnameByUuidRequest, GetHostnameByIpRequest, 
+    GetIpByUuidRequest, GetIpByHostnameRequest, 
+    HostnameResponse, IpResponse, UuidResponse,
 };
 use dotenv::dotenv;
 use sqlx::{Error as SqlxError, PgPool};
@@ -35,6 +37,9 @@ pub enum DnsSolverError {
 
     #[error("No entry found for hostname {0}")]
     NotFoundHostname(String),
+
+    #[error("No entry found for IP {0}")]
+    NotFoundIp(String),
 }
 
 impl From<DnsSolverError> for Status {
@@ -46,6 +51,7 @@ impl From<DnsSolverError> for Status {
             DnsSolverError::HostnameAlreadyExists(h) => Status::already_exists(format!("Hostname '{}' already exists", h)),
             DnsSolverError::NotFoundUuid(id) => Status::not_found(format!("No entry found for UUID {}", id)),
             DnsSolverError::NotFoundHostname(h) => Status::not_found(format!("No entry found for hostname {}", h)),
+            DnsSolverError::NotFoundIp(ip) => Status::not_found(format!("No entry found for IP {}", ip)),
         }
     }
 }
@@ -93,7 +99,34 @@ impl DnsSolver {
         row.map(|r| r.id)
            .ok_or(DnsSolverError::NotFoundHostname(hostname.to_string()))
     }
+
+    pub async fn get_uuid_by_ip(&self, ip: IpAddr) -> Result<Uuid, DnsSolverError> {
+        let row = sqlx::query!("SELECT id FROM hosts WHERE ip = $1", ip.to_string())
+            .fetch_optional(&self.pool)
+            .await?;
     
+        row.map(|r| r.id)
+           .ok_or(DnsSolverError::NotFoundIp(ip.to_string()))
+    }
+
+    pub async fn get_hostname_by_uuid(&self, id: Uuid) -> Result<String, DnsSolverError> {
+        let row = sqlx::query!("SELECT hostname FROM hosts WHERE id = $1", id)
+            .fetch_optional(&self.pool)
+            .await?;
+    
+        row.map(|r| r.hostname)
+           .ok_or(DnsSolverError::NotFoundUuid(id))
+    }
+
+    pub async fn get_hostname_by_ip(&self, ip: IpAddr) -> Result<String, DnsSolverError> {
+        let row = sqlx::query!("SELECT hostname FROM hosts WHERE ip = $1", ip.to_string())
+            .fetch_optional(&self.pool)
+            .await?;
+    
+        row.map(|r| r.hostname)
+           .ok_or(DnsSolverError::NotFoundIp(ip.to_string()))
+    }
+
     pub async fn get_ip_by_uuid(&self, id: Uuid) -> Result<IpAddr, DnsSolverError> {
         let row = sqlx::query!("SELECT ip FROM hosts WHERE id = $1", id)
             .fetch_optional(&self.pool)
@@ -103,17 +136,17 @@ impl DnsSolver {
            .transpose()?
            .ok_or(DnsSolverError::NotFoundUuid(id))
     }
-    
-    pub async fn get_hostname_by_uuid(&self, id: Uuid) -> Result<String, DnsSolverError> {
-        let row = sqlx::query!("SELECT hostname FROM hosts WHERE id = $1", id)
+
+    pub async fn get_ip_by_hostname(&self, hostname: &str) -> Result<IpAddr, DnsSolverError> {
+        let row = sqlx::query!("SELECT ip FROM hosts WHERE hostname = $1", hostname)
             .fetch_optional(&self.pool)
             .await?;
     
-        row.map(|r| r.hostname)
-           .ok_or(DnsSolverError::NotFoundUuid(id))
+        row.map(|r| r.ip.parse().map_err(|_| DnsSolverError::InvalidIpFormat))
+           .transpose()?
+           .ok_or(DnsSolverError::NotFoundHostname(hostname.to_string()))
     }
     
-
     pub async fn delete_host(&self, id: Uuid) -> Result<(), DnsSolverError> {
         sqlx::query!("DELETE FROM hosts WHERE id = $1", id)
             .execute(&self.pool)
@@ -158,15 +191,15 @@ impl DnsService for MyDnsService {
         }
     }
 
-    async fn get_ip_by_uuid(
+    async fn get_uuid_by_ip(
         &self,
-        request: Request<GetIpByUuidRequest>,
-    ) -> Result<Response<IpResponse>, Status> {
+        request: Request<GetUuidByIpRequest>,
+    ) -> Result<Response<UuidResponse>, Status> {
         let req = request.into_inner();
-        let id = Uuid::parse_str(&req.id).map_err(|_| Status::invalid_argument("Invalid UUID"))?;
+        let ip: IpAddr = req.ip.parse().map_err(|_| Status::invalid_argument("Invalid IP format"))?;
 
-        match self.solver.get_ip_by_uuid(id).await {
-            Ok(ip) => Ok(Response::new(IpResponse { ip: ip.to_string() })),
+        match self.solver.get_uuid_by_ip(ip).await {
+            Ok(uuid) => Ok(Response::new(UuidResponse { id: uuid.to_string() })),
             Err(e) => Err(e.into()),
         }
     }
@@ -180,6 +213,44 @@ impl DnsService for MyDnsService {
 
         match self.solver.get_hostname_by_uuid(id).await {
             Ok(hostname) => Ok(Response::new(HostnameResponse { hostname })),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    async fn get_hostname_by_ip(
+        &self,
+        request: Request<GetHostnameByIpRequest>,
+    ) -> Result<Response<HostnameResponse>, Status> {
+        let req = request.into_inner();
+        let ip: IpAddr = req.ip.parse().map_err(|_| Status::invalid_argument("Invalid IP format"))?;
+
+        match self.solver.get_hostname_by_ip(ip).await {
+            Ok(hostname) => Ok(Response::new(HostnameResponse { hostname })),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    async fn get_ip_by_uuid(
+        &self,
+        request: Request<GetIpByUuidRequest>,
+    ) -> Result<Response<IpResponse>, Status> {
+        let req = request.into_inner();
+        let id = Uuid::parse_str(&req.id).map_err(|_| Status::invalid_argument("Invalid UUID"))?;
+
+        match self.solver.get_ip_by_uuid(id).await {
+            Ok(ip) => Ok(Response::new(IpResponse { ip: ip.to_string() })),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    async fn get_ip_by_hostname(
+        &self,
+        request: Request<GetIpByHostnameRequest>,
+    ) -> Result<Response<IpResponse>, Status> {
+        let req = request.into_inner();
+
+        match self.solver.get_ip_by_hostname(&req.hostname).await {
+            Ok(ip) => Ok(Response::new(IpResponse { ip: ip.to_string() })),
             Err(e) => Err(e.into()),
         }
     }
