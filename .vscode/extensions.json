@@ -1,0 +1,7 @@
+{
+    "recommendations": [
+        "editorconfig.editorconfig",
+        "1yib.rust-bundle",
+        "dustypomerleau.rust-syntax"
+    ]
+}
