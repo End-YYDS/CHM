@@ -5,6 +5,9 @@ package dns;
 service DnsService {
   rpc AddHost(AddHostRequest) returns (AddHostResponse);
   rpc DeleteHost(DeleteHostRequest) returns (DeleteHostResponse);
+  rpc EditUuid(EditUuidRequest) returns (EditResponse);
+  rpc EditHostname(EditHostnameRequest) returns (EditResponse);
+  rpc EditIp(EditIpRequest) returns (EditResponse);
   rpc GetUuidByHostname(GetUuidByHostnameRequest) returns (UuidResponse);
   rpc GetUuidByIp(GetUuidByIpRequest) returns (UuidResponse);
   rpc GetHostnameByUuid(GetHostnameByUuidRequest) returns (HostnameResponse);
@@ -27,6 +30,25 @@ message DeleteHostRequest {
 }
 
 message DeleteHostResponse {
+  bool success = 1;
+}
+
+message EditUuidRequest {
+  string id = 1;
+  string new_id = 2;
+}
+
+message EditHostnameRequest {
+  string id = 1;
+  string new_hostname = 2;
+}
+
+message EditIpRequest {
+  string id = 1;
+  string new_ip = 2;
+}
+
+message EditResponse {
   bool success = 1;
 }
 

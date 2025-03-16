@@ -22,6 +22,32 @@ pub struct DeleteHostResponse {
     pub success: bool,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EditUuidRequest {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub new_id: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EditHostnameRequest {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub new_hostname: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EditIpRequest {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub new_ip: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct EditResponse {
+    #[prost(bool, tag = "1")]
+    pub success: bool,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetUuidByHostnameRequest {
     #[prost(string, tag = "1")]
     pub hostname: ::prost::alloc::string::String,
@@ -201,6 +227,63 @@ pub mod dns_service_client {
             req.extensions_mut().insert(GrpcMethod::new("dns.DnsService", "DeleteHost"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn edit_uuid(
+            &mut self,
+            request: impl tonic::IntoRequest<super::EditUuidRequest>,
+        ) -> std::result::Result<tonic::Response<super::EditResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/dns.DnsService/EditUuid");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("dns.DnsService", "EditUuid"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn edit_hostname(
+            &mut self,
+            request: impl tonic::IntoRequest<super::EditHostnameRequest>,
+        ) -> std::result::Result<tonic::Response<super::EditResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/dns.DnsService/EditHostname",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("dns.DnsService", "EditHostname"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn edit_ip(
+            &mut self,
+            request: impl tonic::IntoRequest<super::EditIpRequest>,
+        ) -> std::result::Result<tonic::Response<super::EditResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/dns.DnsService/EditIp");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("dns.DnsService", "EditIp"));
+            self.inner.unary(req, path, codec).await
+        }
         pub async fn get_uuid_by_hostname(
             &mut self,
             request: impl tonic::IntoRequest<super::GetUuidByHostnameRequest>,
@@ -359,6 +442,18 @@ pub mod dns_service_server {
             tonic::Response<super::DeleteHostResponse>,
             tonic::Status,
         >;
+        async fn edit_uuid(
+            &self,
+            request: tonic::Request<super::EditUuidRequest>,
+        ) -> std::result::Result<tonic::Response<super::EditResponse>, tonic::Status>;
+        async fn edit_hostname(
+            &self,
+            request: tonic::Request<super::EditHostnameRequest>,
+        ) -> std::result::Result<tonic::Response<super::EditResponse>, tonic::Status>;
+        async fn edit_ip(
+            &self,
+            request: tonic::Request<super::EditIpRequest>,
+        ) -> std::result::Result<tonic::Response<super::EditResponse>, tonic::Status>;
         async fn get_uuid_by_hostname(
             &self,
             request: tonic::Request<super::GetUuidByHostnameRequest>,
@@ -541,6 +636,139 @@ pub mod dns_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = DeleteHostSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/dns.DnsService/EditUuid" => {
+                    #[allow(non_camel_case_types)]
+                    struct EditUuidSvc<T: DnsService>(pub Arc<T>);
+                    impl<
+                        T: DnsService,
+                    > tonic::server::UnaryService<super::EditUuidRequest>
+                    for EditUuidSvc<T> {
+                        type Response = super::EditResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::EditUuidRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as DnsService>::edit_uuid(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = EditUuidSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/dns.DnsService/EditHostname" => {
+                    #[allow(non_camel_case_types)]
+                    struct EditHostnameSvc<T: DnsService>(pub Arc<T>);
+                    impl<
+                        T: DnsService,
+                    > tonic::server::UnaryService<super::EditHostnameRequest>
+                    for EditHostnameSvc<T> {
+                        type Response = super::EditResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::EditHostnameRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as DnsService>::edit_hostname(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = EditHostnameSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/dns.DnsService/EditIp" => {
+                    #[allow(non_camel_case_types)]
+                    struct EditIpSvc<T: DnsService>(pub Arc<T>);
+                    impl<T: DnsService> tonic::server::UnaryService<super::EditIpRequest>
+                    for EditIpSvc<T> {
+                        type Response = super::EditResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::EditIpRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as DnsService>::edit_ip(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = EditIpSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
