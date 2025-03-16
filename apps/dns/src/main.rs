@@ -1,8 +1,8 @@
 use dns::dns_service_server::{DnsService, DnsServiceServer};
 use dns::{
-    AddHostRequest, AddHostResponse, DeleteHostRequest, DeleteHostResponse, GetHostnameByIpRequest,
-    EditUuidRequest, EditHostnameRequest, EditIpRequest, EditResponse, GetHostnameByUuidRequest, 
-    GetIpByHostnameRequest, GetIpByUuidRequest, GetUuidByHostnameRequest, GetUuidByIpRequest, 
+    AddHostRequest, AddHostResponse, DeleteHostRequest, DeleteHostResponse, EditHostnameRequest,
+    EditIpRequest, EditResponse, EditUuidRequest, GetHostnameByIpRequest, GetHostnameByUuidRequest,
+    GetIpByHostnameRequest, GetIpByUuidRequest, GetUuidByHostnameRequest, GetUuidByIpRequest,
     HostnameResponse, IpResponse, UuidResponse,
 };
 use dotenv::dotenv;
@@ -135,10 +135,14 @@ impl DnsSolver {
         if existing.is_some() {
             return Err(DnsSolverError::AlreadyExists(new_hostname.to_string()));
         }
-        
-        sqlx::query!("UPDATE hosts SET hostname = $1 WHERE id = $2", new_hostname, id)
-            .execute(&self.pool)
-            .await?;
+
+        sqlx::query!(
+            "UPDATE hosts SET hostname = $1 WHERE id = $2",
+            new_hostname,
+            id
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
@@ -151,7 +155,7 @@ impl DnsSolver {
         if existing.is_some() {
             return Err(DnsSolverError::AlreadyExists(new_ip.to_string()));
         }
-        
+
         sqlx::query!("UPDATE hosts SET ip = $1 WHERE id = $2", new_ip, id)
             .execute(&self.pool)
             .await?;
