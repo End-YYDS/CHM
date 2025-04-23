@@ -20,6 +20,7 @@ fi
 ```
 添加完成之後再執行`source ~/.bashrc`
 ### zsh
+#### 如果有使用oh-my-zsh的話，需要在plugin中添加`rust`插件
 #### `~/.zshrc`
 ```shell
 fpath+=(~/.zsh/completion)
