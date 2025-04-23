@@ -252,11 +252,26 @@ fn run_backend(action: BackendAction) {
 }
 
 fn run_cmd<S: AsRef<str>>(program: S, args: &[&str], cwd: &str) {
-    if let Err(e) = cmd(program.as_ref(), args)
-        .dir(cwd)
-        .stderr_to_stdout()
-        .run()
-    {
+    let expression = if cfg!(target_os = "windows") {
+        let full_cmd = std::iter::once(program.as_ref())
+            .chain(args.iter().copied())
+            .collect::<Vec<_>>()
+            .join(" ");
+        cmd(
+            "powershell",
+            &[
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                &full_cmd,
+            ],
+        )
+    } else {
+        cmd(program.as_ref(), args)
+    };
+
+    if let Err(e) = expression.dir(cwd).stderr_to_stdout().run() {
         eprintln!("❌ `{}` {:?} 失敗: {}", program.as_ref(), args, e);
         exit(1);
     }

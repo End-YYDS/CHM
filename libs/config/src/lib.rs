@@ -153,7 +153,7 @@ pub fn expand_tilde(path: &str) -> PathBuf {
         #[cfg(not(windows))]
         let home = std::env::var("HOME").expect("無法取得 HOME 環境變數");
         #[cfg(windows)]
-        let home = env::var("USERPROFILE").expect("無法取得 USERPROFILE 環境變數");
+        let home = std::env::var("USERPROFILE").expect("無法取得 USERPROFILE 環境變數");
         let rest = &path[2..];
         PathBuf::from(home).join(rest)
     } else {
