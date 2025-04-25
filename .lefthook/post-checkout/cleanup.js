@@ -1,6 +1,5 @@
 const fs = require("fs");
 const path = require("path");
-console.log(process.argv);
 
 if (process.argv[4] === "1") {
   console.log("Cleaning up build artifacts and dependencies...");
