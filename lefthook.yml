@@ -1,0 +1,4 @@
+post-checkout:
+  jobs:
+    - script: "cleanup.rs"
+      runner: cargo run
