@@ -1,9 +1,7 @@
 use config::get_config_manager;
-use grpc::ca_server::start as start_ca_server;
-use grpc::common::Return;
 #[tokio::main]
-async fn main() -> Return<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let cmg = get_config_manager(None);
-    start_ca_server(cmg).await?;
+    dbg!(cmg);
     Ok(())
 }

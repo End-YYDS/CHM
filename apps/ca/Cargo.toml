@@ -4,6 +4,11 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-grpc = { path = "../../libs/grpc", features = ["ca_server"] }
 tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
 config = { path = "../../libs/config" }
+prost = "0.13.5"
+tonic = "0.13.0"
+tonic-health = "0.13.0"
+
+[build-dependencies]
+tonic-build = "0.13.0"
