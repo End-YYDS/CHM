@@ -1,21 +1,14 @@
-const fs = require("fs");
-const path = require("path");
-
+const { execSync } = require("child_process");
 if (process.argv[4] === "1") {
-  console.log("Cleaning up build artifacts and dependencies...");
+  console.log("Cleaning up untracked & ignored files via git clean -fdX...");
+  try {
 
-  const targetDir = path.join(process.cwd(), "target");
-  if (fs.existsSync(targetDir)) {
-    console.log("Removing Rust target directory...");
-    fs.rmSync(targetDir, { recursive: true, force: true });
+    execSync("git clean -fdX", { stdio: "inherit" });
+    console.log("Cleanup completed.");
+  } catch (err) {
+    console.error("git clean 失败：", err.message);
+    process.exit(1);
   }
-
-  const nodeModulesDir = path.join(process.cwd(), "frontend", "node_modules");
-  if (fs.existsSync(nodeModulesDir)) {
-    console.log("Removing pnpm node_modules directory...");
-    fs.rmSync(nodeModulesDir, { recursive: true, force: true });
-  }
-  console.log("Cleanup completed.");
 } else {
   console.log("No branch switch detected. Skipping cleanup.");
 }
