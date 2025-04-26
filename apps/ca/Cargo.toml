@@ -5,10 +5,12 @@ edition.workspace = true
 
 [dependencies]
 tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
-config = { path = "../../libs/config" }
+config = { workspace = true }
 prost = "0.13.5"
 tonic = "0.13.0"
 tonic-health = "0.13.0"
+openssl = { version = "0.10.72", features = ["vendored"] }
+rpassword = "7.4.0"
 
 [build-dependencies]
 tonic-build = "0.13.0"

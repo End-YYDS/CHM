@@ -22,6 +22,10 @@ pub struct Config {
     rest_service_ip: String,
     #[serde(rename = "DEBUG")]
     debug: bool,
+    #[serde(rename = "CHM_ROOTCA")]
+    rootca: String,
+    #[serde(rename = "CHM_ROOTCA_KEY")]
+    rootca_key: String,
 }
 impl Default for Config {
     fn default() -> Self {
@@ -53,6 +57,8 @@ impl Default for Config {
             grpc_service_ips: grpc_ips,
             rest_service_ip: "127.0.0.1:8080".to_string(),
             debug: true,
+            rootca: "certs/rootca.pem".to_string(),
+            rootca_key: "certs/rootca.key".to_string(),
         }
     }
 }
@@ -123,6 +129,12 @@ impl ConfigManager {
     }
     pub fn get_rest_service_ip(&self) -> &str {
         &self.config.rest_service_ip
+    }
+    pub fn get_rootca_path(&self) -> &str {
+        &self.config.rootca
+    }
+    pub fn get_rootca_key_path(&self) -> &str {
+        &self.config.rootca_key
     }
 }
 

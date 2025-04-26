@@ -28,3 +28,4 @@ dist-ssr
 *.sln
 *.sw?
 .__mf__temp/
+certs/

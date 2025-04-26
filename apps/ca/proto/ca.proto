@@ -1,0 +1,13 @@
+syntax = "proto3";
+package ca;
+
+message CsrRequest {
+    bytes csr = 1;
+}
+message CsrResponse {
+    bytes cert = 1;
+    repeated bytes chain = 2;
+}
+service CA {
+    rpc SignCsr(CsrRequest) returns (CsrResponse);
+}
