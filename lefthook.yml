@@ -1,4 +1,4 @@
 post-checkout:
   jobs:
-    - script: "cleanup.js"
+    - script: "cleanup.cjs"
       runner: node
