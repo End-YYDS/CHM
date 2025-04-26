@@ -3,6 +3,7 @@ name = "ca"
 version.workspace = true
 edition.workspace = true
 
+
 [dependencies]
 tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
 config = { workspace = true }

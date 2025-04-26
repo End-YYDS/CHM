@@ -1,3 +1,10 @@
+pub mod grpc {
+    include!("generated/ca.rs");
+}
+
+
+use grpc::{ca_server::Ca, CsrRequest, CsrResponse};
+use openssl::x509::X509Req;
 use openssl::{
     hash::MessageDigest,
     pkey::{PKey, Private},
@@ -5,6 +12,8 @@ use openssl::{
 };
 use std::fs;
 use std::path::Path;
+use tonic::{Request, Response, Status};
+pub type CaResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 #[allow(unused)]
 pub struct Certificate {
     ca_cert: X509,
@@ -36,7 +45,7 @@ impl Certificate {
         &self,
         csr: &openssl::x509::X509Req,
         days_valid: u32,
-    ) -> Result<X509, Box<dyn std::error::Error>> {
+    ) -> CaResult<(Vec<u8>, Vec<Vec<u8>>)> {
         let mut builder = X509Builder::new()?;
         builder.set_version(2)?;
         builder.set_subject_name(csr.subject_name())?;
@@ -48,6 +57,28 @@ impl Certificate {
         builder.set_not_before(&not_before)?;
         builder.set_not_after(&not_after)?;
         builder.sign(&self.ca_key, MessageDigest::sha256())?;
-        Ok(builder.build())
+        let leaf = builder.build();
+        let cert_der = leaf.to_der()?;
+        let chain_der = vec![self.ca_cert.to_der()?];
+        Ok((cert_der, chain_der))
+    }
+}
+
+pub struct MyCa {
+    pub cert: Certificate,
+}
+
+#[tonic::async_trait]
+impl Ca for MyCa {
+    async fn sign_csr(&self, req: Request<CsrRequest>) -> Result<Response<CsrResponse>, Status> {
+        let csr_bytes = req.into_inner().csr;
+        let csr = X509Req::from_der(&csr_bytes)
+            .or_else(|_| X509Req::from_pem(&csr_bytes))
+            .map_err(|e| Status::invalid_argument(format!("Invalid CSR: {}", e)))?;
+        let (leaf, chain) = self
+            .cert
+            .sign_csr(&csr, 365)
+            .map_err(|e| Status::internal(format!("Sign error: {}", e)))?;
+        Ok(Response::new(CsrResponse { cert: leaf, chain }))
     }
 }
