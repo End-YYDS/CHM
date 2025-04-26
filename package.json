@@ -11,11 +11,14 @@
   },
   "packageManager": "pnpm@10.8.0",
   "dependencies": {
+    "@module-federation/enhanced": "^0.13.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "shadcn": "^2.5.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
+    "@types/node": "^22.15.2",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
     "@vitejs/plugin-react": "^4.3.4",

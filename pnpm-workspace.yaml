@@ -1,3 +1,9 @@
 packages:
   - plugins/*
   - main
+
+ignoredBuiltDependencies:
+  - msw
+
+onlyBuiltDependencies:
+  - esbuild
