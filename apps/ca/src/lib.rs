@@ -2,7 +2,6 @@ pub mod grpc {
     include!("generated/ca.rs");
 }
 
-
 use grpc::{ca_server::Ca, CsrRequest, CsrResponse};
 use openssl::x509::X509Req;
 use openssl::{
