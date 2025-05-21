@@ -5,11 +5,11 @@ edition = "2021"
 
 [dependencies]
 tonic = "0.13.0"
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1.45.0", features = ["macros","rt-multi-thread"] }
 prost = "0.13.5"
 ldap3 = { version = "0.11", default-features = false, features = ["sync"] }
 uuid = { version = "1", features = ["v4"] }
-rand = { version = "0.8", features = ["std"] }
+rand = { version = "0.9.1", features = ["std","os_rng"] }
 serde_json = "1.0"
 sha2 = "0.10"
 base64 = "0.22.1"

@@ -6,8 +6,8 @@ use ldap::{
     UserIdRequest, UserListResponse, UserRequest,
 };
 use ldap3::{result::Result as LdapResult, Ldap, LdapConnAsync, Mod, Scope, SearchEntry};
-use rand::{rngs::OsRng, RngCore};
-use serde_json;
+use rand::rngs::OsRng;
+use rand::TryRngCore;
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;
@@ -77,12 +77,12 @@ fn generate_id_from_uuid() -> String {
 
 fn hash_password_ssha(password: &str) -> String {
     let mut salt = [0u8; 8];
-    let mut rng = OsRng::default();
-    rng.fill_bytes(&mut salt);
+    let mut rng: OsRng = Default::default();
+    rng.try_fill_bytes(&mut salt).unwrap();
 
     let mut hasher = Sha256::new();
     hasher.update(password.as_bytes());
-    hasher.update(&salt);
+    hasher.update(salt);
     let digest = hasher.finalize();
 
     let mut ssha = Vec::new();
@@ -114,7 +114,7 @@ impl LdapService for MyLdapService {
         let dn = format!("uid={},ou=Users,dc=example,dc=com", req.uid);
 
         let filter = format!("(uid={})", req.uid);
-        let base_dn = format!("ou=Users,dc=example,dc=com");
+        let base_dn = "ou=Users,dc=example,dc=com".to_owned();
         let (results, _) = ldap
             .search(&base_dn, Scope::OneLevel, &filter, vec!["dn"])
             .await
@@ -205,7 +205,7 @@ impl LdapService for MyLdapService {
                 let value = if k == "userPassword" {
                     hash_password_ssha(&v)
                 } else {
-                    v
+                    v.to_string()
                 };
                 Mod::Replace(k, vec![value].into_iter().collect())
             })
@@ -252,7 +252,7 @@ impl LdapService for MyLdapService {
             .into_iter()
             .filter_map(|entry| {
                 let entry = SearchEntry::construct(entry);
-                entry.attrs.get("uid").and_then(|v| v.get(0)).cloned()
+                entry.attrs.get("uid").and_then(|v| v.first()).cloned()
             })
             .collect();
 
@@ -295,16 +295,16 @@ impl LdapService for MyLdapService {
         let entry = SearchEntry::construct(results[0].clone());
         let attrs = &entry.attrs;
         let json_map = serde_json::json!({
-            "uid": attrs.get("uid").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "cn": attrs.get("cn").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "sn": attrs.get("sn").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "uidNumber": attrs.get("uidNumber").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "gidNumber": attrs.get("gidNumber").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "homeDirectory": attrs.get("homeDirectory").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "loginShell": attrs.get("loginShell").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "givenName": attrs.get("givenName").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "displayName": attrs.get("displayName").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "gecos": attrs.get("gecos").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
+            "uid": attrs.get("uid").and_then(|v| v.first()).cloned().unwrap_or_default(),
+            "cn": attrs.get("cn").and_then(|v| v.first()).cloned().unwrap_or_default(),
+            "sn": attrs.get("sn").and_then(|v| v.first()).cloned().unwrap_or_default(),
+            "uidNumber": attrs.get("uidNumber").and_then(|v| v.first()).cloned().unwrap_or_default(),
+            "gidNumber": attrs.get("gidNumber").and_then(|v| v.first()).cloned().unwrap_or_default(),
+            "homeDirectory": attrs.get("homeDirectory").and_then(|v| v.first()).cloned().unwrap_or_default(),
+            "loginShell": attrs.get("loginShell").and_then(|v| v.first()).cloned().unwrap_or_default(),
+            "givenName": attrs.get("givenName").and_then(|v| v.first()).cloned().unwrap_or_default(),
+            "displayName": attrs.get("displayName").and_then(|v| v.first()).cloned().unwrap_or_default(),
+            "gecos": attrs.get("gecos").and_then(|v| v.first()).cloned().unwrap_or_default(),
         });
 
         Ok(Response::new(UserDetailResponse {
@@ -374,9 +374,9 @@ impl LdapService for MyLdapService {
         let dn = format!("uid={},ou=Users,dc=example,dc=com", req.uid);
 
         let mod_op = if req.enable {
-            Mod::Delete("shadowExpire".into(), HashSet::<&str>::new())
+            Mod::Delete("shadowExpire", HashSet::<&str>::new())
         } else {
-            Mod::Replace("shadowExpire".into(), vec!["1"].into_iter().collect())
+            Mod::Replace("shadowExpire", vec!["1"].into_iter().collect())
         };
 
         ldap.modify(&dn, vec![mod_op])
@@ -494,7 +494,7 @@ impl LdapService for MyLdapService {
                 .into_iter()
                 .filter_map(|e| {
                     let entry = SearchEntry::construct(e);
-                    entry.attrs.get("cn").and_then(|v| v.get(0)).cloned()
+                    entry.attrs.get("cn").and_then(|v| v.first()).cloned()
                 })
                 .collect();
             return Ok(Response::new(GroupDetailResponse {
@@ -517,8 +517,8 @@ impl LdapService for MyLdapService {
         let entry = SearchEntry::construct(results[0].clone());
         let attrs = &entry.attrs;
         let json_map = serde_json::json!({
-            "cn": attrs.get("cn").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "gidNumber": attrs.get("gidNumber").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
+            "cn": attrs.get("cn").and_then(|v| v.first()).cloned().unwrap_or_default(),
+            "gidNumber": attrs.get("gidNumber").and_then(|v| v.first()).cloned().unwrap_or_default(),
             "memberUid": attrs.get("memberUid").cloned().unwrap_or_default(), // 這是 Vec<String>
         });
 
@@ -695,7 +695,7 @@ impl LdapService for MyLdapService {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let addr = "[::1]:50051".parse()?;
-    let server = MyLdapService::default();
+    let server: MyLdapService = Default::default();
 
     println!("gRPC server running on {}", addr);
 
