@@ -57,7 +57,7 @@ impl From<LdapServiceError> for Status {
 }
 
 async fn bind() -> LdapResult<Ldap> {
-    let url = "ldap://192.168.56.2:389";
+    let url = "ldap://my-openldap-container.orb.local:389";
     let (conn, mut ldap) = LdapConnAsync::new(url).await?;
     ldap3::drive!(conn);
     ldap.simple_bind("cn=admin,dc=example,dc=com", "admin")
