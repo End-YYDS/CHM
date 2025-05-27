@@ -5,9 +5,11 @@ edition.workspace = true
 
 
 [dependencies]
-tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.43.0", features = ["rt","macros","rt-multi-thread","fs"] }
+actix-web = { version = "4.11.0", features = ["openssl"] }
 config = { workspace = true }
 prost = "0.13.5"
+prost-types = "0.13.5"
 tonic = "0.13.0"
 tonic-health = "0.13.0"
 openssl = { version = "0.10.72", features = ["vendored"] }
