@@ -92,11 +92,11 @@ impl MiniController {
         let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
         let cert = X509::from_pem(cert_bytes)
             .or_else(|_| X509::from_der(cert_bytes))
-            .map_err(|e| format!("解析 leaf cert 失败: {}", e))?;
+            .map_err(|e| format!("解析Leaf失敗: {}", e))?;
         builder.set_certificate(&cert)?;
         let pkey = PKey::private_key_from_pem(key_bytes)
             .or_else(|_| PKey::private_key_from_der(key_bytes))
-            .map_err(|e| format!("解析 private key 失败: {}", e))?;
+            .map_err(|e| format!("解析PrivateKey失敗: {}", e))?;
         builder.set_private_key(&pkey)?;
         builder.check_private_key()?;
         Ok(builder)

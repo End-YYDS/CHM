@@ -1,6 +1,7 @@
 pub mod grpc {
     include!("generated/ca.rs");
 }
+pub mod config;
 pub mod mini_controller;
 
 use grpc::{ca_server::Ca, CsrRequest, CsrResponse};
@@ -14,10 +15,13 @@ use openssl::{
     x509::{X509Builder, X509},
 };
 use std::fs;
+use std::io::Write;
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
 use std::sync::Arc;
+use tonic::transport::{Identity, ServerTlsConfig};
 use tonic::{Request, Response, Status};
+use tonic_health::server::health_reporter;
 pub type CaResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub type SignedCert = Vec<u8>;
 pub type ChainCerts = Vec<SignedCert>;
@@ -30,15 +34,30 @@ pub struct Certificate {
 }
 #[allow(unused)]
 impl Certificate {
-    pub fn load<C: AsRef<Path>, K: AsRef<Path>, S: AsRef<[u8]>>(
-        cert_path: C,
-        key_path: K,
-        passphrase: S,
+    /// 從指定的憑證和金鑰檔案載入 CA 憑證和金鑰
+    /// # 參數
+    /// - `cert_path`: CA 憑證檔案路徑
+    /// - `key_path`: CA 金鑰檔案路徑
+    /// - `passphrase`: 金鑰的密碼短語
+    /// # 回傳
+    /// - `Ok(Certificate)`：載入成功，返回憑證和金鑰
+    /// - `Err(e)`：若任何步驟失敗，回傳錯誤
+    pub fn load<P: AsRef<Path>>(
+        cert_path: P,
+        key_path: P,
+        passphrase: String,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let cert_pem = fs::read(&cert_path)?;
-        let ca_cert = X509::from_pem(&cert_pem)?;
         let key_pem = fs::read(&key_path)?;
-        let ca_key = PKey::private_key_from_pem_passphrase(&key_pem, passphrase.as_ref())?;
+        let ca_cert = X509::from_pem(&cert_pem)
+            .or_else(|_| X509::from_der(&cert_pem))
+            .map_err(|e| format!("無法解析CA憑: {}", e))?;
+        let ca_key = if passphrase.is_empty() {
+            PKey::private_key_from_pem(&key_pem)
+        } else {
+            PKey::private_key_from_pem_passphrase(&key_pem, passphrase.as_bytes())
+        }
+        .map_err(|e| format!("無法解析CA私鑰: {}", e))?;
         Ok(Certificate { ca_cert, ca_key })
     }
 
@@ -49,6 +68,13 @@ impl Certificate {
     pub fn get_ca_key(&self) -> &openssl::pkey::PKey<openssl::pkey::Private> {
         &self.ca_key
     }
+    /// 簽署 CSR 並返回簽署的憑證和 CA 憑證鏈
+    /// # 參數
+    /// - `csr`: 要簽署的 CSR (X509Req)
+    /// - `days_valid`: 簽署的憑證有效天數
+    /// # 回傳
+    /// - `Ok((SignedCert, ChainCerts))`：簽署的憑證和 CA 憑證鏈
+    /// - `Err(e)`：若任何步驟失敗，回傳錯誤
     pub fn sign_csr(
         &self,
         csr: &openssl::x509::X509Req,
@@ -128,6 +154,50 @@ impl Certificate {
 
         Ok((key_pem, csr_pem))
     }
+    pub fn save_cert(filename: &str, cert: SignedCert, private_key: PrivateKey) -> CaResult<()> {
+        let key_path = Path::new("certs").join(format!("{}.key", filename));
+        let cert_path = Path::new("certs").join(format!("{}.pem", filename));
+        let mut f = fs::File::create(cert_path)?;
+        let mut f_key = fs::File::create(key_path)?;
+        let r = X509::from_der(&cert)
+            .or_else(|_| X509::from_pem(&cert))
+            .map_err(|e| format!("解析憑證失敗: {}", e))?;
+        let r = String::from_utf8(r.to_pem()?)?;
+        f.write_all(r.as_bytes())?;
+        f_key.write_all(&private_key)?;
+        Ok(())
+    }
+    pub fn load_cert<P: AsRef<Path>>(path: P) -> CaResult<X509> {
+        let cert_pem = fs::read(path)?;
+        X509::from_pem(&cert_pem)
+            .or_else(|_| X509::from_der(&cert_pem))
+            .map_err(|e| format!("無法解析憑證: {}", e).into())
+    }
+    pub fn load_key<P: AsRef<Path>>(path: P, passphrase: Option<&str>) -> CaResult<PKey<Private>> {
+        let key_pem = fs::read(path)?;
+        if let Some(pass) = passphrase {
+            PKey::private_key_from_pem_passphrase(&key_pem, pass.as_bytes())
+                .map_err(|e| format!("無法解析私鑰: {}", e).into())
+        } else {
+            PKey::private_key_from_pem(&key_pem).map_err(|e| format!("無法解析私鑰: {}", e).into())
+        }
+    }
+    pub fn cert_from_path(
+        cert_name: &str,
+        passphrase: Option<&str>,
+    ) -> CaResult<(PrivateKey, SignedCert)> {
+        let cert_path = Path::new("certs").join(format!("{}.pem", cert_name));
+        if !cert_path.exists() {
+            return Err(format!("憑證檔案 {} 不存在", cert_path.display()).into());
+        }
+        let key_path = Path::new("certs").join(format!("{}.key", cert_name));
+        if !key_path.exists() {
+            return Err(format!("金鑰檔案 {} 不存在", key_path.display()).into());
+        }
+        let ca_cert = Self::load_cert(cert_path)?;
+        let ca_key = Self::load_key(key_path, passphrase)?;
+        Ok((ca_key.private_key_to_pem_pkcs8()?, ca_cert.to_pem()?))
+    }
 }
 
 pub struct MyCa {
@@ -153,6 +223,17 @@ pub async fn start_grpc(
     addr: SocketAddr,
     cert_handler: Arc<Certificate>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    // 設定 TLS
+    let (key, cert) = Certificate::cert_from_path("ca_grpc", None)?;
+    let identity = Identity::from_pem(cert, key);
+    let tls = ServerTlsConfig::new().identity(identity);
+    // ----------
+    // 啟動健康檢查服務
+    let (health_reporter, health_service) = health_reporter();
+    health_reporter
+        .set_serving::<grpc::ca_server::CaServer<MyCa>>()
+        .await;
+    // ----------
     let svc = grpc::ca_server::CaServer::new(MyCa { cert: cert_handler });
     println!("gRPC server listening on {}", addr);
     let shutdown_signal = async {
@@ -160,9 +241,14 @@ pub async fn start_grpc(
             .await
             .expect("failed to listen for Ctrl-C");
         println!("收到CtrlC,開始關閉gRPC...");
+        health_reporter
+            .set_not_serving::<grpc::ca_server::CaServer<MyCa>>()
+            .await;
     };
     tonic::transport::Server::builder()
+        .tls_config(tls)?
         .add_service(svc)
+        .add_service(health_service)
         .serve_with_shutdown(addr, shutdown_signal)
         .await?;
     Ok(())

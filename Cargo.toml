@@ -1,9 +1,8 @@
 [workspace]
-members = ["apps/*", "libs/*", "xtask"]
+members = ["apps/ca", "xtask"]
 resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
-config = { path = "./libs/config" }

@@ -1,48 +1,81 @@
-use std::{
-    fs,
-    io::Write,
-    path::{Path, PathBuf},
-    sync::Arc,
+use ca::{
+    config::{config, NEED_EXAMPLE},
+    mini_controller::{MiniController, MiniResult},
+    *,
 };
-
-use ca::*;
-use config::get_config_manager;
 use openssl::x509::X509Req;
+use std::sync::atomic::Ordering::Relaxed;
+use std::{env, fs, io::Write, net::SocketAddr, path::Path, sync::Arc};
 #[actix_web::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let marker_path = PathBuf::from("first_run.done");
+async fn main() -> CaResult<()> {
+    let args: Vec<String> = env::args().collect();
+    let identity = ("com", "example", "chm");
+    if args.iter().any(|a| a == "--init-config") {
+        NEED_EXAMPLE.store(true, Relaxed);
+        let _ = config(identity);
+        return Ok(());
+    }
+    let (cmg, project_dir) = config(identity)?;
+    let marker_path = Path::new(project_dir.data_dir()).join("first_run.done");
+    if let Some(parent) = marker_path.parent() {
+        fs::create_dir_all(parent)?;
+    }
     let first_run = !marker_path.exists();
-    let cmg = get_config_manager(None);
     let ca_passwd = rpassword::prompt_password("Enter CA passphrase: ")?;
-    let addr = cmg.get_grpc_service_ip("ca").parse()?;
+    let addr = SocketAddr::new(cmg.server.host.parse()?, cmg.server.port);
     let cert_handler = Arc::new(Certificate::load(
-        cmg.get_rootca_path(),
-        cmg.get_rootca_key_path(),
+        cmg.certificate.rootca,
+        cmg.certificate.rootca_key,
         ca_passwd,
     )?);
     if first_run {
-        // 產生mini controller 的初始憑證,並將私鑰保存至certs資料夾內
-        let mini_cert: (PrivateKey, CsrCert) = Certificate::generate_csr(
-            4096,
-            "TW",
-            "Taipei",
-            "Taipei",
-            "CHM Organization",
-            "miniC.example.com",
-            &["127.0.0.1"],
-        )?;
-        let key = Path::new("certs").join("mini_controller.key");
-        let mut f = fs::File::create(key)?;
-        f.write_all(mini_cert.0.as_slice())?;
-        let mini_csr = X509Req::from_pem(&mini_cert.1)?;
-        let mini_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&mini_csr, 365)?;
-        let mut mini_c = mini_controller::MiniController::new(Some(mini_sign.0), Some(mini_cert.0));
-        mini_c.save_cert("mini_controller.pem")?;
-        mini_c
-            .start(addr, marker_path.clone())
-            .await
-            .expect("啟動Web服務失敗");
+        let mut mini_c = mini_controller_cert(&cert_handler)?;
+        ca_grpc_cert(&cert_handler)?;
+        mini_c.start(addr, marker_path.clone()).await?;
     }
-    start_grpc(addr, cert_handler).await?;
+    if marker_path.exists() {
+        start_grpc(addr, cert_handler).await?;
+    }
+    Ok(())
+}
+
+fn mini_controller_cert(cert_handler: &Certificate) -> MiniResult<MiniController> {
+    // 產生mini controller 的初始憑證,並將私鑰保存至certs資料夾內
+    let mini_cert: (PrivateKey, CsrCert) = Certificate::generate_csr(
+        4096,
+        "TW",
+        "Taipei",
+        "Taipei",
+        "CHM Organization",
+        "miniC.example.com",
+        &["127.0.0.1"],
+    )?;
+    let key = Path::new("certs").join("mini_controller.key");
+    let mut f = fs::File::create(key)?;
+    f.write_all(mini_cert.0.as_slice())?;
+    let mini_csr = X509Req::from_pem(&mini_cert.1)?;
+    let mini_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&mini_csr, 365)?;
+    let mini_c = mini_controller::MiniController::new(Some(mini_sign.0), Some(mini_cert.0));
+    mini_c.save_cert("mini_controller.pem")?;
+    Ok(mini_c)
+}
+
+fn ca_grpc_cert(cert_handler: &Certificate) -> CaResult<()> {
+    // 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
+    let ca_grpc: (PrivateKey, CsrCert) = Certificate::generate_csr(
+        4096,
+        "TW",
+        "Taipei",
+        "Taipei",
+        "CHM Organization",
+        "ca.example.com",
+        &["127.0.0.1"],
+    )?;
+
+    // let mut f = fs::File::create(key)?;
+    // f.write_all(ca_grpc_cert.0.as_slice())?;
+    let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
+    let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365)?;
+    Certificate::save_cert("ca_grpc", ca_grpc_sign.0, ca_grpc.0)?;
     Ok(())
 }

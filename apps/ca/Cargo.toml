@@ -7,13 +7,21 @@ edition.workspace = true
 [dependencies]
 tokio = { version = "1.43.0", features = ["rt","macros","rt-multi-thread","fs"] }
 actix-web = { version = "4.11.0", features = ["openssl"] }
-config = { workspace = true }
 prost = "0.13.5"
 prost-types = "0.13.5"
-tonic = "0.13.0"
+tonic = { version = "0.13.0", features = ["tls-ring"] }
 tonic-health = "0.13.0"
 openssl = { version = "0.10.72", features = ["vendored"] }
 rpassword = "7.4.0"
+anyhow = "1.0.98"
+config = { version = "0.15.11", default-features = false, features = ["toml"] }
+directories = "6.0.0"
+serde = { version = "1.0.219", features = ["derive"] }
+toml = "0.8.22"
 
 [build-dependencies]
 tonic-build = "0.13.0"
+
+[[bin]]
+name = "CHM_CA"
+path = "src/main.rs"
