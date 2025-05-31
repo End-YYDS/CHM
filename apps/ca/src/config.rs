@@ -1,4 +1,3 @@
-use anyhow::{Ok, Result};
 use config::{Config, Environment, File};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
@@ -41,6 +40,8 @@ pub struct Certificate {
     pub rootca: String,
     #[serde(default = "Certificate::default_rootca_key")]
     pub rootca_key: String,
+    #[serde(default = "Certificate::default_passphrase")]
+    pub passphrase: String,
 }
 
 impl Certificate {
@@ -50,6 +51,9 @@ impl Certificate {
     fn default_rootca_key() -> String {
         "certs/rootCA.key".into()
     }
+    fn default_passphrase() -> String {
+        "".into()
+    }
 }
 
 impl Default for Certificate {
@@ -57,6 +61,7 @@ impl Default for Certificate {
         Certificate {
             rootca: Certificate::default_rootca(),
             rootca_key: Certificate::default_rootca_key(),
+            passphrase: "".into(),
         }
     }
 }
@@ -66,8 +71,8 @@ pub struct Develop {
     pub debug: bool,
 }
 
-#[derive(Debug, Deserialize, Serialize,Default)]
-pub struct Controller{
+#[derive(Debug, Deserialize, Serialize, Default)]
+pub struct Controller {
     pub fingerprint: String,
 }
 
@@ -88,7 +93,7 @@ impl Settings {
         //    Linux:   $XDG_CONFIG_HOME / $HOME/.config
         //    macOS:   ~/Library/Application Support
         //    Windows: {FOLDERID_RoamingAppData}
-        let system_path = PathBuf::from(format!("/etc/{}/config.toml",PROJECT_NAME));
+        let system_path = PathBuf::from(format!("/etc/{}/config.toml", PROJECT_NAME));
         let user_path = proj_dirs.config_dir().join("config.toml");
         let local_example = PathBuf::from("config/config.toml");
         let builder = Config::builder()
@@ -102,7 +107,7 @@ impl Settings {
             .add_source(Environment::with_prefix(PROJECT_NAME).separator("__"));
         builder.build()?.try_deserialize()
     }
-    pub fn init(path: &PathBuf) -> Result<(), anyhow::Error> {
+    pub fn init(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
         let cfg = Settings::default();
         let s = toml::to_string_pretty(&cfg)?;
         if let Some(parent) = path.parent() {
@@ -116,7 +121,7 @@ impl Settings {
 
 pub fn config(
     (qualifier, organization, application): (&str, &str, &str),
-) -> Result<(Settings, ProjectDirs)> {
+) -> Result<(Settings, ProjectDirs), Box<dyn std::error::Error>> {
     let proj_dirs =
         ProjectDirs::from(qualifier, organization, application).expect("invalid project name");
     if NEED_EXAMPLE.load(Relaxed) {

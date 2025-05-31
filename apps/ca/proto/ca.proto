@@ -3,6 +3,7 @@ package ca;
 
 message CsrRequest {
     bytes csr = 1;
+    uint32 days = 2;
 }
 message CsrResponse {
     bytes cert = 1;

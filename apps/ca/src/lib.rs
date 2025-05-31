@@ -2,17 +2,18 @@ pub mod grpc {
     include!("generated/ca.rs");
 }
 pub mod config;
+mod connection;
+pub mod crl;
 pub mod mini_controller;
-
-use grpc::{ca_server::Ca, CsrRequest, CsrResponse};
 use mini_controller::MiniResult;
-use openssl::rsa::Rsa;
-use openssl::x509::extension::SubjectAlternativeName;
-use openssl::x509::{X509NameBuilder, X509Req, X509ReqBuilder};
 use openssl::{
-    hash::MessageDigest,
+    hash::{hash, MessageDigest},
     pkey::{PKey, Private},
-    x509::{X509Builder, X509},
+    rsa::Rsa,
+    x509::{
+        extension::SubjectAlternativeName, X509Builder, X509NameBuilder, X509Req, X509ReqBuilder,
+        X509,
+    },
 };
 use std::fs;
 use std::io::Write;
@@ -20,17 +21,20 @@ use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
 use std::sync::Arc;
 use tonic::transport::{Identity, ServerTlsConfig};
-use tonic::{Request, Response, Status};
 use tonic_health::server::health_reporter;
-pub type CaResult<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+
+use crate::{connection::MyCa, crl::SimpleCrl};
+pub type CaResult<T> = Result<T, Box<dyn std::error::Error>>;
 pub type SignedCert = Vec<u8>;
 pub type ChainCerts = Vec<SignedCert>;
 pub type PrivateKey = Vec<u8>;
 pub type CsrCert = Vec<u8>;
+
 #[allow(unused)]
 pub struct Certificate {
     ca_cert: X509,
     ca_key: PKey<Private>,
+    crl: Arc<crl::CrlVerifier>,
 }
 #[allow(unused)]
 impl Certificate {
@@ -58,15 +62,22 @@ impl Certificate {
             PKey::private_key_from_pem_passphrase(&key_pem, passphrase.as_bytes())
         }
         .map_err(|e| format!("無法解析CA私鑰: {}", e))?;
-        Ok(Certificate { ca_cert, ca_key })
+    let crl = Arc::new(crl::CrlVerifier::new(SimpleCrl::new()));
+        Ok(Certificate { ca_cert, ca_key, crl})
     }
 
-    pub fn get_ca_cert(&self) -> &openssl::x509::X509 {
+    pub fn get_ca_cert(&self) -> &X509 {
         &self.ca_cert
     }
 
-    pub fn get_ca_key(&self) -> &openssl::pkey::PKey<openssl::pkey::Private> {
+    pub fn get_ca_key(&self) -> &PKey<Private> {
         &self.ca_key
+    }
+    pub fn get_crl(&self) -> Arc<crl::CrlVerifier> {
+        self.crl.clone()
+    }
+    pub fn set_crl(&mut self, crl: Arc<crl::CrlVerifier>) {
+        self.crl = crl;
     }
     /// 簽署 CSR 並返回簽署的憑證和 CA 憑證鏈
     /// # 參數
@@ -75,11 +86,7 @@ impl Certificate {
     /// # 回傳
     /// - `Ok((SignedCert, ChainCerts))`：簽署的憑證和 CA 憑證鏈
     /// - `Err(e)`：若任何步驟失敗，回傳錯誤
-    pub fn sign_csr(
-        &self,
-        csr: &openssl::x509::X509Req,
-        days_valid: u32,
-    ) -> CaResult<(SignedCert, ChainCerts)> {
+    pub fn sign_csr(&self, csr: &X509Req, days_valid: u32) -> CaResult<(SignedCert, ChainCerts)> {
         let mut builder = X509Builder::new()?;
         builder.set_version(2)?;
         builder.set_subject_name(csr.subject_name())?;
@@ -154,6 +161,7 @@ impl Certificate {
 
         Ok((key_pem, csr_pem))
     }
+
     pub fn save_cert(filename: &str, cert: SignedCert, private_key: PrivateKey) -> CaResult<()> {
         let key_path = Path::new("certs").join(format!("{}.key", filename));
         let cert_path = Path::new("certs").join(format!("{}.pem", filename));
@@ -198,24 +206,26 @@ impl Certificate {
         let ca_key = Self::load_key(key_path, passphrase)?;
         Ok((ca_key.private_key_to_pem_pkcs8()?, ca_cert.to_pem()?))
     }
-}
-
-pub struct MyCa {
-    pub cert: Arc<Certificate>,
-}
-
-#[tonic::async_trait]
-impl Ca for MyCa {
-    async fn sign_csr(&self, req: Request<CsrRequest>) -> Result<Response<CsrResponse>, Status> {
-        let csr_bytes = req.into_inner().csr;
-        let csr = X509Req::from_der(&csr_bytes)
-            .or_else(|_| X509Req::from_pem(&csr_bytes))
-            .map_err(|e| Status::invalid_argument(format!("Invalid CSR: {}", e)))?;
-        let (leaf, chain) = self
-            .cert
-            .sign_csr(&csr, 365)
-            .map_err(|e| Status::internal(format!("Sign error: {}", e)))?;
-        Ok(Response::new(CsrResponse { cert: leaf, chain }))
+    pub fn cert_fingerprint_sha256(pem: &[u8]) -> CaResult<String> {
+        let cert = X509::from_pem(pem)?;
+        let der = cert.to_der()?;
+        let digest = hash(MessageDigest::sha256(), &der)?;
+        let hex = digest
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<Vec<_>>()
+            .join("");
+        Ok(hex)
+    }
+    pub fn cert_serial_sha256(cert: X509) -> CaResult<String> {
+        let serial = cert.serial_number();
+        let digest = hash(MessageDigest::sha256(), serial.to_bn()?.to_vec().as_slice())?;
+        let hex = digest
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect::<Vec<_>>()
+            .join("");
+        Ok(hex)
     }
 }
 
@@ -226,7 +236,9 @@ pub async fn start_grpc(
     // 設定 TLS
     let (key, cert) = Certificate::cert_from_path("ca_grpc", None)?;
     let identity = Identity::from_pem(cert, key);
-    let tls = ServerTlsConfig::new().identity(identity);
+    let tls = ServerTlsConfig::new().identity(identity).client_ca_root(
+        tonic::transport::Certificate::from_pem(cert_handler.get_ca_cert().to_pem()?),
+    );
     // ----------
     // 啟動健康檢查服務
     let (health_reporter, health_service) = health_reporter();
@@ -234,7 +246,9 @@ pub async fn start_grpc(
         .set_serving::<grpc::ca_server::CaServer<MyCa>>()
         .await;
     // ----------
-    let svc = grpc::ca_server::CaServer::new(MyCa { cert: cert_handler });
+    let svc = grpc::ca_server::CaServer::new(MyCa {
+        cert: cert_handler
+    });
     println!("gRPC server listening on {}", addr);
     let shutdown_signal = async {
         tokio::signal::ctrl_c()

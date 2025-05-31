@@ -3,6 +3,8 @@
 pub struct CsrRequest {
     #[prost(bytes = "vec", tag = "1")]
     pub csr: ::prost::alloc::vec::Vec<u8>,
+    #[prost(uint32, tag = "2")]
+    pub days: u32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CsrResponse {
