@@ -20,32 +20,41 @@ use std::io::Write;
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
 use std::sync::Arc;
-use tonic::transport::{Identity, ServerTlsConfig};
+use tonic::{transport::{Identity, ServerTlsConfig}, Request, Status};
 use tonic_health::server::health_reporter;
 
 use crate::{connection::MyCa, crl::SimpleCrl};
+/// 定義一個簡化的結果類型，用於返回結果或錯誤
 pub type CaResult<T> = Result<T, Box<dyn std::error::Error>>;
+/// 定義已經簽署的憑證類型
 pub type SignedCert = Vec<u8>;
+/// 定義憑證鏈類型，包含已簽署的憑證和 CA 憑證
 pub type ChainCerts = Vec<SignedCert>;
+/// 定義私鑰類型
 pub type PrivateKey = Vec<u8>;
+/// 定義 CSR 憑證類型
 pub type CsrCert = Vec<u8>;
 
 #[allow(unused)]
+/// 憑證處理器，負責載入 CA 憑證和金鑰，簽署 CSR，並提供 CRL 驗證功能
 pub struct Certificate {
+    /// CA 憑證
     ca_cert: X509,
+    /// CA 私鑰
     ca_key: PKey<Private>,
+    /// CRL 驗證器
     crl: Arc<crl::CrlVerifier>,
 }
 #[allow(unused)]
 impl Certificate {
     /// 從指定的憑證和金鑰檔案載入 CA 憑證和金鑰
     /// # 參數
-    /// - `cert_path`: CA 憑證檔案路徑
-    /// - `key_path`: CA 金鑰檔案路徑
-    /// - `passphrase`: 金鑰的密碼短語
+    /// * `cert_path`: CA 憑證檔案路徑
+    /// * `key_path`: CA 金鑰檔案路徑
+    /// * `passphrase`: 金鑰的密碼短語
     /// # 回傳
-    /// - `Ok(Certificate)`：載入成功，返回憑證和金鑰
-    /// - `Err(e)`：若任何步驟失敗，回傳錯誤
+    /// * `Ok(Certificate)`：載入成功，返回憑證和金鑰
+    /// * `Err(e)`：若任何步驟失敗，回傳錯誤
     pub fn load<P: AsRef<Path>>(
         cert_path: P,
         key_path: P,
@@ -55,7 +64,7 @@ impl Certificate {
         let key_pem = fs::read(&key_path)?;
         let ca_cert = X509::from_pem(&cert_pem)
             .or_else(|_| X509::from_der(&cert_pem))
-            .map_err(|e| format!("無法解析CA憑: {}", e))?;
+            .map_err(|e| format!("無法解析CA憑證: {}", e))?;
         let ca_key = if passphrase.is_empty() {
             PKey::private_key_from_pem(&key_pem)
         } else {
@@ -66,26 +75,39 @@ impl Certificate {
         Ok(Certificate { ca_cert, ca_key, crl})
     }
 
+    /// 獲取RootCA憑證
+    /// # 回傳
+    /// * `&X509`: 返回 CA 憑證的引用
     pub fn get_ca_cert(&self) -> &X509 {
         &self.ca_cert
     }
-
+    /// 獲取RootCA私鑰
+    /// # 回傳
+    /// * `&PKey<Private>`: 返回 CA 私鑰的引用
     pub fn get_ca_key(&self) -> &PKey<Private> {
         &self.ca_key
     }
+    /// 獲取CRL驗證器
+    /// # 回傳
+    /// * `Arc<crl::CrlVerifier>`: 返回 CRL 驗證器的引用
     pub fn get_crl(&self) -> Arc<crl::CrlVerifier> {
         self.crl.clone()
     }
+    /// 設定CRL驗證器
+    /// # 參數
+    /// * `crl`: 要設定的 CRL 驗證器
+    /// # 回傳
+    /// * `()`: 無返回值
     pub fn set_crl(&mut self, crl: Arc<crl::CrlVerifier>) {
         self.crl = crl;
     }
     /// 簽署 CSR 並返回簽署的憑證和 CA 憑證鏈
     /// # 參數
-    /// - `csr`: 要簽署的 CSR (X509Req)
-    /// - `days_valid`: 簽署的憑證有效天數
+    /// * `csr`: 要簽署的 CSR (X509Req)
+    /// * `days_valid`: 簽署的憑證有效天數
     /// # 回傳
-    /// - `Ok((SignedCert, ChainCerts))`：簽署的憑證和 CA 憑證鏈
-    /// - `Err(e)`：若任何步驟失敗，回傳錯誤
+    /// * `Ok((SignedCert, ChainCerts))`：簽署的憑證和 CA 憑證鏈
+    /// * `Err(e)`：若任何步驟失敗，回傳錯誤
     pub fn sign_csr(&self, csr: &X509Req, days_valid: u32) -> CaResult<(SignedCert, ChainCerts)> {
         let mut builder = X509Builder::new()?;
         builder.set_version(2)?;
@@ -108,15 +130,13 @@ impl Certificate {
         Ok((cert_der, chain_der))
     }
     /// 產生 CSR 與對應的私鑰
-    ///
     /// # 參數
-    /// - `key_bits`: RSA 金鑰長度 (e.g. 2048)
-    /// - `country`, `state`, `locality`, `organization`, `common_name`: Subject 欄位
-    /// - `subject_alt_names`: 要加入的 SAN DNS 名稱列表
-    ///
+    /// * `key_bits`: RSA 金鑰長度 (e.g. 2048)
+    /// * `country`, `state`, `locality`, `organization`, `common_name`: Subject 欄位
+    /// * `subject_alt_names`: 要加入的 SAN DNS 名稱列表
     /// # 回傳
-    /// - `Ok((private_key_pem, csr_pem))`：分別是私鑰和 CSR 的 PEM Bytes
-    /// - `Err(e)`：若任何步驟失敗，回傳錯誤
+    /// * `Ok((private_key_pem, csr_pem))`：分別是私鑰和 CSR 的 PEM Bytes
+    /// * `Err(e)`：若任何步驟失敗，回傳錯誤
     pub fn generate_csr(
         key_bits: u32,
         country: &str,
@@ -142,7 +162,6 @@ impl Certificate {
         if !subject_alt_names.is_empty() {
             let mut san_builder = SubjectAlternativeName::new();
             for &name in subject_alt_names {
-                // san_builder.dns(dns);
                 match name.parse::<IpAddr>() {
                     Ok(_) => san_builder.ip(name),   // IP SAN
                     Err(_) => san_builder.dns(name), // DNS SAN
@@ -161,7 +180,13 @@ impl Certificate {
 
         Ok((key_pem, csr_pem))
     }
-
+    /// 儲存憑證和私鑰到指定的檔案
+    /// # 參數
+    /// * `filename`: 檔案名稱 (不含副檔名)
+    /// * `cert`: 簽署的憑證
+    /// * `private_key`: 私鑰
+    /// # 回傳
+    /// * `CaResult<()>`：返回結果，成功時為 Ok，失敗時為 Err
     pub fn save_cert(filename: &str, cert: SignedCert, private_key: PrivateKey) -> CaResult<()> {
         let key_path = Path::new("certs").join(format!("{}.key", filename));
         let cert_path = Path::new("certs").join(format!("{}.pem", filename));
@@ -175,12 +200,23 @@ impl Certificate {
         f_key.write_all(&private_key)?;
         Ok(())
     }
+    /// 從指定的路徑載入憑證
+    /// # 參數
+    /// * `path`: 憑證檔案的路徑
+    /// # 回傳
+    /// * `CaResult<X509>`：返回憑證或錯誤
     pub fn load_cert<P: AsRef<Path>>(path: P) -> CaResult<X509> {
         let cert_pem = fs::read(path)?;
         X509::from_pem(&cert_pem)
             .or_else(|_| X509::from_der(&cert_pem))
             .map_err(|e| format!("無法解析憑證: {}", e).into())
     }
+    /// 從指定的路徑載入私鑰
+    /// # 參數
+    /// * `path`: 私鑰檔案的路徑
+    /// * `passphrase`: 私鑰的密碼短語 (如果有的話)
+    /// # 回傳
+    /// * `CaResult<PKey<Private>>`：返回私鑰或錯誤
     pub fn load_key<P: AsRef<Path>>(path: P, passphrase: Option<&str>) -> CaResult<PKey<Private>> {
         let key_pem = fs::read(path)?;
         if let Some(pass) = passphrase {
@@ -190,6 +226,13 @@ impl Certificate {
             PKey::private_key_from_pem(&key_pem).map_err(|e| format!("無法解析私鑰: {}", e).into())
         }
     }
+    /// 從憑證名稱載入憑證和私鑰
+    /// # 參數
+    /// * `cert_name`: 憑證名稱 (不含副檔名)
+    /// * `passphrase`: 私鑰的密碼短語 (如果有的話)
+    /// # 回傳
+    /// * `CaResult<(PrivateKey, SignedCert)>`：返回私鑰和簽署的憑證
+    /// * `Err(e)`：若任何步驟失敗，回傳錯誤
     pub fn cert_from_path(
         cert_name: &str,
         passphrase: Option<&str>,
@@ -228,7 +271,37 @@ impl Certificate {
         Ok(hex)
     }
 }
+/// 建立一個 gRPC 的 CRL 檢查攔截器
+/// # 參數
+/// * `cert_handler`: 憑證處理器，用於檢查 CRL
+/// # 回傳
+/// * `impl Fn(Request<()>) -> Result<Request<()>, Status>`: 返回一個攔截器函數
+fn make_crl_interceptor(
+    cert_handler: Arc<Certificate>,
+) -> impl Fn(Request<()>) -> Result<Request<()>, Status> + Clone + Send + Sync + 'static {
+    move |req: Request<()>| {
+        let p_certs = req.peer_certs();
+        let peer_certs_slice: Option<&[tonic::transport::CertificateDer]> =
+            p_certs
+                .as_ref()
+                .map(|arc_vec| arc_vec.as_ref().as_slice());
+        if !cert_handler
+            .get_crl()
+            .after_connection_cert_check(peer_certs_slice)
+        {
+            Err(Status::permission_denied("Certificate was Revoked"))
+        } else {
+            Ok(req)
+        }
+    }
+}
 
+/// 啟動 gRPC 服務
+/// # 參數
+/// * `addr`: gRPC 服務的地址
+/// * `cert_handler`: 憑證處理器，用於憑證簽署和 CRL 驗證
+/// # 回傳
+/// * `Result<(), Box<dyn std::error::Error>>`: 返回結果，成功時為 Ok，失敗時為 Err
 pub async fn start_grpc(
     addr: SocketAddr,
     cert_handler: Arc<Certificate>,
@@ -246,9 +319,12 @@ pub async fn start_grpc(
         .set_serving::<grpc::ca_server::CaServer<MyCa>>()
         .await;
     // ----------
-    let svc = grpc::ca_server::CaServer::new(MyCa {
-        cert: cert_handler
-    });
+    let svc = grpc::ca_server::CaServer::with_interceptor(
+        MyCa {
+            cert: cert_handler.clone(),
+        },
+        make_crl_interceptor(cert_handler.clone()),
+    );
     println!("gRPC server listening on {}", addr);
     let shutdown_signal = async {
         tokio::signal::ctrl_c()

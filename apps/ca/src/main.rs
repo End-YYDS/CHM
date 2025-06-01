@@ -31,11 +31,13 @@ async fn main() -> CaResult<()> {
         ca_passwd,
     )?);
     let client_cert = X509::from_pem(&fs::read("certs/grpc_test.pem")?)?;
+
     cert_handler.get_crl().mut_crl().add_revoked_cert(
         &client_cert,
         "".into(),
         CrlVerifier::get_utc(),
     )?;
+    // cert_handler.get_crl().mut_crl().remove_revoked_cert(&client_cert)?;
     cert_handler
         .get_crl()
         .mut_crl()
@@ -52,8 +54,12 @@ async fn main() -> CaResult<()> {
     Ok(())
 }
 
+/// 產生mini controller 的憑證,並將私鑰保存至certs資料夾內
+/// # 參數
+/// * `cert_handler` - 用於簽署憑證的 Certificate 處理器
+/// # 回傳
+/// * `MiniResult<MiniController>` - 返回 MiniController 實例或錯誤
 fn mini_controller_cert(cert_handler: &Certificate) -> MiniResult<MiniController> {
-    // 產生mini controller 的初始憑證,並將私鑰保存至certs資料夾內
     let mini_cert: (PrivateKey, CsrCert) = Certificate::generate_csr(
         4096,
         "TW",
@@ -73,8 +79,12 @@ fn mini_controller_cert(cert_handler: &Certificate) -> MiniResult<MiniController
     Ok(mini_c)
 }
 
+/// 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
+/// # 參數
+/// * `cert_handler` - 用於簽署憑證的 Certificate 處理器
+/// # 回傳
+/// * `CaResult<()>` - 返回結果，表示操作是否成功
 fn ca_grpc_cert(cert_handler: &Certificate) -> CaResult<()> {
-    // 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
     let ca_grpc: (PrivateKey, CsrCert) = Certificate::generate_csr(
         4096,
         "TW",
@@ -89,6 +99,12 @@ fn ca_grpc_cert(cert_handler: &Certificate) -> CaResult<()> {
     Certificate::save_cert("ca_grpc", ca_grpc_sign.0, ca_grpc.0)?;
     Ok(())
 }
+
+/// 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
+/// # 參數
+/// * `cert_handler` - 用於簽署憑證的 Certificate 處理器
+/// # 回傳
+/// * `CaResult<()>` - 返回結果，表示操作是否成功
 #[allow(unused)]
 fn grpc_test_cert(cert_handler: &Certificate) -> CaResult<()> {
     // 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
