@@ -2,19 +2,12 @@
 name = "grpc"
 version.workspace = true
 edition.workspace = true
+[features]
+ca = []
 
 [dependencies]
-prost = { version = "0.13.4" }
-tonic = { version = "0.12.3" }
-tonic-health = { version = "0.12.3" }
-config = { path = "../config" }
-tokio = { version = "1.43.0", features = ["signal"] }
-
+prost = "0.13.5"
+tonic = { version = "0.13.1", features = ["tls-ring"] }
+tonic-health = "0.13.0"
 [build-dependencies]
-tonic-build = "0.12.3"
-
-[features]
-default = []
-client = []
-ca_server = []
-controller_server = []
+tonic-build = "0.13.1"

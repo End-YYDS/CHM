@@ -10,13 +10,12 @@ use std::{env, fs, io::Write, net::SocketAddr, path::Path, sync::Arc};
 #[actix_web::main]
 async fn main() -> CaResult<()> {
     let args: Vec<String> = env::args().collect();
-    let identity = ("com", "example", "chm");
     if args.iter().any(|a| a == "--init-config") {
         NEED_EXAMPLE.store(true, Relaxed);
-        let _ = config(identity);
+        let _ = config();
         return Ok(());
     }
-    let (cmg, project_dir) = config(identity)?;
+    let (cmg, project_dir) = config()?;
     let marker_path = Path::new(project_dir.data_dir()).join("first_run.done");
     if let Some(parent) = marker_path.parent() {
         fs::create_dir_all(parent)?;

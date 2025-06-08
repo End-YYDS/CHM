@@ -1,9 +1,9 @@
 use std::sync::{Mutex, MutexGuard};
 
 use chrono::{DateTime, Utc};
+use grpc::tonic::transport::CertificateDer;
 use openssl::x509::X509;
 use rsntp::SntpClient;
-use tonic::transport::CertificateDer;
 
 use crate::crl::SimpleCrl;
 

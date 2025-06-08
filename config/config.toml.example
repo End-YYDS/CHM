@@ -1,0 +1,14 @@
+[server]
+host = "127.0.0.1"
+port = 50052
+
+[certificate]
+rootca = "certs/rootCA.crt"
+rootca_key = "certs/rootCA.key"
+passphrase = ""
+
+[develop]
+debug = false
+
+[controller]
+fingerprint = ""

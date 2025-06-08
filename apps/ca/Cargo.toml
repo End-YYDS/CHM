@@ -7,10 +7,6 @@ edition.workspace = true
 [dependencies]
 tokio = { version = "1.43.0", features = ["rt","macros","rt-multi-thread","fs"] }
 actix-web = { version = "4.11.0", features = ["openssl"] }
-prost = "0.13.5"
-prost-types = "0.13.5"
-tonic = { version = "0.13.0", features = ["tls-ring","tls-native-roots","tls-webpki-roots"] }
-tonic-health = "0.13.0"
 openssl = { version = "0.10.72", features = ["vendored"] }
 rpassword = "7.4.0"
 config = { version = "0.15.11", default-features = false, features = ["toml"] }
@@ -19,8 +15,8 @@ serde = { version = "1.0.219", features = ["derive"] }
 toml = "0.8.22"
 chrono = { version = "0.4.41", features = ["serde"] }
 rsntp = "4.0.0"
-[build-dependencies]
-tonic-build = "0.13.0"
+grpc = { version = "0.1.0", path = "../../libs/grpc", features = ["ca"] }
+config_loader = { version = "0.1.0", path = "../../libs/config_loader" }
 
 [[bin]]
 name = "CHM_CA"

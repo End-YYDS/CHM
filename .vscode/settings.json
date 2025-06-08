@@ -1,8 +1,9 @@
 {
-    "rust-analyzer.cargo.features": [
-        // "ca_server",
-        // "client",
-        // "controller_server"
-    ],
-    "postman.settings.dotenv-detection-notification-visibility": false
+  // "rust-analyzer.cargo.features": [
+  //   // "ca_server",
+  //   // "client",
+  //   // "controller_server"
+  // ],
+  "rust-analyzer.cargo.allFeatures": true,
+  "postman.settings.dotenv-detection-notification-visibility": false
 }

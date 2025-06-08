@@ -1,4 +1,3 @@
-use config::{Config, Environment, File};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -8,7 +7,6 @@ use std::{
 };
 
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
-const PROJECT_NAME: &str = "CHM";
 #[derive(Debug, Deserialize, Serialize)]
 /// 伺服器設定
 pub struct Server {
@@ -115,23 +113,8 @@ impl Settings {
     /// * `proj_dirs` - 用於獲取使用者配置目錄的 `ProjectDirs` 實例
     /// # 回傳
     /// * `Result<Self, config::ConfigError>` - 返回設定實例或錯誤
-    pub fn new(proj_dirs: &ProjectDirs) -> Result<Self, config::ConfigError> {
-        //    Linux:   $XDG_CONFIG_HOME / $HOME/.config
-        //    macOS:   ~/Library/Application Support
-        //    Windows: {FOLDERID_RoamingAppData}
-        let system_path = PathBuf::from(format!("/etc/{}/config.toml", PROJECT_NAME));
-        let user_path = proj_dirs.config_dir().join("config.toml");
-        let local_example = PathBuf::from("config/config.toml");
-        let builder = Config::builder()
-            // 系統級（不存在也沒關係）
-            .add_source(File::from(system_path).required(false))
-            // 使用者級
-            .add_source(File::from(user_path).required(false))
-            // 本地範例（通常只有在開發或測試時才會存在）
-            .add_source(File::from(local_example).required(false))
-            // 環境變數覆蓋：CHM__CERTIFICATE__PASSPHRASE
-            .add_source(Environment::with_prefix(PROJECT_NAME).separator("__"));
-        builder.build()?.try_deserialize()
+    pub fn new() -> Result<(Self,ProjectDirs), config::ConfigError> {
+       config_loader::load_config("CA", None, None, None)
     }
     /// 初始化設定檔，生成一個包含預設值的 TOML 檔案。
     /// # 參數
@@ -157,14 +140,11 @@ impl Settings {
 /// # 回傳
 /// * `Result<(Settings, ProjectDirs), Box<dyn std::error::Error>>` 返回設定實例和專案目錄，或錯誤
 pub fn config(
-    (qualifier, organization, application): (&str, &str, &str),
 ) -> Result<(Settings, ProjectDirs), Box<dyn std::error::Error>> {
-    let proj_dirs =
-        ProjectDirs::from(qualifier, organization, application).expect("invalid project name");
     if NEED_EXAMPLE.load(Relaxed) {
         let example = PathBuf::from("config/config.toml.example");
         Settings::init(&example)?;
     }
-    let settings = Settings::new(&proj_dirs)?;
-    Ok((settings, proj_dirs))
+    let settings = Settings::new()?;
+    Ok(settings)
 }

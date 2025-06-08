@@ -1,10 +1,11 @@
-pub mod grpc {
-    include!("generated/ca.rs");
-}
+// pub mod grpc {
+//     include!("generated/ca.rs");
+// }
 pub mod config;
 mod connection;
 pub mod crl;
 pub mod mini_controller;
+use grpc::{ca::*, tonic, tonic_health};
 use mini_controller::MiniResult;
 use openssl::{
     hash::{hash, MessageDigest},
@@ -20,7 +21,10 @@ use std::io::Write;
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
 use std::sync::Arc;
-use tonic::{transport::{Identity, ServerTlsConfig}, Request, Status};
+use tonic::{
+    transport::{Identity, ServerTlsConfig},
+    Request, Status,
+};
 use tonic_health::server::health_reporter;
 
 use crate::{connection::MyCa, crl::SimpleCrl};
@@ -71,8 +75,12 @@ impl Certificate {
             PKey::private_key_from_pem_passphrase(&key_pem, passphrase.as_bytes())
         }
         .map_err(|e| format!("無法解析CA私鑰: {}", e))?;
-    let crl = Arc::new(crl::CrlVerifier::new(SimpleCrl::new()));
-        Ok(Certificate { ca_cert, ca_key, crl})
+        let crl = Arc::new(crl::CrlVerifier::new(SimpleCrl::new()));
+        Ok(Certificate {
+            ca_cert,
+            ca_key,
+            crl,
+        })
     }
 
     /// 獲取RootCA憑證
@@ -127,6 +135,7 @@ impl Certificate {
         let leaf = builder.build();
         let cert_der = leaf.to_der()?;
         let chain_der = vec![self.ca_cert.to_der()?];
+        // TODO: 將簽發出去的憑證保留指紋及序號
         Ok((cert_der, chain_der))
     }
     /// 產生 CSR 與對應的私鑰
@@ -282,9 +291,7 @@ fn make_crl_interceptor(
     move |req: Request<()>| {
         let p_certs = req.peer_certs();
         let peer_certs_slice: Option<&[tonic::transport::CertificateDer]> =
-            p_certs
-                .as_ref()
-                .map(|arc_vec| arc_vec.as_ref().as_slice());
+            p_certs.as_ref().map(|arc_vec| arc_vec.as_ref().as_slice());
         if !cert_handler
             .get_crl()
             .after_connection_cert_check(peer_certs_slice)
@@ -316,10 +323,10 @@ pub async fn start_grpc(
     // 啟動健康檢查服務
     let (health_reporter, health_service) = health_reporter();
     health_reporter
-        .set_serving::<grpc::ca_server::CaServer<MyCa>>()
+        .set_serving::<ca_server::CaServer<MyCa>>()
         .await;
     // ----------
-    let svc = grpc::ca_server::CaServer::with_interceptor(
+    let svc = ca_server::CaServer::with_interceptor(
         MyCa {
             cert: cert_handler.clone(),
         },
@@ -332,7 +339,7 @@ pub async fn start_grpc(
             .expect("failed to listen for Ctrl-C");
         println!("收到CtrlC,開始關閉gRPC...");
         health_reporter
-            .set_not_serving::<grpc::ca_server::CaServer<MyCa>>()
+            .set_not_serving::<ca_server::CaServer<MyCa>>()
             .await;
     };
     tonic::transport::Server::builder()
