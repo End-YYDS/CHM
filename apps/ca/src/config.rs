@@ -113,8 +113,8 @@ impl Settings {
     /// * `proj_dirs` - 用於獲取使用者配置目錄的 `ProjectDirs` 實例
     /// # 回傳
     /// * `Result<Self, config::ConfigError>` - 返回設定實例或錯誤
-    pub fn new() -> Result<(Self,ProjectDirs), config::ConfigError> {
-       config_loader::load_config("CA", None, None, None)
+    pub fn new() -> Result<(Self,ProjectDirs), Box<dyn std::error::Error>> {
+       Ok(config_loader::load_config("CA", None, None, None)?)
     }
     /// 初始化設定檔，生成一個包含預設值的 TOML 檔案。
     /// # 參數
@@ -133,10 +133,6 @@ impl Settings {
     }
 }
 /// 取得應用程式設定和專案目錄
-/// # 參數
-/// * `qualifier` - 應用程式的限定符，例如 "com.example"
-/// * `organization` - 應用程式的組織名稱，例如 "ExampleOrg"
-/// * `application` - 應用程式名稱，例如 "MyApp"
 /// # 回傳
 /// * `Result<(Settings, ProjectDirs), Box<dyn std::error::Error>>` 返回設定實例和專案目錄，或錯誤
 pub fn config(

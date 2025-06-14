@@ -9,7 +9,6 @@ tokio = { version = "1.43.0", features = ["rt","macros","rt-multi-thread","fs"] 
 actix-web = { version = "4.11.0", features = ["openssl"] }
 openssl = { version = "0.10.72", features = ["vendored"] }
 rpassword = "7.4.0"
-config = { version = "0.15.11", default-features = false, features = ["toml"] }
 directories = "6.0.0"
 serde = { version = "1.0.219", features = ["derive"] }
 toml = "0.8.22"
