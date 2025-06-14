@@ -1,4 +1,5 @@
 use ca::{
+    cert::process::CertificateProcess,
     config::{config, NEED_EXAMPLE},
     crl::CrlVerifier,
     mini_controller::{MiniController, MiniResult},

@@ -30,3 +30,4 @@ dist-ssr
 .__mf__temp/
 certs/*
 !certs/.gitkeep
+db

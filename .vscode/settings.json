@@ -5,5 +5,6 @@
   //   // "controller_server"
   // ],
   "rust-analyzer.cargo.allFeatures": true,
-  "postman.settings.dotenv-detection-notification-visibility": false
+  "postman.settings.dotenv-detection-notification-visibility": false,
+  "rust-analyzer.linkedProjects": ["apps/ca/Cargo.toml"]
 }

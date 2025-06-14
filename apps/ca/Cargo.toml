@@ -16,6 +16,7 @@ chrono = { version = "0.4.41", features = ["serde"] }
 rsntp = "4.0.0"
 grpc = { version = "0.1.0", path = "../../libs/grpc", features = ["ca"] }
 config_loader = { version = "0.1.0", path = "../../libs/config_loader" }
+sqlx = { version = "0.8.6", features = ["sqlite", "macros", "chrono", "runtime-tokio"], default-features = false }
 
 [[bin]]
 name = "CHM_CA"
