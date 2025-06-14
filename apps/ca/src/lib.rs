@@ -41,7 +41,7 @@ pub type CsrCert = Vec<u8>;
 
 #[allow(unused)]
 /// 憑證處理器，負責載入 CA 憑證和金鑰，簽署 CSR，並提供 CRL 驗證功能
-pub struct Certificate {
+pub struct CertificateProcess {
     /// CA 憑證
     ca_cert: X509,
     /// CA 私鑰
@@ -50,14 +50,14 @@ pub struct Certificate {
     crl: Arc<crl::CrlVerifier>,
 }
 #[allow(unused)]
-impl Certificate {
+impl CertificateProcess {
     /// 從指定的憑證和金鑰檔案載入 CA 憑證和金鑰
     /// # 參數
     /// * `cert_path`: CA 憑證檔案路徑
     /// * `key_path`: CA 金鑰檔案路徑
     /// * `passphrase`: 金鑰的密碼短語
     /// # 回傳
-    /// * `Ok(Certificate)`：載入成功，返回憑證和金鑰
+    /// * `Ok(CertificateProcess)`：載入成功，返回憑證和金鑰
     /// * `Err(e)`：若任何步驟失敗，回傳錯誤
     pub fn load<P: AsRef<Path>>(
         cert_path: P,
@@ -76,7 +76,7 @@ impl Certificate {
         }
         .map_err(|e| format!("無法解析CA私鑰: {}", e))?;
         let crl = Arc::new(crl::CrlVerifier::new(SimpleCrl::new()));
-        Ok(Certificate {
+        Ok(CertificateProcess {
             ca_cert,
             ca_key,
             crl,
@@ -286,7 +286,7 @@ impl Certificate {
 /// # 回傳
 /// * `impl Fn(Request<()>) -> Result<Request<()>, Status>`: 返回一個攔截器函數
 fn make_crl_interceptor(
-    cert_handler: Arc<Certificate>,
+    cert_handler: Arc<CertificateProcess>,
 ) -> impl Fn(Request<()>) -> Result<Request<()>, Status> + Clone + Send + Sync + 'static {
     move |req: Request<()>| {
         let p_certs = req.peer_certs();
@@ -311,10 +311,10 @@ fn make_crl_interceptor(
 /// * `Result<(), Box<dyn std::error::Error>>`: 返回結果，成功時為 Ok，失敗時為 Err
 pub async fn start_grpc(
     addr: SocketAddr,
-    cert_handler: Arc<Certificate>,
+    cert_handler: Arc<CertificateProcess>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // 設定 TLS
-    let (key, cert) = Certificate::cert_from_path("ca_grpc", None)?;
+    let (key, cert) = CertificateProcess::cert_from_path("ca_grpc", None)?;
     let identity = Identity::from_pem(cert, key);
     let tls = ServerTlsConfig::new().identity(identity).client_ca_root(
         tonic::transport::Certificate::from_pem(cert_handler.get_ca_cert().to_pem()?),

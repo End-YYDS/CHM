@@ -3,7 +3,7 @@ use std::sync::Arc;
 use openssl::x509::X509Req;
 use tonic::{Request, Response, Status};
 
-use crate::Certificate;
+use crate::CertificateProcess;
 use grpc::{
     ca::{ca_server::Ca, *},
     tonic,
@@ -11,7 +11,7 @@ use grpc::{
 /// gRPC CA 實現
 pub struct MyCa {
     /// 憑證處理器
-    pub cert: Arc<Certificate>,
+    pub cert: Arc<CertificateProcess>,
 }
 
 #[tonic::async_trait]

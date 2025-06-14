@@ -24,7 +24,7 @@ async fn main() -> CaResult<()> {
     // let ca_passwd = rpassword::prompt_password("Enter CA passphrase: ")?;
     let ca_passwd = cmg.certificate.passphrase;
     let addr = SocketAddr::new(cmg.server.host.parse()?, cmg.server.port);
-    let cert_handler = Arc::new(Certificate::load(
+    let cert_handler = Arc::new(CertificateProcess::load(
         cmg.certificate.rootca,
         cmg.certificate.rootca_key,
         ca_passwd,
@@ -55,11 +55,11 @@ async fn main() -> CaResult<()> {
 
 /// 產生mini controller 的憑證,並將私鑰保存至certs資料夾內
 /// # 參數
-/// * `cert_handler` - 用於簽署憑證的 Certificate 處理器
+/// * `cert_handler` - 用於簽署憑證的 CertificateProcess 處理器
 /// # 回傳
 /// * `MiniResult<MiniController>` - 返回 MiniController 實例或錯誤
-fn mini_controller_cert(cert_handler: &Certificate) -> MiniResult<MiniController> {
-    let mini_cert: (PrivateKey, CsrCert) = Certificate::generate_csr(
+fn mini_controller_cert(cert_handler: &CertificateProcess) -> MiniResult<MiniController> {
+    let mini_cert: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
         4096,
         "TW",
         "Taipei",
@@ -80,11 +80,11 @@ fn mini_controller_cert(cert_handler: &Certificate) -> MiniResult<MiniController
 
 /// 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
 /// # 參數
-/// * `cert_handler` - 用於簽署憑證的 Certificate 處理器
+/// * `cert_handler` - 用於簽署憑證的 CertificateProcess 處理器
 /// # 回傳
 /// * `CaResult<()>` - 返回結果，表示操作是否成功
-fn ca_grpc_cert(cert_handler: &Certificate) -> CaResult<()> {
-    let ca_grpc: (PrivateKey, CsrCert) = Certificate::generate_csr(
+fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
+    let ca_grpc: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
         4096,
         "TW",
         "Taipei",
@@ -95,19 +95,19 @@ fn ca_grpc_cert(cert_handler: &Certificate) -> CaResult<()> {
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365)?;
-    Certificate::save_cert("ca_grpc", ca_grpc_sign.0, ca_grpc.0)?;
+    CertificateProcess::save_cert("ca_grpc", ca_grpc_sign.0, ca_grpc.0)?;
     Ok(())
 }
 
 /// 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
 /// # 參數
-/// * `cert_handler` - 用於簽署憑證的 Certificate 處理器
+/// * `cert_handler` - 用於簽署憑證的 CertificateProcess 處理器
 /// # 回傳
 /// * `CaResult<()>` - 返回結果，表示操作是否成功
 #[allow(unused)]
-fn grpc_test_cert(cert_handler: &Certificate) -> CaResult<()> {
+fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     // 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
-    let ca_grpc: (PrivateKey, CsrCert) = Certificate::generate_csr(
+    let ca_grpc: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
         4096,
         "TW",
         "Taipei",
@@ -118,6 +118,6 @@ fn grpc_test_cert(cert_handler: &Certificate) -> CaResult<()> {
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365)?;
-    Certificate::save_cert("grpc_test", ca_grpc_sign.0, ca_grpc.0)?;
+    CertificateProcess::save_cert("grpc_test", ca_grpc_sign.0, ca_grpc.0)?;
     Ok(())
 }
