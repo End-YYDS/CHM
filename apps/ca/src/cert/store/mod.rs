@@ -1,8 +1,9 @@
-use std::path::PathBuf;
+use std::{fmt::Debug, path::PathBuf};
 
-use crate::{cert::store::sqlite::CertStatus, CaResult};
+use crate::{config::BackendConfig, globals::GlobalConfig, CaResult};
 use chrono::{DateTime, Utc};
 use grpc::tonic::async_trait;
+use serde::{Deserialize, Serialize};
 
 pub mod sqlite;
 pub mod toml;
@@ -13,21 +14,13 @@ pub enum CertDer {
     Inline(Vec<u8>),
     Path(PathBuf),
 }
-// /// Implementing the `sqlx::Type` trait for `CertDer` to handle database storage
-// impl sqlx::Type<sqlx::Sqlite> for CertDer {
-//     fn type_info() -> <Sqlite as sqlx::Database>::TypeInfo {
-//         <Vec<u8> as sqlx::Type<Sqlite>>::type_info()
-//     }
-// }
-// /// Implementing the `sqlx::Decode` trait for `CertDer` to handle decoding
-// impl<'r> Decode<'r, Sqlite> for CertDer {
-//     fn decode(
-//         value: <Sqlite as sqlx::Database>::ValueRef<'r>,
-//     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-//         let bytes = <Vec<u8> as Decode<Sqlite>>::decode(value)?;
-//         Ok(CertDer::Inline(bytes))
-//     }
-// }
+
+#[derive(Debug, sqlx::Type, PartialEq)]
+#[sqlx(rename_all = "lowercase")]
+pub enum CertStatus {
+    Valid,
+    Revoked,
+}
 
 #[derive(Debug)]
 pub struct Cert {
@@ -48,8 +41,48 @@ pub struct CrlEntry {
     pub reason: Option<String>,      // 註銷原因
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub enum StoreType {
+    Sqlite,
+    Toml,
+}
+
+#[derive(Debug)]
+pub struct StoreFactory;
+
+impl StoreFactory {
+    pub async fn create_store() -> CaResult<Box<dyn CertificateStore>> {
+        let cfg = &GlobalConfig::read().await.settings;
+
+        match &cfg.certificate.backend {
+            BackendConfig::Sqlite {
+                store_path,
+                max_connections,
+                timeout,
+            } => {
+                let sqlite_cfg = BackendConfig::Sqlite {
+                    store_path: store_path.clone(),
+                    max_connections: *max_connections,
+                    timeout: *timeout,
+                };
+                let conn = sqlite::SqlConnection::new(sqlite_cfg).await?;
+                Ok(Box::new(conn))
+            }
+            BackendConfig::Toml { .. } => {
+                // // 如果你已經實作了 TomlStore::new
+                // let toml_cfg = BackendConfig::Toml {
+                //     toml_path: toml_path.clone(),
+                // };
+                // let store = toml::TomlStore::new(toml_cfg)?;
+                // Ok(Box::new(store))
+                unimplemented!("Toml store is not implemented yet")
+            }
+        }
+    }
+}
+
 #[async_trait]
-pub trait CertificateStore {
+pub trait CertificateStore: Debug {
     // 憑證操作相關的異步方法
     /// 列出所有憑證
     async fn list_all(&self) -> CaResult<Vec<Cert>>;
@@ -69,5 +102,4 @@ pub trait CertificateStore {
     async fn list_crl(&self) -> CaResult<Vec<CrlEntry>>;
     /// 將指定憑證標記為撤銷
     async fn mark_cert_revoked(&self, serial: &str, reason: Option<String>) -> CaResult<()>;
-
 }

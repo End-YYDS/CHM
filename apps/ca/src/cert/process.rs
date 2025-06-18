@@ -12,7 +12,7 @@ use std::net::IpAddr;
 use std::path::Path;
 use std::{fs, sync::Arc};
 
-use crate::{crl::{self, SimpleCrl}, CaResult, ChainCerts, CsrCert, PrivateKey, SignedCert};
+use crate::{cert::crl::{self, SimpleCrl}, CaResult, ChainCerts, CsrCert, PrivateKey, SignedCert};
 #[allow(unused)]
 /// 憑證處理器，負責載入 CA 憑證和金鑰，簽署 CSR，並提供 CRL 驗證功能
 pub struct CertificateProcess {
@@ -36,7 +36,7 @@ impl CertificateProcess {
     pub fn load<P: AsRef<Path>>(
         cert_path: P,
         key_path: P,
-        passphrase: String,
+        passphrase: &str,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let cert_pem = fs::read(&cert_path)?;
         let key_pem = fs::read(&key_path)?;

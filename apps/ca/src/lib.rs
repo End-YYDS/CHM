@@ -5,8 +5,8 @@
 pub mod cert;
 pub mod config;
 pub mod connection;
-pub mod crl;
 pub mod mini_controller;
+pub mod globals;
 use grpc::{ca::*, tonic, tonic_health};
 
 use std::{net::SocketAddr, sync::Arc};

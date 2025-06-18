@@ -5,7 +5,7 @@ use grpc::tonic::transport::CertificateDer;
 use openssl::x509::X509;
 use rsntp::SntpClient;
 
-use crate::crl::SimpleCrl;
+use crate::cert::crl::SimpleCrl;
 
 #[derive(Debug)]
 pub struct CrlVerifier {

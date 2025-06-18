@@ -9,36 +9,38 @@ use sqlx::{
 };
 
 use crate::{
-    cert::store::{utils::hash_sha256, Cert, CertDer, CertificateStore, CrlEntry},
+    cert::store::{utils::hash_sha256, Cert, CertDer, CertStatus, CertificateStore, CrlEntry},
+    config::BackendConfig,
     CaResult,
 };
 
+#[derive(Debug)]
 pub struct SqlConnection {
-    pub db_url: String, // SQLite 資料庫連線字串
-    pool: SqlitePool,   // 連線池
+    pool: SqlitePool,
 }
 
 impl SqlConnection {
-    pub async fn new(db_url: String) -> CaResult<Self> {
-        let connect_opts = SqliteConnectOptions::from_str(db_url.as_str())?
+    pub async fn new(cfg: BackendConfig) -> CaResult<Self> {
+        let BackendConfig::Sqlite {
+            store_path,
+            max_connections,
+            timeout,
+        } = cfg
+        else {
+            return Err("Invalid backend configuration for Sqlite".into());
+        };
+        let connect_opts = SqliteConnectOptions::from_str(&store_path)?
             .create_if_missing(true)
             .pragma("auto_vacuum", "FULL")
             .journal_mode(SqliteJournalMode::Wal)
             .foreign_keys(true);
         let pool: SqlitePool = SqlitePoolOptions::new()
-            .max_connections(5) // TODO: 從Config讀取
-            .acquire_timeout(Duration::from_secs(10)) // TODO: 從Config讀取
+            .max_connections(max_connections)
+            .acquire_timeout(Duration::from_secs(timeout))
             .connect_with(connect_opts)
             .await?;
-        Ok(Self { db_url, pool })
+        Ok(Self { pool })
     }
-}
-
-#[derive(Debug, sqlx::Type, PartialEq)]
-#[sqlx(rename_all = "lowercase")]
-pub enum CertStatus {
-    Valid,
-    Revoked,
 }
 
 impl std::str::FromStr for CertStatus {

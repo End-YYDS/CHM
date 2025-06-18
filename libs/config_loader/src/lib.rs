@@ -10,7 +10,7 @@ pub fn load_config<T>(
     system_config: Option<&str>,
     user_config: Option<&str>,
     dev_config: Option<&str>,
-) -> Result<(T,ProjectDirs), config::ConfigError>
+) -> Result<(T, ProjectDirs), config::ConfigError>
 where
     T: DeserializeOwned,
 {

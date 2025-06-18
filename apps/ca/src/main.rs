@@ -1,9 +1,5 @@
 use ca::{
-    cert::process::CertificateProcess,
-    config::{config, NEED_EXAMPLE},
-    crl::CrlVerifier,
-    mini_controller::{MiniController, MiniResult},
-    *,
+    cert::{crl::CrlVerifier, process::CertificateProcess}, config::{config, NEED_EXAMPLE}, globals::GlobalConfig, mini_controller::{MiniController, MiniResult}, *
 };
 use openssl::x509::{X509Req, X509};
 use std::sync::atomic::Ordering::Relaxed;
@@ -16,18 +12,25 @@ async fn main() -> CaResult<()> {
         let _ = config();
         return Ok(());
     }
-    let (cmg, project_dir) = config()?;
+    config()?;
+    let cfg = GlobalConfig::read().await;
+    let cmg = &cfg.settings;
+    let project_dir = &cfg.dirs;
+    if args.iter().any(|a| a == "--debug") {
+        dbg!(&cfg);
+        return Ok(());
+    }
     let marker_path = Path::new(project_dir.data_dir()).join("first_run.done");
     if let Some(parent) = marker_path.parent() {
         fs::create_dir_all(parent)?;
     }
     let first_run = !marker_path.exists();
     // let ca_passwd = rpassword::prompt_password("Enter CA passphrase: ")?;
-    let ca_passwd = cmg.certificate.passphrase;
+    let ca_passwd = &cmg.certificate.passphrase;
     let addr = SocketAddr::new(cmg.server.host.parse()?, cmg.server.port);
     let cert_handler = Arc::new(CertificateProcess::load(
-        cmg.certificate.rootca,
-        cmg.certificate.rootca_key,
+        &cmg.certificate.rootca,
+        &cmg.certificate.rootca_key,
         ca_passwd,
     )?);
     let client_cert = X509::from_pem(&fs::read("certs/grpc_test.pem")?)?;

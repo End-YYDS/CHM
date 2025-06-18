@@ -502,6 +502,7 @@ dependencies = [
  "config_loader",
  "directories",
  "grpc",
+ "once_cell",
  "openssl",
  "rpassword",
  "rsntp",

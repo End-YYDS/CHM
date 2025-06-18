@@ -6,9 +6,13 @@ port = 50052
 rootca = "certs/rootCA.crt"
 rootca_key = "certs/rootCA.key"
 passphrase = ""
+backend = "sqlite"
+store_path = "certs/cert_store.db"
+max_connections = 10
+timeout = 10
 
 [develop]
-debug = false
+debug = true
 
 [controller]
 fingerprint = ""

@@ -6,7 +6,10 @@ use std::{
     sync::atomic::{AtomicBool, Ordering::Relaxed},
 };
 
+use crate::{globals::GlobalConfig, CaResult};
+
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
+pub static DEBUG: AtomicBool = AtomicBool::new(false);
 #[derive(Debug, Deserialize, Serialize)]
 /// 伺服器設定
 pub struct Server {
@@ -36,6 +39,56 @@ impl Default for Server {
         }
     }
 }
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "backend", rename_all = "lowercase")]
+pub enum BackendConfig {
+    /// SQLite 資料庫後端專屬設定
+    /// 預設使用 `certs/cert_store.db` 作為資料庫檔案
+    /// 最大連線數量預設為 5，逾時時間預設為 10 秒
+    Sqlite {
+        #[serde(default = "SqliteSettings::default_store_path")]
+        store_path: String,
+        #[serde(default = "SqliteSettings::default_max_connections")]
+        max_connections: u32,
+        #[serde(default = "SqliteSettings::default_timeout")]
+        timeout: u64,
+    },
+    /// TOML 檔案後端專屬設定
+    Toml {
+        /// TOML 配置檔路徑
+        #[serde(default = "TomlSettings::default_toml_path")]
+        toml_path: String,
+    },
+}
+impl Default for BackendConfig {
+    fn default() -> Self {
+        BackendConfig::Sqlite {
+            store_path: SqliteSettings::default_store_path(),
+            max_connections: SqliteSettings::default_max_connections(),
+            timeout: SqliteSettings::default_timeout(),
+        }
+    }
+}
+
+struct SqliteSettings;
+impl SqliteSettings {
+    fn default_store_path() -> String {
+        "certs/cert_store.db".into()
+    }
+    fn default_max_connections() -> u32 {
+        5
+    }
+    fn default_timeout() -> u64 {
+        10
+    }
+}
+
+struct TomlSettings;
+impl TomlSettings {
+    fn default_toml_path() -> String {
+        "certs/cert_store.toml".into()
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 /// 憑證設定
@@ -49,6 +102,9 @@ pub struct Certificate {
     #[serde(default = "Certificate::default_passphrase")]
     /// 根憑證的密碼短語
     pub passphrase: String,
+    #[serde(flatten)]
+    #[serde(default)]
+    pub backend: BackendConfig,
 }
 
 impl Certificate {
@@ -72,6 +128,7 @@ impl Default for Certificate {
             rootca: Certificate::default_rootca(),
             rootca_key: Certificate::default_rootca_key(),
             passphrase: "".into(),
+            backend: BackendConfig::default(),
         }
     }
 }
@@ -113,8 +170,8 @@ impl Settings {
     /// * `proj_dirs` - 用於獲取使用者配置目錄的 `ProjectDirs` 實例
     /// # 回傳
     /// * `Result<Self, config::ConfigError>` - 返回設定實例或錯誤
-    pub fn new() -> Result<(Self,ProjectDirs), Box<dyn std::error::Error>> {
-       Ok(config_loader::load_config("CA", None, None, None)?)
+    pub fn new() -> Result<(Self, ProjectDirs), Box<dyn std::error::Error>> {
+        Ok(config_loader::load_config("CA", None, None, None)?)
     }
     /// 初始化設定檔，生成一個包含預設值的 TOML 檔案。
     /// # 參數
@@ -134,13 +191,14 @@ impl Settings {
 }
 /// 取得應用程式設定和專案目錄
 /// # 回傳
-/// * `Result<(Settings, ProjectDirs), Box<dyn std::error::Error>>` 返回設定實例和專案目錄，或錯誤
-pub fn config(
-) -> Result<(Settings, ProjectDirs), Box<dyn std::error::Error>> {
+/// * `Result<(), Box<dyn std::error::Error>>` 返回設定實例和專案目錄，或錯誤
+pub fn config() -> CaResult<()> {
     if NEED_EXAMPLE.load(Relaxed) {
-        let example = PathBuf::from("config/config.toml.example");
+        let example = PathBuf::from("config/CA_config.toml.example");
         Settings::init(&example)?;
     }
     let settings = Settings::new()?;
-    Ok(settings)
+    DEBUG.store(settings.0.develop.debug, Relaxed);
+    GlobalConfig::init_global_config(settings);
+    Ok(())
 }
