@@ -1,5 +1,9 @@
 use ca::{
-    cert::{crl::CrlVerifier, process::CertificateProcess}, config::{config, NEED_EXAMPLE}, globals::GlobalConfig, mini_controller::{MiniController, MiniResult}, *
+    cert::{crl::CrlVerifier, process::CertificateProcess, store::StoreFactory},
+    config::{config, NEED_EXAMPLE},
+    globals::GlobalConfig,
+    mini_controller::MiniController,
+    *,
 };
 use openssl::x509::{X509Req, X509};
 use std::sync::atomic::Ordering::Relaxed;
@@ -45,6 +49,10 @@ async fn main() -> CaResult<()> {
         .get_crl()
         .mut_crl()
         .save_to_file("certs/crl.toml")?;
+
+    let conn = StoreFactory::create_store().await?;
+    dbg!(&conn);
+
     if first_run {
         let mut mini_c = mini_controller_cert(&cert_handler)?;
         ca_grpc_cert(&cert_handler)?;
@@ -61,8 +69,8 @@ async fn main() -> CaResult<()> {
 /// # 參數
 /// * `cert_handler` - 用於簽署憑證的 CertificateProcess 處理器
 /// # 回傳
-/// * `MiniResult<MiniController>` - 返回 MiniController 實例或錯誤
-fn mini_controller_cert(cert_handler: &CertificateProcess) -> MiniResult<MiniController> {
+/// * `CaResult<MiniController>` - 返回 MiniController 實例或錯誤
+fn mini_controller_cert(cert_handler: &CertificateProcess) -> CaResult<MiniController> {
     let mini_cert: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
         4096,
         "TW",

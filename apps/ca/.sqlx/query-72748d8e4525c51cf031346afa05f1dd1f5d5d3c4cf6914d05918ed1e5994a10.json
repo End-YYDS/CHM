@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM certs WHERE serial = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "72748d8e4525c51cf031346afa05f1dd1f5d5d3c4cf6914d05918ed1e5994a10"
+}

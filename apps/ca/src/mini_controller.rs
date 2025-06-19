@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{PrivateKey, SignedCert};
+use crate::{CaResult, PrivateKey, SignedCert};
 use actix_web::{dev::ServerHandle, post, web, App, HttpResponse, HttpServer};
 use openssl::{
     pkey::PKey,
@@ -13,8 +13,6 @@ use openssl::{
     x509::X509,
 };
 use tokio::sync::mpsc::Sender;
-/// MiniResult 定義了一個簡化的結果類型，用於返回結果或錯誤
-pub type MiniResult<T> = Result<T, Box<dyn std::error::Error>>;
 #[derive(Debug)]
 /// MiniController 用於管理初始化過程的控制器
 pub struct MiniController {
@@ -51,8 +49,8 @@ impl MiniController {
 
     /// 顯示伺服器憑證的內容
     /// # 回傳
-    /// * `MiniResult<String>`: 返回憑證的 PEM 格式字符串或錯誤
-    pub fn show_cert(&self) -> MiniResult<String> {
+    /// * `CaResult<String>`: 返回憑證的 PEM 格式字符串或錯誤
+    pub fn show_cert(&self) -> CaResult<String> {
         let r = X509::from_der(self.sign_cert.as_ref().unwrap())?;
         let r = r.to_pem()?;
         let ret = String::from_utf8(r)?;
@@ -63,8 +61,8 @@ impl MiniController {
     /// # 參數
     /// * `filename`: 檔案名稱
     /// # 回傳
-    /// * `MiniResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
-    pub fn save_cert(&self, filename: &str) -> MiniResult<()> {
+    /// * `CaResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
+    pub fn save_cert(&self, filename: &str) -> CaResult<()> {
         let file_path = Path::new("certs").join(filename);
         let mut f = fs::File::create(file_path)?;
         f.write_all(self.show_cert()?.as_bytes())?;
@@ -75,8 +73,8 @@ impl MiniController {
     /// * `addr`: 伺服器的 Socket 地址
     /// * `marker_path`: 用於標記初始化完成的檔案路徑
     /// # 回傳
-    /// * `MiniResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
-    pub async fn start(&mut self, addr: SocketAddr, marker_path: PathBuf) -> MiniResult<()> {
+    /// * `CaResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
+    pub async fn start(&mut self, addr: SocketAddr, marker_path: PathBuf) -> CaResult<()> {
         println!("Init Process Running on {} ...", addr);
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
         let tx_clone = tx.clone();
@@ -111,8 +109,8 @@ impl MiniController {
     }
     /// 停止伺服器
     /// # 回傳
-    /// * `MiniResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
-    pub fn stop(&self) -> MiniResult<()> {
+    /// * `CaResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
+    pub fn stop(&self) -> CaResult<()> {
         if let Some(tx) = &self.shutdown_tx {
             tx.try_send(()).map_err(|e| e.into())
         } else {
@@ -121,8 +119,8 @@ impl MiniController {
     }
     /// 建立 SSL 接受器建構器
     /// # 回傳
-    /// * `MiniResult<SslAcceptorBuilder>`: 返回 SSL 接受器建構器或錯誤
-    fn build_ssl_builder(&self) -> MiniResult<SslAcceptorBuilder> {
+    /// * `CaResult<SslAcceptorBuilder>`: 返回 SSL 接受器建構器或錯誤
+    fn build_ssl_builder(&self) -> CaResult<SslAcceptorBuilder> {
         let cert_bytes = self.sign_cert.as_ref().ok_or("missing certificate PEM")?;
         let key_bytes = self.private_key.as_ref().ok_or("missing private key PEM")?;
         let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
