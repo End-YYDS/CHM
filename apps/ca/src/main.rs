@@ -1,11 +1,11 @@
 use ca::{
-    cert::{crl::CrlVerifier, process::CertificateProcess, store::StoreFactory},
-    config::{config, NEED_EXAMPLE},
+    cert::{process::CertificateProcess, store::StoreFactory},
+    config::{config, is_debug, NEED_EXAMPLE},
     globals::GlobalConfig,
     mini_controller::MiniController,
     *,
 };
-use openssl::x509::{X509Req, X509};
+use openssl::x509::X509Req;
 use std::sync::atomic::Ordering::Relaxed;
 use std::{env, fs, io::Write, net::SocketAddr, path::Path, sync::Arc};
 #[actix_web::main]
@@ -13,10 +13,13 @@ async fn main() -> CaResult<()> {
     let args: Vec<String> = env::args().collect();
     if args.iter().any(|a| a == "--init-config") {
         NEED_EXAMPLE.store(true, Relaxed);
-        let _ = config();
+        config().await?;
         return Ok(());
     }
-    config()?;
+    config().await?;
+    if GlobalConfig::has_active_readers() {
+        eprintln!("還有讀鎖沒釋放!-0");
+    }
     let cfg = GlobalConfig::read().await;
     let cmg = &cfg.settings;
     let project_dir = &cfg.dirs;
@@ -31,31 +34,23 @@ async fn main() -> CaResult<()> {
     let first_run = !marker_path.exists();
     // let ca_passwd = rpassword::prompt_password("Enter CA passphrase: ")?;
     let ca_passwd = &cmg.certificate.passphrase;
+    let store = StoreFactory::create_store().await?;
+    if is_debug() {
+        dbg!(&store);
+    }
     let addr = SocketAddr::new(cmg.server.host.parse()?, cmg.server.port);
     let cert_handler = Arc::new(CertificateProcess::load(
         &cmg.certificate.rootca,
         &cmg.certificate.rootca_key,
         ca_passwd,
+        store,
     )?);
-    let client_cert = X509::from_pem(&fs::read("certs/grpc_test.pem")?)?;
-
-    cert_handler.get_crl().mut_crl().add_revoked_cert(
-        &client_cert,
-        "".into(),
-        CrlVerifier::get_utc(),
-    )?;
-    // cert_handler.get_crl().mut_crl().remove_revoked_cert(&client_cert)?;
-    cert_handler
-        .get_crl()
-        .mut_crl()
-        .save_to_file("certs/crl.toml")?;
-
-    let conn = StoreFactory::create_store().await?;
-    dbg!(&conn);
-
+    drop(cfg);
     if first_run {
-        let mut mini_c = mini_controller_cert(&cert_handler)?;
-        ca_grpc_cert(&cert_handler)?;
+        let mut mini_c = mini_controller_cert(&cert_handler).await?;
+        // 創建CA grpc的憑證,並將私鑰保存至certs資料夾內,留著之後啟動gRPC service
+        ca_grpc_cert(&cert_handler).await?;
+        grpc_test_cert(&cert_handler).await?;
         mini_c.start(addr, marker_path.clone()).await?;
     }
     if marker_path.exists() {
@@ -70,7 +65,7 @@ async fn main() -> CaResult<()> {
 /// * `cert_handler` - 用於簽署憑證的 CertificateProcess 處理器
 /// # 回傳
 /// * `CaResult<MiniController>` - 返回 MiniController 實例或錯誤
-fn mini_controller_cert(cert_handler: &CertificateProcess) -> CaResult<MiniController> {
+async fn mini_controller_cert(cert_handler: &CertificateProcess) -> CaResult<MiniController> {
     let mini_cert: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
         4096,
         "TW",
@@ -84,7 +79,7 @@ fn mini_controller_cert(cert_handler: &CertificateProcess) -> CaResult<MiniContr
     let mut f = fs::File::create(key)?;
     f.write_all(mini_cert.0.as_slice())?;
     let mini_csr = X509Req::from_pem(&mini_cert.1)?;
-    let mini_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&mini_csr, 365)?;
+    let mini_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&mini_csr, 365).await?;
     let mini_c = mini_controller::MiniController::new(Some(mini_sign.0), Some(mini_cert.0));
     mini_c.save_cert("mini_controller.pem")?;
     Ok(mini_c)
@@ -95,7 +90,7 @@ fn mini_controller_cert(cert_handler: &CertificateProcess) -> CaResult<MiniContr
 /// * `cert_handler` - 用於簽署憑證的 CertificateProcess 處理器
 /// # 回傳
 /// * `CaResult<()>` - 返回結果，表示操作是否成功
-fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
+async fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     let ca_grpc: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
         4096,
         "TW",
@@ -106,7 +101,7 @@ fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
         &["127.0.0.1"],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
-    let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365)?;
+    let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
     CertificateProcess::save_cert("ca_grpc", ca_grpc_sign.0, ca_grpc.0)?;
     Ok(())
 }
@@ -117,7 +112,7 @@ fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
 /// # 回傳
 /// * `CaResult<()>` - 返回結果，表示操作是否成功
 #[allow(unused)]
-fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
+async fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     // 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
     let ca_grpc: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
         4096,
@@ -129,7 +124,7 @@ fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
         &["127.0.0.1"],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
-    let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365)?;
+    let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
     CertificateProcess::save_cert("grpc_test", ca_grpc_sign.0, ca_grpc.0)?;
     Ok(())
 }

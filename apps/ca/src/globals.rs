@@ -1,9 +1,13 @@
+use config_loader::store_config;
 use once_cell::sync::OnceCell;
 use tokio::sync::RwLock;
 
 use directories::ProjectDirs;
 
-use crate::config::Settings;
+use crate::{
+    config::{is_debug, Settings, ID},
+    CaResult,
+};
 
 #[derive(Debug)]
 pub struct GlobalConfig {
@@ -36,5 +40,21 @@ impl GlobalConfig {
             .expect("Global configuration not initialized")
             .write()
             .await
+    }
+    pub fn has_active_readers() -> bool {
+        let lock = GLOBAL_CFG.get().expect("GlobalConfig not initialized");
+
+        // tokio::sync::RwLock::try_write() 返回 Option<WriteGuard>
+        // 如果返回 None，说明已有读锁或写锁存在
+        lock.try_write().is_err()
+    }
+    pub async fn save_config() -> CaResult<()> {
+        if GlobalConfig::has_active_readers() {
+            eprintln!("⚠️ 还有读锁没释放！1");
+        }
+        let cfg = &GlobalConfig::read().await.settings;
+        let config_name = format!("{}_config.toml", ID);
+        store_config(cfg, is_debug(), &config_name).await?;
+        Ok(())
     }
 }

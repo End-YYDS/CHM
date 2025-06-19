@@ -82,7 +82,7 @@ impl StoreFactory {
 }
 
 #[async_trait]
-pub trait CertificateStore: Debug {
+pub trait CertificateStore: Debug + Sync + Send {
     // 憑證操作相關的異步方法
     /// 列出所有憑證
     async fn list_all(&self) -> CaResult<Vec<Cert>>;

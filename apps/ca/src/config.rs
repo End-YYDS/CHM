@@ -1,15 +1,13 @@
+use config_loader::store_config;
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
-use std::{
-    fs,
-    path::PathBuf,
-    sync::atomic::{AtomicBool, Ordering::Relaxed},
-};
+use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 
 use crate::{globals::GlobalConfig, CaResult};
 
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
-pub static DEBUG: AtomicBool = AtomicBool::new(false);
+static DEBUG: AtomicBool = AtomicBool::new(false);
+pub static ID: &str = "CA";
 #[derive(Debug, Deserialize, Serialize)]
 /// 伺服器設定
 pub struct Server {
@@ -102,6 +100,8 @@ pub struct Certificate {
     #[serde(default = "Certificate::default_passphrase")]
     /// 根憑證的密碼短語
     pub passphrase: String,
+    #[serde(default = "Certificate::default_bits")]
+    pub bits: i32,
     #[serde(flatten)]
     #[serde(default)]
     pub backend: BackendConfig,
@@ -120,6 +120,9 @@ impl Certificate {
     fn default_passphrase() -> String {
         "".into()
     }
+    fn default_bits() -> i32 {
+        256
+    }
 }
 
 impl Default for Certificate {
@@ -129,6 +132,7 @@ impl Default for Certificate {
             rootca_key: Certificate::default_rootca_key(),
             passphrase: "".into(),
             backend: BackendConfig::default(),
+            bits: Certificate::default_bits(),
         }
     }
 }
@@ -144,7 +148,22 @@ pub struct Develop {
 /// 控制器設定
 pub struct Controller {
     /// 控制器的指紋，用於識別和驗證
+    #[serde(default = "Controller::default_fingerprint")]
     pub fingerprint: String,
+    /// 控制器的序列號，用於唯一標識
+    #[serde(default = "Controller::default_serial")]
+    pub serial: String,
+}
+
+impl Controller {
+    /// 取得控制器的預設指紋
+    pub fn default_fingerprint() -> String {
+        "".into()
+    }
+    /// 取得控制器的預設序列號
+    pub fn default_serial() -> String {
+        "".into()
+    }
 }
 
 #[derive(Debug, Deserialize, Default, Serialize)]
@@ -171,34 +190,38 @@ impl Settings {
     /// # 回傳
     /// * `Result<Self, config::ConfigError>` - 返回設定實例或錯誤
     pub fn new() -> Result<(Self, ProjectDirs), Box<dyn std::error::Error>> {
-        Ok(config_loader::load_config("CA", None, None, None)?)
+        Ok(config_loader::load_config(ID, None, None)?)
     }
     /// 初始化設定檔，生成一個包含預設值的 TOML 檔案。
     /// # 參數
     /// * `path` - 要生成的設定檔路徑
     /// # 回傳
     /// * `Result<(), Box<dyn std::error::Error>>` - 返回結果，成功時為 Ok，失敗時為 Err
-    pub fn init(path: &PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-        let cfg = Settings::default();
-        let s = toml::to_string_pretty(&cfg)?;
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(path, s)?;
-        println!("Generated default config at {}", path.display());
+    pub async fn init(path: &str) -> Result<(), Box<dyn std::error::Error>> {
+        // let s = toml::to_string_pretty(&cfg)?;
+        // if let Some(parent) = path.parent() {
+        //     fs::create_dir_all(parent)?;
+        // }
+        // fs::write(path, s)?;
+        store_config(&Settings::default(), is_debug(), path).await?;
+        println!("Generated default config at {}", path);
         Ok(())
     }
 }
 /// 取得應用程式設定和專案目錄
 /// # 回傳
 /// * `Result<(), Box<dyn std::error::Error>>` 返回設定實例和專案目錄，或錯誤
-pub fn config() -> CaResult<()> {
+pub async fn config() -> CaResult<()> {
     if NEED_EXAMPLE.load(Relaxed) {
-        let example = PathBuf::from("config/CA_config.toml.example");
-        Settings::init(&example)?;
+        Settings::init("config/CA_config.toml.example").await?;
+        return Ok(());
     }
     let settings = Settings::new()?;
     DEBUG.store(settings.0.develop.debug, Relaxed);
     GlobalConfig::init_global_config(settings);
     Ok(())
+}
+
+pub fn is_debug() -> bool {
+    DEBUG.load(Relaxed)
 }

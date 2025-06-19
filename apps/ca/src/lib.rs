@@ -5,9 +5,10 @@
 pub mod cert;
 pub mod config;
 pub mod connection;
-pub mod mini_controller;
 pub mod globals;
+pub mod mini_controller;
 use grpc::{ca::*, tonic, tonic_health};
+use openssl::x509::X509;
 
 use std::{net::SocketAddr, sync::Arc};
 use tonic::{
@@ -33,21 +34,46 @@ pub type CsrCert = Vec<u8>;
 /// * `cert_handler`: 憑證處理器，用於檢查 CRL
 /// # 回傳
 /// * `impl Fn(Request<()>) -> Result<Request<()>, Status>`: 返回一個攔截器函數
-fn make_crl_interceptor(
+fn middleware(
     cert_handler: Arc<CertificateProcess>,
 ) -> impl Fn(Request<()>) -> Result<Request<()>, Status> + Clone + Send + Sync + 'static {
     move |req: Request<()>| {
-        let p_certs = req.peer_certs();
-        let peer_certs_slice: Option<&[tonic::transport::CertificateDer]> =
-            p_certs.as_ref().map(|arc_vec| arc_vec.as_ref().as_slice());
-        if !cert_handler
-            .get_crl()
-            .after_connection_cert_check(peer_certs_slice)
-        {
-            Err(Status::permission_denied("Certificate was Revoked"))
-        } else {
-            Ok(req)
+        let metadata = req.metadata();
+        let peer_der_vec = req
+            .peer_certs()
+            .ok_or_else(|| Status::unauthenticated("No TLS connection"))?;
+        let peer_slice: &[tonic::transport::CertificateDer] = peer_der_vec.as_ref().as_slice();
+        let leaf = peer_slice
+            .first()
+            .ok_or_else(|| Status::unauthenticated("No peer certificate presented"))?;
+        let x509 = X509::from_der(leaf)
+            .map_err(|_| Status::invalid_argument("Peer certificate DER is invalid"))?;
+        // 檢查是否被吊銷之後，在檢查是否來自controller的請求，其他一律擋掉
+        // if !cert_handler
+        //     .get_crl()
+        //     .after_connection_cert_check(peer_certs_slice)
+        // {
+        //     Err(Status::permission_denied("Certificate was Revoked"))
+        // } else {
+        //     Ok(req)
+        // }
+
+        if let Some(val) = metadata.get("crl") {
+            // 檢查是否有帶上 crl 的 metadata
+            let need_crl = val.to_str().unwrap_or("false") == "true";
+            if need_crl {
+                unimplemented!("CRL check not implemented yet");
+                // 回傳CRL list
+            }
         }
+        let is_ctrl = cert_handler
+            .is_controller_cert(&x509)
+            .map_err(|e| Status::internal(format!("Controller check failed: {}", e)))?;
+        if !is_ctrl {
+            return Err(Status::permission_denied("Only controller cert is allowed"));
+        }
+
+        Ok(req) //TODO 暫時不檢查 CRL
     }
 }
 
@@ -78,7 +104,7 @@ pub async fn start_grpc(
         MyCa {
             cert: cert_handler.clone(),
         },
-        make_crl_interceptor(cert_handler.clone()),
+        middleware(cert_handler.clone()),
     );
     println!("gRPC server listening on {}", addr);
     let shutdown_signal = async {

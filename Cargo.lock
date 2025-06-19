@@ -497,6 +497,7 @@ dependencies = [
 name = "ca"
 version = "0.1.0"
 dependencies = [
+ "actix-tls",
  "actix-web",
  "chrono",
  "config_loader",
@@ -660,6 +661,7 @@ dependencies = [
  "directories",
  "serde",
  "tempfile",
+ "tokio",
  "toml",
 ]
 

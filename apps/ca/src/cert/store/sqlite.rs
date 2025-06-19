@@ -208,6 +208,9 @@ impl CertificateStore for SqlConnection {
     async fn insert(&self, cert: openssl::x509::X509) -> CaResult<()> {
         let mut tx = self.pool.begin().await?;
         let serial = hash_sha256(cert.serial_number().to_bn()?.to_vec().as_slice())?;
+        if self.get(&serial).await?.is_some() {
+            return Err(format!("憑證序號 {} 已存在", serial).into());
+        }
         let subject = cert.subject_name();
         let subject_cn = subject
             .entries_by_nid(Nid::COMMONNAME)

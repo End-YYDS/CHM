@@ -1,18 +1,26 @@
+use crate::cert::process::CertificateProcess;
+use crate::config::is_debug;
+use crate::globals::GlobalConfig;
+use crate::{CaResult, PrivateKey, SignedCert};
+use actix_tls::accept::openssl::TlsStream;
+use actix_web::rt::net::TcpStream;
+use actix_web::HttpRequest;
+use actix_web::{dev::ServerHandle, post, web, App, HttpResponse, HttpServer};
+use openssl::ssl::SslVerifyMode;
+use openssl::{
+    pkey::PKey,
+    ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod},
+    x509::X509,
+};
 use std::{
     fs,
     io::Write,
     net::SocketAddr,
     path::{Path, PathBuf},
 };
-
-use crate::{CaResult, PrivateKey, SignedCert};
-use actix_web::{dev::ServerHandle, post, web, App, HttpResponse, HttpServer};
-use openssl::{
-    pkey::PKey,
-    ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod},
-    x509::X509,
-};
 use tokio::sync::mpsc::Sender;
+#[derive(Debug, Clone)]
+pub struct PeerCerts(Vec<X509>);
 #[derive(Debug)]
 /// MiniController 用於管理初始化過程的控制器
 pub struct MiniController {
@@ -78,14 +86,50 @@ impl MiniController {
         println!("Init Process Running on {} ...", addr);
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
         let tx_clone = tx.clone();
+        let rootca = {
+            if GlobalConfig::has_active_readers() {
+                eprintln!("⚠️ 还有读锁没释放！2");
+            }
+            let cfg = GlobalConfig::read().await;
+            cfg.settings.certificate.rootca.clone()
+        };
         let ssl_acceptor = self
-            .build_ssl_builder()
+            .build_ssl_builder(&rootca)
             .map_err(|e| format!("SSL 建構失敗: {}", e))?;
         let server = HttpServer::new(move || {
             App::new()
                 .app_data(web::Data::new(marker_path.clone()))
                 .app_data(web::Data::new(tx_clone.clone()))
                 .service(init_api)
+        })
+        .on_connect(|conn, ext| {
+            if let Some(stream) = conn.downcast_ref::<TlsStream<TcpStream>>() {
+                let ssl_ref = stream.ssl();
+                if let Some(cert) = ssl_ref.peer_certificate() {
+                    ext.insert(PeerCerts(vec![cert]));
+                }
+            }
+            // if let Some(stream) = conn.downcast_ref::<TlsStream<TcpStream>>() {
+            //     let certs = stream.ssl().certificate();
+            //     if let Some(certs) = certs {
+            //         let certs = certs.to_owned();
+            //         ext.insert(PeerCerts(certs));
+            //     }
+            // }
+            // if let Some(stream) = conn.downcast_ref::<TlsStream<TcpStream>>() {
+            //     println!("🛠 downcast 成功！");
+            //     // 看看握手时到底有没有 peer cert
+            //     let ssl = stream.ssl();
+            //     match ssl.peer_certificate() {
+            //         Some(cert) => {
+            //             println!("🛠 peer_certificate subject: {:?}", cert.subject_name());
+            //             ext.insert(PeerCerts(vec![cert.clone()]));
+            //         }
+            //         None => println!("🛠 没有 peer_certificate"),
+            //     }
+            // } else {
+            //     println!("🛠 conn 不是 TlsStream<TcpStream>");
+            // }
         })
         .bind_openssl(addr, ssl_acceptor)?
         .disable_signals()
@@ -120,7 +164,7 @@ impl MiniController {
     /// 建立 SSL 接受器建構器
     /// # 回傳
     /// * `CaResult<SslAcceptorBuilder>`: 返回 SSL 接受器建構器或錯誤
-    fn build_ssl_builder(&self) -> CaResult<SslAcceptorBuilder> {
+    fn build_ssl_builder(&self, rootca: &str) -> CaResult<SslAcceptorBuilder> {
         let cert_bytes = self.sign_cert.as_ref().ok_or("missing certificate PEM")?;
         let key_bytes = self.private_key.as_ref().ok_or("missing private key PEM")?;
         let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
@@ -128,11 +172,20 @@ impl MiniController {
             .or_else(|_| X509::from_der(cert_bytes))
             .map_err(|e| format!("解析Leaf失敗: {}", e))?;
         builder.set_certificate(&cert)?;
+        builder
+            .set_ca_file(rootca)
+            .map_err(|e| format!("設置CA檔案失敗: {}", e))?;
+
+        // let mut store_builder = X509StoreBuilder::new().expect("創建X509StoreBuilder失敗");
+        // store_builder.add_cert(cert).expect("添加憑證到X509StoreBuilder失敗");
+        // let store = store_builder.build();
+        // builder.set_verify_cert_store(store).expect("設置憑證存儲失敗");
         let pkey = PKey::private_key_from_pem(key_bytes)
             .or_else(|_| PKey::private_key_from_der(key_bytes))
             .map_err(|e| format!("解析PrivateKey失敗: {}", e))?;
         builder.set_private_key(&pkey)?;
         builder.check_private_key()?;
+        builder.set_verify(SslVerifyMode::PEER | SslVerifyMode::FAIL_IF_NO_PEER_CERT);
         Ok(builder)
     }
 }
@@ -145,13 +198,52 @@ impl MiniController {
 /// # 回傳
 /// * `HttpResponse`: 返回 HTTP 響應，成功時為 Ok，失敗時為 InternalServerError
 async fn init_api(
+    req: HttpRequest,
     shutdown_tx: web::Data<tokio::sync::mpsc::Sender<()>>,
     marker_path: web::Data<PathBuf>,
 ) -> HttpResponse {
+    if let Some(peer) = req.conn_data::<PeerCerts>() {
+        if is_debug() {
+            dbg!(&peer.0);
+        }
+        let serial = peer
+            .0
+            .first()
+            .and_then(|cert| CertificateProcess::cert_serial_sha256(cert).ok());
+        let fingerprint = peer
+            .0
+            .first()
+            .and_then(|cert| CertificateProcess::cert_fingerprint_sha256(cert).ok());
+
+        if serial.is_some() && fingerprint.is_some() {
+            {
+                if GlobalConfig::has_active_readers() {
+                    eprintln!("還有讀鎖沒釋放!-3");
+                }
+                let mut global = GlobalConfig::write().await;
+                if let Some(s) = serial {
+                    global.settings.controller.serial = s.clone();
+                }
+                if let Some(f) = fingerprint {
+                    global.settings.controller.fingerprint = f.clone();
+                }
+            }
+            if let Err(e) = GlobalConfig::save_config().await {
+                eprintln!("儲存設定失敗: {}", e);
+                return HttpResponse::InternalServerError().body("儲存設定失敗");
+            }
+        }
+    } else {
+        eprintln!("沒有找到 PeerCerts");
+    }
     if let Err(e) = tokio::fs::write(marker_path.get_ref(), b"done").await {
         eprint!("寫入marker檔案失敗: {}", e);
         return HttpResponse::InternalServerError().body("寫入marker檔案失敗");
     }
+    if is_debug() {
+        println!("初始化完成，關閉伺服器");
+    }
+
     let _ = shutdown_tx.send(()).await;
     HttpResponse::Ok().body("初始化完成")
 }

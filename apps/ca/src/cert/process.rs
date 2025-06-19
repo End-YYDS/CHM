@@ -1,4 +1,6 @@
 use openssl::{
+    asn1::Asn1Integer,
+    bn::{BigNum, MsbOption},
     hash::{hash, MessageDigest},
     pkey::{PKey, Private},
     rsa::Rsa,
@@ -12,7 +14,11 @@ use std::net::IpAddr;
 use std::path::Path;
 use std::{fs, sync::Arc};
 
-use crate::{cert::crl::{self, SimpleCrl}, CaResult, ChainCerts, CsrCert, PrivateKey, SignedCert};
+use crate::{
+    cert::crl::{self, SimpleCrl},
+    globals::GlobalConfig,
+    CaResult, ChainCerts, CsrCert, PrivateKey, SignedCert,
+};
 #[allow(unused)]
 /// 憑證處理器，負責載入 CA 憑證和金鑰，簽署 CSR，並提供 CRL 驗證功能
 pub struct CertificateProcess {
@@ -22,6 +28,7 @@ pub struct CertificateProcess {
     ca_key: PKey<Private>,
     /// CRL 驗證器
     crl: Arc<crl::CrlVerifier>,
+    store: Arc<Box<dyn crate::cert::store::CertificateStore>>,
 }
 #[allow(unused)]
 impl CertificateProcess {
@@ -37,6 +44,7 @@ impl CertificateProcess {
         cert_path: P,
         key_path: P,
         passphrase: &str,
+        store: Box<dyn crate::cert::store::CertificateStore>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let cert_pem = fs::read(&cert_path)?;
         let key_pem = fs::read(&key_path)?;
@@ -50,10 +58,12 @@ impl CertificateProcess {
         }
         .map_err(|e| format!("無法解析CA私鑰: {}", e))?;
         let crl = Arc::new(crl::CrlVerifier::new(SimpleCrl::new()));
+        let store = Arc::new(store);
         Ok(CertificateProcess {
             ca_cert,
             ca_key,
             crl,
+            store,
         })
     }
 
@@ -83,6 +93,14 @@ impl CertificateProcess {
     pub fn set_crl(&mut self, crl: Arc<crl::CrlVerifier>) {
         self.crl = crl;
     }
+
+    pub fn get_store(&self) -> Arc<Box<dyn crate::cert::store::CertificateStore>> {
+        self.store.clone()
+    }
+
+    pub fn set_store(&mut self, store: Arc<Box<dyn crate::cert::store::CertificateStore>>) {
+        self.store = store;
+    }
     /// 簽署 CSR 並返回簽署的憑證和 CA 憑證鏈
     /// # 參數
     /// * `csr`: 要簽署的 CSR (X509Req)
@@ -90,12 +108,15 @@ impl CertificateProcess {
     /// # 回傳
     /// * `Ok((SignedCert, ChainCerts))`：簽署的憑證和 CA 憑證鏈
     /// * `Err(e)`：若任何步驟失敗，回傳錯誤
-    pub fn sign_csr(&self, csr: &X509Req, days_valid: u32) -> CaResult<(SignedCert, ChainCerts)> {
+    pub async fn sign_csr(
+        &self,
+        csr: &X509Req,
+        days_valid: u32,
+    ) -> CaResult<(SignedCert, ChainCerts)> {
         let mut builder = X509Builder::new()?;
         builder.set_version(2)?;
         builder.set_subject_name(csr.subject_name())?;
         let pubkey = csr.public_key()?;
-
         builder.set_pubkey(&pubkey)?;
         builder.set_issuer_name(self.ca_cert.subject_name())?;
         let not_before = openssl::asn1::Asn1Time::days_from_now(0)?;
@@ -105,11 +126,16 @@ impl CertificateProcess {
         for ext in csr.extensions()? {
             builder.append_extension(ext)?;
         }
+        let mut bn = BigNum::new()?;
+        let bits = GlobalConfig::read().await.settings.certificate.bits;
+        bn.rand(bits, MsbOption::ONE, false)?; //TODO 讀取config設定的序號長度
+        let serial = Asn1Integer::from_bn(&bn)?;
+        builder.set_serial_number(&serial)?;
         builder.sign(&self.ca_key, MessageDigest::sha256())?;
         let leaf = builder.build();
         let cert_der = leaf.to_der()?;
         let chain_der = vec![self.ca_cert.to_der()?];
-        // TODO: 將簽發出去的憑證保留指紋及序號
+        self.store.insert(leaf).await?;
         Ok((cert_der, chain_der))
     }
     /// 產生 CSR 與對應的私鑰
@@ -232,8 +258,7 @@ impl CertificateProcess {
         let ca_key = Self::load_key(key_path, passphrase)?;
         Ok((ca_key.private_key_to_pem_pkcs8()?, ca_cert.to_pem()?))
     }
-    pub fn cert_fingerprint_sha256(pem: &[u8]) -> CaResult<String> {
-        let cert = X509::from_pem(pem)?;
+    pub fn cert_fingerprint_sha256(cert: &X509) -> CaResult<String> {
         let der = cert.to_der()?;
         let digest = hash(MessageDigest::sha256(), &der)?;
         let hex = digest
@@ -243,7 +268,7 @@ impl CertificateProcess {
             .join("");
         Ok(hex)
     }
-    pub fn cert_serial_sha256(cert: X509) -> CaResult<String> {
+    pub fn cert_serial_sha256(cert: &X509) -> CaResult<String> {
         let serial = cert.serial_number();
         let digest = hash(MessageDigest::sha256(), serial.to_bn()?.to_vec().as_slice())?;
         let hex = digest
@@ -252,5 +277,15 @@ impl CertificateProcess {
             .collect::<Vec<_>>()
             .join("");
         Ok(hex)
+    }
+    pub fn is_controller_cert(&self, cert: &X509) -> CaResult<bool> {
+        let subject = cert.subject_name();
+        let cn = subject.entries_by_nid(openssl::nid::Nid::COMMONNAME).next();
+        if let Some(entry) = cn {
+            if entry.data().as_utf8()?.to_string() == "controller" {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 }
