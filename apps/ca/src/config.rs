@@ -198,11 +198,6 @@ impl Settings {
     /// # 回傳
     /// * `Result<(), Box<dyn std::error::Error>>` - 返回結果，成功時為 Ok，失敗時為 Err
     pub async fn init(path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        // let s = toml::to_string_pretty(&cfg)?;
-        // if let Some(parent) = path.parent() {
-        //     fs::create_dir_all(parent)?;
-        // }
-        // fs::write(path, s)?;
         store_config(&Settings::default(), is_debug(), path).await?;
         println!("Generated default config at {}", path);
         Ok(())

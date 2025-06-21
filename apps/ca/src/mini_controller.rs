@@ -88,7 +88,7 @@ impl MiniController {
         let tx_clone = tx.clone();
         let rootca = {
             if GlobalConfig::has_active_readers() {
-                eprintln!("⚠️ 还有读锁没释放！2");
+                eprintln!("⚠️ 還有讀鎖還未釋放!-2");
             }
             let cfg = GlobalConfig::read().await;
             cfg.settings.certificate.rootca.clone()
@@ -109,27 +109,6 @@ impl MiniController {
                     ext.insert(PeerCerts(vec![cert]));
                 }
             }
-            // if let Some(stream) = conn.downcast_ref::<TlsStream<TcpStream>>() {
-            //     let certs = stream.ssl().certificate();
-            //     if let Some(certs) = certs {
-            //         let certs = certs.to_owned();
-            //         ext.insert(PeerCerts(certs));
-            //     }
-            // }
-            // if let Some(stream) = conn.downcast_ref::<TlsStream<TcpStream>>() {
-            //     println!("🛠 downcast 成功！");
-            //     // 看看握手时到底有没有 peer cert
-            //     let ssl = stream.ssl();
-            //     match ssl.peer_certificate() {
-            //         Some(cert) => {
-            //             println!("🛠 peer_certificate subject: {:?}", cert.subject_name());
-            //             ext.insert(PeerCerts(vec![cert.clone()]));
-            //         }
-            //         None => println!("🛠 没有 peer_certificate"),
-            //     }
-            // } else {
-            //     println!("🛠 conn 不是 TlsStream<TcpStream>");
-            // }
         })
         .bind_openssl(addr, ssl_acceptor)?
         .disable_signals()

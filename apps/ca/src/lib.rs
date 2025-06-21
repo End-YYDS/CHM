@@ -8,16 +8,17 @@ pub mod connection;
 pub mod globals;
 pub mod mini_controller;
 use grpc::{ca::*, tonic, tonic_health};
-use openssl::x509::X509;
+use openssl::x509::{X509Req, X509};
+use tokio::sync::watch;
 
-use std::{net::SocketAddr, sync::Arc};
+use std::{fs, io::Write, net::SocketAddr, path::Path, sync::Arc};
 use tonic::{
     transport::{Identity, ServerTlsConfig},
     Request, Status,
 };
 use tonic_health::server::health_reporter;
 
-use crate::{cert::process::CertificateProcess, connection::MyCa};
+use crate::{cert::process::CertificateProcess, connection::MyCa, mini_controller::MiniController};
 /// 定義一個簡化的結果類型，用於返回結果或錯誤
 pub type CaResult<T> = Result<T, Box<dyn std::error::Error>>;
 /// 定義已經簽署的憑證類型
@@ -77,6 +78,12 @@ fn middleware(
     }
 }
 
+fn setup_cert_watcher() -> watch::Receiver<()> {
+    let (_cert_update_tx, cert_update_rx) = watch::channel(());
+    // TODO: 把 `_cert_update_tx` 保留在能檢測到新憑證的程式碼裡面，更新憑證時呼叫 `.send(())`
+    cert_update_rx
+}
+
 /// 啟動 gRPC 服務
 /// # 參數
 /// * `addr`: gRPC 服務的地址
@@ -87,40 +94,130 @@ pub async fn start_grpc(
     addr: SocketAddr,
     cert_handler: Arc<CertificateProcess>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // 設定 TLS
-    let (key, cert) = CertificateProcess::cert_from_path("ca_grpc", None)?;
-    let identity = Identity::from_pem(cert, key);
-    let tls = ServerTlsConfig::new().identity(identity).client_ca_root(
-        tonic::transport::Certificate::from_pem(cert_handler.get_ca_cert().to_pem()?),
-    );
-    // ----------
-    // 啟動健康檢查服務
-    let (health_reporter, health_service) = health_reporter();
-    health_reporter
-        .set_serving::<ca_server::CaServer<MyCa>>()
-        .await;
-    // ----------
-    let svc = ca_server::CaServer::with_interceptor(
-        MyCa {
-            cert: cert_handler.clone(),
-        },
-        middleware(cert_handler.clone()),
-    );
-    println!("gRPC server listening on {}", addr);
-    let shutdown_signal = async {
-        tokio::signal::ctrl_c()
-            .await
-            .expect("failed to listen for Ctrl-C");
-        println!("收到CtrlC,開始關閉gRPC...");
+    let cert_update_rx = setup_cert_watcher();
+    loop {
+        let mut rx = cert_update_rx.clone();
+        // 設定 TLS
+        let (key, cert) = CertificateProcess::cert_from_path("ca_grpc", None)?;
+        let identity = Identity::from_pem(cert, key);
+        let tls = ServerTlsConfig::new().identity(identity).client_ca_root(
+            tonic::transport::Certificate::from_pem(cert_handler.get_ca_cert().to_pem()?),
+        );
+        // ----------
+        // 啟動健康檢查服務
+        let (health_reporter, health_service) = health_reporter();
         health_reporter
-            .set_not_serving::<ca_server::CaServer<MyCa>>()
+            .set_serving::<ca_server::CaServer<MyCa>>()
             .await;
-    };
-    tonic::transport::Server::builder()
-        .tls_config(tls)?
-        .add_service(svc)
-        .add_service(health_service)
-        .serve_with_shutdown(addr, shutdown_signal)
-        .await?;
+        // ----------
+        let shutdown_signal = {
+            let health_reporter = health_reporter.clone();
+            async move {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {
+                        println!("[gRPC] 收到 Ctrl-C，開始關閉...");
+                    }
+                    Ok(_) = rx.changed() => {
+                        println!("[gRPC] 憑證更新，開始重新啟動 gRPC...");
+                    }
+                }
+                health_reporter
+                    .set_not_serving::<ca_server::CaServer<MyCa>>()
+                    .await;
+            }
+        };
+        let svc = ca_server::CaServer::with_interceptor(
+            MyCa {
+                cert: cert_handler.clone(),
+            },
+            middleware(cert_handler.clone()),
+        );
+        println!("gRPC server listening on {}", addr);
+        let server = tonic::transport::Server::builder()
+            .tls_config(tls)?
+            .add_service(svc)
+            .add_service(health_service)
+            .serve_with_shutdown(addr, shutdown_signal);
+        if let Err(e) = server.await {
+            eprintln!("[gRPC] 啟動失敗: {:?}", e);
+        }
+        if cert_update_rx.has_changed().unwrap_or(false) {
+            println!("[gRPC] 重啟完成，重新載入新憑證並啟動服務");
+            continue;
+        }
+        break;
+    }
+
+    Ok(())
+}
+
+
+
+/// 產生mini controller 的憑證,並將私鑰保存至certs資料夾內
+/// # 參數
+/// * `cert_handler` - 用於簽署憑證的 CertificateProcess 處理器
+/// # 回傳
+/// * `CaResult<MiniController>` - 返回 MiniController 實例或錯誤
+pub async fn mini_controller_cert(cert_handler: &CertificateProcess) -> CaResult<MiniController> {
+    let mini_cert: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
+        4096,
+        "TW",
+        "Taipei",
+        "Taipei",
+        "CHM Organization",
+        "miniC.example.com",
+        &["127.0.0.1"],
+    )?;
+    let key = Path::new("certs").join("mini_controller.key");
+    let mut f = fs::File::create(key)?;
+    f.write_all(mini_cert.0.as_slice())?;
+    let mini_csr = X509Req::from_pem(&mini_cert.1)?;
+    let mini_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&mini_csr, 365).await?;
+    let mini_c = mini_controller::MiniController::new(Some(mini_sign.0), Some(mini_cert.0));
+    mini_c.save_cert("mini_controller.pem")?;
+    Ok(mini_c)
+}
+
+/// 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
+/// # 參數
+/// * `cert_handler` - 用於簽署憑證的 CertificateProcess 處理器
+/// # 回傳
+/// * `CaResult<()>` - 返回結果，表示操作是否成功
+pub async fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
+    let ca_grpc: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
+        4096,
+        "TW",
+        "Taipei",
+        "Taipei",
+        "CHM Organization",
+        "ca.example.com",
+        &["127.0.0.1"],
+    )?;
+    let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
+    let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
+    CertificateProcess::save_cert("ca_grpc", ca_grpc_sign.0, ca_grpc.0)?;
+    Ok(())
+}
+
+/// 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
+/// # 參數
+/// * `cert_handler` - 用於簽署憑證的 CertificateProcess 處理器
+/// # 回傳
+/// * `CaResult<()>` - 返回結果，表示操作是否成功
+#[allow(unused)]
+pub async fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
+    // 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
+    let ca_grpc: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
+        4096,
+        "TW",
+        "Taipei",
+        "Taipei",
+        "CHM Organization",
+        "ca.example.com",
+        &["127.0.0.1"],
+    )?;
+    let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
+    let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
+    CertificateProcess::save_cert("grpc_test", ca_grpc_sign.0, ca_grpc.0)?;
     Ok(())
 }

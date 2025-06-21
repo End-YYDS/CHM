@@ -50,7 +50,7 @@ impl GlobalConfig {
     }
     pub async fn save_config() -> CaResult<()> {
         if GlobalConfig::has_active_readers() {
-            eprintln!("⚠️ 还有读锁没释放！1");
+            eprintln!("⚠️ 還有鎖沒有釋放!-1");
         }
         let cfg = &GlobalConfig::read().await.settings;
         let config_name = format!("{}_config.toml", ID);
