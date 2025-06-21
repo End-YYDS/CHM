@@ -31,3 +31,4 @@ dist-ssr
 certs/*
 !certs/.gitkeep
 db
+config
