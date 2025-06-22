@@ -12,6 +12,7 @@ use openssl::{
     ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod},
     x509::X509,
 };
+use serde::Deserialize;
 use std::{
     fs,
     io::Write,
@@ -19,6 +20,12 @@ use std::{
     path::{Path, PathBuf},
 };
 use tokio::sync::mpsc::Sender;
+
+#[allow(unused)]
+#[derive(Debug, Clone, Deserialize)]
+struct Otp {
+    code: String,
+}
 #[derive(Debug, Clone)]
 pub struct PeerCerts(Vec<X509>);
 #[derive(Debug)]
@@ -84,11 +91,21 @@ impl MiniController {
     /// * `CaResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
     pub async fn start(&mut self, addr: SocketAddr, marker_path: PathBuf) -> CaResult<()> {
         println!("Init Process Running on {} ...", addr);
+        let otp_len = {
+            if GlobalConfig::has_active_readers() {
+                eprintln!("⚠️ 還有讀鎖還未釋放!-4");
+            }
+            let cfg = GlobalConfig::read().await;
+            cfg.settings.server.otp_len
+        };
+        let otp_code = password::generate_otp(otp_len);
+        println!("OTP code: {}", otp_code);
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
         let tx_clone = tx.clone();
         let rootca = {
             if GlobalConfig::has_active_readers() {
                 eprintln!("⚠️ 還有讀鎖還未釋放!-2");
+                return Err("還有讀鎖未釋放".into());
             }
             let cfg = GlobalConfig::read().await;
             cfg.settings.certificate.rootca.clone()
@@ -100,6 +117,7 @@ impl MiniController {
             App::new()
                 .app_data(web::Data::new(marker_path.clone()))
                 .app_data(web::Data::new(tx_clone.clone()))
+                .app_data(web::Data::new(otp_code.clone()))
                 .service(init_api)
         })
         .on_connect(|conn, ext| {
@@ -154,11 +172,6 @@ impl MiniController {
         builder
             .set_ca_file(rootca)
             .map_err(|e| format!("設置CA檔案失敗: {}", e))?;
-
-        // let mut store_builder = X509StoreBuilder::new().expect("創建X509StoreBuilder失敗");
-        // store_builder.add_cert(cert).expect("添加憑證到X509StoreBuilder失敗");
-        // let store = store_builder.build();
-        // builder.set_verify_cert_store(store).expect("設置憑證存儲失敗");
         let pkey = PKey::private_key_from_pem(key_bytes)
             .or_else(|_| PKey::private_key_from_der(key_bytes))
             .map_err(|e| format!("解析PrivateKey失敗: {}", e))?;
@@ -180,11 +193,14 @@ async fn init_api(
     req: HttpRequest,
     shutdown_tx: web::Data<tokio::sync::mpsc::Sender<()>>,
     marker_path: web::Data<PathBuf>,
+    otp_code: web::Data<String>,
+    data: web::Json<Otp>,
 ) -> HttpResponse {
+    if data.code.as_str() != otp_code.as_str() {
+        eprintln!("OTP 驗證失敗: {}", data.code);
+        return HttpResponse::Unauthorized().body("OTP 驗證失敗");
+    }
     if let Some(peer) = req.conn_data::<PeerCerts>() {
-        if is_debug() {
-            dbg!(&peer.0);
-        }
         let serial = peer
             .0
             .first()
@@ -193,11 +209,11 @@ async fn init_api(
             .0
             .first()
             .and_then(|cert| CertificateProcess::cert_fingerprint_sha256(cert).ok());
-
         if serial.is_some() && fingerprint.is_some() {
             {
                 if GlobalConfig::has_active_readers() {
                     eprintln!("還有讀鎖沒釋放!-3");
+                    return HttpResponse::Locked().body("還有讀鎖沒釋放");
                 }
                 let mut global = GlobalConfig::write().await;
                 if let Some(s) = serial {
@@ -214,7 +230,10 @@ async fn init_api(
         }
     } else {
         eprintln!("沒有找到 PeerCerts");
+        return HttpResponse::PreconditionFailed()
+            .body("沒有找到 PeerCerts，請確保使用正確的憑證連接");
     }
+
     if let Err(e) = tokio::fs::write(marker_path.get_ref(), b"done").await {
         eprint!("寫入marker檔案失敗: {}", e);
         return HttpResponse::InternalServerError().body("寫入marker檔案失敗");
@@ -222,7 +241,6 @@ async fn init_api(
     if is_debug() {
         println!("初始化完成，關閉伺服器");
     }
-
     let _ = shutdown_tx.send(()).await;
     HttpResponse::Ok().body("初始化完成")
 }

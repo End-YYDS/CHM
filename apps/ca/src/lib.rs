@@ -211,7 +211,6 @@ pub async fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
 /// * `cert_handler` - 用於簽署憑證的 CertificateProcess 處理器
 /// # 回傳
 /// * `CaResult<()>` - 返回結果，表示操作是否成功
-#[allow(unused)]
 pub async fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     // 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
     let ca_grpc: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
@@ -226,5 +225,21 @@ pub async fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
     CertificateProcess::save_cert("grpc_test", ca_grpc_sign.0, ca_grpc.0)?;
+    Ok(())
+}
+pub async fn one_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
+    // 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
+    let ca_grpc: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
+        4096,
+        "TW",
+        "Taipei",
+        "Taipei",
+        "CHM Organization",
+        "one.example.com",
+        &["127.0.0.1"],
+    )?;
+    let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
+    let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
+    CertificateProcess::save_cert("one_test", ca_grpc_sign.0, ca_grpc.0)?;
     Ok(())
 }

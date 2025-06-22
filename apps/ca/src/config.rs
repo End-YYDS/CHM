@@ -17,6 +17,8 @@ pub struct Server {
     #[serde(default = "Server::default_port")]
     /// 伺服器埠號
     pub port: u16,
+    #[serde(default = "Server::default_otp_len")]
+    pub otp_len: usize,
 }
 
 impl Server {
@@ -28,12 +30,16 @@ impl Server {
     fn default_port() -> u16 {
         50052
     }
+    fn default_otp_len() -> usize {
+        6
+    }
 }
 impl Default for Server {
     fn default() -> Self {
         Server {
             host: Server::default_host(),
             port: Server::default_port(),
+            otp_len: Server::default_otp_len(),
         }
     }
 }

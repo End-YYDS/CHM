@@ -1,5 +1,5 @@
 [workspace]
-members = ["apps/ca", "xtask","libs/grpc","libs/config_loader"]
+members = ["apps/ca", "xtask","libs/grpc","libs/config_loader","libs/password"]
 resolver = "2"
 [workspace.package]
 version = "0.1.0"
