@@ -9,6 +9,11 @@ message CsrResponse {
     bytes cert = 1;
     repeated bytes chain = 2;
 }
+message Empty{}
+message ReloadResponse {
+    bool success = 1;
+}
 service CA {
     rpc SignCsr(CsrRequest) returns (CsrResponse);
+    rpc ReloadCA(Empty) returns (ReloadResponse);
 }

@@ -128,7 +128,7 @@ impl CertificateProcess {
         }
         let mut bn = BigNum::new()?;
         let bits = GlobalConfig::read().await.settings.certificate.bits;
-        bn.rand(bits, MsbOption::ONE, false)?; //TODO 讀取config設定的序號長度
+        bn.rand(bits, MsbOption::ONE, false)?;
         let serial = Asn1Integer::from_bn(&bn)?;
         builder.set_serial_number(&serial)?;
         builder.sign(&self.ca_key, MessageDigest::sha256())?;
@@ -278,14 +278,13 @@ impl CertificateProcess {
             .join("");
         Ok(hex)
     }
-    pub fn is_controller_cert(&self, cert: &X509) -> CaResult<bool> {
-        let subject = cert.subject_name();
-        let cn = subject.entries_by_nid(openssl::nid::Nid::COMMONNAME).next();
-        if let Some(entry) = cn {
-            if entry.data().as_utf8()?.to_string() == "controller" {
-                return Ok(true);
-            }
-        }
-        Ok(false)
+    pub fn is_controller_cert(
+        &self,
+        cert: &X509,
+        controller_args: (String, String),
+    ) -> CaResult<bool> {
+        let serial = CertificateProcess::cert_serial_sha256(cert)?;
+        let fingerprint = CertificateProcess::cert_fingerprint_sha256(cert)?;
+        Ok(controller_args.0 == serial && controller_args.1 == fingerprint)
     }
 }

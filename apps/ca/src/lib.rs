@@ -18,7 +18,10 @@ use tonic::{
 };
 use tonic_health::server::health_reporter;
 
-use crate::{cert::process::CertificateProcess, connection::MyCa, mini_controller::MiniController};
+use crate::{
+    cert::process::CertificateProcess, connection::MyCa, globals::GlobalConfig,
+    mini_controller::MiniController,
+};
 /// 定義一個簡化的結果類型，用於返回結果或錯誤
 pub type CaResult<T> = Result<T, Box<dyn std::error::Error>>;
 /// 定義已經簽署的憑證類型
@@ -37,6 +40,7 @@ pub type CsrCert = Vec<u8>;
 /// * `impl Fn(Request<()>) -> Result<Request<()>, Status>`: 返回一個攔截器函數
 fn middleware(
     cert_handler: Arc<CertificateProcess>,
+    controller_args: (String, String),
 ) -> impl Fn(Request<()>) -> Result<Request<()>, Status> + Clone + Send + Sync + 'static {
     move |req: Request<()>| {
         let metadata = req.metadata();
@@ -67,8 +71,9 @@ fn middleware(
                 // 回傳CRL list
             }
         }
+
         let is_ctrl = cert_handler
-            .is_controller_cert(&x509)
+            .is_controller_cert(&x509, controller_args.clone())
             .map_err(|e| Status::internal(format!("Controller check failed: {}", e)))?;
         if !is_ctrl {
             return Err(Status::permission_denied("Only controller cert is allowed"));
@@ -76,12 +81,6 @@ fn middleware(
 
         Ok(req) //TODO 暫時不檢查 CRL
     }
-}
-
-fn setup_cert_watcher() -> watch::Receiver<()> {
-    let (_cert_update_tx, cert_update_rx) = watch::channel(());
-    // TODO: 把 `_cert_update_tx` 保留在能檢測到新憑證的程式碼裡面，更新憑證時呼叫 `.send(())`
-    cert_update_rx
 }
 
 /// 啟動 gRPC 服務
@@ -94,7 +93,7 @@ pub async fn start_grpc(
     addr: SocketAddr,
     cert_handler: Arc<CertificateProcess>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let cert_update_rx = setup_cert_watcher();
+    let (cert_update_tx, mut cert_update_rx) = watch::channel(());
     loop {
         let mut rx = cert_update_rx.clone();
         // 設定 TLS
@@ -126,11 +125,20 @@ pub async fn start_grpc(
                     .await;
             }
         };
+
+        let controller_args = {
+            let lock = GlobalConfig::read().await;
+            (
+                lock.settings.controller.serial.clone(),
+                lock.settings.controller.fingerprint.clone(),
+            )
+        };
         let svc = ca_server::CaServer::with_interceptor(
             MyCa {
                 cert: cert_handler.clone(),
+                reloader: cert_update_tx.clone(),
             },
-            middleware(cert_handler.clone()),
+            middleware(cert_handler.clone(), controller_args),
         );
         println!("gRPC server listening on {}", addr);
         let server = tonic::transport::Server::builder()
@@ -143,6 +151,7 @@ pub async fn start_grpc(
         }
         if cert_update_rx.has_changed().unwrap_or(false) {
             println!("[gRPC] 重啟完成，重新載入新憑證並啟動服務");
+            let _ = cert_update_rx.borrow_and_update();
             continue;
         }
         break;
@@ -150,8 +159,6 @@ pub async fn start_grpc(
 
     Ok(())
 }
-
-
 
 /// 產生mini controller 的憑證,並將私鑰保存至certs資料夾內
 /// # 參數
@@ -213,7 +220,7 @@ pub async fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
         "Taipei",
         "Taipei",
         "CHM Organization",
-        "ca.example.com",
+        "test.example.com",
         &["127.0.0.1"],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;

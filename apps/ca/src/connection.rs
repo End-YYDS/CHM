@@ -13,6 +13,7 @@ use crate::{cert::process::CertificateProcess, config::is_debug};
 pub struct MyCa {
     /// 憑證處理器
     pub cert: Arc<CertificateProcess>,
+    pub reloader: tokio::sync::watch::Sender<()>,
 }
 
 #[tonic::async_trait]
@@ -40,5 +41,11 @@ impl Ca for MyCa {
             Status::internal(format!("Sign error: {}", e))
         })?;
         Ok(Response::new(CsrResponse { cert: leaf, chain }))
+    }
+    async fn reload_ca(&self, _req: Request<grpc::ca::Empty>) -> Result<Response<ReloadResponse>, Status> {
+        if let Err(e) = self.reloader.send(()) {
+            return Err(Status::internal(format!("Reloader error: {}", e)));
+        }
+        Ok(Response::new(ReloadResponse { success: true }))
     }
 }

@@ -54,10 +54,9 @@ where
         .add_source(File::from(default_dev_path.join(dev_config)).required(false))
         // 環境變數覆蓋：CHM_{$env_prefix}__PASSPHRASE
         .add_source(
-            Environment::with_prefix(PROJECT.2)
-                .prefix(env_prefix)
-                .prefix_separator("_")
-                .separator("__"),
+            Environment::with_prefix(&format!("{}_{}",PROJECT.2, env_prefix))
+                .prefix_separator("__")
+                .separator("___"),
         );
     let ret = builder.build()?.try_deserialize::<T>();
     match ret {
@@ -76,7 +75,7 @@ where
     let save_path = if is_debug {
         PathBuf::from("config").join(file)
     }else{
-        PathBuf::from("/etc").join(PROJECT.2).join(file)
+        PathBuf::from("/etc").join(PROJECT.2).join(file) //TODO: 安裝腳本安裝時注意資料夾權限問題
     };
     let s = toml::to_string_pretty(config)?;
     if let Some(parent) = save_path.parent() {

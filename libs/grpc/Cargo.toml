@@ -7,6 +7,7 @@ ca = []
 
 [dependencies]
 prost = "0.13.5"
+prost-types = "0.14.1"
 tonic = { version = "0.13.1", features = ["tls-ring"] }
 tonic-health = "0.13.0"
 [build-dependencies]

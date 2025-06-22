@@ -43,9 +43,6 @@ impl GlobalConfig {
     }
     pub fn has_active_readers() -> bool {
         let lock = GLOBAL_CFG.get().expect("GlobalConfig not initialized");
-
-        // tokio::sync::RwLock::try_write() 返回 Option<WriteGuard>
-        // 如果返回 None，说明已有读锁或写锁存在
         lock.try_write().is_err()
     }
     pub async fn save_config() -> CaResult<()> {

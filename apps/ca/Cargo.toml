@@ -20,6 +20,9 @@ sqlx = { version = "0.8.6", features = ["sqlite", "macros", "chrono", "runtime-t
 once_cell = "1.21.3"
 actix-tls = { version = "3.4.0", features = ["openssl"] }
 
+[dev-dependencies]
+grpc = { version = "0.1.0", path = "../../libs/grpc", features = ["ca"] }
+
 [[bin]]
 name = "CHM_CA"
 path = "src/main.rs"

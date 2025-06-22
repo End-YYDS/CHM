@@ -1,7 +1,7 @@
 use ca::{
     ca_grpc_cert,
     cert::{process::CertificateProcess, store::StoreFactory},
-    config::{config, is_debug, NEED_EXAMPLE},
+    config::{config, NEED_EXAMPLE},
     globals::GlobalConfig,
     grpc_test_cert, mini_controller_cert, start_grpc, CaResult,
 };
@@ -31,12 +31,8 @@ async fn main() -> CaResult<()> {
         fs::create_dir_all(parent)?;
     }
     let first_run = !marker_path.exists();
-    // let ca_passwd = rpassword::prompt_password("Enter CA passphrase: ")?;
     let ca_passwd = &cmg.certificate.passphrase;
     let store = StoreFactory::create_store().await?;
-    if is_debug() {
-        dbg!(&store);
-    }
     let addr = SocketAddr::new(cmg.server.host.parse()?, cmg.server.port);
     let cert_handler = Arc::new(CertificateProcess::load(
         &cmg.certificate.rootca,
@@ -47,7 +43,6 @@ async fn main() -> CaResult<()> {
     drop(cfg);
     if first_run {
         let mut mini_c = mini_controller_cert(&cert_handler).await?;
-        // 創建CA grpc的憑證,並將私鑰保存至certs資料夾內,留著之後啟動gRPC service
         ca_grpc_cert(&cert_handler).await?;
         grpc_test_cert(&cert_handler).await?;
         mini_c.start(addr, marker_path.clone()).await?;
@@ -55,6 +50,5 @@ async fn main() -> CaResult<()> {
     if marker_path.exists() {
         start_grpc(addr, cert_handler.clone()).await?;
     }
-    // grpc_test_cert(&cert_handler)?;
     Ok(())
 }

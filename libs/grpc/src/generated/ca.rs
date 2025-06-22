@@ -13,6 +13,13 @@ pub struct CsrResponse {
     #[prost(bytes = "vec", repeated, tag = "2")]
     pub chain: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct Empty {}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct ReloadResponse {
+    #[prost(bool, tag = "1")]
+    pub success: bool,
+}
 /// Generated client implementations.
 pub mod ca_client {
     #![allow(
@@ -122,6 +129,24 @@ pub mod ca_client {
             req.extensions_mut().insert(GrpcMethod::new("ca.CA", "SignCsr"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn reload_ca(
+            &mut self,
+            request: impl tonic::IntoRequest<super::Empty>,
+        ) -> std::result::Result<tonic::Response<super::ReloadResponse>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/ca.CA/ReloadCA");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("ca.CA", "ReloadCA"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -141,6 +166,10 @@ pub mod ca_server {
             &self,
             request: tonic::Request<super::CsrRequest>,
         ) -> std::result::Result<tonic::Response<super::CsrResponse>, tonic::Status>;
+        async fn reload_ca(
+            &self,
+            request: tonic::Request<super::Empty>,
+        ) -> std::result::Result<tonic::Response<super::ReloadResponse>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct CaServer<T> {
@@ -246,6 +275,49 @@ pub mod ca_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = SignCsrSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/ca.CA/ReloadCA" => {
+                    #[allow(non_camel_case_types)]
+                    struct ReloadCASvc<T: Ca>(pub Arc<T>);
+                    impl<T: Ca> tonic::server::UnaryService<super::Empty>
+                    for ReloadCASvc<T> {
+                        type Response = super::ReloadResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::Empty>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as Ca>::reload_ca(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ReloadCASvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

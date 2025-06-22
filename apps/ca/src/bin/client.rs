@@ -1,4 +1,5 @@
 #![allow(unused)]
+use grpc::tonic::client;
 use grpc::tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint};
 use grpc::tonic_health::pb::{health_client::HealthClient, HealthCheckRequest};
 use grpc::{
@@ -12,12 +13,11 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 #[tokio::main]
 async fn main() -> Result<()> {
     let channel = init_connect().await?;
-
     health_check(channel.clone()).await?;
-
-    // let client = CaClient::new(channel);
+    let client = CaClient::new(channel);
     // test_crl(client.clone()).await?;
     // sign_cert(client.clone()).await?;
+    // test_grpc_restart(client.clone()).await?;
     Ok(())
 }
 
@@ -62,6 +62,16 @@ async fn test_crl(mut client: CaClient<Channel>) -> Result<()> {
     Ok(())
 }
 
+async fn test_grpc_restart(mut client: CaClient<Channel>) -> Result<()> {
+    // 模擬憑證更新
+    let resp = client.reload_ca(grpc::ca::Empty {}).await?.into_inner();
+    if resp.success {
+        println!("gRPC CA 重啟成功");
+    } else {
+        println!("gRPC CA 重啟失敗");
+    }
+    Ok(())
+}
 async fn init_connect() -> Result<Channel> {
     let ca_cert = fs::read("certs/rootCA.pem")?;
     let ca_certificate = Certificate::from_pem(ca_cert);
