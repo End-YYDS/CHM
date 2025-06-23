@@ -79,7 +79,7 @@ fn middleware(
             return Err(Status::permission_denied("Only controller cert is allowed"));
         }
 
-        Ok(req) //TODO 暫時不檢查 CRL
+        Ok(req) //TODO: 檢查 CRL
     }
 }
 

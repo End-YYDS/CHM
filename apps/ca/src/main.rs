@@ -14,6 +14,10 @@ async fn main() -> CaResult<()> {
         config().await?;
         return Ok(());
     }
+    if args.iter().any(|a| a == "--create-ca") {
+        create_new_rootca().await?; //[ ]: 安裝程式需要先行調用此，產生RootCA
+        return Ok(());
+    }
     config().await?;
     if GlobalConfig::has_active_readers() {
         eprintln!("還有讀鎖沒釋放!-0");
@@ -27,7 +31,7 @@ async fn main() -> CaResult<()> {
         fs::create_dir_all(parent)?;
     }
     let first_run = !marker_path.exists();
-    let ca_passwd = &cmg.certificate.passphrase;
+    let ca_passwd = &cmg.certificate.passphrase; //[ ]: 這個密碼應該從環境變數或安全存儲中讀取,從systemd注入或是直接讀config檔案
     let store = StoreFactory::create_store().await?;
     let addr = SocketAddr::new(cmg.server.host.parse()?, cmg.server.port);
     let cert_handler = Arc::new(CertificateProcess::load(
@@ -37,13 +41,7 @@ async fn main() -> CaResult<()> {
         store,
     )?);
     drop(cfg);
-    if args.iter().any(|a| a == "--debug") {
-        // dbg!(&cfg);
-        // one_cert(&cert_handler).await?;
-        println!("Debug mode enabled");
-        create_new_rootca().await?;
-        return Ok(());
-    }
+
     if first_run {
         let mut mini_c = mini_controller_cert(&cert_handler).await?;
         ca_grpc_cert(&cert_handler).await?;

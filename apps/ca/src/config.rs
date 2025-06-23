@@ -116,7 +116,7 @@ pub struct Certificate {
 impl Certificate {
     /// 生成憑證簽署請求（CSR）和私鑰
     fn default_rootca() -> String {
-        "certs/rootCA.crt".into()
+        "certs/rootCA.pem".into()
     }
     /// 取得根憑證的私鑰路徑
     fn default_rootca_key() -> String {

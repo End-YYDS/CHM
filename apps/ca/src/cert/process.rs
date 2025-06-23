@@ -50,8 +50,8 @@ impl CertificateProcess {
         passphrase: &str,
         store: Box<dyn crate::cert::store::CertificateStore>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let cert_pem = fs::read(&cert_path)?;
-        let key_pem = fs::read(&key_path)?;
+        let cert_pem = fs::read(&cert_path).or_else(|_| fs::read("certs/rootCA.pem"))?;
+        let key_pem = fs::read(&key_path).or_else(|_| fs::read("certs/rootCA.key"))?;
         let ca_cert = X509::from_pem(&cert_pem)
             .or_else(|_| X509::from_der(&cert_pem))
             .map_err(|e| format!("無法解析CA憑證: {}", e))?;
@@ -216,6 +216,86 @@ impl CertificateProcess {
             pkey.private_key_to_pem_pkcs8()?
         };
         let cert_pem = cert.to_pem()?;
+        Ok((key_pem, cert_pem))
+    }
+    /// 產生中介 CA 憑證和對應的私鑰
+    /// # 參數
+    /// * `key_bits`: RSA 金鑰長度 (e.g. 2048)
+    /// * `country`, `state`, `locality`, `organization`, `common_name`: Subject 欄位
+    /// * `days_valid`: 憑證有效天數
+    /// * `bits`: 用於序列號的位數
+    /// * `pathlen`: 可選的 BasicConstraints 路徑長度限制
+    /// * `passphrase`: 可選的私鑰密碼短語
+    /// # 回傳
+    /// * `Ok((private_key_pem, cert_pem))`：分別是私鑰和憑證的 PEM Bytes
+    /// * `Err(e)`：若任何步驟失敗，回傳錯誤
+    #[allow(clippy::too_many_arguments)]
+    pub fn generate_intermediate_ca(
+        &self,
+        key_bits: u32,
+        country: &str,
+        state: &str,
+        locality: &str,
+        organization: &str,
+        common_name: &str,
+        days_valid: u32,
+        bits: i32,
+        pathlen: Option<u32>,
+        passphrase: Option<&[u8]>,
+    ) -> CaResult<(PrivateKey, CsrCert)> {
+        let rsa = Rsa::generate(key_bits)?;
+        let pkey = PKey::from_rsa(rsa)?;
+        let mut name_builder = X509NameBuilder::new()?;
+        name_builder.append_entry_by_text("C", country)?;
+        name_builder.append_entry_by_text("ST", state)?;
+        name_builder.append_entry_by_text("L", locality)?;
+        name_builder.append_entry_by_text("O", organization)?;
+        name_builder.append_entry_by_text("CN", common_name)?;
+        let name = name_builder.build();
+        let mut builder = X509Builder::new()?;
+        builder.set_version(2)?;
+        let mut bn = BigNum::new()?;
+        bn.rand(bits, MsbOption::ONE, false)?;
+        let serial = Asn1Integer::from_bn(&bn)?;
+        builder.set_serial_number(&serial)?;
+        let not_before = openssl::asn1::Asn1Time::days_from_now(0)?;
+        let not_after = openssl::asn1::Asn1Time::days_from_now(days_valid)?;
+        builder.set_not_before(&not_before)?;
+        builder.set_not_after(&not_after)?;
+        builder.set_subject_name(&name)?;
+        builder.set_issuer_name(self.ca_cert.subject_name())?;
+        builder.set_pubkey(&pkey)?;
+        let mut binding = BasicConstraints::new();
+        let mut bc = binding.ca();
+        if let Some(pl) = pathlen {
+            bc = bc.pathlen(pl);
+        }
+        builder.append_extension(bc.build()?)?;
+        builder.append_extension(
+            KeyUsage::new()
+                .key_cert_sign()
+                .crl_sign()
+                .critical()
+                .build()?,
+        )?;
+        builder.append_extension(
+            SubjectKeyIdentifier::new().build(&builder.x509v3_context(None, None))?,
+        )?;
+        builder.append_extension(
+            AuthorityKeyIdentifier::new()
+                .keyid(true)
+                .issuer(true)
+                .build(&builder.x509v3_context(Some(&self.ca_cert), None))?,
+        )?;
+        builder.sign(&self.ca_key, MessageDigest::sha256())?;
+        let cert = builder.build();
+        let cert_pem = cert.to_pem()?;
+        let key_pem = if let Some(pw) = passphrase {
+            pkey.private_key_to_pem_pkcs8_passphrase(Cipher::aes_256_cbc(), pw)?
+        } else {
+            pkey.private_key_to_pem_pkcs8()?
+        };
+
         Ok((key_pem, cert_pem))
     }
     /// 產生 CSR 與對應的私鑰

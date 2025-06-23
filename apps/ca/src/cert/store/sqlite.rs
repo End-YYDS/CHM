@@ -13,7 +13,6 @@ use crate::{
     config::BackendConfig,
     CaResult,
 };
-
 #[derive(Debug)]
 pub struct SqlConnection {
     pool: SqlitePool,
@@ -39,6 +38,10 @@ impl SqlConnection {
             .acquire_timeout(Duration::from_secs(timeout))
             .connect_with(connect_opts)
             .await?;
+        sqlx::migrate!("./migrations")
+            .run(&pool)
+            .await
+            .map_err(|e| format!("執行資料庫 migrations 失敗: {}", e))?;
         Ok(Self { pool })
     }
 }

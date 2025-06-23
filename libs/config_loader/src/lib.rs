@@ -33,7 +33,7 @@ where
     let proj_dirs =
         ProjectDirs::from(PROJECT.0, PROJECT.1, PROJECT.2).expect("invalid project name");
     let default_system_path = PathBuf::from("/etc").join(PROJECT.2); //TODO: 安裝腳本安裝時注意資料夾權限問題
-    // let default_user_path = proj_dirs.config_dir();
+                                                                     // let default_user_path = proj_dirs.config_dir();
     let default_dev_path = PathBuf::from("config");
     let default_name = format!("{}_config.toml", env_prefix);
     let system_config = system_config
@@ -54,7 +54,7 @@ where
         .add_source(File::from(default_dev_path.join(dev_config)).required(false))
         // 環境變數覆蓋：CHM_{$env_prefix}__PASSPHRASE
         .add_source(
-            Environment::with_prefix(&format!("{}_{}",PROJECT.2, env_prefix))
+            Environment::with_prefix(&format!("{}_{}", PROJECT.2, env_prefix))
                 .prefix_separator("__")
                 .separator("___"),
         );
@@ -68,13 +68,17 @@ where
     }
 }
 
-pub async fn store_config<T>(config: &T, is_debug: bool,file: &str) -> Result<(), Box<dyn std::error::Error>>
+pub async fn store_config<T>(
+    config: &T,
+    is_debug: bool,
+    file: &str,
+) -> Result<(), Box<dyn std::error::Error>>
 where
     T: serde::Serialize,
 {
     let save_path = if is_debug {
         PathBuf::from("config").join(file)
-    }else{
+    } else {
         PathBuf::from("/etc").join(PROJECT.2).join(file) //TODO: 安裝腳本安裝時注意資料夾權限問題
     };
     let s = toml::to_string_pretty(config)?;
