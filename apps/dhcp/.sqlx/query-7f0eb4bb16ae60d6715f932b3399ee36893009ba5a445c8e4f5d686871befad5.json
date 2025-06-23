@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id, zone_id, ip FROM ip_pools WHERE zone_id = ? LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "zone_id",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "ip",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "7f0eb4bb16ae60d6715f932b3399ee36893009ba5a445c8e4f5d686871befad5"
+}

@@ -1,0 +1,18 @@
+[package]
+name = "dhcp_service"
+version = "0.1.0"
+edition = "2021"
+build = "build.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tonic = { version = "0.13.1", features = ["transport"] }
+prost = "0.13.5"
+dotenv = "0.15"
+ipnetwork = "0.21.1"
+sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio-native-tls", "macros"] }
+thiserror = "2.0.12"
+serde_json = "1.0.109"
+
+[build-dependencies]
+tonic-build = "0.13.1"
