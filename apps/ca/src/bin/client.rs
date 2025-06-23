@@ -115,7 +115,8 @@ async fn init_http_connect() -> Result<reqwest::Client> {
     client_pem.extend(std::fs::read("certs/grpc_test.pem")?);
     client_pem.extend(std::fs::read("certs/grpc_test.key")?);
     let identity = reqwest::Identity::from_pem(&client_pem)?;
-    let ca = std::fs::read("certs/rootCA.crt")?;
+    // let ca = std::fs::read("certs/rootCA.crt")?;
+    let ca = std::fs::read("certs/test_root_ca.pem")?;
     let ca_cert = reqwest::Certificate::from_pem(&ca)?;
     let client = reqwest::Client::builder()
         .use_rustls_tls()

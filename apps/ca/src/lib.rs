@@ -202,11 +202,11 @@ pub async fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
-    CertificateProcess::save_cert("ca_grpc", ca_grpc_sign.0, ca_grpc.0)?;
+    CertificateProcess::save_cert("ca_grpc", ca_grpc.0, ca_grpc_sign.0)?;
     Ok(())
 }
 
-/// 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
+/// 產生grpc client 的憑證,並將私鑰保存至certs資料夾內
 /// # 參數
 /// * `cert_handler` - 用於簽署憑證的 CertificateProcess 處理器
 /// # 回傳
@@ -224,9 +224,11 @@ pub async fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
-    CertificateProcess::save_cert("grpc_test", ca_grpc_sign.0, ca_grpc.0)?;
+    CertificateProcess::save_cert("grpc_test", ca_grpc.0, ca_grpc_sign.0)?;
     Ok(())
 }
+
+/// 產生一個非controller的憑證並保存到指定的目錄
 pub async fn one_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     // 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
     let ca_grpc: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
@@ -240,6 +242,24 @@ pub async fn one_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
-    CertificateProcess::save_cert("one_test", ca_grpc_sign.0, ca_grpc.0)?;
+    CertificateProcess::save_cert("one_test", ca_grpc.0, ca_grpc_sign.0)?;
+    Ok(())
+}
+/// 產生一個非controller的憑證並保存到指定的目錄
+pub async fn create_new_rootca() -> CaResult<()> {
+    let ca_test: (PrivateKey, CsrCert) = CertificateProcess::generate_root_ca(
+        4096,
+        "TW",
+        "Taipei",
+        "Taipei",
+        "CHM Organization",
+        "testca.example.com",
+        3650,
+        // Some(b"test_password"),
+        None,
+        256,
+    )?;
+    CertificateProcess::save_cert("test_root_ca", ca_test.0, ca_test.1)?;
+    println!("Root CA generated!");
     Ok(())
 }

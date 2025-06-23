@@ -4,9 +4,13 @@ use openssl::{
     hash::{hash, MessageDigest},
     pkey::{PKey, Private},
     rsa::Rsa,
+    symm::Cipher,
     x509::{
-        extension::SubjectAlternativeName, X509Builder, X509NameBuilder, X509Req, X509ReqBuilder,
-        X509,
+        extension::{
+            AuthorityKeyIdentifier, BasicConstraints, KeyUsage, SubjectAlternativeName,
+            SubjectKeyIdentifier,
+        },
+        X509Builder, X509NameBuilder, X509Req, X509ReqBuilder, X509,
     },
 };
 use std::io::Write;
@@ -30,7 +34,7 @@ pub struct CertificateProcess {
     crl: Arc<crl::CrlVerifier>,
     store: Arc<Box<dyn crate::cert::store::CertificateStore>>,
 }
-#[allow(unused)]
+// #[allow(unused)]
 impl CertificateProcess {
     /// 從指定的憑證和金鑰檔案載入 CA 憑證和金鑰
     /// # 參數
@@ -138,6 +142,82 @@ impl CertificateProcess {
         self.store.insert(leaf).await?;
         Ok((cert_der, chain_der))
     }
+    /// 產生 Root CA 憑證和對應的私鑰
+    /// # 參數
+    /// * `key_bits`: RSA 金鑰長度 (e.g. 204
+    /// * `country`, `state`, `locality`, `organization`, `common_name`: Subject 欄位
+    /// * `days_valid`: 憑證有效天數
+    /// * `passphrase`: 可選的私鑰密碼短語
+    /// * `bits`: 用於序列號的位數
+    /// # 回傳
+    /// * `Ok((private_key_pem, cert_pem))`：分別是私鑰和憑證的 PEM Bytes
+    /// * `Err(e)`：若任何步驟失敗，回傳錯誤
+    /// # 注意
+    /// 這個函式會產生一個新的 Root CA
+    #[allow(clippy::too_many_arguments)]
+    pub fn generate_root_ca(
+        key_bits: u32,
+        country: &str,
+        state: &str,
+        locality: &str,
+        organization: &str,
+        common_name: &str,
+        days_valid: u32,
+        passphrase: Option<&[u8]>,
+        bits: i32,
+    ) -> CaResult<(PrivateKey, CsrCert)> {
+        // 1. 產生 RSA 私鑰
+        let rsa = Rsa::generate(key_bits)?;
+        let pkey = PKey::from_rsa(rsa)?;
+
+        // 2. 建立 Subject／Issuer Name
+        let mut name_builder = X509NameBuilder::new()?;
+        name_builder.append_entry_by_text("C", country)?;
+        name_builder.append_entry_by_text("ST", state)?;
+        name_builder.append_entry_by_text("L", locality)?;
+        name_builder.append_entry_by_text("O", organization)?;
+        name_builder.append_entry_by_text("CN", common_name)?;
+        let name = name_builder.build();
+        let mut builder = X509Builder::new()?;
+        builder.set_version(2)?;
+        let mut bn = BigNum::new()?;
+        bn.rand(bits, MsbOption::ONE, false)?;
+        let serial = Asn1Integer::from_bn(&bn)?;
+        builder.set_serial_number(&serial)?;
+        let not_before = openssl::asn1::Asn1Time::days_from_now(0)?;
+        let not_after = openssl::asn1::Asn1Time::days_from_now(days_valid)?;
+        builder.set_not_before(&not_before)?;
+        builder.set_not_after(&not_after)?;
+        builder.set_subject_name(&name)?;
+        builder.set_issuer_name(&name)?;
+        builder.set_pubkey(&pkey)?;
+        builder.append_extension(BasicConstraints::new().ca().build()?)?;
+        builder.append_extension(
+            KeyUsage::new()
+                .key_cert_sign()
+                .critical()
+                .crl_sign()
+                .build()?,
+        )?;
+        builder.append_extension(
+            SubjectKeyIdentifier::new().build(&builder.x509v3_context(None, None))?,
+        )?;
+        builder.append_extension(
+            AuthorityKeyIdentifier::new()
+                .keyid(true)
+                .issuer(false)
+                .build(&builder.x509v3_context(None, None))?,
+        )?;
+        builder.sign(&pkey, MessageDigest::sha256())?;
+        let cert = builder.build();
+        let key_pem = if let Some(pw) = passphrase {
+            pkey.private_key_to_pem_pkcs8_passphrase(Cipher::aes_256_cbc(), pw)?
+        } else {
+            pkey.private_key_to_pem_pkcs8()?
+        };
+        let cert_pem = cert.to_pem()?;
+        Ok((key_pem, cert_pem))
+    }
     /// 產生 CSR 與對應的私鑰
     /// # 參數
     /// * `key_bits`: RSA 金鑰長度 (e.g. 2048)
@@ -189,6 +269,7 @@ impl CertificateProcess {
 
         Ok((key_pem, csr_pem))
     }
+
     /// 儲存憑證和私鑰到指定的檔案
     /// # 參數
     /// * `filename`: 檔案名稱 (不含副檔名)
@@ -196,9 +277,13 @@ impl CertificateProcess {
     /// * `private_key`: 私鑰
     /// # 回傳
     /// * `CaResult<()>`：返回結果，成功時為 Ok，失敗時為 Err
-    pub fn save_cert(filename: &str, cert: SignedCert, private_key: PrivateKey) -> CaResult<()> {
-        let key_path = Path::new("certs").join(format!("{}.key", filename));
-        let cert_path = Path::new("certs").join(format!("{}.pem", filename));
+    pub fn save_cert(filename: &str, private_key: PrivateKey, cert: SignedCert) -> CaResult<()> {
+        let certs_path = Path::new("certs");
+        let key_path = certs_path.join(format!("{}.key", filename));
+        let cert_path = certs_path.join(format!("{}.pem", filename));
+        if !certs_path.exists() {
+            fs::create_dir_all(certs_path)?;
+        }
         let mut f = fs::File::create(cert_path)?;
         let mut f_key = fs::File::create(key_path)?;
         let r = X509::from_der(&cert)
@@ -286,5 +371,113 @@ impl CertificateProcess {
         let serial = CertificateProcess::cert_serial_sha256(cert)?;
         let fingerprint = CertificateProcess::cert_fingerprint_sha256(cert)?;
         Ok(controller_args.0 == serial && controller_args.1 == fingerprint)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tempfile::tempdir;
+    type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+    use super::*;
+    struct CaInfo {
+        key_bits: u32,
+        country: &'static str,
+        state: &'static str,
+        locality: &'static str,
+        organization: &'static str,
+        common_name: &'static str,
+        days_valid: u32,
+        passphrase: Option<&'static [u8]>,
+        bits: i32,
+    }
+    fn ca_info() -> CaInfo {
+        let key_bits = 2048;
+        let country = "TW";
+        let state = "Taipei";
+        let locality = "Taipei";
+        let organization = "CHM Organization";
+        let common_name = "Root CA";
+        let days_valid = 365;
+        let passphrase = b"test_passphrase";
+        let bits = 256;
+        CaInfo {
+            key_bits,
+            country,
+            state,
+            locality,
+            organization,
+            common_name,
+            days_valid,
+            passphrase: Some(passphrase),
+            bits,
+        }
+    }
+
+    fn create_test_ca() -> Result<(PrivateKey, CsrCert)> {
+        let CaInfo {
+            key_bits,
+            country,
+            state,
+            locality,
+            organization,
+            common_name,
+            days_valid,
+            passphrase,
+            bits,
+        } = ca_info();
+        CertificateProcess::generate_root_ca(
+            key_bits,
+            country,
+            state,
+            locality,
+            organization,
+            common_name,
+            days_valid,
+            passphrase,
+            bits,
+        )
+    }
+
+    fn set_temp_dir() -> Result<tempfile::TempDir> {
+        let temp_dir = tempdir()?;
+        std::env::set_current_dir(temp_dir.path())?;
+        Ok(temp_dir)
+    }
+
+    #[test]
+    fn test_fn_generate_root_ca() -> Result<()> {
+        let result = create_test_ca();
+        assert!(
+            result.is_ok(),
+            "Failed to generate root CA: {:?}",
+            result.err()
+        );
+        let result = result?;
+        let _ = set_temp_dir()?;
+        CertificateProcess::save_cert("test_ca", result.0, result.1)?;
+        let is_exists = Path::new("certs/test_ca.pem").exists();
+        assert!(is_exists, "Certificate file not found");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_sign_csr() -> Result<()> {
+        unimplemented!()
+    }
+
+    #[tokio::test]
+    async fn test_generate_csr() -> Result<()> {
+        unimplemented!()
+    }
+
+    #[tokio::test]
+    async fn test_load_cert() -> Result<()> {
+        // let temp_dir = set_temp_dir()?;
+        // let (private_key, cert) = create_test_ca()?;
+        // CertificateProcess::save_cert("test_ca", private_key, cert)?;
+        // let store = StoreFactory::create_store().await?;
+        // let ret = CertificateProcess::load(temp_dir.path().join("test_ca.pem"), temp_dir.path().join("test_ca.key"), "", store);
+        // assert!(ret.is_ok(), "Failed to load cert: {:?}", ret.err());
+        unimplemented!()
     }
 }
