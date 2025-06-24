@@ -4,6 +4,7 @@
   //   // "client",
   //   // "controller_server"
   // ],
+  "rust-analyzer.cargo.features": "all",
   "postman.settings.dotenv-detection-notification-visibility": false,
   "rust-analyzer.cargo.allTargets": true
 }

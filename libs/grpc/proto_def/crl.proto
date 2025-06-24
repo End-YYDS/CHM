@@ -1,0 +1,49 @@
+syntax = "proto3";
+package crl;
+
+import "google/protobuf/timestamp.proto";
+
+// CRL 服務：分頁列出撤銷條目，並附上更新時間、CRL 編號和簽名
+service Crl {
+  // 分頁取得撤銷條目
+  rpc ListCrlEntries(ListCrlEntriesRequest) returns (ListCrlEntriesResponse);
+}
+
+message ListCrlEntriesRequest {
+  // 只取 revoked_at > since 的條目；若不想篩時戳可留空
+  google.protobuf.Timestamp since = 1;
+
+  // 分頁大小
+  uint32 limit = 2;
+
+  // 分頁偏移（跳過前 offset 筆）
+  uint32 offset = 3;
+}
+
+message ListCrlEntriesResponse {
+  // 這次回傳的所有條目
+  repeated CrlEntry entries = 1;
+
+  // 本次 CRL 發佈時間
+  google.protobuf.Timestamp this_update = 2;
+
+  // 預計下次更新時間
+  google.protobuf.Timestamp next_update = 3;
+
+  // CRL Number (遞增版本號)
+  uint64 crl_number = 4;
+
+  // Root CA（mCA）對上面所有欄位做簽名的 bytes
+  bytes signature = 5;
+}
+
+message CrlEntry {
+  // 憑證序號（hex string）
+  string serial = 1;
+
+  // 撤銷時間
+  google.protobuf.Timestamp revoked_at = 2;
+
+  // 撤銷原因
+  string reason = 3;
+}

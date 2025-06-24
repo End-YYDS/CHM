@@ -12,6 +12,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if env::var("CARGO_FEATURE_CA").is_ok() {
         protos.push(proto_root.join("ca.proto"));
     }
+    if env::var("CARGO_FEATURE_CRL").is_ok() {
+        protos.push(proto_root.join("crl.proto"));
+    }
     // if env::var("CARGO_FEATURE_{features_name}").is_ok() {
     //     protos.push(proto_root.join("{file_name}.proto"));
     // }

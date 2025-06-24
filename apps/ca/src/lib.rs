@@ -7,7 +7,7 @@ pub mod config;
 pub mod connection;
 pub mod globals;
 pub mod mini_controller;
-use grpc::{ca::*, tonic, tonic_health};
+use grpc::{ca::*, crl::crl_server, tonic, tonic_health};
 use openssl::x509::{X509Req, X509};
 use tokio::sync::watch;
 
@@ -19,7 +19,9 @@ use tonic::{
 use tonic_health::server::health_reporter;
 
 use crate::{
-    cert::process::CertificateProcess, connection::MyCa, globals::GlobalConfig,
+    cert::{crl::CrlList, process::CertificateProcess},
+    connection::MyCa,
+    globals::GlobalConfig,
     mini_controller::MiniController,
 };
 /// 定義一個簡化的結果類型，用於返回結果或錯誤
@@ -43,7 +45,7 @@ fn middleware(
     controller_args: (String, String),
 ) -> impl Fn(Request<()>) -> Result<Request<()>, Status> + Clone + Send + Sync + 'static {
     move |req: Request<()>| {
-        let metadata = req.metadata();
+        // let metadata = req.metadata();
         let peer_der_vec = req
             .peer_certs()
             .ok_or_else(|| Status::unauthenticated("No TLS connection"))?;
@@ -63,14 +65,14 @@ fn middleware(
         //     Ok(req)
         // }
 
-        if let Some(val) = metadata.get("crl") {
-            // 檢查是否有帶上 crl 的 metadata
-            let need_crl = val.to_str().unwrap_or("false") == "true";
-            if need_crl {
-                unimplemented!("CRL check not implemented yet");
-                // 回傳CRL list
-            }
-        }
+        // if let Some(val) = metadata.get("crl") {
+        //     // 檢查是否有帶上 crl 的 metadata
+        //     let need_crl = val.to_str().unwrap_or("false") == "true";
+        //     if need_crl {
+        //         unimplemented!("CRL check not implemented yet");
+        //         // 回傳CRL list
+        //     }
+        // }
 
         let is_ctrl = cert_handler
             .is_controller_cert(&x509, controller_args.clone())
@@ -81,6 +83,11 @@ fn middleware(
 
         Ok(req) //TODO: 檢查 CRL
     }
+}
+fn middleware1(
+    _cert_handler: Arc<CertificateProcess>,
+) -> impl Fn(Request<()>) -> Result<Request<()>, Status> + Clone + Send + Sync + 'static {
+    move |req: Request<()>| Ok(req)
 }
 
 /// 啟動 gRPC 服務
@@ -140,10 +147,17 @@ pub async fn start_grpc(
             },
             middleware(cert_handler.clone(), controller_args),
         );
+        let svc1 = crl_server::CrlServer::with_interceptor(
+            CrlList {
+                cert: cert_handler.clone(),
+            },
+            middleware1(cert_handler.clone()),
+        );
         println!("gRPC server listening on {}", addr);
         let server = tonic::transport::Server::builder()
             .tls_config(tls)?
             .add_service(svc)
+            .add_service(svc1)
             .add_service(health_service)
             .serve_with_shutdown(addr, shutdown_signal);
         if let Err(e) = server.await {
