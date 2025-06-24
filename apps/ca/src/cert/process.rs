@@ -1,9 +1,11 @@
+use grpc::{crl::ListCrlEntriesResponse, prost::Message};
 use openssl::{
     asn1::Asn1Integer,
     bn::{BigNum, MsbOption},
     hash::{hash, MessageDigest},
     pkey::{PKey, Private},
     rsa::Rsa,
+    sign::{Signer, Verifier},
     symm::Cipher,
     x509::{
         extension::{
@@ -297,6 +299,42 @@ impl CertificateProcess {
         };
 
         Ok((key_pem, cert_pem))
+    }
+    /// 用 CA 私鑰對 raw protobuf bytes 做 SHA256-with-RSA 簽名
+    pub fn sign_crl(&self, data: &[u8]) -> CaResult<Vec<u8>> {
+        let mut signer = Signer::new(MessageDigest::sha256(), &self.ca_key)
+            .map_err(|e| format!("無法建立簽名器: {}", e))?;
+        signer
+            .update(data)
+            .map_err(|e| format!("簽名資料失敗: {}", e))?;
+        let sig = signer
+            .sign_to_vec()
+            .map_err(|e| format!("生成簽名失敗: {}", e))?;
+        Ok(sig)
+    }
+    /// 驗證 CRL 回應的簽名是否來自於指定的 CA
+    pub fn verify_crl_signature(&self, resp: &ListCrlEntriesResponse) -> Result<(), String> {
+        let signature = resp.signature.as_slice();
+        let mut clean = resp.clone();
+        clean.signature = Vec::new();
+        let raw = Message::encode_to_vec(&clean);
+        let pubkey = self
+            .ca_cert
+            .public_key()
+            .map_err(|e| format!("取公鑰失敗: {}", e))?;
+        let mut verifier = Verifier::new(MessageDigest::sha256(), &pubkey)
+            .map_err(|e| format!("建立 Verifier 失敗: {}", e))?;
+        verifier
+            .update(&raw)
+            .map_err(|e| format!("Verifier update 失敗: {}", e))?;
+        if verifier
+            .verify(signature)
+            .map_err(|e| format!("執行 verify 失敗: {}", e))?
+        {
+            Ok(())
+        } else {
+            Err("簽名驗證失敗：簽章不符".into())
+        }
     }
     /// 產生 CSR 與對應的私鑰
     /// # 參數

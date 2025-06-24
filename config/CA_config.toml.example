@@ -1,12 +1,14 @@
 [server]
 host = "127.0.0.1"
 port = 50052
+otp_len = 6
 
 [certificate]
-rootca = "certs/rootCA.crt"
+rootca = "certs/rootCA.pem"
 rootca_key = "certs/rootCA.key"
 passphrase = ""
 bits = 256
+crl_update_interval = "1h"
 backend = "sqlite"
 store_path = "certs/cert_store.db"
 max_connections = 5

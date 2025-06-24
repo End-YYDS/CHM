@@ -1,4 +1,9 @@
 #![allow(unused)]
+use chrono::{DateTime, Utc};
+use grpc::crl::crl_client::CrlClient;
+use grpc::crl::{ListCrlEntriesRequest, ListCrlEntriesResponse};
+use grpc::prost::Message;
+use grpc::prost_types::Timestamp;
 use grpc::tonic::client;
 use grpc::tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint};
 use grpc::tonic_health::pb::{health_client::HealthClient, HealthCheckRequest};
@@ -6,36 +11,74 @@ use grpc::{
     ca::{ca_client::CaClient, CsrRequest},
     tonic,
 };
+use openssl::hash::MessageDigest;
+use openssl::sign::Verifier;
 use openssl::x509::X509;
 use std::collections::HashMap;
 use std::fs;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
+#[derive(Debug)]
+struct Info {
+    root_ca: &'static str,
+    private: &'static str,
+    cert: &'static str,
+    url: &'static str,
+    // one_test_private: &'static str,
+    // one_test_cert: &'static str,
+}
+// const INFO: Info = Info {
+//     root_ca: "certs/rootCA.pem",
+//     private: "certs/grpc_test.key",
+//     cert: "certs/grpc_test.pem",
+//     url: "https://127.0.0.1:50052",
+//     one_test_private: "certs/one_test.key",
+//     one_test_cert: "certs/one_test.pem",
+// };
+
 #[tokio::main]
 async fn main() -> Result<()> {
+    let info: Info = Info {
+        root_ca: "certs/rootCA.pem",
+        private: "certs/grpc_test.key",
+        cert: "certs/grpc_test.pem",
+        url: "https://127.0.0.1:50052",
+    };
+    let info2 = Info {
+        private: "certs/one_test.key",
+        cert: "certs/one_test.pem",
+        ..info
+    };
     let args = std::env::args().collect::<Vec<_>>();
     if args.iter().all(|arg| arg != "--help" && arg != "-h") && args.len() < 2 {
         eprintln!("Usage: {} [--help | -h]", args[0]);
         eprintln!("Example: {} [--grpc | --web]", args[0]);
         return Ok(());
     }
+    if args.iter().any(|arg| arg == "--debug") {
+        dbg!(&info);
+        dbg!(&info2);
+    }
     if args.iter().any(|arg| arg == "--grpc") {
-        let channel = init_grpc_connect().await?;
-        // health_check(channel.clone()).await?;
-        let error_channel = init_error_grpc_connect().await?;
+        let channel = init_grpc(&info).await?;
+        // let channel = init_grpc_connect().await?;
+        health_check(channel.clone()).await?;
+        // let error_channel = init_error_grpc_connect().await?;
         // health_check(error_channel.clone()).await?;
-        // let grpc_client = CaClient::new(channel);
-        let error_grpc_client = CaClient::new(error_channel);
+
+        let grpc_client = CaClient::new(channel.clone());
+        let crl_client = CrlClient::new(channel.clone());
+        test_crl(crl_client.clone()).await?;
+        // let error_grpc_client = CaClient::new(error_channel);
         // test_crl(client.clone()).await?;
         // sign_cert(client.clone()).await?;
         // test_grpc_restart(grpc_client.clone()).await?;
-        test_grpc_restart(error_grpc_client.clone()).await?;
+        // test_grpc_restart(error_grpc_client.clone()).await?;
 
         return Ok(());
     }
     if args.iter().any(|arg| arg == "--web") {
-        // 初始化Web客戶端
-        let web_client = init_http_connect().await?;
+        let web_client = init_http_connect(&info).await?;
         test_first_controller_connect(&web_client).await?;
     }
     Ok(())
@@ -67,18 +110,22 @@ async fn health_check(channel: Channel) -> Result<()> {
     Ok(())
 }
 
-async fn test_crl(mut client: CaClient<Channel>) -> Result<()> {
+async fn test_crl(mut client: CrlClient<Channel>) -> Result<()> {
+    let to_timestamp = |dt: DateTime<Utc>| Timestamp {
+        seconds: dt.timestamp(),
+        nanos: dt.timestamp_subsec_nanos() as i32,
+    };
+    let now: DateTime<Utc> = Utc::now();
+    let since = to_timestamp(now);
     let resp = client
-        .sign_csr(CsrRequest {
-            csr: std::fs::read("certs/intermediateCA.csr")?,
-            days: 365,
+        .list_crl_entries(ListCrlEntriesRequest {
+            since: Some(since),
+            limit: 10,
+            offset: 0,
         })
         .await?;
-    let reply = resp.into_inner();
-    let leaf = X509::from_der(&reply.cert)?;
-    let leaf_pem = leaf.to_pem()?;
-    println!("Leaf PEM:\n{}", String::from_utf8(leaf_pem.clone())?);
-    fs::write("certs/test.pem", leaf_pem)?;
+    // let reply = resp.into_inner();
+    // println!("CRL Entries: {:?}", reply.entries);
     Ok(())
 }
 
@@ -109,14 +156,13 @@ async fn init_grpc_connect() -> Result<Channel> {
         .await?;
     Ok(channel)
 }
-
-async fn init_http_connect() -> Result<reqwest::Client> {
+async fn init_http_connect(info: &Info) -> Result<reqwest::Client> {
     let mut client_pem = Vec::new();
-    client_pem.extend(std::fs::read("certs/grpc_test.pem")?);
-    client_pem.extend(std::fs::read("certs/grpc_test.key")?);
+    client_pem.extend(std::fs::read(info.cert)?);
+    client_pem.extend(std::fs::read(info.private)?);
     let identity = reqwest::Identity::from_pem(&client_pem)?;
     // let ca = std::fs::read("certs/rootCA.crt")?;
-    let ca = std::fs::read("certs/test_root_ca.pem")?;
+    let ca = std::fs::read(info.root_ca)?;
     let ca_cert = reqwest::Certificate::from_pem(&ca)?;
     let client = reqwest::Client::builder()
         .use_rustls_tls()
@@ -126,7 +172,6 @@ async fn init_http_connect() -> Result<reqwest::Client> {
         .build()?;
     Ok(client)
 }
-
 async fn test_first_controller_connect(client: &reqwest::Client) -> Result<()> {
     println!("Testing first controller connect...");
     println!("OTP code: ");
@@ -148,21 +193,64 @@ async fn test_first_controller_connect(client: &reqwest::Client) -> Result<()> {
     println!("Response Body:\n{}", body);
     Ok(())
 }
+// async fn init_error_grpc_connect() -> Result<Channel> {
+//     let ca_cert = fs::read("certs/rootCA.pem")?;
+//     let ca_certificate = Certificate::from_pem(ca_cert);
 
-async fn init_error_grpc_connect() -> Result<Channel> {
-    let ca_cert = fs::read("certs/rootCA.pem")?;
+//     let grpc_test = fs::read("certs/one_test.pem")?;
+//     let grpc_test_pri = fs::read("certs/one_test.key")?;
+//     let grpc_test_identity = tonic::transport::Identity::from_pem(grpc_test, grpc_test_pri);
+
+//     let tls = ClientTlsConfig::new()
+//         .ca_certificate(ca_certificate)
+//         .identity(grpc_test_identity);
+//     let channel = Endpoint::from_static("https://127.0.0.1:50052")
+//         .tls_config(tls)?
+//         .connect()
+//         .await?;
+//     Ok(channel)
+// }
+
+async fn init_grpc(info: &Info) -> Result<Channel> {
+    let ca_cert = fs::read(info.root_ca)?;
     let ca_certificate = Certificate::from_pem(ca_cert);
 
-    let grpc_test = fs::read("certs/one_test.pem")?;
-    let grpc_test_pri = fs::read("certs/one_test.key")?;
+    let grpc_test = fs::read(info.cert)?;
+    let grpc_test_pri = fs::read(info.private)?;
     let grpc_test_identity = tonic::transport::Identity::from_pem(grpc_test, grpc_test_pri);
 
     let tls = ClientTlsConfig::new()
         .ca_certificate(ca_certificate)
         .identity(grpc_test_identity);
-    let channel = Endpoint::from_static("https://127.0.0.1:50052")
+    let channel = Endpoint::from_static(info.url)
         .tls_config(tls)?
         .connect()
         .await?;
     Ok(channel)
+}
+
+pub fn verify_crl_signature(
+    ca_cert: &X509,
+    resp: &ListCrlEntriesResponse,
+) -> std::result::Result<(), String> {
+    let signature = resp.signature.as_slice();
+    let mut clean = resp.clone();
+    clean.signature = Vec::new();
+    let raw = Message::encode_to_vec(&clean);
+    let pubkey = ca_cert
+        .public_key()
+        .map_err(|e| format!("取公鑰失敗: {}", e))?;
+    let mut verifier = Verifier::new(MessageDigest::sha256(), &pubkey)
+        .map_err(|e| format!("建立 Verifier 失敗: {}", e))?;
+    verifier
+        .update(&raw)
+        .map_err(|e| format!("Verifier update 失敗: {}", e))?;
+    if verifier
+        .verify(signature)
+        .map_err(|e| format!("執行 verify 失敗: {}", e))?
+    {
+        Ok(())
+    } else {
+        Err("簽名驗證失敗：簽章不符".into())
+    }
 }

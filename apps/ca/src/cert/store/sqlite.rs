@@ -9,7 +9,10 @@ use sqlx::{
 };
 
 use crate::{
-    cert::store::{utils::hash_sha256, Cert, CertDer, CertStatus, CertificateStore, CrlEntry},
+    cert::{
+        process::CertificateProcess,
+        store::{Cert, CertDer, CertStatus, CertificateStore, CrlEntry},
+    },
     config::BackendConfig,
     CaResult,
 };
@@ -210,7 +213,7 @@ impl CertificateStore for SqlConnection {
     /// 插入新的憑證
     async fn insert(&self, cert: openssl::x509::X509) -> CaResult<()> {
         let mut tx = self.pool.begin().await?;
-        let serial = hash_sha256(cert.serial_number().to_bn()?.to_vec().as_slice())?;
+        let serial = CertificateProcess::cert_serial_sha256(&cert)?;
         if self.get(&serial).await?.is_some() {
             return Err(format!("憑證序號 {} 已存在", serial).into());
         }
@@ -253,7 +256,7 @@ impl CertificateStore for SqlConnection {
         let expiration = chrono::DateTime::parse_from_str(&expiration, "%b %e %H:%M:%S %Y %z")?;
         let expiration = expiration.with_timezone(&chrono::Utc);
         let cert_der = cert.to_der()?;
-        let thumbprint = hash_sha256(cert_der.as_slice())?;
+        let thumbprint = CertificateProcess::cert_fingerprint_sha256(&cert)?;
         let result = sqlx::query!("
         INSERT INTO certs (serial, subject_cn, subject_dn, issuer, issued_date, expiration, thumbprint,cert_der)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -351,5 +354,58 @@ impl CertificateStore for SqlConnection {
             Some(row) => Ok(Some(row.status.try_into()?)),
             None => Ok(None),
         }
+    }
+    async fn list_crl_entries(
+        &self,
+        since: Option<DateTime<Utc>>,
+        limit: usize,
+        offset: usize,
+    ) -> CaResult<Vec<CrlEntry>> {
+        let mut tx = self.pool.begin().await?;
+        let limit = limit as i64;
+        let offset = offset as i64;
+        let rows = if let Some(since_dt) = since {
+            // 已傳入 since，就加上 revoked_at > ?
+            sqlx::query_as!(
+                SqlCrlEntry,
+                r#"
+                    SELECT
+                        id,
+                        cert_serial,
+                        revoked_at as "revoked_at: DateTime<Utc>",
+                        reason
+                    FROM crl_entries
+                    WHERE revoked_at > ?
+                    ORDER BY revoked_at ASC
+                    LIMIT ? OFFSET ?
+                "#,
+                since_dt,
+                limit,
+                offset
+            )
+            .fetch_all(&mut *tx)
+            .await?
+        } else {
+            sqlx::query_as!(
+                SqlCrlEntry,
+                r#"
+                    SELECT
+                        id,
+                        cert_serial,
+                        revoked_at as "revoked_at: DateTime<Utc>",
+                        reason
+                    FROM crl_entries
+                    ORDER BY revoked_at ASC
+                    LIMIT ? OFFSET ?
+                "#,
+                limit,
+                offset
+            )
+            .fetch_all(&mut *tx)
+            .await?
+        };
+
+        tx.commit().await?;
+        Ok(rows.into_iter().map(Into::into).collect())
     }
 }

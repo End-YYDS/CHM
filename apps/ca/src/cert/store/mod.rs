@@ -1,13 +1,11 @@
 use crate::{config::BackendConfig, globals::GlobalConfig, CaResult};
 use chrono::{DateTime, Utc};
 use grpc::tonic::async_trait;
-// use grpc::tonic::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::PathBuf};
 
 pub mod sqlite;
 pub mod toml;
-pub mod utils;
 
 #[derive(Debug, Clone)]
 pub enum CertDer {
@@ -100,6 +98,13 @@ pub trait CertificateStore: Debug + Sync + Send {
     // 撤銷憑證操作相關的異步方法
     /// 列出所有撤銷憑證
     async fn list_crl(&self) -> CaResult<Vec<CrlEntry>>;
+    /// 分頁列出 CRL 條目，只回傳 revoked_at > `since`（若 `since` 為 None 就不加時間過濾）
+    async fn list_crl_entries(
+        &self,
+        since: Option<DateTime<Utc>>,
+        limit: usize,
+        offset: usize,
+    ) -> CaResult<Vec<CrlEntry>>;
     /// 將指定憑證標記為撤銷
     async fn mark_cert_revoked(&self, serial: &str, reason: Option<String>) -> CaResult<()>;
 }

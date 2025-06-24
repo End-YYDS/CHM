@@ -108,6 +108,8 @@ pub struct Certificate {
     pub passphrase: String,
     #[serde(default = "Certificate::default_bits")]
     pub bits: i32,
+    #[serde(with = "humantime_serde")]
+    pub crl_update_interval: std::time::Duration,
     #[serde(flatten)]
     #[serde(default)]
     pub backend: BackendConfig,
@@ -129,6 +131,9 @@ impl Certificate {
     fn default_bits() -> i32 {
         256
     }
+    fn default_crl_update_interval() -> std::time::Duration {
+        std::time::Duration::from_secs(3600) // 預設為 1 小時
+    }
 }
 
 impl Default for Certificate {
@@ -139,6 +144,7 @@ impl Default for Certificate {
             passphrase: "".into(),
             backend: BackendConfig::default(),
             bits: Certificate::default_bits(),
+            crl_update_interval: Certificate::default_crl_update_interval(),
         }
     }
 }
@@ -204,7 +210,7 @@ impl Settings {
     /// # 回傳
     /// * `Result<(), Box<dyn std::error::Error>>` - 返回結果，成功時為 Ok，失敗時為 Err
     pub async fn init(path: &str) -> Result<(), Box<dyn std::error::Error>> {
-        store_config(&Settings::default(), is_debug(), path).await?;
+        store_config(&Settings::default(), true, path).await?;
         println!("Generated default config at {}", path);
         Ok(())
     }
@@ -214,7 +220,7 @@ impl Settings {
 /// * `Result<(), Box<dyn std::error::Error>>` 返回設定實例和專案目錄，或錯誤
 pub async fn config() -> CaResult<()> {
     if NEED_EXAMPLE.load(Relaxed) {
-        Settings::init("config/CA_config.toml.example").await?;
+        Settings::init("CA_config.toml.example").await?;
         return Ok(());
     }
     let settings = Settings::new()?;
