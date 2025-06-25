@@ -1,5 +1,8 @@
 use ca::{
-    cert::{process::CertificateProcess, store::StoreFactory},
+    cert::{
+        process::CertificateProcess,
+        store::{CertificateStore, StoreFactory},
+    },
     config::{config, NEED_EXAMPLE},
     globals::GlobalConfig,
     *,
@@ -31,15 +34,20 @@ async fn main() -> CaResult<()> {
         fs::create_dir_all(parent)?;
     }
     let first_run = !marker_path.exists();
-    let ca_passwd = &cmg.certificate.passphrase; //[ ]: 這個密碼應該從環境變數或安全存儲中讀取,從systemd注入或是直接讀config檔案
+    //[ ]: 這個密碼應該從環境變數或安全存儲中讀取,從systemd注入或是直接讀config檔案
     let store = StoreFactory::create_store().await?;
+    let store: Arc<dyn CertificateStore> = Arc::from(store);
     let addr = SocketAddr::new(cmg.server.host.parse()?, cmg.server.port);
-    let cert_handler = Arc::new(CertificateProcess::load(
-        &cmg.certificate.rootca,
-        &cmg.certificate.rootca_key,
-        ca_passwd,
-        store,
-    )?);
+    let cert_handler = Arc::new(
+        CertificateProcess::load(
+            &cmg.certificate.rootca,
+            &cmg.certificate.rootca_key,
+            &cmg.certificate.passphrase,
+            cmg.certificate.crl_update_interval,
+            store,
+        )
+        .await?,
+    );
     drop(cfg);
 
     if first_run {

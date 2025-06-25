@@ -1,4 +1,4 @@
-mod simple;
+// mod simple;
 mod verifier;
 
 use std::sync::Arc;
@@ -10,7 +10,7 @@ use grpc::{
     prost_types::Timestamp,
     tonic::{self, Request, Response, Status},
 };
-pub use simple::*;
+// pub use simple::*;
 pub use verifier::*;
 
 use crate::cert::store::CrlEntry as StoreCrlEntry;

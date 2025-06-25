@@ -13,7 +13,7 @@ directories = "6.0.0"
 serde = { version = "1.0.219", features = ["derive"] }
 toml = "0.8.22"
 chrono = { version = "0.4.41", features = ["serde"] }
-rsntp = "4.0.0"
+#rsntp = "4.0.0"
 grpc = { version = "0.1.0", path = "../../libs/grpc", features = ["ca","crl-server"] }
 config_loader = { version = "0.1.0", path = "../../libs/config_loader" }
 sqlx = { version = "0.8.6", features = ["sqlite", "macros", "chrono", "runtime-tokio","migrate"], default-features = false }
@@ -23,6 +23,10 @@ password = { version = "0.1.0", path = "../../libs/password" }
 reqwest = { version = "0.12.20", features = ["json", "rustls-tls"] }
 humantime = "2.2.0"
 humantime-serde = "1.1.1"
+crl_cache = { version = "0.1.0", path = "../../libs/crl_cache" }
+tonic-async-interceptor = "0.13.0"
+tower = "0.5.2"
+futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
 grpc = { version = "0.1.0", path = "../../libs/grpc", features = ["ca"] }

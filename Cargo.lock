@@ -522,7 +522,9 @@ dependencies = [
  "actix-web",
  "chrono",
  "config_loader",
+ "crl_cache",
  "directories",
+ "futures",
  "grpc",
  "humantime",
  "humantime-serde",
@@ -531,12 +533,13 @@ dependencies = [
  "password",
  "reqwest",
  "rpassword",
- "rsntp",
  "serde",
  "sqlx",
  "tempfile",
  "tokio",
  "toml",
+ "tonic-async-interceptor",
+ "tower",
 ]
 
 [[package]]
@@ -761,6 +764,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a97769d94ddab943e4510d138150169a2758b5ef3eb191a9ee688de3e23ef7b3"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "crl_cache"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]
@@ -1023,6 +1036,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e13624c2627564efccf4934284bdd98cbaa14e79b0b5a141218e507b3a823456"
 dependencies = [
  "percent-encoding",
+]
+
+[[package]]
+name = "futures"
+version = "0.3.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "65bc07b1a8bc7c85c5f2e110c476c7389b4554ba72af57d8445ea63a576b0876"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
 ]
 
 [[package]]
@@ -2457,16 +2484,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsntp"
-version = "4.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5cce5f45764fc4f0da82badc165fec123f137f2b2ba7112778a83575bc6af3e1"
-dependencies = [
- "chrono",
- "tokio",
-]
-
-[[package]]
 name = "rtoolbox"
 version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3268,6 +3285,21 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "tonic-async-interceptor"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "afdf22072c8b94cd55b156c7782e18a0e27772721b591687b91678811abf13bd"
+dependencies = [
+ "bytes",
+ "http 1.2.0",
+ "http-body",
+ "pin-project",
+ "tonic",
+ "tower-layer",
+ "tower-service",
 ]
 
 [[package]]

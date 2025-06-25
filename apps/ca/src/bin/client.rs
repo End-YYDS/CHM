@@ -44,7 +44,7 @@ async fn main() -> Result<()> {
         cert: "certs/grpc_test.pem",
         url: "https://127.0.0.1:50052",
     };
-    let info2 = Info {
+    let info1 = Info {
         private: "certs/one_test.key",
         cert: "certs/one_test.pem",
         ..info
@@ -57,7 +57,7 @@ async fn main() -> Result<()> {
     }
     if args.iter().any(|arg| arg == "--debug") {
         dbg!(&info);
-        dbg!(&info2);
+        dbg!(&info1);
     }
     if args.iter().any(|arg| arg == "--grpc") {
         // let channel = init_grpc(&info).await?;

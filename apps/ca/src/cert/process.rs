@@ -21,7 +21,7 @@ use std::path::Path;
 use std::{fs, sync::Arc};
 
 use crate::{
-    cert::crl::{self, SimpleCrl},
+    cert::crl::{self, CrlVerifier},
     globals::GlobalConfig,
     CaResult, ChainCerts, CsrCert, PrivateKey, SignedCert,
 };
@@ -34,7 +34,7 @@ pub struct CertificateProcess {
     ca_key: PKey<Private>,
     /// CRL 驗證器
     crl: Arc<crl::CrlVerifier>,
-    store: Arc<Box<dyn crate::cert::store::CertificateStore>>,
+    store: Arc<dyn crate::cert::store::CertificateStore>,
 }
 // #[allow(unused)]
 impl CertificateProcess {
@@ -46,11 +46,12 @@ impl CertificateProcess {
     /// # 回傳
     /// * `Ok(CertificateProcess)`：載入成功，返回憑證和金鑰
     /// * `Err(e)`：若任何步驟失敗，回傳錯誤
-    pub fn load<P: AsRef<Path>>(
+    pub async fn load<P: AsRef<Path>>(
         cert_path: P,
         key_path: P,
         passphrase: &str,
-        store: Box<dyn crate::cert::store::CertificateStore>,
+        crl_update_interval: std::time::Duration,
+        store: Arc<dyn crate::cert::store::CertificateStore>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         let cert_pem = fs::read(&cert_path).or_else(|_| fs::read("certs/rootCA.pem"))?;
         let key_pem = fs::read(&key_path).or_else(|_| fs::read("certs/rootCA.key"))?;
@@ -63,8 +64,10 @@ impl CertificateProcess {
             PKey::private_key_from_pem_passphrase(&key_pem, passphrase.as_bytes())
         }
         .map_err(|e| format!("無法解析CA私鑰: {}", e))?;
-        let crl = Arc::new(crl::CrlVerifier::new(SimpleCrl::new()));
-        let store = Arc::new(store);
+        let crl = Arc::new(CrlVerifier::new(
+            store.clone(),
+            chrono::Duration::from_std(crl_update_interval).expect("Invalid CRL update interval"),
+        ).await?);
         Ok(CertificateProcess {
             ca_cert,
             ca_key,
@@ -100,11 +103,11 @@ impl CertificateProcess {
         self.crl = crl;
     }
 
-    pub fn get_store(&self) -> Arc<Box<dyn crate::cert::store::CertificateStore>> {
+    pub fn get_store(&self) -> Arc<dyn crate::cert::store::CertificateStore> {
         self.store.clone()
     }
 
-    pub fn set_store(&mut self, store: Arc<Box<dyn crate::cert::store::CertificateStore>>) {
+    pub fn set_store(&mut self, store: Arc<dyn crate::cert::store::CertificateStore>) {
         self.store = store;
     }
     /// 簽署 CSR 並返回簽署的憑證和 CA 憑證鏈

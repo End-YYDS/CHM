@@ -7,9 +7,16 @@ pub mod config;
 pub mod connection;
 pub mod globals;
 pub mod mini_controller;
-use grpc::{ca::*, crl::crl_server, tonic, tonic_health};
+use futures::future::BoxFuture;
+use grpc::{
+    ca::{ca_server::CaServer, *},
+    crl::crl_server,
+    tonic, tonic_health,
+};
 use openssl::x509::{X509Req, X509};
 use tokio::sync::watch;
+use tonic_async_interceptor::async_interceptor;
+use tower::ServiceBuilder;
 
 use std::{fs, io::Write, net::SocketAddr, path::Path, sync::Arc};
 use tonic::{
@@ -34,60 +41,81 @@ pub type ChainCerts = Vec<SignedCert>;
 pub type PrivateKey = Vec<u8>;
 /// 定義 CSR 憑證類型
 pub type CsrCert = Vec<u8>;
+type CheckFuture = BoxFuture<'static, Result<Request<()>, Status>>;
+
+fn get_ssl_info(req: &Request<()>) -> CaResult<(X509, String)> {
+    let peer_der_vec = req
+        .peer_certs()
+        .ok_or_else(|| Status::unauthenticated("No TLS connection"))?;
+    let peer_slice: &[tonic::transport::CertificateDer] = peer_der_vec.as_ref().as_slice();
+    let leaf = peer_slice
+        .first()
+        .ok_or_else(|| Status::unauthenticated("No peer certificate presented"))?;
+    let x509 = X509::from_der(leaf)
+        .map_err(|_| Status::invalid_argument("Peer certificate DER is invalid"))?;
+    let serial = CertificateProcess::cert_serial_sha256(&x509)
+        .map_err(|e| Status::internal(format!("Serial sha256 failed: {}", e)))?;
+    Ok((x509, serial))
+}
 
 /// 建立一個 gRPC 的 CRL 檢查攔截器
 /// # 參數
 /// * `cert_handler`: 憑證處理器，用於檢查 CRL
 /// # 回傳
 /// * `impl Fn(Request<()>) -> Result<Request<()>, Status>`: 返回一個攔截器函數
-fn middleware(
+fn make_ca_middleware(
     cert_handler: Arc<CertificateProcess>,
     controller_args: (String, String),
-) -> impl Fn(Request<()>) -> Result<Request<()>, Status> + Clone + Send + Sync + 'static {
+) -> impl Fn(Request<()>) -> CheckFuture + Clone + Send + Sync + 'static {
     move |req: Request<()>| {
-        // let metadata = req.metadata();
-        let peer_der_vec = req
-            .peer_certs()
-            .ok_or_else(|| Status::unauthenticated("No TLS connection"))?;
-        let peer_slice: &[tonic::transport::CertificateDer] = peer_der_vec.as_ref().as_slice();
-        let leaf = peer_slice
-            .first()
-            .ok_or_else(|| Status::unauthenticated("No peer certificate presented"))?;
-        let x509 = X509::from_der(leaf)
-            .map_err(|_| Status::invalid_argument("Peer certificate DER is invalid"))?;
-        // 檢查是否被吊銷之後，在檢查是否來自controller的請求，其他一律擋掉
-        // if !cert_handler
-        //     .get_crl()
-        //     .after_connection_cert_check(peer_certs_slice)
-        // {
-        //     Err(Status::permission_denied("Certificate was Revoked"))
-        // } else {
-        //     Ok(req)
-        // }
-
-        // if let Some(val) = metadata.get("crl") {
-        //     // 檢查是否有帶上 crl 的 metadata
-        //     let need_crl = val.to_str().unwrap_or("false") == "true";
-        //     if need_crl {
-        //         unimplemented!("CRL check not implemented yet");
-        //         // 回傳CRL list
-        //     }
-        // }
-
-        let is_ctrl = cert_handler
-            .is_controller_cert(&x509, controller_args.clone())
-            .map_err(|e| Status::internal(format!("Controller check failed: {}", e)))?;
-        if !is_ctrl {
-            return Err(Status::permission_denied("Only controller cert is allowed"));
-        }
-
-        Ok(req) //TODO: 檢查 CRL
+        let cert_handler = cert_handler.clone();
+        let controller_args = controller_args.clone();
+        let fut = async move {
+            let req = check_revoke(cert_handler.clone(), req).await.map_err(|e| {
+                eprintln!("[gRPC] 憑證撤銷檢查失敗: {}", e);
+                e
+            })?;
+            check_controller(cert_handler, controller_args, req).await
+        };
+        Box::pin(fut)
     }
 }
-fn middleware1(
-    _cert_handler: Arc<CertificateProcess>,
-) -> impl Fn(Request<()>) -> Result<Request<()>, Status> + Clone + Send + Sync + 'static {
-    move |req: Request<()>| Ok(req)
+async fn check_controller(
+    cert_handler: Arc<CertificateProcess>,
+    controller_args: (String, String),
+    req: Request<()>,
+) -> Result<Request<()>, Status> {
+    let (x509, _) =
+        get_ssl_info(&req).map_err(|e| Status::internal(format!("SSL info failed: {}", e)))?;
+    let is_ctrl = cert_handler
+        .is_controller_cert(&x509, controller_args.clone())
+        .map_err(|e| Status::internal(format!("Controller check failed: {}", e)))?;
+    if !is_ctrl {
+        return Err(Status::permission_denied("Only controller cert is allowed"));
+    }
+
+    Ok(req)
+}
+async fn check_revoke(
+    cert_handler: Arc<CertificateProcess>,
+    req: Request<()>,
+) -> Result<Request<()>, Status> {
+    let (_, serial) =
+        get_ssl_info(&req).map_err(|e| Status::internal(format!("SSL info failed: {}", e)))?;
+    if cert_handler.get_crl().is_revoked(&serial).await {
+        return Err(Status::unauthenticated("Certificate was revoked"));
+    }
+    Ok(req)
+}
+
+fn make_crl_middleware(
+    cert_handler: Arc<CertificateProcess>,
+) -> impl Fn(Request<()>) -> CheckFuture + Clone + Send + Sync + 'static {
+    move |req: Request<()>| {
+        let cert_handler = cert_handler.clone();
+        let fut = async move { check_revoke(cert_handler, req).await };
+        Box::pin(fut)
+    }
 }
 
 /// 啟動 gRPC 服務
@@ -140,24 +168,27 @@ pub async fn start_grpc(
                 lock.settings.controller.fingerprint.clone(),
             )
         };
-        let svc = ca_server::CaServer::with_interceptor(
-            MyCa {
+        let ca_layer = async_interceptor(make_ca_middleware(
+            cert_handler.clone(),
+            controller_args.clone(),
+        ));
+        let ca_svc = ServiceBuilder::new()
+            .layer(ca_layer)
+            .service(CaServer::new(MyCa {
                 cert: cert_handler.clone(),
                 reloader: cert_update_tx.clone(),
-            },
-            middleware(cert_handler.clone(), controller_args),
-        );
-        let svc1 = crl_server::CrlServer::with_interceptor(
-            CrlList {
+            }));
+        let crl_layer = async_interceptor(make_crl_middleware(cert_handler.clone()));
+        let crl_svc = ServiceBuilder::new()
+            .layer(crl_layer)
+            .service(crl_server::CrlServer::new(CrlList {
                 cert: cert_handler.clone(),
-            },
-            middleware1(cert_handler.clone()),
-        );
+            }));
         println!("gRPC server listening on {}", addr);
         let server = tonic::transport::Server::builder()
             .tls_config(tls)?
-            .add_service(svc)
-            .add_service(svc1)
+            .add_service(ca_svc)
+            .add_service(crl_svc)
             .add_service(health_service)
             .serve_with_shutdown(addr, shutdown_signal);
         if let Err(e) = server.await {
