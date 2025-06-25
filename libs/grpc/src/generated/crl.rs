@@ -42,6 +42,7 @@ pub struct CrlEntry {
     pub reason: ::prost::alloc::string::String,
 }
 /// Generated client implementations.
+#[cfg(feature = "crl-client")]
 pub mod crl_client {
     #![allow(
         unused_variables,
@@ -158,6 +159,7 @@ pub mod crl_client {
     }
 }
 /// Generated server implementations.
+#[cfg(feature = "crl-server")]
 pub mod crl_server {
     #![allow(
         unused_variables,

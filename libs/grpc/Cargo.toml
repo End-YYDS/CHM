@@ -3,8 +3,13 @@ name = "grpc"
 version.workspace = true
 edition.workspace = true
 [features]
-ca = []
-crl = []
+ca-client = []
+ca-server = []
+ca = ["ca-client", "ca-server"]
+crl-client = []
+crl-server = []
+crl = ["crl-client", "crl-server"]
+default = ["crl-client"]
 [dependencies]
 prost = "0.13.5"
 prost-types = "0.13.5"

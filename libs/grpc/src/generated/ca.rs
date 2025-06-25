@@ -21,6 +21,7 @@ pub struct ReloadResponse {
     pub success: bool,
 }
 /// Generated client implementations.
+#[cfg(feature = "ca-client")]
 pub mod ca_client {
     #![allow(
         unused_variables,
@@ -150,6 +151,7 @@ pub mod ca_client {
     }
 }
 /// Generated server implementations.
+#[cfg(feature = "ca-server")]
 pub mod ca_server {
     #![allow(
         unused_variables,
