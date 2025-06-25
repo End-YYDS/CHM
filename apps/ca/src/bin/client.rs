@@ -1,5 +1,5 @@
 #![allow(unused)]
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Local, Utc};
 use grpc::crl::crl_client::CrlClient;
 use grpc::crl::{ListCrlEntriesRequest, ListCrlEntriesResponse};
 use grpc::prost::Message;
@@ -60,6 +60,7 @@ async fn main() -> Result<()> {
         dbg!(&info2);
     }
     if args.iter().any(|arg| arg == "--grpc") {
+        // let channel = init_grpc(&info).await?;
         let channel = init_grpc(&info).await?;
         // let channel = init_grpc_connect().await?;
         health_check(channel.clone()).await?;
@@ -115,8 +116,18 @@ async fn test_crl(mut client: CrlClient<Channel>) -> Result<()> {
         seconds: dt.timestamp(),
         nanos: dt.timestamp_subsec_nanos() as i32,
     };
+    let from_timestamp =
+        |ts: Timestamp| DateTime::<Utc>::from_timestamp(ts.seconds, ts.nanos as u32);
+    let to_local = |dt: Timestamp| {
+        Some(
+            DateTime::<Utc>::from_timestamp(dt.seconds, dt.nanos as u32)
+                .unwrap()
+                .with_timezone(&Local),
+        )
+    };
     let now: DateTime<Utc> = Utc::now();
-    let since = to_timestamp(now);
+    let since_dt = Utc::now() - Duration::days(1);
+    let since = to_timestamp(since_dt);
     let resp = client
         .list_crl_entries(ListCrlEntriesRequest {
             since: Some(since),
@@ -124,8 +135,21 @@ async fn test_crl(mut client: CrlClient<Channel>) -> Result<()> {
             offset: 0,
         })
         .await?;
-    // let reply = resp.into_inner();
-    // println!("CRL Entries: {:?}", reply.entries);
+    // let resp = client
+    //     .list_crl_entries(ListCrlEntriesRequest {
+    //         since: None,
+    //         limit: 10,
+    //         offset: 0,
+    //     })
+    //     .await?;
+    let reply = resp.into_inner();
+    println!("CRL Entries: {:#?}", reply.entries);
+    println!(
+        "This Update: {:#?}, Next Update: {:#?}, CRL Number: {}",
+        reply.this_update.and_then(to_local),
+        reply.next_update.and_then(to_local),
+        reply.crl_number
+    );
     Ok(())
 }
 

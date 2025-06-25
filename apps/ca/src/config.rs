@@ -108,7 +108,10 @@ pub struct Certificate {
     pub passphrase: String,
     #[serde(default = "Certificate::default_bits")]
     pub bits: i32,
-    #[serde(with = "humantime_serde")]
+    #[serde(
+        with = "humantime_serde",
+        default = "Certificate::default_crl_update_interval"
+    )]
     pub crl_update_interval: std::time::Duration,
     #[serde(flatten)]
     #[serde(default)]
