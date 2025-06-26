@@ -76,7 +76,6 @@ pub async fn store_config<T>(
 where
     T: serde::Serialize,
 {
-    dbg!(is_debug);
     let save_path = if is_debug {
         PathBuf::from("config").join(file)
     } else {
