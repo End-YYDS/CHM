@@ -22,6 +22,7 @@ async fn main() -> CaResult<()> {
         return Ok(());
     }
     config().await?;
+
     if GlobalConfig::has_active_readers() {
         eprintln!("還有讀鎖沒釋放!-0");
     }
@@ -35,9 +36,11 @@ async fn main() -> CaResult<()> {
     }
     let first_run = !marker_path.exists();
     //[ ]: 這個密碼應該從環境變數或安全存儲中讀取,從systemd注入或是直接讀config檔案
+
     let store = StoreFactory::create_store().await?;
     let store: Arc<dyn CertificateStore> = Arc::from(store);
     let addr = SocketAddr::new(cmg.server.host.parse()?, cmg.server.port);
+
     let cert_handler = Arc::new(
         CertificateProcess::load(
             &cmg.certificate.rootca,
@@ -48,7 +51,9 @@ async fn main() -> CaResult<()> {
         )
         .await?,
     );
+    println!("mCA 啟動中...");
     drop(cfg);
+
 
     if first_run {
         let mut mini_c = mini_controller_cert(&cert_handler).await?;

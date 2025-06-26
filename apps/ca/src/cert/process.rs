@@ -53,8 +53,12 @@ impl CertificateProcess {
         crl_update_interval: std::time::Duration,
         store: Arc<dyn crate::cert::store::CertificateStore>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
-        let cert_pem = fs::read(&cert_path).or_else(|_| fs::read("certs/rootCA.pem"))?;
-        let key_pem = fs::read(&key_path).or_else(|_| fs::read("certs/rootCA.key"))?;
+        let cert_pem = fs::read(&cert_path)
+            .or_else(|_| fs::read("certs/rootCA.pem"))
+            .or_else(|_| fs::read("certs/test_root_ca.pem"))?;
+        let key_pem = fs::read(&key_path)
+            .or_else(|_| fs::read("certs/rootCA.key"))
+            .or_else(|_| fs::read("certs/test_root_ca.key"))?;
         let ca_cert = X509::from_pem(&cert_pem)
             .or_else(|_| X509::from_der(&cert_pem))
             .map_err(|e| format!("無法解析CA憑證: {}", e))?;
@@ -64,10 +68,14 @@ impl CertificateProcess {
             PKey::private_key_from_pem_passphrase(&key_pem, passphrase.as_bytes())
         }
         .map_err(|e| format!("無法解析CA私鑰: {}", e))?;
-        let crl = Arc::new(CrlVerifier::new(
-            store.clone(),
-            chrono::Duration::from_std(crl_update_interval).expect("Invalid CRL update interval"),
-        ).await?);
+        let crl = Arc::new(
+            CrlVerifier::new(
+                store.clone(),
+                chrono::Duration::from_std(crl_update_interval)
+                    .expect("Invalid CRL update interval"),
+            )
+            .await?,
+        );
         Ok(CertificateProcess {
             ca_cert,
             ca_key,
