@@ -9,6 +9,45 @@ use grpc::{
 };
 
 use crate::{cert::process::CertificateProcess, config::is_debug};
+
+use crate::cert::store::{Cert as StoreCert, CertDer, CertStatus as StoreStatus};
+use grpc::ca::{Cert as GrpcCert, CertStatus as GrpcStatus};
+use grpc::prost_types::Timestamp;
+
+impl From<StoreCert> for GrpcCert {
+    fn from(c: StoreCert) -> Self {
+        GrpcCert {
+            serial: c.serial.unwrap_or_default(),
+            subject_cn: c.subject_cn.unwrap_or_default(),
+            subject_dn: c.subject_dn.unwrap_or_default(),
+            issuer: c.issuer.unwrap_or_default(),
+            issued_date: Some(Timestamp {
+                seconds: c.issued_date.timestamp(),
+                nanos: c.issued_date.timestamp_subsec_nanos() as i32,
+            }),
+            expiration: Some(Timestamp {
+                seconds: c.expiration.timestamp(),
+                nanos: c.expiration.timestamp_subsec_nanos() as i32,
+            }),
+            thumbprint: c.thumbprint.unwrap_or_default(),
+            status: match c.status {
+                StoreStatus::Valid => GrpcStatus::Valid as i32,
+                StoreStatus::Revoked => GrpcStatus::Revoked as i32,
+            },
+            cert_der: c
+                .cert_der
+                .and_then(|d| {
+                    if let CertDer::Inline(v) = d {
+                        Some(v)
+                    } else {
+                        None
+                    }
+                })
+                .unwrap_or_default(),
+        }
+    }
+}
+
 /// gRPC CA 實現
 pub struct MyCa {
     /// 憑證處理器
@@ -42,7 +81,12 @@ impl Ca for MyCa {
         })?;
         Ok(Response::new(CsrResponse { cert: leaf, chain }))
     }
-    async fn reload_ca(
+    /// 重新加載 gRPC 配置
+    /// # 參數
+    /// * `_req`: 空請求
+    /// # 回傳
+    /// * `Result<Response<ReloadResponse>, Status>`: 返回是否成功重新加載
+    async fn reload_grpc(
         &self,
         _req: Request<grpc::ca::Empty>,
     ) -> Result<Response<ReloadResponse>, Status> {
@@ -51,5 +95,109 @@ impl Ca for MyCa {
         }
         Ok(Response::new(ReloadResponse { success: true }))
     }
+    /// 列出所有憑證
+    /// # 參數
+    /// * `_req`: 空請求
+    /// # 回傳
+    /// * `Result<Response<ListAllCertsResponse>, Status>`: 返回所有憑證的列表
+    async fn list_all(
+        &self,
+        _req: Request<Empty>,
+    ) -> Result<Response<ListAllCertsResponse>, Status> {
+        let certs = self
+            .cert
+            .get_store()
+            .list_all()
+            .await
+            .map_err(|e| Status::internal(format!("Failed to list all certs: {}", e)))?;
+        let grpc_certs: Vec<grpc::ca::Cert> = certs.into_iter().map(Into::into).collect();
+        Ok(Response::new(ListAllCertsResponse { certs: grpc_certs }))
+    }
+    async fn get(&self, req: Request<GetCertRequest>) -> Result<Response<GetCertResponse>, Status> {
+        let serial = req.into_inner().serial;
+        let cert = self
+            .cert
+            .get_store()
+            .get(&serial)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to get cert: {}", e)))?
+            .ok_or_else(|| Status::not_found(format!("Cert not found: {}", serial)))?;
+        Ok(Response::new(GetCertResponse {
+            cert: Some(cert.into()),
+        }))
+    }
+    async fn get_by_thumbprint(
+        &self,
+        req: Request<GetByThumprintRequest>,
+    ) -> Result<Response<GetByThumprintResponse>, Status> {
+        let thumbprint = req.into_inner().thumbprint;
+        let cert = self
+            .cert
+            .get_store()
+            .get_by_thumbprint(&thumbprint)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to get cert by thumbprint: {}", e)))?
+            .ok_or_else(|| {
+                Status::not_found(format!("Cert not found for thumbprint: {}", thumbprint))
+            })?;
+        Ok(Response::new(GetByThumprintResponse {
+            cert: Some(cert.into()),
+        }))
+    }
+    async fn get_by_common_name(
+        &self,
+        req: Request<GetByCommonNameRequest>,
+    ) -> Result<Response<GetByCommonNameResponse>, Status> {
+        let common_name = req.into_inner().name;
+        let cert = self
+            .cert
+            .get_store()
+            .get_by_common_name(&common_name)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to get cert by common name: {}", e)))?
+            .ok_or_else(|| {
+                Status::not_found(format!("Cert not found for common name: {}", common_name))
+            })?;
+        Ok(Response::new(GetByCommonNameResponse {
+            cert: Some(cert.into()),
+        }))
+    }
+    async fn query_cert_status(
+        &self,
+        req: Request<QueryCertStatusRequest>,
+    ) -> Result<Response<QueryCertStatusResponse>, Status> {
+        let serial = req.into_inner().serial;
+        let status = self
+            .cert
+            .get_store()
+            .query_cert_status(&serial)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to query cert status: {}", e)))?
+            .ok_or_else(|| Status::not_found(format!("Cert not found: {}", serial)))?;
+        Ok(Response::new(QueryCertStatusResponse {
+            status: match status {
+                StoreStatus::Valid => Some(GrpcStatus::Valid as i32),
+                StoreStatus::Revoked => Some(GrpcStatus::Revoked as i32),
+            },
+        }))
+    }
+    async fn mark_cert_revoked(
+        &self,
+        req: Request<MarkCertRevokedRequest>,
+    ) -> Result<Response<MarkCertRevokedResponse>, Status> {
+        let req = req.into_inner();
+        let serial = req.serial;
+        let reason = req.reason;
+        self.cert
+            .get_store()
+            .mark_cert_revoked(&serial, reason)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to mark cert as revoked: {}", e)))?;
+        self.cert
+            .get_crl()
+            .reload_crl()
+            .await
+            .map_err(|e| Status::internal(format!("Failed reload CRL: {}", e)))?;
+        Ok(Response::new(MarkCertRevokedResponse { success: true }))
+    }
 }
-//TODO: 這裡添加更多CA gRPC方法的實現

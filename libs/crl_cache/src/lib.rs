@@ -107,6 +107,19 @@ impl CrlCache {
     pub async fn reader(&self) -> tokio::sync::RwLockReadGuard<'_, HashSet<String>> {
         self.entries.read().await
     }
+    pub async fn refresh(&self) -> Result<(), CrlCacheError> {
+        let since = *self.last_update.read().await;
+        match self.provider.fetch_crl(Some(since)).await {
+            Ok((full, this_u, next_u)) => {
+                let mut w = self.entries.write().await;
+                *w = full.into_iter().collect();
+                *self.last_update.write().await = this_u;
+                *self.next_update.write().await = next_u;
+                Ok(())
+            }
+            Err(e) => Err(e),
+        }
+    }
     pub async fn is_revoked(&self, serial: &str) -> bool {
         self.entries.read().await.contains(serial)
     }

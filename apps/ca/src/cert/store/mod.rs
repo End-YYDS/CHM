@@ -78,10 +78,11 @@ pub trait CertificateStore: Debug + Sync + Send {
     async fn get(&self, serial: &str) -> CaResult<Option<Cert>>;
     /// 根據指紋查詢憑證
     async fn get_by_thumbprint(&self, thumbprint: &str) -> CaResult<Option<Cert>>;
+    async fn get_by_common_name(&self, common_name: &str) -> CaResult<Option<Cert>>;
     /// 插入新的憑證
-    async fn insert(&self, cert: openssl::x509::X509) -> CaResult<()>;
+    async fn insert(&self, cert: openssl::x509::X509) -> CaResult<bool>;
     /// 刪除憑證
-    async fn delete(&self, serial: &str) -> CaResult<()>;
+    async fn delete(&self, serial: &str) -> CaResult<bool>;
     /// 獲取憑證的狀態
     async fn query_cert_status(&self, serial: &str) -> CaResult<Option<CertStatus>>;
 
@@ -96,5 +97,5 @@ pub trait CertificateStore: Debug + Sync + Send {
         offset: usize,
     ) -> CaResult<Vec<CrlEntry>>;
     /// 將指定憑證標記為撤銷
-    async fn mark_cert_revoked(&self, serial: &str, reason: Option<String>) -> CaResult<()>;
+    async fn mark_cert_revoked(&self, serial: &str, reason: Option<String>) -> CaResult<bool>;
 }

@@ -54,6 +54,7 @@ async fn main() -> CaResult<()> {
         let mut mini_c = mini_controller_cert(&cert_handler).await?;
         ca_grpc_cert(&cert_handler).await?;
         grpc_test_cert(&cert_handler).await?;
+        one_cert(&cert_handler).await?;
         mini_c.start(addr, marker_path.clone()).await?;
     }
     if marker_path.exists() {

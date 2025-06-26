@@ -7,7 +7,7 @@ pub mod config;
 pub mod connection;
 pub mod globals;
 pub mod mini_controller;
-use futures::future::BoxFuture;
+use futures::{future::BoxFuture, FutureExt};
 use grpc::{
     ca::{ca_server::CaServer, *},
     crl::crl_server,
@@ -70,14 +70,11 @@ fn make_ca_middleware(
     move |req: Request<()>| {
         let cert_handler = cert_handler.clone();
         let controller_args = controller_args.clone();
-        let fut = async move {
-            let req = check_revoke(cert_handler.clone(), req).await.map_err(|e| {
-                eprintln!("[gRPC] 憑證撤銷檢查失敗: {}", e);
-                e
-            })?;
+        async move {
+            let req = check_revoke(cert_handler.clone(), req).await?;
             check_controller(cert_handler, controller_args, req).await
-        };
-        Box::pin(fut)
+        }
+        .boxed()
     }
 }
 async fn check_controller(
@@ -113,8 +110,7 @@ fn make_crl_middleware(
 ) -> impl Fn(Request<()>) -> CheckFuture + Clone + Send + Sync + 'static {
     move |req: Request<()>| {
         let cert_handler = cert_handler.clone();
-        let fut = async move { check_revoke(cert_handler, req).await };
-        Box::pin(fut)
+        async move { check_revoke(cert_handler, req).await }.boxed()
     }
 }
 

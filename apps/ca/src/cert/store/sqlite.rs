@@ -208,8 +208,34 @@ impl CertificateStore for SqlConnection {
         tx.commit().await?;
         Ok(row.map(Into::into))
     }
+    /// 根據common name 查詢憑證
+    async fn get_by_common_name(&self, common_name: &str) -> CaResult<Option<Cert>> {
+        let mut tx = self.pool.begin().await?;
+        let row = sqlx::query_as!(
+            SqlCert,
+            r#"
+            SELECT
+                serial,
+                subject_cn,
+                subject_dn,
+                issuer,
+                issued_date as "issued_date: DateTime<Utc>",
+                expiration as "expiration: DateTime<Utc>",
+                thumbprint,
+                status as "status: CertStatus",
+                cert_der
+            FROM certs
+            WHERE subject_cn = ?
+            "#,
+            common_name
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+        tx.commit().await?;
+        Ok(row.map(Into::into))
+    }
     /// 插入新的憑證
-    async fn insert(&self, cert: openssl::x509::X509) -> CaResult<()> {
+    async fn insert(&self, cert: openssl::x509::X509) -> CaResult<bool> {
         let mut tx = self.pool.begin().await?;
         let serial = CertificateProcess::cert_serial_sha256(&cert)?;
         if self.get(&serial).await?.is_some() {
@@ -269,10 +295,10 @@ impl CertificateStore for SqlConnection {
             result.last_insert_rowid()
         );
         tx.commit().await?;
-        Ok(())
+        Ok(true)
     }
     /// 刪除憑證
-    async fn delete(&self, serial: &str) -> CaResult<()> {
+    async fn delete(&self, serial: &str) -> CaResult<bool> {
         let mut tx = self.pool.begin().await?;
         let result = sqlx::query!("DELETE FROM certs WHERE serial = ?", serial)
             .execute(&mut *tx)
@@ -282,7 +308,7 @@ impl CertificateStore for SqlConnection {
         }
         println!("憑證已成功刪除,序號: {}", serial);
         tx.commit().await?;
-        Ok(())
+        Ok(true)
     }
 
     // 撤銷憑證操作相關的異步方法
@@ -306,7 +332,7 @@ impl CertificateStore for SqlConnection {
         Ok(rows.into_iter().map(Into::into).collect())
     }
     /// 將指定憑證標記為撤銷
-    async fn mark_cert_revoked(&self, serial: &str, reason: Option<String>) -> CaResult<()> {
+    async fn mark_cert_revoked(&self, serial: &str, reason: Option<String>) -> CaResult<bool> {
         let mut tx = self.pool.begin().await?;
         let is_revoked = self.query_cert_status(serial).await?;
         if is_revoked.is_some() && is_revoked.unwrap() == CertStatus::Revoked {
@@ -339,7 +365,7 @@ impl CertificateStore for SqlConnection {
         tx.commit().await?;
 
         println!("憑證已成功標記為註銷,序號: {}", serial);
-        Ok(())
+        Ok(true)
     }
     async fn query_cert_status(&self, serial: &str) -> CaResult<Option<CertStatus>> {
         let mut tx = self.pool.begin().await?;

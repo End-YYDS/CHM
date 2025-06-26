@@ -66,4 +66,7 @@ impl CrlVerifier {
     pub async fn is_revoked(&self, serial: &str) -> bool {
         self.cache.is_revoked(serial).await
     }
+    pub async fn reload_crl(&self) -> Result<(), CrlCacheError> {
+        self.cache.refresh().await
+    }
 }
