@@ -42,10 +42,14 @@ impl Ca for MyCa {
         })?;
         Ok(Response::new(CsrResponse { cert: leaf, chain }))
     }
-    async fn reload_ca(&self, _req: Request<grpc::ca::Empty>) -> Result<Response<ReloadResponse>, Status> {
+    async fn reload_ca(
+        &self,
+        _req: Request<grpc::ca::Empty>,
+    ) -> Result<Response<ReloadResponse>, Status> {
         if let Err(e) = self.reloader.send(()) {
             return Err(Status::internal(format!("Reloader error: {}", e)));
         }
         Ok(Response::new(ReloadResponse { success: true }))
     }
 }
+//TODO: 這裡添加更多CA gRPC方法的實現

@@ -10,7 +10,7 @@ pub struct StoreCrlProvider {
     store: Arc<dyn CertificateStore + Send + Sync>,
     poll_interval: ChronoDuration,
 }
-
+/// 繼承 CrlProvider，從 Store 中獲取 CRL，而不從gRPC 獲取。
 #[async_trait]
 impl CrlProvider for StoreCrlProvider {
     async fn fetch_crl(
@@ -63,11 +63,6 @@ impl CrlVerifier {
         Ok(CrlVerifier { cache })
     }
 
-    pub fn is_revoked_sync(&self, serial: &str) -> bool {
-        tokio::runtime::Handle::current().block_on(self.cache.is_revoked(serial))
-    }
-
-    /// 异步检查
     pub async fn is_revoked(&self, serial: &str) -> bool {
         self.cache.is_revoked(serial).await
     }

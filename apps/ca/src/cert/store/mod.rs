@@ -29,7 +29,7 @@ pub struct Cert {
     pub issued_date: DateTime<Utc>, // 解析自 ISO8601
     pub expiration: DateTime<Utc>,  // 同上
     pub thumbprint: Option<String>, // SHA-256 指紋 hex
-    pub status: CertStatus,         // 'valid' / 'revoked' / ...
+    pub status: CertStatus,         // 'valid' / 'revoked'
     pub cert_der: Option<CertDer>,  // BLOB 原始 DER bytes
 }
 #[derive(Debug)]
@@ -47,7 +47,7 @@ pub enum StoreType {
 
 #[derive(Debug)]
 pub struct StoreFactory;
-
+/// 創建憑證存儲的工廠類
 impl StoreFactory {
     pub async fn create_store() -> CaResult<Box<dyn CertificateStore>> {
         let cfg = &GlobalConfig::read().await.settings;
@@ -67,12 +67,6 @@ impl StoreFactory {
                 Ok(Box::new(conn))
             }
             BackendConfig::Toml { .. } => {
-                // // 如果你已經實作了 TomlStore::new
-                // let toml_cfg = BackendConfig::Toml {
-                //     toml_path: toml_path.clone(),
-                // };
-                // let store = toml::TomlStore::new(toml_cfg)?;
-                // Ok(Box::new(store))
                 unimplemented!("Toml store is not implemented yet")
             }
         }

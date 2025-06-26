@@ -84,16 +84,16 @@ impl std::fmt::Display for CertStatus {
 }
 
 #[derive(Debug)]
-pub struct SqlCert {
-    pub serial: Option<String>,     // PK: 憑證序號 (hex string)
-    pub subject_cn: Option<String>, // Common Name
-    pub subject_dn: Option<String>, // 完整 Subject DN
-    pub issuer: Option<String>,     // 完整 Issuer DN
-    pub issued_date: DateTime<Utc>, // 解析自 ISO8601
-    pub expiration: DateTime<Utc>,  // 同上
-    pub thumbprint: Option<String>, // SHA-256 指紋 hex
-    pub status: CertStatus,         // 'valid' / 'revoked' / ...
-    pub cert_der: Option<Vec<u8>>,  // BLOB 原始 DER bytes
+struct SqlCert {
+    serial: Option<String>,     // PK: 憑證序號 (hex string)
+    subject_cn: Option<String>, // Common Name
+    subject_dn: Option<String>, // 完整 Subject DN
+    issuer: Option<String>,     // 完整 Issuer DN
+    issued_date: DateTime<Utc>, // 解析自 ISO8601
+    expiration: DateTime<Utc>,  // 同上
+    thumbprint: Option<String>, // SHA-256 指紋 hex
+    status: CertStatus,         // 'valid' / 'revoked' / ...
+    cert_der: Option<Vec<u8>>,  // BLOB 原始 DER bytes
 }
 
 impl From<SqlCert> for Cert {
@@ -113,11 +113,12 @@ impl From<SqlCert> for Cert {
 }
 
 #[derive(Debug)]
-pub struct SqlCrlEntry {
-    pub id: Option<i64>,             // AUTOINCREMENT 主鍵
-    pub cert_serial: Option<String>, // FK: 對應到 certs.serial
-    pub revoked_at: DateTime<Utc>,   // 解析自 ISO8601
-    pub reason: Option<String>,      // 註銷原因
+#[allow(dead_code)]
+struct SqlCrlEntry {
+    id: Option<i64>,             // AUTOINCREMENT 主鍵
+    cert_serial: Option<String>, // FK: 對應到 certs.serial
+    revoked_at: DateTime<Utc>,   // 解析自 ISO8601
+    reason: Option<String>,      // 註銷原因
 }
 impl From<SqlCrlEntry> for CrlEntry {
     fn from(s: SqlCrlEntry) -> Self {
