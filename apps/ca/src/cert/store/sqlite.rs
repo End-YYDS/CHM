@@ -27,10 +27,7 @@ impl SqlConnection {
             store_path,
             max_connections,
             timeout,
-        } = cfg
-        else {
-            return Err("Invalid backend configuration for Sqlite".into());
-        };
+        } = cfg;
         let connect_opts = SqliteConnectOptions::from_str(&store_path)?
             .create_if_missing(true)
             .pragma("auto_vacuum", "FULL")

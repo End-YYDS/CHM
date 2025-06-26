@@ -1,8 +1,5 @@
-// mod simple;
 mod verifier;
-
 use std::sync::Arc;
-
 use chrono::{DateTime, Duration, TimeZone, Utc};
 use grpc::{
     crl::{crl_server::Crl, ListCrlEntriesRequest, ListCrlEntriesResponse},
@@ -10,9 +7,7 @@ use grpc::{
     prost_types::Timestamp,
     tonic::{self, Request, Response, Status},
 };
-// pub use simple::*;
 pub use verifier::*;
-
 use crate::cert::store::CrlEntry as StoreCrlEntry;
 use crate::{cert::process::CertificateProcess, globals::GlobalConfig, CaResult};
 use grpc::crl::CrlEntry as GrpcCrlEntry;

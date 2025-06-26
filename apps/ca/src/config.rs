@@ -57,12 +57,6 @@ pub enum BackendConfig {
         #[serde(default = "SqliteSettings::default_timeout")]
         timeout: u64,
     },
-    /// TOML 檔案後端專屬設定
-    Toml {
-        /// TOML 配置檔路徑
-        #[serde(default = "TomlSettings::default_toml_path")]
-        toml_path: String,
-    },
 }
 impl Default for BackendConfig {
     fn default() -> Self {
@@ -84,13 +78,6 @@ impl SqliteSettings {
     }
     fn default_timeout() -> u64 {
         10
-    }
-}
-
-struct TomlSettings;
-impl TomlSettings {
-    fn default_toml_path() -> String {
-        "certs/cert_store.toml".into()
     }
 }
 

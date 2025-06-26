@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::PathBuf};
 
 pub mod sqlite;
-pub mod toml;
 
 #[derive(Debug, Clone)]
 pub enum CertDer {
@@ -65,9 +64,6 @@ impl StoreFactory {
                 };
                 let conn = sqlite::SqlConnection::new(sqlite_cfg).await?;
                 Ok(Box::new(conn))
-            }
-            BackendConfig::Toml { .. } => {
-                unimplemented!("Toml store is not implemented yet")
             }
         }
     }
