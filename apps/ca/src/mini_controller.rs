@@ -84,9 +84,12 @@ impl MiniController {
         } else {
             PathBuf::from("/etc").join(PROJECT.2).join(certs_path) //TODO: 安裝腳本安裝時注意資料夾權限問題
         };
+
         let file_path = file_path.join(format!("{filename}.pem"));
         if !file_path.exists() {
-            fs::create_dir_all(&file_path)?;
+            if let Some(parent) = file_path.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| format!("建立資料庫目錄失敗: {e}"))?;
+            }
         }
         let mut f = fs::File::create(file_path)?;
         f.write_all(self.show_cert()?.as_bytes())?;
