@@ -3,6 +3,8 @@ use std::path::PathBuf;
 use config::{Config, Environment, File};
 use directories::ProjectDirs;
 use serde::de::DeserializeOwned;
+pub extern crate directories;
+pub extern crate toml;
 
 pub const PROJECT: (&str, &str, &str) = ("com", "duacodie", "CHM");
 pub struct ConfigLoader<T> {

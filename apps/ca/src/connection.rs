@@ -75,7 +75,7 @@ impl Ca for MyCa {
             .map_err(|e| Status::invalid_argument(format!("Invalid CSR: {e}")))?;
         let (leaf, chain) = self.cert.sign_csr(&csr, days).await.map_err(|e| {
             if debug {
-                eprintln!("Sign error: {e}");
+                tracing::error!("Sign error: {e}");
             }
             Status::internal(format!("Sign error: {e}"))
         })?;

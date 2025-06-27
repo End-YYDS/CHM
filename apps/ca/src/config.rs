@@ -1,4 +1,4 @@
-use config_loader::store_config;
+use config_loader::{directories, store_config};
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};

@@ -67,7 +67,7 @@ async fn main() -> Result<()> {
     }
     if args.iter().any(|arg| arg == "--grpc") {
         // GRPC 連接測試
-        let channel = init_grpc(&info1).await?;
+        let channel = init_grpc(&info).await?;
         // 健康檢查
         health_check(channel.clone()).await?;
         // GRPC 測試
@@ -75,7 +75,7 @@ async fn main() -> Result<()> {
         // sign_cert(grpc_client.clone()).await?;
         // test_grpc_restart(grpc_client.clone()).await?;
 
-        // get_all_certs(grpc_client.clone()).await?;
+        get_all_certs(grpc_client.clone()).await?;
         // get_cert_by_serial(
         //     grpc_client.clone(),
         //     "6efa012bdf10f10b7bba8329b7b7c604c0201236cef251a6149d9fdad8b3a640",
@@ -93,12 +93,12 @@ async fn main() -> Result<()> {
         // .await?;
         // get_cert_by_common_name(grpc_client.clone(), "one.example.com").await?;
 
-        mark_cert_revoked(
-            grpc_client.clone(),
-            "6efa012bdf10f10b7bba8329b7b7c604c0201236cef251a6149d9fdad8b3a640",
-            Some("測試撤銷".to_string()),
-        )
-        .await?;
+        // mark_cert_revoked(
+        //     grpc_client.clone(),
+        //     "6efa012bdf10f10b7bba8329b7b7c604c0201236cef251a6149d9fdad8b3a640",
+        //     Some("測試撤銷".to_string()),
+        // )
+        // .await?;
 
         // CRL 測試
         // let crl_client = CrlClient::new(channel.clone());

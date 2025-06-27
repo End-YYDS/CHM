@@ -296,7 +296,7 @@ impl CertificateStore for SqlConnection {
         if result.rows_affected() == 0 {
             return Err("Failed to insert cert".into());
         }
-        println!(
+        tracing::debug!(
             "憑證已成功插入,序號: {}, ID: {}",
             serial,
             result.last_insert_rowid()
@@ -313,7 +313,7 @@ impl CertificateStore for SqlConnection {
         if result.rows_affected() == 0 {
             return Err("No cert found with the given serial".into());
         }
-        println!("憑證已成功刪除,序號: {}", serial);
+        tracing::debug!("憑證已成功刪除,序號: {}", serial);
         tx.commit().await?;
         Ok(true)
     }
@@ -370,8 +370,7 @@ impl CertificateStore for SqlConnection {
             return Err("No cert found with the given serial to update".into());
         }
         tx.commit().await?;
-
-        println!("憑證已成功標記為註銷,序號: {}", serial);
+        tracing::debug!("憑證已成功標記為註銷,序號: {serial}");
         Ok(true)
     }
     async fn query_cert_status(&self, serial: &str) -> CaResult<Option<CertStatus>> {

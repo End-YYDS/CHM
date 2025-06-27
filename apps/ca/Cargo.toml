@@ -7,13 +7,9 @@ edition.workspace = true
 [dependencies]
 tokio = { version = "1.43.0", features = ["rt","macros","rt-multi-thread","fs"] }
 actix-web = { version = "4.11.0", features = ["openssl"] }
-openssl = { version = "0.10.72", features = ["vendored"] }
-#rpassword = "7.4.0"
-directories = "6.0.0"
+openssl = { version = "0.10.72"}
 serde = { version = "1.0.219", features = ["derive"] }
-toml = "0.8.22"
 chrono = { version = "0.4.41", features = ["serde"] }
-#rsntp = "4.0.0"
 grpc = { version = "0.1.0", path = "../../libs/grpc", features = ["ca","crl-server"] }
 config_loader = { version = "0.1.0", path = "../../libs/config_loader" }
 sqlx = { version = "0.8.6", features = ["sqlite", "macros", "chrono", "runtime-tokio","migrate"], default-features = false }
@@ -27,7 +23,18 @@ crl_cache = { version = "0.1.0", path = "../../libs/crl_cache" }
 tonic-async-interceptor = "0.13.0"
 tower = "0.5.2"
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
+tower-http = { version = "0.6.6", features = ["trace"] }
+tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
+tracing = "0.1.41"
+openssl-sys = "0.9.109"
 
 [[bin]]
 name = "CHM_CA"
 path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+debug = false
+panic = "abort"

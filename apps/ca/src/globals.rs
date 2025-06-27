@@ -1,4 +1,4 @@
-use config_loader::store_config;
+use config_loader::{directories, store_config};
 use once_cell::sync::OnceCell;
 use tokio::sync::RwLock;
 
@@ -47,7 +47,7 @@ impl GlobalConfig {
     }
     pub async fn save_config() -> CaResult<()> {
         if GlobalConfig::has_active_readers() {
-            eprintln!("⚠️ 還有鎖沒有釋放!-1");
+            tracing::trace!("還有讀鎖沒有釋放!");
         }
         let cfg = &GlobalConfig::read().await.settings;
         let config_name = format!("{ID}_config.toml");

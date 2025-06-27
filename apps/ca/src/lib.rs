@@ -17,6 +17,7 @@ use openssl::x509::{X509Req, X509};
 use tokio::sync::watch;
 use tonic_async_interceptor::async_interceptor;
 use tower::ServiceBuilder;
+use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 
 use std::{fs, io::Write, net::SocketAddr, path::Path, sync::Arc};
 use tonic::{
@@ -145,10 +146,10 @@ pub async fn start_grpc(
             async move {
                 tokio::select! {
                     _ = tokio::signal::ctrl_c() => {
-                        println!("[gRPC] 收到 Ctrl-C，開始關閉...");
+                        tracing::info!("[gRPC] 收到 Ctrl-C，開始關閉...");
                     }
                     Ok(_) = rx.changed() => {
-                        println!("[gRPC] 憑證更新，開始重新啟動 gRPC...");
+                        tracing::info!("[gRPC] 憑證更新，開始重新啟動 gRPC...");
                     }
                 }
                 health_reporter
@@ -180,18 +181,23 @@ pub async fn start_grpc(
             .service(crl_server::CrlServer::new(CrlList {
                 cert: cert_handler.clone(),
             }));
-        println!("gRPC server listening on {addr}");
+        tracing::info!("[gRPC] 啟動 gRPC 服務於 {addr}");
         let server = tonic::transport::Server::builder()
+            .layer(
+                TraceLayer::new_for_grpc()
+                    .make_span_with(DefaultMakeSpan::new().include_headers(true))
+                    .on_response(DefaultOnResponse::new().include_headers(true)),
+            )
             .tls_config(tls)?
             .add_service(ca_svc)
             .add_service(crl_svc)
             .add_service(health_service)
             .serve_with_shutdown(addr, shutdown_signal);
         if let Err(e) = server.await {
-            eprintln!("[gRPC] 啟動失敗: {e:?}");
+            tracing::error!("[gRPC] 啟動失敗: {e:?}");
         }
         if cert_update_rx.has_changed().unwrap_or(false) {
-            println!("[gRPC] 重啟完成，重新載入新憑證並啟動服務");
+            tracing::info!("[gRPC] 憑證更新，重新啟動 gRPC 服務");
             let _ = cert_update_rx.borrow_and_update();
             continue;
         }
@@ -301,6 +307,6 @@ pub async fn create_new_rootca() -> CaResult<()> {
         256,
     )?;
     CertificateProcess::save_cert("rootCA", ca_test.0, ca_test.1)?;
-    println!("Root CA generated!");
+    tracing::info!("Root CA generated!");
     Ok(())
 }

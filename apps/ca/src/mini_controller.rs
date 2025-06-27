@@ -102,21 +102,21 @@ impl MiniController {
     /// # 回傳
     /// * `CaResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
     pub async fn start(&mut self, addr: SocketAddr, marker_path: PathBuf) -> CaResult<()> {
-        println!("Init Process Running on {addr} ...");
+        tracing::info!("Init Process Running on {addr} ...");
         let otp_len = {
             if GlobalConfig::has_active_readers() {
-                eprintln!("⚠️ 還有讀鎖還未釋放!-4");
+                tracing::trace!("還有讀鎖沒釋放!");
             }
             let cfg = GlobalConfig::read().await;
             cfg.settings.server.otp_len
         };
         let otp_code = password::generate_otp(otp_len);
-        println!("OTP code: {otp_code}");
+        tracing::info!("OTP code: {otp_code}");
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
         let tx_clone = tx.clone();
         let rootca = {
             if GlobalConfig::has_active_readers() {
-                eprintln!("⚠️ 還有讀鎖還未釋放!-2");
+                tracing::trace!("還有讀鎖未釋放");
                 return Err("還有讀鎖未釋放".into());
             }
             let cfg = GlobalConfig::read().await;
@@ -209,7 +209,7 @@ async fn init_api(
     data: web::Json<Otp>,
 ) -> HttpResponse {
     if data.code.as_str() != otp_code.as_str() {
-        eprintln!("OTP 驗證失敗: {}", data.code);
+        tracing::error!("OTP 驗證失敗: {}", data.code);
         return HttpResponse::Unauthorized().body("OTP 驗證失敗");
     }
     if let Some(peer) = req.conn_data::<PeerCerts>() {
@@ -224,7 +224,7 @@ async fn init_api(
         if serial.is_some() && fingerprint.is_some() {
             {
                 if GlobalConfig::has_active_readers() {
-                    eprintln!("還有讀鎖沒釋放!-3");
+                    tracing::trace!("還有讀鎖沒釋放!");
                     return HttpResponse::Locked().body("還有讀鎖沒釋放");
                 }
                 let mut global = GlobalConfig::write().await;
@@ -236,12 +236,12 @@ async fn init_api(
                 }
             }
             if let Err(e) = GlobalConfig::save_config().await {
-                eprintln!("儲存設定失敗: {e}");
+                tracing::error!("儲存設定失敗: {e}");
                 return HttpResponse::InternalServerError().body("儲存設定失敗");
             }
         }
     } else {
-        eprintln!("沒有找到 PeerCerts");
+        tracing::warn!("沒有找到 PeerCerts，請確保使用正確的憑證連接");
         return HttpResponse::PreconditionFailed()
             .body("沒有找到 PeerCerts，請確保使用正確的憑證連接");
     }
@@ -251,7 +251,7 @@ async fn init_api(
         return HttpResponse::InternalServerError().body("寫入marker檔案失敗");
     }
     if cfg!(debug_assertions) {
-        println!("初始化完成，關閉伺服器");
+        tracing::info!("初始化完成，關閉伺服器");
     }
     let _ = shutdown_tx.send(()).await;
     HttpResponse::Ok().body("初始化完成")
