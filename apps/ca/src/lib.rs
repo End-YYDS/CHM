@@ -213,7 +213,7 @@ pub async fn mini_controller_cert(cert_handler: &CertificateProcess) -> CaResult
         "Taipei",
         "Taipei",
         "CHM Organization",
-        "miniC.example.com",
+        "miniC.chm.com",
         &["127.0.0.1"],
     )?;
     let key = Path::new("certs").join("mini_controller.key");
@@ -238,7 +238,7 @@ pub async fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
         "Taipei",
         "Taipei",
         "CHM Organization",
-        "ca.example.com",
+        "ca.chm.com",
         &["127.0.0.1"],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
@@ -260,7 +260,7 @@ pub async fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
         "Taipei",
         "Taipei",
         "CHM Organization",
-        "test.example.com",
+        "test.chm.com",
         &["127.0.0.1"],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
@@ -278,7 +278,7 @@ pub async fn one_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
         "Taipei",
         "Taipei",
         "CHM Organization",
-        "one.example.com",
+        "one.chm.com",
         &["127.0.0.1"],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
@@ -294,7 +294,7 @@ pub async fn create_new_rootca() -> CaResult<()> {
         "Taipei",
         "Taipei",
         "CHM Organization",
-        "testca.example.com",
+        "testca.chm.com",
         3650,
         // Some(b"test_password"),
         None,

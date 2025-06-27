@@ -4,7 +4,7 @@ use config::{Config, Environment, File};
 use directories::ProjectDirs;
 use serde::de::DeserializeOwned;
 
-const PROJECT: (&str, &str, &str) = ("com", "example", "CHM");
+const PROJECT: (&str, &str, &str) = ("com", "duacodie", "CHM");
 pub struct ConfigLoader<T> {
     pub config: T,
     pub proj_dirs: ProjectDirs,
