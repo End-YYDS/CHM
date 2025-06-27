@@ -8,7 +8,7 @@ use grpc::{
     tonic,
 };
 
-use crate::{cert::process::CertificateProcess, config::is_debug};
+use crate::cert::process::CertificateProcess;
 
 use crate::cert::store::{Cert as StoreCert, CertDer, CertStatus as StoreStatus};
 use grpc::ca::{Cert as GrpcCert, CertStatus as GrpcStatus};
@@ -64,7 +64,7 @@ impl Ca for MyCa {
     /// * `Result<Response<CsrResponse>, Status>`: 返回簽署的憑證和鏈，或錯誤狀態
     async fn sign_csr(&self, req: Request<CsrRequest>) -> Result<Response<CsrResponse>, Status> {
         let temp = req.into_parts();
-        let debug = is_debug();
+        let debug = cfg!(debug_assertions);
         if debug {
             dbg!(&temp);
         }

@@ -23,7 +23,6 @@ use std::{io::Write, path::PathBuf};
 
 use crate::{
     cert::crl::{self, CrlVerifier},
-    config::is_debug,
     globals::GlobalConfig,
     CaResult, ChainCerts, CsrCert, PrivateKey, SignedCert,
 };
@@ -410,7 +409,7 @@ impl CertificateProcess {
     /// * `CaResult<()>`：返回結果，成功時為 Ok，失敗時為 Err
     pub fn save_cert(filename: &str, private_key: PrivateKey, cert: SignedCert) -> CaResult<()> {
         let certs_path = Path::new("certs");
-        let save_path = if is_debug() {
+        let save_path = if cfg!(debug_assertions) {
             certs_path.to_path_buf()
         } else {
             PathBuf::from("/etc").join(PROJECT.2).join(certs_path) //TODO: 安裝腳本安裝時注意資料夾權限問題

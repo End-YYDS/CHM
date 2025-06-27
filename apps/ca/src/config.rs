@@ -6,7 +6,6 @@ use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 use crate::{globals::GlobalConfig, CaResult};
 
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
-static DEBUG: AtomicBool = AtomicBool::new(false);
 pub static ID: &str = "CA";
 #[derive(Debug, Deserialize, Serialize)]
 /// 伺服器設定
@@ -108,7 +107,11 @@ pub struct Certificate {
 impl Certificate {
     /// 生成憑證簽署請求（CSR）和私鑰
     fn default_rootca() -> String {
-        "certs/rootCA.pem".into()
+        if cfg!(debug_assertions) {
+            "certs/rootCA.pem".into()
+        } else {
+            "/etc/CHM/certs/rootCA.pem".into() // 預設在系統目錄下
+        }
     }
     /// 取得根憑證的私鑰路徑
     fn default_rootca_key() -> String {
@@ -137,13 +140,6 @@ impl Default for Certificate {
             crl_update_interval: Certificate::default_crl_update_interval(),
         }
     }
-}
-
-#[derive(Debug, Deserialize, Serialize, Default)]
-/// 開發模式設定
-pub struct Develop {
-    /// 是否啟用開發模式
-    pub debug: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, Default)]
@@ -178,9 +174,6 @@ pub struct Settings {
     /// 憑證設定
     pub certificate: Certificate,
     #[serde(default)]
-    /// 開發模式設定
-    pub develop: Develop,
-    #[serde(default)]
     /// 控制器設定
     pub controller: Controller,
 }
@@ -214,11 +207,6 @@ pub async fn config() -> CaResult<()> {
         return Ok(());
     }
     let settings = Settings::new()?;
-    DEBUG.store(settings.0.develop.debug, Relaxed);
     GlobalConfig::init_global_config(settings);
     Ok(())
-}
-
-pub fn is_debug() -> bool {
-    DEBUG.load(Relaxed)
 }

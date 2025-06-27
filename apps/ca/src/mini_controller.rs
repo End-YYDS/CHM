@@ -1,5 +1,4 @@
 use crate::cert::process::CertificateProcess;
-use crate::config::is_debug;
 use crate::globals::GlobalConfig;
 use crate::{CaResult, PrivateKey, SignedCert};
 use actix_tls::accept::openssl::TlsStream;
@@ -80,7 +79,7 @@ impl MiniController {
     /// * `CaResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
     pub fn save_cert(&self, filename: &str) -> CaResult<()> {
         let certs_path = Path::new("certs");
-        let file_path = if is_debug() {
+        let file_path = if cfg!(debug_assertions) {
             certs_path.to_path_buf()
         } else {
             PathBuf::from("/etc").join(PROJECT.2).join(certs_path) //TODO: 安裝腳本安裝時注意資料夾權限問題
@@ -248,7 +247,7 @@ async fn init_api(
         eprint!("寫入marker檔案失敗: {}", e);
         return HttpResponse::InternalServerError().body("寫入marker檔案失敗");
     }
-    if is_debug() {
+    if cfg!(debug_assertions) {
         println!("初始化完成，關閉伺服器");
     }
     let _ = shutdown_tx.send(()).await;

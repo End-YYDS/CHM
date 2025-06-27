@@ -5,7 +5,7 @@ use tokio::sync::RwLock;
 use directories::ProjectDirs;
 
 use crate::{
-    config::{is_debug, Settings, ID},
+    config::{Settings, ID},
     CaResult,
 };
 
@@ -51,7 +51,7 @@ impl GlobalConfig {
         }
         let cfg = &GlobalConfig::read().await.settings;
         let config_name = format!("{}_config.toml", ID);
-        store_config(cfg, is_debug(), &config_name).await?;
+        store_config(cfg, cfg!(debug_assertions), &config_name).await?;
         Ok(())
     }
 }
