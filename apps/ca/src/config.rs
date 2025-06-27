@@ -115,7 +115,11 @@ impl Certificate {
     }
     /// 取得根憑證的私鑰路徑
     fn default_rootca_key() -> String {
-        "certs/rootCA.key".into()
+        if cfg!(debug_assertions) {
+            "certs/rootCA.key".into()
+        } else {
+            "/etc/CHM/certs/rootCA.key".into() // 預設在系統目錄下
+        }
     }
     /// 取得預設的密碼短語
     fn default_passphrase() -> String {
