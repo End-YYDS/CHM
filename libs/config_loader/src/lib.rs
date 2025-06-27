@@ -76,10 +76,11 @@ pub async fn store_config<T>(
 where
     T: serde::Serialize,
 {
+    let config_path = PathBuf::from("config").join(file);
     let save_path = if is_debug {
-        PathBuf::from("config").join(file)
+        config_path
     } else {
-        PathBuf::from("/etc").join(PROJECT.2).join(file) //TODO: 安裝腳本安裝時注意資料夾權限問題
+        PathBuf::from("/etc").join(PROJECT.2).join(config_path) //TODO: 安裝腳本安裝時注意資料夾權限問題
     };
     let s = toml::to_string_pretty(config)?;
     if let Some(parent) = save_path.parent() {
