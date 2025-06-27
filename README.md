@@ -40,3 +40,5 @@ notepad $PROFILE
 ```powershell
 Import-Module cargo-chm
 ```
+## frontend 資料夾
+### 使用`git subtree pull --prefix=frontend origin frontend-develop`來更新
