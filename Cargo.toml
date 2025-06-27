@@ -1,9 +1,16 @@
 [workspace]
-members = ["apps/*", "libs/*", "xtask"]
+members = ["apps/ca", "xtask","libs/grpc","libs/config_loader","libs/password", "libs/crl_cache"]
 resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
-config = { path = "./libs/config" }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+debug = false
+panic = "abort"
+split-debuginfo = "packed"

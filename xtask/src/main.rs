@@ -146,7 +146,7 @@ fn main() {
                 if let Some(sub) = app.find_subcommand_mut(&name) {
                     sub.print_long_help().unwrap();
                 } else {
-                    eprintln!("Unknown subcommand: {}", name);
+                    eprintln!("Unknown subcommand: {name}");
                 }
             } else {
                 app.print_long_help().unwrap();
@@ -233,10 +233,7 @@ fn run_backend(action: BackendAction) {
             args.push("--package");
             args.push(&targets[0]);
         } else if !targets.is_empty() {
-            eprintln!(
-                "❌ `run` 一次只能指定一個 binary package，當前指定: {:?}",
-                targets
-            );
+            eprintln!("❌ `run` 一次只能指定一個 binary package，當前指定: {targets:?}",);
             exit(1);
         } else if !args.iter().any(|arg| arg == &"--bin") {
             eprintln!("❌ `run` 必須指定要執行的單一 binary (--bin 或 --package)");
@@ -354,15 +351,15 @@ fn gen_comp() -> Command {
 fn generate_completions(shell: ClapShell, out_dir: &str) {
     let mut cmd = gen_comp();
     // let bin_name = format!("cargo-{}", env!("CARGO_PKG_NAME"));
-    let bin_name = format!("cargo-{}", ALIAS);
+    let bin_name = format!("cargo-{ALIAS}");
     let out_path = PathBuf::from(out_dir);
     std::fs::create_dir_all(&out_path).unwrap_or_else(|e| {
-        eprintln!("❌ 建立目錄失敗: {}", e);
+        eprintln!("❌ 建立目錄失敗: {e}");
         exit(1)
     });
 
     if shell == ClapShell::PowerShell {
-        let file_path = out_path.join(format!("{}.psm1", bin_name));
+        let file_path = out_path.join(format!("{bin_name}.psm1"));
         let file = File::create(&file_path).unwrap_or_else(|e| {
             eprintln!("❌ 無法創建 {}: {}", file_path.display(), e);
             exit(1)
@@ -375,10 +372,10 @@ fn generate_completions(shell: ClapShell, out_dir: &str) {
         );
     } else {
         generate_to(shell, &mut cmd, &bin_name, &out_path).unwrap_or_else(|e| {
-            eprintln!("❌ 無法生成 completion: {}", e);
+            eprintln!("❌ 無法生成 completion: {e}");
             exit(1);
         });
-        println!("✅ 已生成 {:?} completion 到 `{}`", shell, out_dir);
+        println!("✅ 已生成 {shell:?} completion 到 `{out_dir}`");
     }
 }
 
@@ -387,7 +384,7 @@ fn install_to_user_dir(shell: ClapShell) {
     use dirs::home_dir;
     use std::{fs, io::BufWriter, path::PathBuf, process::exit};
 
-    let bin_name = format!("cargo-{}", ALIAS);
+    let bin_name = format!("cargo-{ALIAS}");
     if shell == ClapShell::PowerShell {
         let home = home_dir().unwrap_or_else(|| {
             eprintln!("❌ 無法取得使用者目錄");
@@ -409,7 +406,7 @@ fn install_to_user_dir(shell: ClapShell) {
                 exit(1);
             }
 
-            let file_path = target_dir.join(format!("{}.psm1", bin_name));
+            let file_path = target_dir.join(format!("{bin_name}.psm1"));
             let file = fs::File::create(&file_path).unwrap_or_else(|e| {
                 eprintln!("❌ 無法創建文件 {}: {}", file_path.display(), e);
                 exit(1);
@@ -424,7 +421,7 @@ function Invoke-CargoChm {
 Set-Alias -Name "cargo-chm" -Value Invoke-CargoChm
 "#;
 
-            writeln!(buf, "{}", custom_content).unwrap_or_else(|e| {
+            writeln!(buf, "{custom_content}").unwrap_or_else(|e| {
                 eprintln!("❌ 無法寫入自定義內容到文件 {}: {}", file_path.display(), e);
                 exit(1);
             });
@@ -439,19 +436,19 @@ Set-Alias -Name "cargo-chm" -Value Invoke-CargoChm
     let (mut target_dir, filename) = match shell {
         ClapShell::Bash => (
             home_dir().unwrap().join(".bash_completion.d"),
-            format!("{}.bash", bin_name),
+            format!("{bin_name}.bash"),
         ),
         ClapShell::Zsh => (
             home_dir().unwrap().join(".zsh/completion"),
-            format!("_{}", bin_name),
+            format!("_{bin_name}"),
         ),
         ClapShell::Fish => (
             home_dir().unwrap().join(".config/fish/completions"),
-            format!("{}.fish", bin_name),
+            format!("{bin_name}.fish"),
         ),
         ClapShell::Elvish => (
             home_dir().unwrap().join(".config/elvish/rc.d"),
-            format!("{}.elvish", bin_name),
+            format!("{bin_name}.elvish"),
         ),
         _ => unreachable!(),
     };

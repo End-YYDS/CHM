@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO crl_entries (cert_serial, revoked_at, reason) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "c0570433e857cd5fa2b1232b9f651630b0e65b495e3a40d8fb7da0cf7c79cb80"
+}
