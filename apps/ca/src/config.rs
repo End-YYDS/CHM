@@ -70,7 +70,11 @@ impl Default for BackendConfig {
 struct SqliteSettings;
 impl SqliteSettings {
     fn default_store_path() -> String {
-        "certs/cert_store.db".into()
+        if cfg!(debug_assertions) {
+            "certs/cert_store.db".into()
+        } else {
+            "/etc/CHM/certs/rootCA.key".into() // 預設在系統目錄下
+        }
     }
     fn default_max_connections() -> u32 {
         5
