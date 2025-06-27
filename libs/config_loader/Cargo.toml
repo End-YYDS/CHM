@@ -7,7 +7,7 @@ edition.workspace = true
 config = { version = "0.15.11", default-features = false, features = ["toml"] }
 directories = "6.0.0"
 serde = { version = "1.0.219", features = ["derive"] }
-toml = "0.8.22"
 tokio = { version = "1.43.0", features = ["fs"] }
+toml = "0.8.22"
 [dev-dependencies]
 tempfile = "3.17.1"
