@@ -1,3 +1,4 @@
+use config_loader::PROJECT;
 use grpc::{crl::ListCrlEntriesResponse, prost::Message};
 use openssl::{
     asn1::Asn1Integer,
@@ -15,13 +16,14 @@ use openssl::{
         X509Builder, X509NameBuilder, X509Req, X509ReqBuilder, X509,
     },
 };
-use std::io::Write;
 use std::net::IpAddr;
 use std::path::Path;
 use std::{fs, sync::Arc};
+use std::{io::Write, path::PathBuf};
 
 use crate::{
     cert::crl::{self, CrlVerifier},
+    config::is_debug,
     globals::GlobalConfig,
     CaResult, ChainCerts, CsrCert, PrivateKey, SignedCert,
 };
@@ -408,10 +410,15 @@ impl CertificateProcess {
     /// * `CaResult<()>`：返回結果，成功時為 Ok，失敗時為 Err
     pub fn save_cert(filename: &str, private_key: PrivateKey, cert: SignedCert) -> CaResult<()> {
         let certs_path = Path::new("certs");
-        let key_path = certs_path.join(format!("{}.key", filename));
-        let cert_path = certs_path.join(format!("{}.pem", filename));
-        if !certs_path.exists() {
-            fs::create_dir_all(certs_path)?;
+        let save_path = if is_debug() {
+            certs_path.to_path_buf()
+        } else {
+            PathBuf::from("/etc").join(PROJECT.2).join(certs_path) //TODO: 安裝腳本安裝時注意資料夾權限問題
+        };
+        let key_path = save_path.join(format!("{}.key", filename));
+        let cert_path = save_path.join(format!("{}.pem", filename));
+        if !save_path.exists() {
+            fs::create_dir_all(save_path)?;
         }
         let mut f = fs::File::create(cert_path)?;
         let mut f_key = fs::File::create(key_path)?;

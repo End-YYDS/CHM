@@ -6,6 +6,7 @@ use actix_tls::accept::openssl::TlsStream;
 use actix_web::rt::net::TcpStream;
 use actix_web::HttpRequest;
 use actix_web::{dev::ServerHandle, post, web, App, HttpResponse, HttpServer};
+use config_loader::PROJECT;
 use openssl::ssl::SslVerifyMode;
 use openssl::{
     pkey::PKey,
@@ -78,7 +79,16 @@ impl MiniController {
     /// # 回傳
     /// * `CaResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
     pub fn save_cert(&self, filename: &str) -> CaResult<()> {
-        let file_path = Path::new("certs").join(filename);
+        let certs_path = Path::new("certs");
+        let file_path = if is_debug() {
+            certs_path.to_path_buf()
+        } else {
+            PathBuf::from("/etc").join(PROJECT.2).join(certs_path) //TODO: 安裝腳本安裝時注意資料夾權限問題
+        };
+        let file_path = file_path.join(format!("{}.pem", filename));
+        if !file_path.exists() {
+            fs::create_dir_all(&file_path)?;
+        }
         let mut f = fs::File::create(file_path)?;
         f.write_all(self.show_cert()?.as_bytes())?;
         Ok(())
