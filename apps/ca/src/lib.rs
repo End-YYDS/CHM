@@ -300,7 +300,7 @@ pub async fn create_new_rootca() -> CaResult<()> {
         None,
         256,
     )?;
-    CertificateProcess::save_cert("test_root_ca", ca_test.0, ca_test.1)?;
+    CertificateProcess::save_cert("rootCA", ca_test.0, ca_test.1)?;
     println!("Root CA generated!");
     Ok(())
 }
