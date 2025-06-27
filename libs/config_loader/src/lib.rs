@@ -33,9 +33,8 @@ where
     let proj_dirs =
         ProjectDirs::from(PROJECT.0, PROJECT.1, PROJECT.2).expect("invalid project name");
     let default_system_path = PathBuf::from("/etc").join(PROJECT.2); //TODO: 安裝腳本安裝時注意資料夾權限問題
-                                                                     // let default_user_path = proj_dirs.config_dir();
     let default_dev_path = PathBuf::from("config");
-    let default_name = format!("{}_config.toml", env_prefix);
+    let default_name = format!("{env_prefix}_config.toml");
     let system_config = system_config
         .filter(|s| !s.is_empty())
         .unwrap_or(&default_name);
@@ -62,8 +61,7 @@ where
     match ret {
         Ok(cfg) => Ok((cfg, proj_dirs)),
         Err(e) => Err(config::ConfigError::Message(format!(
-            "Failed to deserialize config: {}",
-            e
+            "Failed to deserialize config: {e}"
         ))),
     }
 }

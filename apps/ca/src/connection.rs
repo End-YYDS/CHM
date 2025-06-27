@@ -72,12 +72,12 @@ impl Ca for MyCa {
         let CsrRequest { csr, days } = temp.2;
         let csr = X509Req::from_der(&csr)
             .or_else(|_| X509Req::from_pem(&csr))
-            .map_err(|e| Status::invalid_argument(format!("Invalid CSR: {}", e)))?;
+            .map_err(|e| Status::invalid_argument(format!("Invalid CSR: {e}")))?;
         let (leaf, chain) = self.cert.sign_csr(&csr, days).await.map_err(|e| {
             if debug {
                 eprintln!("Sign error: {e}");
             }
-            Status::internal(format!("Sign error: {}", e))
+            Status::internal(format!("Sign error: {e}"))
         })?;
         Ok(Response::new(CsrResponse { cert: leaf, chain }))
     }
@@ -91,7 +91,7 @@ impl Ca for MyCa {
         _req: Request<grpc::ca::Empty>,
     ) -> Result<Response<ReloadResponse>, Status> {
         if let Err(e) = self.reloader.send(()) {
-            return Err(Status::internal(format!("Reloader error: {}", e)));
+            return Err(Status::internal(format!("Reloader error: {e}")));
         }
         Ok(Response::new(ReloadResponse { success: true }))
     }
@@ -109,7 +109,7 @@ impl Ca for MyCa {
             .get_store()
             .list_all()
             .await
-            .map_err(|e| Status::internal(format!("Failed to list all certs: {}", e)))?;
+            .map_err(|e| Status::internal(format!("Failed to list all certs: {e}")))?;
         let grpc_certs: Vec<grpc::ca::Cert> = certs.into_iter().map(Into::into).collect();
         Ok(Response::new(ListAllCertsResponse { certs: grpc_certs }))
     }
@@ -120,8 +120,8 @@ impl Ca for MyCa {
             .get_store()
             .get(&serial)
             .await
-            .map_err(|e| Status::internal(format!("Failed to get cert: {}", e)))?
-            .ok_or_else(|| Status::not_found(format!("Cert not found: {}", serial)))?;
+            .map_err(|e| Status::internal(format!("Failed to get cert: {e}")))?
+            .ok_or_else(|| Status::not_found(format!("Cert not found: {serial}")))?;
         Ok(Response::new(GetCertResponse {
             cert: Some(cert.into()),
         }))
@@ -136,9 +136,9 @@ impl Ca for MyCa {
             .get_store()
             .get_by_thumbprint(&thumbprint)
             .await
-            .map_err(|e| Status::internal(format!("Failed to get cert by thumbprint: {}", e)))?
+            .map_err(|e| Status::internal(format!("Failed to get cert by thumbprint: {e}")))?
             .ok_or_else(|| {
-                Status::not_found(format!("Cert not found for thumbprint: {}", thumbprint))
+                Status::not_found(format!("Cert not found for thumbprint: {thumbprint}"))
             })?;
         Ok(Response::new(GetByThumprintResponse {
             cert: Some(cert.into()),
@@ -154,9 +154,9 @@ impl Ca for MyCa {
             .get_store()
             .get_by_common_name(&common_name)
             .await
-            .map_err(|e| Status::internal(format!("Failed to get cert by common name: {}", e)))?
+            .map_err(|e| Status::internal(format!("Failed to get cert by common name: {e}")))?
             .ok_or_else(|| {
-                Status::not_found(format!("Cert not found for common name: {}", common_name))
+                Status::not_found(format!("Cert not found for common name: {common_name}"))
             })?;
         Ok(Response::new(GetByCommonNameResponse {
             cert: Some(cert.into()),
@@ -172,8 +172,8 @@ impl Ca for MyCa {
             .get_store()
             .query_cert_status(&serial)
             .await
-            .map_err(|e| Status::internal(format!("Failed to query cert status: {}", e)))?
-            .ok_or_else(|| Status::not_found(format!("Cert not found: {}", serial)))?;
+            .map_err(|e| Status::internal(format!("Failed to query cert status: {e}")))?
+            .ok_or_else(|| Status::not_found(format!("Cert not found: {serial}")))?;
         Ok(Response::new(QueryCertStatusResponse {
             status: match status {
                 StoreStatus::Valid => Some(GrpcStatus::Valid as i32),
@@ -192,12 +192,12 @@ impl Ca for MyCa {
             .get_store()
             .mark_cert_revoked(&serial, reason)
             .await
-            .map_err(|e| Status::internal(format!("Failed to mark cert as revoked: {}", e)))?;
+            .map_err(|e| Status::internal(format!("Failed to mark cert as revoked: {e}")))?;
         self.cert
             .get_crl()
             .reload_crl()
             .await
-            .map_err(|e| Status::internal(format!("Failed reload CRL: {}", e)))?;
+            .map_err(|e| Status::internal(format!("Failed reload CRL: {e}")))?;
         Ok(Response::new(MarkCertRevokedResponse { success: true }))
     }
 }

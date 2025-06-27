@@ -1,4 +1,3 @@
-
 use openssl::hash::{hash, MessageDigest};
 use openssl::x509::X509;
 
@@ -8,7 +7,7 @@ fn cert_fingerprint_sha256(pem: &[u8]) -> Result<String, Box<dyn std::error::Err
     let digest = hash(MessageDigest::sha256(), &der)?;
     let hex = digest
         .iter()
-        .map(|b| format!("{:02x}", b))
+        .map(|b| format!("{b:02x}"))
         .collect::<Vec<_>>()
         .join("");
     Ok(hex)
@@ -19,7 +18,7 @@ fn cert_serial_sha256(cert: X509) -> Result<String, Box<dyn std::error::Error>> 
     let digest = hash(MessageDigest::sha256(), serial.to_bn()?.to_vec().as_slice())?;
     let hex = digest
         .iter()
-        .map(|b| format!("{:02x}", b))
+        .map(|b| format!("{b:02x}"))
         .collect::<Vec<_>>()
         .join("");
     Ok(hex)
@@ -29,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let pem = std::fs::read("certs/mini_controller.pem")?;
     let fp = cert_fingerprint_sha256(&pem)?;
     let fp1 = cert_serial_sha256(X509::from_pem(&pem)?)?;
-    println!("SHA256 Fingerprint= {}", fp);
-    println!("SHA256 Serial= {}", fp1);
+    println!("SHA256 Fingerprint= {fp}");
+    println!("SHA256 Serial= {fp1}");
     Ok(())
 }

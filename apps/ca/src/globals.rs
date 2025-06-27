@@ -50,7 +50,7 @@ impl GlobalConfig {
             eprintln!("⚠️ 還有鎖沒有釋放!-1");
         }
         let cfg = &GlobalConfig::read().await.settings;
-        let config_name = format!("{}_config.toml", ID);
+        let config_name = format!("{ID}_config.toml");
         store_config(cfg, cfg!(debug_assertions), &config_name).await?;
         Ok(())
     }

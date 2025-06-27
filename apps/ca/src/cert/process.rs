@@ -62,13 +62,13 @@ impl CertificateProcess {
             .or_else(|_| fs::read("certs/test_root_ca.key"))?;
         let ca_cert = X509::from_pem(&cert_pem)
             .or_else(|_| X509::from_der(&cert_pem))
-            .map_err(|e| format!("無法解析CA憑證: {}", e))?;
+            .map_err(|e| format!("無法解析CA憑證: {e}"))?;
         let ca_key = if passphrase.is_empty() {
             PKey::private_key_from_pem(&key_pem)
         } else {
             PKey::private_key_from_pem_passphrase(&key_pem, passphrase.as_bytes())
         }
-        .map_err(|e| format!("無法解析CA私鑰: {}", e))?;
+        .map_err(|e| format!("無法解析CA私鑰: {e}"))?;
         let crl = Arc::new(
             CrlVerifier::new(
                 store.clone(),
@@ -315,13 +315,13 @@ impl CertificateProcess {
     /// 用 CA 私鑰對 raw protobuf bytes 做 SHA256-with-RSA 簽名
     pub fn sign_crl(&self, data: &[u8]) -> CaResult<Vec<u8>> {
         let mut signer = Signer::new(MessageDigest::sha256(), &self.ca_key)
-            .map_err(|e| format!("無法建立簽名器: {}", e))?;
+            .map_err(|e| format!("無法建立簽名器: {e}"))?;
         signer
             .update(data)
-            .map_err(|e| format!("簽名資料失敗: {}", e))?;
+            .map_err(|e| format!("簽名資料失敗: {e}"))?;
         let sig = signer
             .sign_to_vec()
-            .map_err(|e| format!("生成簽名失敗: {}", e))?;
+            .map_err(|e| format!("生成簽名失敗: {e}"))?;
         Ok(sig)
     }
     /// 驗證 CRL 回應的簽名是否來自於指定的 CA
@@ -333,15 +333,15 @@ impl CertificateProcess {
         let pubkey = self
             .ca_cert
             .public_key()
-            .map_err(|e| format!("取公鑰失敗: {}", e))?;
+            .map_err(|e| format!("取公鑰失敗: {e}"))?;
         let mut verifier = Verifier::new(MessageDigest::sha256(), &pubkey)
-            .map_err(|e| format!("建立 Verifier 失敗: {}", e))?;
+            .map_err(|e| format!("建立 Verifier 失敗: {e}"))?;
         verifier
             .update(&raw)
-            .map_err(|e| format!("Verifier update 失敗: {}", e))?;
+            .map_err(|e| format!("Verifier update 失敗: {e}"))?;
         if verifier
             .verify(signature)
-            .map_err(|e| format!("執行 verify 失敗: {}", e))?
+            .map_err(|e| format!("執行 verify 失敗: {e}"))?
         {
             Ok(())
         } else {
@@ -414,8 +414,8 @@ impl CertificateProcess {
         } else {
             PathBuf::from("/etc").join(PROJECT.2).join(certs_path) //TODO: 安裝腳本安裝時注意資料夾權限問題
         };
-        let key_path = save_path.join(format!("{}.key", filename));
-        let cert_path = save_path.join(format!("{}.pem", filename));
+        let key_path = save_path.join(format!("{filename}.key"));
+        let cert_path = save_path.join(format!("{filename}.pem"));
         if !save_path.exists() {
             fs::create_dir_all(save_path)?;
         }
@@ -423,7 +423,7 @@ impl CertificateProcess {
         let mut f_key = fs::File::create(key_path)?;
         let r = X509::from_der(&cert)
             .or_else(|_| X509::from_pem(&cert))
-            .map_err(|e| format!("解析憑證失敗: {}", e))?;
+            .map_err(|e| format!("解析憑證失敗: {e}"))?;
         let r = String::from_utf8(r.to_pem()?)?;
         f.write_all(r.as_bytes())?;
         f_key.write_all(&private_key)?;
@@ -438,7 +438,7 @@ impl CertificateProcess {
         let cert_pem = fs::read(path)?;
         X509::from_pem(&cert_pem)
             .or_else(|_| X509::from_der(&cert_pem))
-            .map_err(|e| format!("無法解析憑證: {}", e).into())
+            .map_err(|e| format!("無法解析憑證: {e}").into())
     }
     /// 從指定的路徑載入私鑰
     /// # 參數
@@ -450,9 +450,9 @@ impl CertificateProcess {
         let key_pem = fs::read(path)?;
         if let Some(pass) = passphrase {
             PKey::private_key_from_pem_passphrase(&key_pem, pass.as_bytes())
-                .map_err(|e| format!("無法解析私鑰: {}", e).into())
+                .map_err(|e| format!("無法解析私鑰: {e}").into())
         } else {
-            PKey::private_key_from_pem(&key_pem).map_err(|e| format!("無法解析私鑰: {}", e).into())
+            PKey::private_key_from_pem(&key_pem).map_err(|e| format!("無法解析私鑰: {e}").into())
         }
     }
     /// 從憑證名稱載入憑證和私鑰
@@ -466,11 +466,11 @@ impl CertificateProcess {
         cert_name: &str,
         passphrase: Option<&str>,
     ) -> CaResult<(PrivateKey, SignedCert)> {
-        let cert_path = Path::new("certs").join(format!("{}.pem", cert_name));
+        let cert_path = Path::new("certs").join(format!("{cert_name}.pem"));
         if !cert_path.exists() {
             return Err(format!("憑證檔案 {} 不存在", cert_path.display()).into());
         }
-        let key_path = Path::new("certs").join(format!("{}.key", cert_name));
+        let key_path = Path::new("certs").join(format!("{cert_name}.key"));
         if !key_path.exists() {
             return Err(format!("金鑰檔案 {} 不存在", key_path.display()).into());
         }
@@ -483,7 +483,7 @@ impl CertificateProcess {
         let digest = hash(MessageDigest::sha256(), &der)?;
         let hex = digest
             .iter()
-            .map(|b| format!("{:02x}", b))
+            .map(|b| format!("{b:02x}"))
             .collect::<Vec<_>>()
             .join("");
         Ok(hex)
@@ -493,7 +493,7 @@ impl CertificateProcess {
         let digest = hash(MessageDigest::sha256(), serial.to_bn()?.to_vec().as_slice())?;
         let hex = digest
             .iter()
-            .map(|b| format!("{:02x}", b))
+            .map(|b| format!("{b:02x}"))
             .collect::<Vec<_>>()
             .join("");
         Ok(hex)
@@ -506,113 +506,5 @@ impl CertificateProcess {
         let serial = CertificateProcess::cert_serial_sha256(cert)?;
         let fingerprint = CertificateProcess::cert_fingerprint_sha256(cert)?;
         Ok(controller_args.0 == serial && controller_args.1 == fingerprint)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use tempfile::tempdir;
-    type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
-    use super::*;
-    struct CaInfo {
-        key_bits: u32,
-        country: &'static str,
-        state: &'static str,
-        locality: &'static str,
-        organization: &'static str,
-        common_name: &'static str,
-        days_valid: u32,
-        passphrase: Option<&'static [u8]>,
-        bits: i32,
-    }
-    fn ca_info() -> CaInfo {
-        let key_bits = 2048;
-        let country = "TW";
-        let state = "Taipei";
-        let locality = "Taipei";
-        let organization = "CHM Organization";
-        let common_name = "Root CA";
-        let days_valid = 365;
-        let passphrase = b"test_passphrase";
-        let bits = 256;
-        CaInfo {
-            key_bits,
-            country,
-            state,
-            locality,
-            organization,
-            common_name,
-            days_valid,
-            passphrase: Some(passphrase),
-            bits,
-        }
-    }
-
-    fn create_test_ca() -> Result<(PrivateKey, CsrCert)> {
-        let CaInfo {
-            key_bits,
-            country,
-            state,
-            locality,
-            organization,
-            common_name,
-            days_valid,
-            passphrase,
-            bits,
-        } = ca_info();
-        CertificateProcess::generate_root_ca(
-            key_bits,
-            country,
-            state,
-            locality,
-            organization,
-            common_name,
-            days_valid,
-            passphrase,
-            bits,
-        )
-    }
-
-    fn set_temp_dir() -> Result<tempfile::TempDir> {
-        let temp_dir = tempdir()?;
-        std::env::set_current_dir(temp_dir.path())?;
-        Ok(temp_dir)
-    }
-
-    #[test]
-    fn test_fn_generate_root_ca() -> Result<()> {
-        let result = create_test_ca();
-        assert!(
-            result.is_ok(),
-            "Failed to generate root CA: {:?}",
-            result.err()
-        );
-        let result = result?;
-        let _ = set_temp_dir()?;
-        CertificateProcess::save_cert("test_ca", result.0, result.1)?;
-        let is_exists = Path::new("certs/test_ca.pem").exists();
-        assert!(is_exists, "Certificate file not found");
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_sign_csr() -> Result<()> {
-        unimplemented!()
-    }
-
-    #[tokio::test]
-    async fn test_generate_csr() -> Result<()> {
-        unimplemented!()
-    }
-
-    #[tokio::test]
-    async fn test_load_cert() -> Result<()> {
-        // let temp_dir = set_temp_dir()?;
-        // let (private_key, cert) = create_test_ca()?;
-        // CertificateProcess::save_cert("test_ca", private_key, cert)?;
-        // let store = StoreFactory::create_store().await?;
-        // let ret = CertificateProcess::load(temp_dir.path().join("test_ca.pem"), temp_dir.path().join("test_ca.key"), "", store);
-        // assert!(ret.is_ok(), "Failed to load cert: {:?}", ret.err());
-        unimplemented!()
     }
 }

@@ -241,8 +241,8 @@ async fn test_first_controller_connect(client: &reqwest::Client) -> Result<()> {
     let body: String = resp.text_with_charset("utf-8").await?;
 
     // 5. 输出
-    println!("Response Status: {}", status); // e.g. 200 OK
-    println!("Response Body:\n{}", body);
+    println!("Response Status: {status}"); // e.g. 200 OK
+    println!("Response Body:\n{body}");
     Ok(())
 }
 
@@ -274,15 +274,15 @@ pub fn verify_crl_signature(
     let raw = Message::encode_to_vec(&clean);
     let pubkey = ca_cert
         .public_key()
-        .map_err(|e| format!("取公鑰失敗: {}", e))?;
+        .map_err(|e| format!("取公鑰失敗: {e}"))?;
     let mut verifier = Verifier::new(MessageDigest::sha256(), &pubkey)
-        .map_err(|e| format!("建立 Verifier 失敗: {}", e))?;
+        .map_err(|e| format!("建立 Verifier 失敗: {e}"))?;
     verifier
         .update(&raw)
-        .map_err(|e| format!("Verifier update 失敗: {}", e))?;
+        .map_err(|e| format!("Verifier update 失敗: {e}"))?;
     if verifier
         .verify(signature)
-        .map_err(|e| format!("執行 verify 失敗: {}", e))?
+        .map_err(|e| format!("執行 verify 失敗: {e}"))?
     {
         Ok(())
     } else {
@@ -310,7 +310,7 @@ pub async fn get_cert_by_serial(
     if reply.cert.is_some() {
         println!("Found Certificate: {:?}", reply.cert);
     } else {
-        println!("Certificate not found for serial: {}", serial);
+        println!("Certificate not found for serial: {serial}");
     }
     Ok(reply.cert)
 }
@@ -328,7 +328,7 @@ pub async fn get_cert_by_thumbprint(
     if reply.cert.is_some() {
         println!("Found Certificate by Thumbprint: {:?}", reply.cert);
     } else {
-        println!("Certificate not found for thumbprint: {}", thumbprint);
+        println!("Certificate not found for thumbprint: {thumbprint}");
     }
     Ok(reply.cert)
 }
@@ -345,9 +345,9 @@ pub async fn get_cert_status_by_serial(
     let reply = resp.into_inner();
     if reply.status.is_some() {
         let status = CertStatus::try_from(reply.status.unwrap())?;
-        println!("Certificate Status: {:?}", status);
+        println!("Certificate Status: {status:?}");
     } else {
-        println!("Certificate status not found for serial: {}", serial);
+        println!("Certificate status not found for serial: {serial}");
         return Ok(None);
     }
     let status = CertStatus::try_from(reply.status.unwrap());
@@ -367,7 +367,7 @@ pub async fn get_cert_by_common_name(
     if reply.cert.is_some() {
         println!("Found Certificate by Common Name: {:?}", reply.cert);
     } else {
-        println!("Certificate not found for common name: {}", common_name);
+        println!("Certificate not found for common name: {common_name}");
     }
     Ok(reply.cert)
 }
@@ -385,9 +385,9 @@ pub async fn mark_cert_revoked(
         .await?;
     let reply = resp.into_inner();
     if reply.success {
-        println!("Certificate {} marked as revoked", serial);
+        println!("Certificate {serial} marked as revoked");
     } else {
-        println!("Failed to mark certificate {} as revoked", serial);
+        println!("Failed to mark certificate {serial} as revoked");
     }
     Ok(())
 }

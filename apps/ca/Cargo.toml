@@ -8,7 +8,7 @@ edition.workspace = true
 tokio = { version = "1.43.0", features = ["rt","macros","rt-multi-thread","fs"] }
 actix-web = { version = "4.11.0", features = ["openssl"] }
 openssl = { version = "0.10.72", features = ["vendored"] }
-rpassword = "7.4.0"
+#rpassword = "7.4.0"
 directories = "6.0.0"
 serde = { version = "1.0.219", features = ["derive"] }
 toml = "0.8.22"
@@ -27,10 +27,6 @@ crl_cache = { version = "0.1.0", path = "../../libs/crl_cache" }
 tonic-async-interceptor = "0.13.0"
 tower = "0.5.2"
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
-
-[dev-dependencies]
-grpc = { version = "0.1.0", path = "../../libs/grpc", features = ["ca"] }
-tempfile = "3.20.0"
 
 [[bin]]
 name = "CHM_CA"

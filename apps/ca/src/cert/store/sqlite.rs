@@ -41,7 +41,7 @@ impl SqlConnection {
         sqlx::migrate!("./migrations")
             .run(&pool)
             .await
-            .map_err(|e| format!("執行資料庫 migrations 失敗: {}", e))?;
+            .map_err(|e| format!("執行資料庫 migrations 失敗: {e}"))?;
         Ok(Self { pool })
     }
 }
@@ -52,7 +52,7 @@ impl std::str::FromStr for CertStatus {
         match s.to_lowercase().as_str() {
             "valid" => Ok(CertStatus::Valid),
             "revoked" => Ok(CertStatus::Revoked),
-            _ => Err(format!("Unknown status: {}", s)),
+            _ => Err(format!("Unknown status: {s}")),
         }
     }
 }
@@ -76,7 +76,7 @@ impl std::fmt::Display for CertStatus {
             CertStatus::Valid => "valid",
             CertStatus::Revoked => "revoked",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -239,7 +239,7 @@ impl CertificateStore for SqlConnection {
         let mut tx = self.pool.begin().await?;
         let serial = CertificateProcess::cert_serial_sha256(&cert)?;
         if self.get(&serial).await?.is_some() {
-            return Err(format!("憑證序號 {} 已存在", serial).into());
+            return Err(format!("憑證序號 {serial} 已存在").into());
         }
         let subject = cert.subject_name();
         let subject_cn = subject
@@ -256,7 +256,7 @@ impl CertificateStore for SqlConnection {
                     .map(|s| s.to_string())
                     .unwrap_or_else(|_| nid.long_name().unwrap_or("<UNKNOWN>").to_string());
                 let value = entry.data().as_utf8()?.to_string();
-                Ok(format!("{}={}", key, value))
+                Ok(format!("{key}={value}"))
             })
             .collect();
         let subject_dn = subject_dn?
@@ -273,7 +273,7 @@ impl CertificateStore for SqlConnection {
         let issued_date = cert.not_before().to_string();
         let issued_date = issued_date.replace("GMT", "+0000");
         let issued_date = chrono::DateTime::parse_from_str(&issued_date, "%b %e %H:%M:%S %Y %z")
-            .map_err(|e| format!("Failed to parse fixed-offset: {}", e))?;
+            .map_err(|e| format!("Failed to parse fixed-offset: {e}"))?;
         let issued_date: chrono::DateTime<chrono::Utc> = issued_date.with_timezone(&chrono::Utc);
         let expiration = cert.not_after().to_string();
         let expiration = expiration.replace("GMT", "+0000");

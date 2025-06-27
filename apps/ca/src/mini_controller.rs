@@ -84,7 +84,7 @@ impl MiniController {
         } else {
             PathBuf::from("/etc").join(PROJECT.2).join(certs_path) //TODO: 安裝腳本安裝時注意資料夾權限問題
         };
-        let file_path = file_path.join(format!("{}.pem", filename));
+        let file_path = file_path.join(format!("{filename}.pem"));
         if !file_path.exists() {
             fs::create_dir_all(&file_path)?;
         }
@@ -99,7 +99,7 @@ impl MiniController {
     /// # 回傳
     /// * `CaResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
     pub async fn start(&mut self, addr: SocketAddr, marker_path: PathBuf) -> CaResult<()> {
-        println!("Init Process Running on {} ...", addr);
+        println!("Init Process Running on {addr} ...");
         let otp_len = {
             if GlobalConfig::has_active_readers() {
                 eprintln!("⚠️ 還有讀鎖還未釋放!-4");
@@ -108,7 +108,7 @@ impl MiniController {
             cfg.settings.server.otp_len
         };
         let otp_code = password::generate_otp(otp_len);
-        println!("OTP code: {}", otp_code);
+        println!("OTP code: {otp_code}");
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
         let tx_clone = tx.clone();
         let rootca = {
@@ -121,7 +121,7 @@ impl MiniController {
         };
         let ssl_acceptor = self
             .build_ssl_builder(&rootca)
-            .map_err(|e| format!("SSL 建構失敗: {}", e))?;
+            .map_err(|e| format!("SSL 建構失敗: {e}"))?;
         let server = HttpServer::new(move || {
             App::new()
                 .app_data(web::Data::new(marker_path.clone()))
@@ -176,14 +176,14 @@ impl MiniController {
         let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
         let cert = X509::from_pem(cert_bytes)
             .or_else(|_| X509::from_der(cert_bytes))
-            .map_err(|e| format!("解析Leaf失敗: {}", e))?;
+            .map_err(|e| format!("解析Leaf失敗: {e}"))?;
         builder.set_certificate(&cert)?;
         builder
             .set_ca_file(rootca)
-            .map_err(|e| format!("設置CA檔案失敗: {}", e))?;
+            .map_err(|e| format!("設置CA檔案失敗: {e}"))?;
         let pkey = PKey::private_key_from_pem(key_bytes)
             .or_else(|_| PKey::private_key_from_der(key_bytes))
-            .map_err(|e| format!("解析PrivateKey失敗: {}", e))?;
+            .map_err(|e| format!("解析PrivateKey失敗: {e}"))?;
         builder.set_private_key(&pkey)?;
         builder.check_private_key()?;
         builder.set_verify(SslVerifyMode::PEER | SslVerifyMode::FAIL_IF_NO_PEER_CERT);
@@ -233,7 +233,7 @@ async fn init_api(
                 }
             }
             if let Err(e) = GlobalConfig::save_config().await {
-                eprintln!("儲存設定失敗: {}", e);
+                eprintln!("儲存設定失敗: {e}");
                 return HttpResponse::InternalServerError().body("儲存設定失敗");
             }
         }
@@ -244,7 +244,7 @@ async fn init_api(
     }
 
     if let Err(e) = tokio::fs::write(marker_path.get_ref(), b"done").await {
-        eprint!("寫入marker檔案失敗: {}", e);
+        eprint!("寫入marker檔案失敗: {e}");
         return HttpResponse::InternalServerError().body("寫入marker檔案失敗");
     }
     if cfg!(debug_assertions) {

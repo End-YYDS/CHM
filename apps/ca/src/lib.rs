@@ -54,7 +54,7 @@ fn get_ssl_info(req: &Request<()>) -> CaResult<(X509, String)> {
     let x509 = X509::from_der(leaf)
         .map_err(|_| Status::invalid_argument("Peer certificate DER is invalid"))?;
     let serial = CertificateProcess::cert_serial_sha256(&x509)
-        .map_err(|e| Status::internal(format!("Serial sha256 failed: {}", e)))?;
+        .map_err(|e| Status::internal(format!("Serial sha256 failed: {e}")))?;
     Ok((x509, serial))
 }
 
@@ -83,10 +83,10 @@ async fn check_controller(
     req: Request<()>,
 ) -> Result<Request<()>, Status> {
     let (x509, _) =
-        get_ssl_info(&req).map_err(|e| Status::internal(format!("SSL info failed: {}", e)))?;
+        get_ssl_info(&req).map_err(|e| Status::internal(format!("SSL info failed: {e}")))?;
     let is_ctrl = cert_handler
         .is_controller_cert(&x509, controller_args.clone())
-        .map_err(|e| Status::internal(format!("Controller check failed: {}", e)))?;
+        .map_err(|e| Status::internal(format!("Controller check failed: {e}")))?;
     if !is_ctrl {
         return Err(Status::permission_denied("Only controller cert is allowed"));
     }
@@ -98,7 +98,7 @@ async fn check_revoke(
     req: Request<()>,
 ) -> Result<Request<()>, Status> {
     let (_, serial) =
-        get_ssl_info(&req).map_err(|e| Status::internal(format!("SSL info failed: {}", e)))?;
+        get_ssl_info(&req).map_err(|e| Status::internal(format!("SSL info failed: {e}")))?;
     if cert_handler.get_crl().is_revoked(&serial).await {
         return Err(Status::unauthenticated("Certificate was revoked"));
     }
@@ -180,7 +180,7 @@ pub async fn start_grpc(
             .service(crl_server::CrlServer::new(CrlList {
                 cert: cert_handler.clone(),
             }));
-        println!("gRPC server listening on {}", addr);
+        println!("gRPC server listening on {addr}");
         let server = tonic::transport::Server::builder()
             .tls_config(tls)?
             .add_service(ca_svc)
@@ -188,7 +188,7 @@ pub async fn start_grpc(
             .add_service(health_service)
             .serve_with_shutdown(addr, shutdown_signal);
         if let Err(e) = server.await {
-            eprintln!("[gRPC] 啟動失敗: {:?}", e);
+            eprintln!("[gRPC] 啟動失敗: {e:?}");
         }
         if cert_update_rx.has_changed().unwrap_or(false) {
             println!("[gRPC] 重啟完成，重新載入新憑證並啟動服務");

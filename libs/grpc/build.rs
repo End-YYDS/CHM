@@ -78,8 +78,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let want_server = env::var(&feature_server).is_ok();
         tonic_build::configure()
             .out_dir(&out_dir)
-            .client_mod_attribute(stem, format!("#[cfg(feature = \"{}-client\")]", stem))
-            .server_mod_attribute(stem, format!("#[cfg(feature = \"{}-server\")]", stem))
+            .client_mod_attribute(stem, format!("#[cfg(feature = \"{stem}-client\")]"))
+            .server_mod_attribute(stem, format!("#[cfg(feature = \"{stem}-server\")]"))
             .build_client(want_client)
             .build_server(want_server)
             .compile_protos(&[path.clone()], &[&proto_root])?;
@@ -91,11 +91,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
         let stem = p.file_stem().unwrap().to_str().unwrap();
-        mod_rs += &format!(
-            "#[cfg(any(feature = \"{0}-client\", feature = \"{0}-server\"))]\n",
-            stem
-        );
-        mod_rs += &format!("pub mod {};\n\n", stem);
+        mod_rs +=
+            &format!("#[cfg(any(feature = \"{stem}-client\", feature = \"{stem}-server\"))]\n",);
+        mod_rs += &format!("pub mod {stem};\n\n",);
     }
     fs::write(out_dir.join("mod.rs"), mod_rs)?;
 

@@ -198,7 +198,7 @@ impl Settings {
     /// * `Result<(), Box<dyn std::error::Error>>` - 返回結果，成功時為 Ok，失敗時為 Err
     pub async fn init(path: &str) -> Result<(), Box<dyn std::error::Error>> {
         store_config(&Settings::default(), true, path).await?;
-        println!("Generated default config at {}", path);
+        println!("Generated default config at {path}");
         Ok(())
     }
 }

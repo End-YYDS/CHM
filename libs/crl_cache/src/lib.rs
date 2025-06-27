@@ -64,8 +64,8 @@ impl CrlCache {
                     Err(e) => {
                         attempt += 1;
                         if attempt >= 5 {
-                            eprintln!("首次 CRL 拉取重試 {} 次仍失敗，放棄啟動: {}", attempt, e);
-                            return; // 或者 panic!()、exit process
+                            eprintln!("首次 CRL 拉取重試 {attempt} 次仍失敗，放棄啟動: {e}");
+                            return;
                         }
                         let backoff = std::time::Duration::from_secs(2u64.pow(attempt));
                         eprintln!(
@@ -94,7 +94,7 @@ impl CrlCache {
                         *self.next_update.write().await = next_u;
                     }
                     Err(e) => {
-                        eprintln!("CRL incremental refresh failed: {}", e);
+                        eprintln!("CRL incremental refresh failed: {e}");
                         tokio::time::sleep(Duration::from_secs(60)).await;
                     }
                 }
