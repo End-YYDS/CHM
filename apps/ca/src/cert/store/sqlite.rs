@@ -1,5 +1,3 @@
-use std::{str::FromStr, time::Duration};
-
 use chrono::{DateTime, Utc};
 use grpc::tonic::async_trait;
 use openssl::nid::Nid;
@@ -7,6 +5,7 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
     SqlitePool,
 };
+use std::{str::FromStr, time::Duration};
 
 use crate::{
     cert::{
@@ -28,11 +27,19 @@ impl SqlConnection {
             max_connections,
             timeout,
         } = cfg;
-        let connect_opts = SqliteConnectOptions::from_str(&store_path)?
-            .create_if_missing(true)
-            .pragma("auto_vacuum", "FULL")
-            .journal_mode(SqliteJournalMode::Wal)
-            .foreign_keys(true);
+        let store_path = std::path::Path::new(&store_path);
+        if !store_path.exists() {
+            if let Some(parent) = store_path.parent() {
+                std::fs::create_dir_all(parent).map_err(|e| format!("建立資料庫目錄失敗: {e}"))?;
+            }
+        }
+        let connect_opts = SqliteConnectOptions::from_str(
+            store_path.to_str().expect("轉換不了,可能不是UTF-8字元"),
+        )?
+        .create_if_missing(true)
+        .pragma("auto_vacuum", "FULL")
+        .journal_mode(SqliteJournalMode::Wal)
+        .foreign_keys(true);
         let pool: SqlitePool = SqlitePoolOptions::new()
             .max_connections(max_connections)
             .acquire_timeout(Duration::from_secs(timeout))
