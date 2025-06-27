@@ -73,7 +73,7 @@ impl SqliteSettings {
         if cfg!(debug_assertions) {
             "certs/cert_store.db".into()
         } else {
-            "/etc/CHM/certs/rootCA.key".into() // 預設在系統目錄下
+            "/etc/CHM/db/cert_store.db".into()
         }
     }
     fn default_max_connections() -> u32 {
