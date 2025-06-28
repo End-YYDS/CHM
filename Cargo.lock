@@ -519,6 +519,7 @@ version = "0.1.0"
 dependencies = [
  "actix-tls",
  "actix-web",
+ "cert-utils",
  "chrono",
  "config_loader",
  "crl_cache",
@@ -582,6 +583,15 @@ dependencies = [
  "jobserver",
  "libc",
  "shlex",
+]
+
+[[package]]
+name = "cert-utils"
+version = "0.1.0"
+dependencies = [
+ "config_loader",
+ "openssl",
+ "openssl-sys",
 ]
 
 [[package]]

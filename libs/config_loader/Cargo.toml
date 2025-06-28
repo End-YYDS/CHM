@@ -3,6 +3,10 @@ name = "config_loader"
 version.workspace = true
 edition.workspace = true
 
+[features]
+project_dirs = []
+default = ["project_dirs"]
+
 [dependencies]
 config = { version = "0.15.11", default-features = false, features = ["toml"] }
 directories = "6.0.0"

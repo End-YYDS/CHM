@@ -1,3 +1,4 @@
+use cert_utils::CertUtils;
 use chrono::{DateTime, Utc};
 use grpc::tonic::async_trait;
 use openssl::nid::Nid;
@@ -8,10 +9,7 @@ use sqlx::{
 use std::{str::FromStr, time::Duration};
 
 use crate::{
-    cert::{
-        process::CertificateProcess,
-        store::{Cert, CertDer, CertStatus, CertificateStore, CrlEntry},
-    },
+    cert::store::{Cert, CertDer, CertStatus, CertificateStore, CrlEntry},
     config::BackendConfig,
     CaResult,
 };
@@ -244,7 +242,7 @@ impl CertificateStore for SqlConnection {
     /// 插入新的憑證
     async fn insert(&self, cert: openssl::x509::X509) -> CaResult<bool> {
         let mut tx = self.pool.begin().await?;
-        let serial = CertificateProcess::cert_serial_sha256(&cert)?;
+        let serial = CertUtils::cert_serial_sha256(&cert)?;
         if self.get(&serial).await?.is_some() {
             return Err(format!("憑證序號 {serial} 已存在").into());
         }
@@ -287,7 +285,7 @@ impl CertificateStore for SqlConnection {
         let expiration = chrono::DateTime::parse_from_str(&expiration, "%b %e %H:%M:%S %Y %z")?;
         let expiration = expiration.with_timezone(&chrono::Utc);
         let cert_der = cert.to_der()?;
-        let thumbprint = CertificateProcess::cert_fingerprint_sha256(&cert)?;
+        let thumbprint = CertUtils::cert_fingerprint_sha256(&cert)?;
         let result = sqlx::query!("
         INSERT INTO certs (serial, subject_cn, subject_dn, issuer, issued_date, expiration, thumbprint,cert_der)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",

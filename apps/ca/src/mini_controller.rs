@@ -1,10 +1,10 @@
-use crate::cert::process::CertificateProcess;
 use crate::globals::GlobalConfig;
 use crate::{CaResult, PrivateKey, SignedCert};
 use actix_tls::accept::openssl::TlsStream;
 use actix_web::rt::net::TcpStream;
 use actix_web::HttpRequest;
 use actix_web::{dev::ServerHandle, post, web, App, HttpResponse, HttpServer};
+use cert_utils::CertUtils;
 use config_loader::PROJECT;
 use openssl::ssl::SslVerifyMode;
 use openssl::{
@@ -216,11 +216,11 @@ async fn init_api(
         let serial = peer
             .0
             .first()
-            .and_then(|cert| CertificateProcess::cert_serial_sha256(cert).ok());
+            .and_then(|cert| CertUtils::cert_serial_sha256(cert).ok());
         let fingerprint = peer
             .0
             .first()
-            .and_then(|cert| CertificateProcess::cert_fingerprint_sha256(cert).ok());
+            .and_then(|cert| CertUtils::cert_fingerprint_sha256(cert).ok());
         if serial.is_some() && fingerprint.is_some() {
             {
                 if GlobalConfig::has_active_readers() {

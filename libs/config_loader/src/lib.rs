@@ -5,7 +5,7 @@ use directories::ProjectDirs;
 use serde::de::DeserializeOwned;
 pub extern crate directories;
 pub extern crate toml;
-
+#[cfg(feature = "project_dirs")]
 pub const PROJECT: (&str, &str, &str) = ("com", "duacodie", "CHM");
 pub struct ConfigLoader<T> {
     pub config: T,

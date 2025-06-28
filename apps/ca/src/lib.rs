@@ -7,6 +7,7 @@ pub mod config;
 pub mod connection;
 pub mod globals;
 pub mod mini_controller;
+use cert_utils::CertUtils;
 use futures::{future::BoxFuture, FutureExt};
 use grpc::{
     ca::{ca_server::CaServer, *},
@@ -54,7 +55,7 @@ fn get_ssl_info(req: &Request<()>) -> CaResult<(X509, String)> {
         .ok_or_else(|| Status::unauthenticated("No peer certificate presented"))?;
     let x509 = X509::from_der(leaf)
         .map_err(|_| Status::invalid_argument("Peer certificate DER is invalid"))?;
-    let serial = CertificateProcess::cert_serial_sha256(&x509)
+    let serial = CertUtils::cert_serial_sha256(&x509)
         .map_err(|e| Status::internal(format!("Serial sha256 failed: {e}")))?;
     Ok((x509, serial))
 }
@@ -129,7 +130,7 @@ pub async fn start_grpc(
     loop {
         let mut rx = cert_update_rx.clone();
         // 設定 TLS
-        let (key, cert) = CertificateProcess::cert_from_path("ca_grpc", None)?;
+        let (key, cert) = CertUtils::cert_from_path("ca_grpc", None)?;
         let identity = Identity::from_pem(cert, key);
         let tls = ServerTlsConfig::new().identity(identity).client_ca_root(
             tonic::transport::Certificate::from_pem(cert_handler.get_ca_cert().to_pem()?),
@@ -213,7 +214,7 @@ pub async fn start_grpc(
 /// # 回傳
 /// * `CaResult<MiniController>` - 返回 MiniController 實例或錯誤
 pub async fn mini_controller_cert(cert_handler: &CertificateProcess) -> CaResult<MiniController> {
-    let mini_cert: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
+    let mini_cert: (PrivateKey, CsrCert) = CertUtils::generate_csr(
         4096,
         "TW",
         "Taipei",
@@ -238,7 +239,7 @@ pub async fn mini_controller_cert(cert_handler: &CertificateProcess) -> CaResult
 /// # 回傳
 /// * `CaResult<()>` - 返回結果，表示操作是否成功
 pub async fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
-    let ca_grpc: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
+    let ca_grpc: (PrivateKey, CsrCert) = CertUtils::generate_csr(
         4096,
         "TW",
         "Taipei",
@@ -249,7 +250,7 @@ pub async fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
-    CertificateProcess::save_cert("ca_grpc", ca_grpc.0, ca_grpc_sign.0)?;
+    CertUtils::save_cert("ca_grpc", ca_grpc.0, ca_grpc_sign.0)?;
     Ok(())
 }
 
@@ -260,7 +261,7 @@ pub async fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
 /// * `CaResult<()>` - 返回結果，表示操作是否成功
 pub async fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     // 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
-    let ca_grpc: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
+    let ca_grpc: (PrivateKey, CsrCert) = CertUtils::generate_csr(
         4096,
         "TW",
         "Taipei",
@@ -271,14 +272,14 @@ pub async fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
-    CertificateProcess::save_cert("grpc_test", ca_grpc.0, ca_grpc_sign.0)?;
+    CertUtils::save_cert("grpc_test", ca_grpc.0, ca_grpc_sign.0)?;
     Ok(())
 }
 
 /// 產生一個非controller的憑證並保存到指定的目錄
 pub async fn one_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     // 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
-    let ca_grpc: (PrivateKey, CsrCert) = CertificateProcess::generate_csr(
+    let ca_grpc: (PrivateKey, CsrCert) = CertUtils::generate_csr(
         4096,
         "TW",
         "Taipei",
@@ -289,7 +290,7 @@ pub async fn one_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
-    CertificateProcess::save_cert("one_test", ca_grpc.0, ca_grpc_sign.0)?;
+    CertUtils::save_cert("one_test", ca_grpc.0, ca_grpc_sign.0)?;
     Ok(())
 }
 /// 產生一個非controller的憑證並保存到指定的目錄
@@ -306,7 +307,7 @@ pub async fn create_new_rootca() -> CaResult<()> {
         None,
         256,
     )?;
-    CertificateProcess::save_cert("rootCA", ca_test.0, ca_test.1)?;
+    CertUtils::save_cert("rootCA", ca_test.0, ca_test.1)?;
     tracing::info!("Root CA generated!");
     Ok(())
 }

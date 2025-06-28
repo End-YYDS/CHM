@@ -4,25 +4,26 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-actix-tls = { version = "3.4.0", features = ["openssl"] }
-actix-web = { version = "4.11.0", features = ["openssl"] }
+actix-tls = { workspace = true }
+actix-web = { workspace = true }
 chrono = { workspace = true }
 config_loader = { workspace = true }
 crl_cache = { workspace = true }
-futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
+futures = { workspace = true }
 grpc = { workspace = true, features = ["ca","crl-server"] }
+cert-utils = { workspace = true }
 humantime = { workspace = true }
 humantime-serde = { workspace = true }
 once_cell = { workspace = true }
-openssl = { version = "0.10.72" }
-openssl-sys = "0.9.109"
+openssl = { workspace = true }
+openssl-sys = { workspace = true }
 password = { workspace = true }
-reqwest = { version = "0.12.20", features = ["json", "rustls-tls"] }
+reqwest = { workspace = true }
 serde = { workspace = true }
-sqlx = { workspace = true, features = ["sqlite", "macros", "chrono", "runtime-tokio","migrate"] }
-tokio = { workspace = true, features = ["rt","macros","rt-multi-thread","fs"] }
-tonic-async-interceptor = "0.13.0"
-tower = "0.5.2"
+sqlx = { workspace = true }
+tokio = { workspace = true }
+tonic-async-interceptor = { workspace = true }
+tower = { workspace = true }
 tower-http = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
