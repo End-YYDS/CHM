@@ -1,7 +1,3 @@
-// pub mod grpc {
-//     include!("generated/ca.rs");
-// }
-
 pub mod cert;
 pub mod config;
 pub mod connection;

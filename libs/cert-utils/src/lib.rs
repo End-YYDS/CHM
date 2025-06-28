@@ -6,10 +6,12 @@ use std::{
 };
 
 use config_loader::PROJECT;
+use grpc::{crl::ListCrlEntriesResponse, prost::Message};
 use openssl::{
     hash::{hash, MessageDigest},
     pkey::{PKey, Private},
     rsa::Rsa,
+    sign::Verifier,
     x509::{extension::SubjectAlternativeName, X509NameBuilder, X509ReqBuilder, X509},
 };
 
@@ -162,5 +164,31 @@ impl CertUtils {
             .collect::<Vec<_>>()
             .join("");
         Ok(hex)
+    }
+    /// 驗證 CRL 回應的簽名是否來自於指定的 CA
+    pub fn verify_crl_signature(
+        ca_cert: &X509,
+        resp: &ListCrlEntriesResponse,
+    ) -> std::result::Result<(), String> {
+        let signature = resp.signature.as_slice();
+        let mut clean = resp.clone();
+        clean.signature = Vec::new();
+        let raw = Message::encode_to_vec(&clean);
+        let pubkey = ca_cert
+            .public_key()
+            .map_err(|e| format!("取公鑰失敗: {e}"))?;
+        let mut verifier = Verifier::new(MessageDigest::sha256(), &pubkey)
+            .map_err(|e| format!("建立 Verifier 失敗: {e}"))?;
+        verifier
+            .update(&raw)
+            .map_err(|e| format!("Verifier update 失敗: {e}"))?;
+        if verifier
+            .verify(signature)
+            .map_err(|e| format!("執行 verify 失敗: {e}"))?
+        {
+            Ok(())
+        } else {
+            Err("簽名驗證失敗：簽章不符".into())
+        }
     }
 }

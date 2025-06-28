@@ -590,6 +590,7 @@ name = "cert-utils"
 version = "0.1.0"
 dependencies = [
  "config_loader",
+ "grpc",
  "openssl",
  "openssl-sys",
 ]
