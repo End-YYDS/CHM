@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "apps/ca", "libs/cert-utils",
+    "apps/ca",
+    "libs/cert-utils",
     "libs/config_loader",
     "libs/crl_cache",
     "libs/grpc",
@@ -15,9 +16,9 @@ edition = "2021"
 [workspace.dependencies]
 actix-tls = { version = "3.4.0", features = ["openssl"] }
 actix-web = { version = "4.11.0", features = ["openssl"] }
-chrono = { version = "0.4.41", features = ["serde"] }
-config_loader = { version = "0.1.0", path = "./libs/config_loader" }
 cert-utils = { version = "0.1.0", path = "./libs/cert-utils" }
+chrono = { version = "0.4.41", features = ["serde"] }
+config_loader = { version = "0.1.0", path = "./libs/config_loader",default-features = false}
 crl_cache = { version = "0.1.0", path = "./libs/crl_cache" }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
 grpc = { version = "0.1.0", path = "./libs/grpc" }

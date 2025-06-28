@@ -6,12 +6,12 @@ edition.workspace = true
 [dependencies]
 actix-tls = { workspace = true }
 actix-web = { workspace = true }
+cert-utils = { workspace = true }
 chrono = { workspace = true }
-config_loader = { workspace = true }
+config_loader = { workspace = true,default-features = true }
 crl_cache = { workspace = true }
 futures = { workspace = true }
 grpc = { workspace = true, features = ["ca","crl-server"] }
-cert-utils = { workspace = true }
 humantime = { workspace = true }
 humantime-serde = { workspace = true }
 once_cell = { workspace = true }
