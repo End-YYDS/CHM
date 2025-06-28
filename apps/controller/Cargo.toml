@@ -4,13 +4,3 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-grpc = { path = "../../libs/grpc", features = ["controller_server"] }
-plugin-system = { path = "../../libs/plugin-system" }
-# tokio = { version = "1.43.0", features = [
-#     "macros",
-#     "rt-multi-thread",
-# ] }
-config = { workspace = true }
-tokio = { version = "1.43.0", features = ["full"] }
-actix-web = "4.9.0"
-console-subscriber = "0.4.1"
