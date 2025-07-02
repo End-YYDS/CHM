@@ -1,0 +1,6 @@
+[package]
+name = "project_const"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
