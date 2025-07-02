@@ -27,6 +27,7 @@ tower = { workspace = true }
 tower-http = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+project_const = { workspace = true }
 
 [[bin]]
 name = "CHM_CA"

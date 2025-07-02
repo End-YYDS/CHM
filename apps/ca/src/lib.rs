@@ -209,7 +209,9 @@ pub async fn start_grpc(
 /// * `cert_handler` - 用於簽署憑證的 CertificateProcess 處理器
 /// # 回傳
 /// * `CaResult<MiniController>` - 返回 MiniController 實例或錯誤
-pub async fn mini_controller_cert(cert_handler: &CertificateProcess) -> CaResult<MiniController> {
+pub async fn mini_controller_cert(
+    cert_handler: &Arc<CertificateProcess>,
+) -> CaResult<MiniController> {
     let mini_cert: (PrivateKey, CsrCert) = CertUtils::generate_csr(
         4096,
         "TW",
@@ -224,7 +226,11 @@ pub async fn mini_controller_cert(cert_handler: &CertificateProcess) -> CaResult
     f.write_all(mini_cert.0.as_slice())?;
     let mini_csr = X509Req::from_pem(&mini_cert.1)?;
     let mini_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&mini_csr, 365).await?;
-    let mini_c = mini_controller::MiniController::new(Some(mini_sign.0), Some(mini_cert.0));
+    let mini_c = mini_controller::MiniController::new(
+        Some(mini_sign.0),
+        Some(mini_cert.0),
+        cert_handler.clone(),
+    );
     mini_c.save_cert("mini_controller.pem")?;
     Ok(mini_c)
 }

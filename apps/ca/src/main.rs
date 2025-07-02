@@ -7,8 +7,9 @@ use ca::{
     globals::GlobalConfig,
     *,
 };
+use project_const::ProjectConst;
 use std::sync::atomic::Ordering::Relaxed;
-use std::{env, fs, net::SocketAddr, path::Path, sync::Arc};
+use std::{env, fs, net::SocketAddr, sync::Arc};
 use tracing_subscriber::EnvFilter;
 #[actix_web::main]
 async fn main() -> CaResult<()> {
@@ -39,9 +40,8 @@ async fn main() -> CaResult<()> {
     tracing::trace!("進入GlobalConfig讀取鎖定區域");
     let cfg = GlobalConfig::read().await;
     let cmg = &cfg.settings;
-    let project_dir = &cfg.dirs;
 
-    let marker_path = Path::new(project_dir.data_dir()).join("first_run.done");
+    let marker_path = ProjectConst::data_path().join(".ca_first_run.done");
     if let Some(parent) = marker_path.parent() {
         fs::create_dir_all(parent)?;
     }

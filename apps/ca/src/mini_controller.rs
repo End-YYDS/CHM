@@ -1,34 +1,33 @@
+use crate::cert::process::CertificateProcess;
 use crate::globals::GlobalConfig;
 use crate::{CaResult, PrivateKey, SignedCert};
-use actix_tls::accept::openssl::TlsStream;
-use actix_web::rt::net::TcpStream;
-use actix_web::HttpRequest;
 use actix_web::{dev::ServerHandle, post, web, App, HttpResponse, HttpServer};
 use cert_utils::CertUtils;
-use config_loader::PROJECT;
 use openssl::ssl::SslVerifyMode;
+use openssl::x509::X509Req;
 use openssl::{
     pkey::PKey,
     ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod},
     x509::X509,
 };
-use serde::Deserialize;
-use std::{
-    fs,
-    io::Write,
-    net::SocketAddr,
-    path::{Path, PathBuf},
-};
+use project_const::ProjectConst;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::{fs, io::Write, net::SocketAddr, path::PathBuf};
 use tokio::sync::mpsc::Sender;
+#[derive(Serialize)]
+struct SignedCertResponse {
+    cert: Vec<u8>,
+    chain: Vec<Vec<u8>>,
+}
 
 #[allow(unused)]
 #[derive(Debug, Clone, Deserialize)]
 struct Otp {
     code: String,
+    csr_cert: Vec<u8>,
+    days: u32,
 }
-#[derive(Debug, Clone)]
-pub struct PeerCerts(Vec<X509>);
-#[derive(Debug)]
 /// MiniController 用於管理初始化過程的控制器
 pub struct MiniController {
     /// 伺服器自己的已簽署憑證
@@ -39,6 +38,7 @@ pub struct MiniController {
     server_handle: Option<ServerHandle>,
     /// 用於關閉伺服器的通道
     shutdown_tx: Option<Sender<()>>,
+    cert_process: Arc<CertificateProcess>,
 }
 impl MiniController {
     /// 建立一個新的 MiniController
@@ -47,12 +47,17 @@ impl MiniController {
     /// * `private_key`: 可選的私鑰
     /// # 回傳
     /// * 一個新的 `MiniController` 實例
-    pub fn new(sign_cert: Option<SignedCert>, private_key: Option<PrivateKey>) -> Self {
+    pub fn new(
+        sign_cert: Option<SignedCert>,
+        private_key: Option<PrivateKey>,
+        cert_process: Arc<CertificateProcess>,
+    ) -> Self {
         Self {
             sign_cert,
             private_key,
             server_handle: None,
             shutdown_tx: None,
+            cert_process,
         }
     }
     /// 回傳伺服器X509憑證
@@ -78,13 +83,7 @@ impl MiniController {
     /// # 回傳
     /// * `CaResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
     pub fn save_cert(&self, filename: &str) -> CaResult<()> {
-        let certs_path = Path::new("certs");
-        let file_path = if cfg!(debug_assertions) {
-            certs_path.to_path_buf()
-        } else {
-            PathBuf::from("/etc").join(PROJECT.2).join(certs_path) //TODO: 安裝腳本安裝時注意資料夾權限問題
-        };
-
+        let file_path = ProjectConst::certs_path();
         let file_path = file_path.join(format!("{filename}.pem"));
         if !file_path.exists() {
             if let Some(parent) = file_path.parent() {
@@ -125,20 +124,14 @@ impl MiniController {
         let ssl_acceptor = self
             .build_ssl_builder(&rootca)
             .map_err(|e| format!("SSL 建構失敗: {e}"))?;
+        let cert_process = self.cert_process.clone();
         let server = HttpServer::new(move || {
             App::new()
                 .app_data(web::Data::new(marker_path.clone()))
                 .app_data(web::Data::new(tx_clone.clone()))
                 .app_data(web::Data::new(otp_code.clone()))
+                .app_data(web::Data::from(cert_process.clone()))
                 .service(init_api)
-        })
-        .on_connect(|conn, ext| {
-            if let Some(stream) = conn.downcast_ref::<TlsStream<TcpStream>>() {
-                let ssl_ref = stream.ssl();
-                if let Some(cert) = ssl_ref.peer_certificate() {
-                    ext.insert(PeerCerts(vec![cert]));
-                }
-            }
         })
         .bind_openssl(addr, ssl_acceptor)?
         .disable_signals()
@@ -189,7 +182,7 @@ impl MiniController {
             .map_err(|e| format!("解析PrivateKey失敗: {e}"))?;
         builder.set_private_key(&pkey)?;
         builder.check_private_key()?;
-        builder.set_verify(SslVerifyMode::PEER | SslVerifyMode::FAIL_IF_NO_PEER_CERT);
+        builder.set_verify(SslVerifyMode::NONE);
         Ok(builder)
     }
 }
@@ -202,7 +195,7 @@ impl MiniController {
 /// # 回傳
 /// * `HttpResponse`: 返回 HTTP 響應，成功時為 Ok，失敗時為 InternalServerError
 async fn init_api(
-    req: HttpRequest,
+    cert_process: web::Data<Arc<CertificateProcess>>,
     shutdown_tx: web::Data<tokio::sync::mpsc::Sender<()>>,
     marker_path: web::Data<PathBuf>,
     otp_code: web::Data<String>,
@@ -212,38 +205,36 @@ async fn init_api(
         tracing::error!("OTP 驗證失敗: {}", data.code);
         return HttpResponse::Unauthorized().body("OTP 驗證失敗");
     }
-    if let Some(peer) = req.conn_data::<PeerCerts>() {
-        let serial = peer
-            .0
-            .first()
-            .and_then(|cert| CertUtils::cert_serial_sha256(cert).ok());
-        let fingerprint = peer
-            .0
-            .first()
-            .and_then(|cert| CertUtils::cert_fingerprint_sha256(cert).ok());
-        if serial.is_some() && fingerprint.is_some() {
-            {
-                if GlobalConfig::has_active_readers() {
-                    tracing::trace!("還有讀鎖沒釋放!");
-                    return HttpResponse::Locked().body("還有讀鎖沒釋放");
-                }
-                let mut global = GlobalConfig::write().await;
-                if let Some(s) = serial {
-                    global.settings.controller.serial = s.clone();
-                }
-                if let Some(f) = fingerprint {
-                    global.settings.controller.fingerprint = f.clone();
-                }
+    let csr_x509 =
+        match X509Req::from_pem(&data.csr_cert).or_else(|_| X509Req::from_der(&data.csr_cert)) {
+            Ok(cert) => cert,
+            Err(e) => {
+                tracing::error!("解析 CSR 憑證失敗: {:?}", e);
+                return HttpResponse::BadRequest().body("無效的 CSR 憑證");
             }
-            if let Err(e) = GlobalConfig::save_config().await {
-                tracing::error!("儲存設定失敗: {e}");
-                return HttpResponse::InternalServerError().body("儲存設定失敗");
-            }
+        };
+    let signed_cert = match cert_process.sign_csr(&csr_x509, data.days).await {
+        Ok(c) => c,
+        Err(e) => {
+            tracing::error!("簽發 CSR 失敗: {:?}", e);
+            return HttpResponse::InternalServerError().body("簽發憑證失敗");
         }
-    } else {
-        tracing::warn!("沒有找到 PeerCerts，請確保使用正確的憑證連接");
-        return HttpResponse::PreconditionFailed()
-            .body("沒有找到 PeerCerts，請確保使用正確的憑證連接");
+    };
+    if GlobalConfig::has_active_readers() {
+        return HttpResponse::Locked().body("系統忙碌中，請稍後再試");
+    }
+    {
+        let mut cfg = GlobalConfig::write().await;
+        cfg.settings.controller.serial =
+            CertUtils::cert_serial_sha256(&X509::from_der(&signed_cert.0).unwrap())
+                .expect("serial");
+        cfg.settings.controller.fingerprint =
+            CertUtils::cert_fingerprint_sha256(&X509::from_der(&signed_cert.0).unwrap())
+                .expect("fingerprint");
+        if let Err(e) = GlobalConfig::save_config().await {
+            tracing::error!("儲存設定失敗: {:?}", e);
+            return HttpResponse::InternalServerError().body("儲存設定失敗");
+        }
     }
 
     if let Err(e) = tokio::fs::write(marker_path.get_ref(), b"done").await {
@@ -254,5 +245,9 @@ async fn init_api(
         tracing::info!("初始化完成，關閉伺服器");
     }
     let _ = shutdown_tx.send(()).await;
-    HttpResponse::Ok().body("初始化完成")
+    let ret_data = SignedCertResponse {
+        cert: signed_cert.0,
+        chain: signed_cert.1,
+    };
+    HttpResponse::Ok().json(ret_data)
 }

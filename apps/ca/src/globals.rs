@@ -1,8 +1,6 @@
-use config_loader::{directories, store_config};
+use config_loader::store_config;
 use once_cell::sync::OnceCell;
 use tokio::sync::RwLock;
-
-use directories::ProjectDirs;
 
 use crate::{
     config::{Settings, ID},
@@ -12,19 +10,13 @@ use crate::{
 #[derive(Debug)]
 pub struct GlobalConfig {
     pub settings: Settings,
-    pub dirs: ProjectDirs,
 }
 
 static GLOBAL_CFG: OnceCell<RwLock<GlobalConfig>> = OnceCell::new();
 
 impl GlobalConfig {
-    pub fn init_global_config(cfg: (Settings, ProjectDirs)) {
-        GLOBAL_CFG.get_or_init(|| {
-            RwLock::new(GlobalConfig {
-                settings: cfg.0,
-                dirs: cfg.1,
-            })
-        });
+    pub fn init_global_config(cfg: Settings) {
+        GLOBAL_CFG.get_or_init(|| RwLock::new(GlobalConfig { settings: cfg }));
     }
     pub async fn read() -> tokio::sync::RwLockReadGuard<'static, GlobalConfig> {
         GLOBAL_CFG
@@ -51,7 +43,7 @@ impl GlobalConfig {
         }
         let cfg = &GlobalConfig::read().await.settings;
         let config_name = format!("{ID}_config.toml");
-        store_config(cfg, cfg!(debug_assertions), &config_name).await?;
+        store_config(cfg, &config_name).await?;
         Ok(())
     }
 }
