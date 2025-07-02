@@ -4,8 +4,9 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-config_loader = { workspace = true,  features = ["project_dirs"] }
+config_loader = { workspace = true }
 grpc = { workspace = true, features = ["crl-client"] }
 openssl = { workspace = true }
 openssl-sys = { workspace = true }
+project_const = { workspace = true }
 

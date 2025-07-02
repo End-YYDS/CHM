@@ -1,24 +1,30 @@
-use std::{
-    fs,
-    io::Write,
-    net::IpAddr,
-    path::{Path, PathBuf},
-};
+use std::{fs, io::Write, net::IpAddr, path::Path};
 
-use config_loader::PROJECT;
 use grpc::{crl::ListCrlEntriesResponse, prost::Message};
 use openssl::{
+    bn::BigNum,
     hash::{hash, MessageDigest},
     pkey::{PKey, Private},
     rsa::Rsa,
     sign::Verifier,
-    x509::{extension::SubjectAlternativeName, X509NameBuilder, X509ReqBuilder, X509},
+    x509::{
+        extension::{BasicConstraints, KeyUsage, SubjectAlternativeName},
+        X509Builder, X509NameBuilder, X509ReqBuilder, X509,
+    },
 };
+use project_const::ProjectConst;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 #[derive(Debug)]
 pub struct CertUtils;
 impl CertUtils {
+    pub fn generate_rsa_keypair(key_bits: u32) -> Result<(Vec<u8>, Vec<u8>)> {
+        let rsa = Rsa::generate(key_bits)?;
+        let private_key_pem = rsa.private_key_to_pem()?;
+        let public_key_pem = rsa.public_key_to_pem()?;
+
+        Ok((private_key_pem, public_key_pem))
+    }
     /// 產生 CSR 與對應的私鑰
     /// # 參數
     /// * `key_bits`: RSA 金鑰長度 (e.g. 2048)
@@ -37,8 +43,8 @@ impl CertUtils {
         subject_alt_names: &[&str],
     ) -> Result<(Vec<u8>, Vec<u8>)> {
         //  產生RSA私鑰
-        let rsa = Rsa::generate(key_bits)?;
-        let private_key = PKey::from_rsa(rsa)?;
+        let (key_pem, _) = Self::generate_rsa_keypair(key_bits)?;
+        let private_key = PKey::private_key_from_pem(&key_pem)?;
         let mut csr_builder = X509ReqBuilder::new()?;
         let mut name_builder = X509NameBuilder::new()?;
         name_builder.append_entry_by_text("C", country)?;
@@ -70,6 +76,68 @@ impl CertUtils {
 
         Ok((key_pem, csr_pem))
     }
+    #[allow(clippy::too_many_arguments)]
+    /// 產生自簽名憑證
+    /// # 參數
+    /// * `csr`: CSR 的 PEM Bytes
+    ///
+    pub fn generate_self_signed_cert(
+        bits: u32,
+        country: &str,
+        state: &str,
+        locality: &str,
+        org: &str,
+        cn: &str,
+        san: &[&str],
+        days: u32,
+    ) -> Result<(Vec<u8>, Vec<u8>)> {
+        let (key_pem, _) = Self::generate_rsa_keypair(bits)?;
+        let key = PKey::private_key_from_pem(&key_pem)?;
+        let mut builder = X509Builder::new()?;
+        builder.set_version(2)?;
+        let mut bn = BigNum::new()?;
+        bn.rand(159, openssl::bn::MsbOption::MAYBE_ZERO, false)?;
+        let not_before = openssl::asn1::Asn1Time::days_from_now(0)?;
+        let not_after = openssl::asn1::Asn1Time::days_from_now(days)?;
+        builder.set_not_before(&not_before)?;
+        builder.set_not_after(&not_after)?;
+        let mut name_b = X509NameBuilder::new()?;
+        for &(field, value) in &[
+            ("C", country),
+            ("ST", state),
+            ("L", locality),
+            ("O", org),
+            ("CN", cn),
+        ] {
+            name_b.append_entry_by_text(field, value)?;
+        }
+        let name = name_b.build();
+        builder.set_subject_name(&name)?;
+        builder.set_issuer_name(&name)?;
+        builder.set_pubkey(&key)?;
+        builder.append_extension(BasicConstraints::new().critical().build()?)?;
+        builder.append_extension(
+            KeyUsage::new()
+                .digital_signature()
+                .key_encipherment()
+                .build()?,
+        )?;
+        if !san.is_empty() {
+            let mut san_b = SubjectAlternativeName::new();
+            for &entry in san {
+                if entry.parse::<IpAddr>().is_ok() {
+                    san_b.ip(entry);
+                } else {
+                    san_b.dns(entry);
+                }
+            }
+            let ext = san_b.build(&builder.x509v3_context(None, None))?;
+            builder.append_extension(ext)?;
+        }
+        builder.sign(&key, MessageDigest::sha256())?;
+        let cert_pem = builder.build().to_pem()?;
+        Ok((key_pem, cert_pem))
+    }
     /// 儲存憑證和私鑰到指定的檔案
     /// # 參數
     /// * `filename`: 檔案名稱 (不含副檔名)
@@ -78,12 +146,7 @@ impl CertUtils {
     /// # 回傳
     /// * `CaResult<()>`：返回結果，成功時為 Ok，失敗時為 Err
     pub fn save_cert(filename: &str, private_key: Vec<u8>, cert: Vec<u8>) -> Result<()> {
-        let certs_path = Path::new("certs");
-        let save_path = if cfg!(debug_assertions) {
-            certs_path.to_path_buf()
-        } else {
-            PathBuf::from("/etc").join(PROJECT.2).join(certs_path) //TODO: 安裝腳本安裝時注意資料夾權限問題
-        };
+        let save_path = ProjectConst::certs_path();
         let key_path = save_path.join(format!("{filename}.key"));
         let cert_path = save_path.join(format!("{filename}.pem"));
         if !save_path.exists() {
