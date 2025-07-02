@@ -28,7 +28,8 @@ async fn main() -> CaResult<()> {
     if args.iter().any(|a| a == "--create-ca") {
         tracing::info!("創建新的 RootCA...");
         create_new_rootca().await?; //[ ]: 安裝程式需要先行調用此，產生RootCA
-        tracing::info!("RootCA 已創建，請檢查/etc/CHM/certs/rootCA.pem");
+        let certs = ProjectConst::certs_path();
+        tracing::info!("RootCA 已創建，請檢查 {}/rootCA.pem", certs.display());
         return Ok(());
     }
     tracing::info!("正在載入配置...");
