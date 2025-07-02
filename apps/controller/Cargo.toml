@@ -4,3 +4,17 @@ version = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+grpc = { workspace = true, features = ["controller"] }
+cert-utils = { workspace = true }
+crl_cache = { workspace = true }
+config_loader = { workspace = true,default-features = true }
+tokio = {workspace = true }
+cluster-utils = { workspace = true, features = ["client", "server"] }
+project_const = { workspace = true }
+
+
+[[bin]]
+name = "CHMcd"
+path = "src/main.rs"

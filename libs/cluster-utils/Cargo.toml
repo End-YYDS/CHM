@@ -1,0 +1,23 @@
+[package]
+name = "cluster-utils"
+version.workspace = true
+edition.workspace = true
+
+[features]
+client = ["dep:reqwest"]
+server = ["dep:actix-web","dep:actix-tls"]
+openssl = ["dep:openssl", "dep:openssl-sys"]
+default = ["openssl","dep:tokio"]
+
+[dependencies]
+reqwest = { workspace = true, optional = true }
+openssl = { workspace = true, optional = true }
+openssl-sys = { workspace = true, optional = true }
+actix-web = { workspace = true, optional = true}
+actix-tls = { workspace = true, optional = true }
+async-trait = "0.1.88"
+tokio = {workspace = true , optional = true }
+tracing = { workspace = true }
+password = { workspace = true }
+serde = { workspace = true }
+cert-utils = { workspace = true }

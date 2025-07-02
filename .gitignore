@@ -30,5 +30,7 @@ dist-ssr
 .__mf__temp/
 certs/*
 !certs/.gitkeep
+data/*
+!data/.gitkeep
 db
 config

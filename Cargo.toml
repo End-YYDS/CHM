@@ -1,11 +1,12 @@
 [workspace]
 members = [
     "apps/ca",
-    "libs/cert-utils",
+    "apps/controller",
+    "libs/cert-utils", "libs/cluster-utils",
     "libs/config_loader",
     "libs/crl_cache",
     "libs/grpc",
-    "libs/password",
+    "libs/password", "libs/project_const",
     "xtask",
 ]
 resolver = "2"
@@ -17,6 +18,8 @@ edition = "2021"
 actix-tls = { version = "3.4.0", features = ["openssl"] }
 actix-web = { version = "4.11.0", features = ["openssl"] }
 cert-utils = { version = "0.1.0", path = "./libs/cert-utils" }
+project_const = { version = "0.1.0", path = "./libs/project_const" }
+cluster-utils = { version = "0.1.0", path = "./libs/cluster-utils" }
 chrono = { version = "0.4.41", features = ["serde"] }
 config_loader = { version = "0.1.0", path = "./libs/config_loader",default-features = false}
 crl_cache = { version = "0.1.0", path = "./libs/crl_cache" }
