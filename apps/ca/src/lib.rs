@@ -30,7 +30,7 @@ use crate::{
     mini_controller::MiniController,
 };
 /// 定義一個簡化的結果類型，用於返回結果或錯誤
-pub type CaResult<T> = Result<T, Box<dyn std::error::Error>>;
+pub type CaResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 /// 定義已經簽署的憑證類型
 pub type SignedCert = Vec<u8>;
 /// 定義憑證鏈類型，包含已簽署的憑證和 CA 憑證
@@ -118,10 +118,7 @@ fn make_crl_middleware(
 /// * `cert_handler`: 憑證處理器，用於憑證簽署和 CRL 驗證
 /// # 回傳
 /// * `Result<(), Box<dyn std::error::Error>>`: 返回結果，成功時為 Ok，失敗時為 Err
-pub async fn start_grpc(
-    addr: SocketAddr,
-    cert_handler: Arc<CertificateProcess>,
-) -> Result<(), Box<dyn std::error::Error>> {
+pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>) -> CaResult<()> {
     let (cert_update_tx, mut cert_update_rx) = watch::channel(());
     loop {
         let mut rx = cert_update_rx.clone();
@@ -252,7 +249,7 @@ pub async fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
-    CertUtils::save_cert("ca_grpc", ca_grpc.0, ca_grpc_sign.0)?;
+    CertUtils::save_cert("ca_grpc", &ca_grpc.0, &ca_grpc_sign.0)?;
     Ok(())
 }
 
@@ -274,7 +271,7 @@ pub async fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
-    CertUtils::save_cert("grpc_test", ca_grpc.0, ca_grpc_sign.0)?;
+    CertUtils::save_cert("grpc_test", &ca_grpc.0, &ca_grpc_sign.0)?;
     Ok(())
 }
 
@@ -292,7 +289,7 @@ pub async fn one_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
-    CertUtils::save_cert("one_test", ca_grpc.0, ca_grpc_sign.0)?;
+    CertUtils::save_cert("one_test", &ca_grpc.0, &ca_grpc_sign.0)?;
     Ok(())
 }
 /// 產生一個非controller的憑證並保存到指定的目錄
@@ -309,7 +306,7 @@ pub async fn create_new_rootca() -> CaResult<()> {
         None,
         256,
     )?;
-    CertUtils::save_cert("rootCA", ca_test.0, ca_test.1)?;
+    CertUtils::save_cert("rootCA", &ca_test.0, &ca_test.1)?;
     tracing::info!("Root CA generated!");
     Ok(())
 }

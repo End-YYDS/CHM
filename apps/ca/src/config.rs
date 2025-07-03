@@ -191,7 +191,7 @@ impl Settings {
     /// * `proj_dirs` - 用於獲取使用者配置目錄的 `ProjectDirs` 實例
     /// # 回傳
     /// * `Result<Self, config::ConfigError>` - 返回設定實例或錯誤
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new() -> CaResult<Self> {
         Ok(config_loader::load_config(ID, None, None)?)
     }
     /// 初始化設定檔，生成一個包含預設值的 TOML 檔案。
@@ -199,7 +199,7 @@ impl Settings {
     /// * `path` - 要生成的設定檔路徑
     /// # 回傳
     /// * `Result<(), Box<dyn std::error::Error>>` - 返回結果，成功時為 Ok，失敗時為 Err
-    pub async fn init(path: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn init(path: &str) -> CaResult<()> {
         store_config(&Settings::default(), path).await?;
         println!("Generated default config at {path}");
         Ok(())

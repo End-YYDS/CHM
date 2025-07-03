@@ -47,7 +47,7 @@ impl CertificateProcess {
         passphrase: &str,
         crl_update_interval: std::time::Duration,
         store: Arc<dyn crate::cert::store::CertificateStore>,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    ) -> CaResult<Self> {
         let cert_pem = fs::read(&cert_path)
             .or_else(|_| fs::read("certs/rootCA.pem"))
             .or_else(|_| fs::read("certs/test_root_ca.pem"))?;

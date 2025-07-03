@@ -19,7 +19,7 @@ use openssl::x509::X509;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 #[derive(Debug, Deserialize)]
 struct SignedCertResponse {
     cert: Vec<u8>,
