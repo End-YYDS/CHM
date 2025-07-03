@@ -2,6 +2,7 @@ use std::path::Path;
 use std::{env, fs};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE");
     let crate_root = Path::new(&env::var("CARGO_MANIFEST_DIR")?).to_owned();
     let out_dir = crate_root.join("src/generated");
     if !out_dir.exists() {
@@ -13,6 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if path.extension().and_then(|e| e.to_str()) != Some("proto") {
             continue;
         }
+        println!("cargo:rerun-if-changed={}", path.display());
         let stem = path
             .file_stem()
             .and_then(|s| s.to_str())
@@ -24,6 +26,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         let want_client = env::var(&feature_client).is_ok();
         let want_server = env::var(&feature_server).is_ok();
+        let generated_rs = out_dir.join(format!("{stem}.rs"));
+        if generated_rs.exists() {
+            let proto_meta = fs::metadata(&path)?.modified()?;
+            let gen_meta = fs::metadata(&generated_rs)?.modified()?;
+            if gen_meta >= proto_meta {
+                println!("skip compiling {stem} (up to date)");
+                continue;
+            }
+        }
         tonic_build::configure()
             .out_dir(&out_dir)
             .client_mod_attribute(stem, format!("#[cfg(feature = \"{stem}-client\")]"))
