@@ -212,7 +212,7 @@ pub async fn start_grpc(
 pub async fn mini_controller_cert(
     cert_handler: &Arc<CertificateProcess>,
 ) -> CaResult<MiniController> {
-    let mini_cert: (PrivateKey, CsrCert) = CertUtils::generate_csr(
+    let mini_cert: (PrivateKey, CsrCert) = CertUtils::generate_csr_with_new_key(
         4096,
         "TW",
         "Taipei",
@@ -241,7 +241,7 @@ pub async fn mini_controller_cert(
 /// # 回傳
 /// * `CaResult<()>` - 返回結果，表示操作是否成功
 pub async fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
-    let ca_grpc: (PrivateKey, CsrCert) = CertUtils::generate_csr(
+    let ca_grpc: (PrivateKey, CsrCert) = CertUtils::generate_csr_with_new_key(
         4096,
         "TW",
         "Taipei",
@@ -263,7 +263,7 @@ pub async fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
 /// * `CaResult<()>` - 返回結果，表示操作是否成功
 pub async fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     // 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
-    let ca_grpc: (PrivateKey, CsrCert) = CertUtils::generate_csr(
+    let ca_grpc: (PrivateKey, CsrCert) = CertUtils::generate_csr_with_new_key(
         4096,
         "TW",
         "Taipei",
@@ -281,7 +281,7 @@ pub async fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
 /// 產生一個非controller的憑證並保存到指定的目錄
 pub async fn one_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
     // 產生CA grpc的憑證,並將私鑰保存至certs資料夾內
-    let ca_grpc: (PrivateKey, CsrCert) = CertUtils::generate_csr(
+    let ca_grpc: (PrivateKey, CsrCert) = CertUtils::generate_csr_with_new_key(
         4096,
         "TW",
         "Taipei",

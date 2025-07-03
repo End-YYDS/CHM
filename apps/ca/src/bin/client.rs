@@ -243,7 +243,7 @@ async fn test_first_controller_connect(client: &reqwest::Client) -> Result<()> {
     println!("OTP code: ");
     let mut input = String::new();
     std::io::stdin().read_line(&mut input)?;
-    let (pri_key, csr_cert) = CertUtils::generate_csr(
+    let (pri_key, csr_cert) = CertUtils::generate_csr_with_new_key(
         4096,
         "TW",
         "Taipei",
