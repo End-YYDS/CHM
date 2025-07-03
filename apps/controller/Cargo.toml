@@ -9,6 +9,7 @@ tracing-subscriber = { workspace = true }
 grpc = { workspace = true, features = ["controller"] }
 cert-utils = { workspace = true }
 crl_cache = { workspace = true }
+serde = { workspace = true }
 config_loader = { workspace = true,default-features = true }
 tokio = {workspace = true }
 cluster-utils = { workspace = true, features = ["client", "server"] }

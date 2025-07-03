@@ -51,7 +51,10 @@ where
     }
 }
 
-pub async fn store_config<T>(config: &T, file: &str) -> Result<(), Box<dyn std::error::Error>>
+pub async fn store_config<T>(
+    config: &T,
+    file: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
 where
     T: serde::Serialize,
 {

@@ -27,9 +27,9 @@ impl Default for ClientCluster {
 impl ClientCluster {
     pub fn new(
         base_url: impl Into<String>,
-        cert_path: impl Into<PathBuf>,
-        key_path: impl Into<PathBuf>,
-        root_ca: impl Into<PathBuf>,
+        cert_path: Option<impl Into<PathBuf>>,
+        key_path: Option<impl Into<PathBuf>>,
+        root_ca: Option<impl Into<PathBuf>>,
     ) -> Self {
         Self::default()
             .with_base_url(base_url)
@@ -43,15 +43,18 @@ impl ClientCluster {
 
     pub fn with_cert_chain(
         mut self,
-        cert_path: impl Into<PathBuf>,
-        key_path: impl Into<PathBuf>,
+        cert_path: Option<impl Into<PathBuf>>,
+        key_path: Option<impl Into<PathBuf>>,
     ) -> Self {
-        self.cert_chain = Some((cert_path.into(), key_path.into()));
+        self.cert_chain = match (cert_path, key_path) {
+            (Some(cert), Some(key)) => Some((cert.into(), key.into())),
+            _ => None,
+        };
         self
     }
 
-    pub fn with_root_ca(mut self, ca_path: impl Into<PathBuf>) -> Self {
-        self.root_ca = Some(ca_path.into());
+    pub fn with_root_ca(mut self, ca_path: Option<impl Into<PathBuf>>) -> Self {
+        self.root_ca = ca_path.map(Into::into);
         self
     }
 
@@ -92,7 +95,7 @@ impl ClientCluster {
 
 #[async_trait]
 impl ClusterClient for ClientCluster {
-    async fn init(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    async fn init(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let client = self.build().await?;
         tracing::info!("開始與 {} 進行通信", self.base_url);
         let otp = self.get_otp().map_err(|e| {

@@ -12,7 +12,7 @@ mod server;
 #[cfg(feature = "client")]
 #[async_trait::async_trait]
 pub trait ClusterClient {
-    async fn init(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
+    async fn init(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 }
 
 #[cfg(feature = "client")]

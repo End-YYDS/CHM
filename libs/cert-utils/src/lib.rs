@@ -14,7 +14,7 @@ use openssl::{
 };
 use project_const::ProjectConst;
 
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 #[derive(Debug)]
 pub struct CertUtils;
 impl CertUtils {
@@ -33,7 +33,7 @@ impl CertUtils {
     /// # 回傳
     /// * `Ok((private_key_pem, csr_pem))`：分別是私鑰和 CSR 的 PEM Bytes
     /// * `Err(e)`：若任何步驟失敗，回傳錯誤
-    pub fn generate_csr(
+    pub fn generate_csr_with_new_key(
         key_bits: u32,
         country: &str,
         state: &str,
@@ -44,6 +44,56 @@ impl CertUtils {
     ) -> Result<(Vec<u8>, Vec<u8>)> {
         //  產生RSA私鑰
         let (key_pem, _) = Self::generate_rsa_keypair(key_bits)?;
+        let private_key = PKey::private_key_from_pem(&key_pem)?;
+        let mut csr_builder = X509ReqBuilder::new()?;
+        let mut name_builder = X509NameBuilder::new()?;
+        name_builder.append_entry_by_text("C", country)?;
+        name_builder.append_entry_by_text("ST", state)?;
+        name_builder.append_entry_by_text("L", locality)?;
+        name_builder.append_entry_by_text("O", organization)?;
+        name_builder.append_entry_by_text("CN", common_name)?;
+        let name = name_builder.build();
+        csr_builder.set_subject_name(&name)?;
+        csr_builder.set_pubkey(&private_key)?;
+        if !subject_alt_names.is_empty() {
+            let mut san_builder = SubjectAlternativeName::new();
+            for &name in subject_alt_names {
+                match name.parse::<IpAddr>() {
+                    Ok(_) => san_builder.ip(name),   // IP SAN
+                    Err(_) => san_builder.dns(name), // DNS SAN
+                };
+            }
+            let san_ext = san_builder.build(&csr_builder.x509v3_context(None))?;
+            let mut extensions = openssl::stack::Stack::new()?;
+            extensions.push(san_ext)?;
+            csr_builder.add_extensions(&extensions)?;
+        }
+        csr_builder.sign(&private_key, MessageDigest::sha256())?;
+        let csr = csr_builder.build();
+
+        let key_pem = private_key.private_key_to_pem_pkcs8()?;
+        let csr_pem = csr.to_pem()?;
+
+        Ok((key_pem, csr_pem))
+    }
+    /// 使用指定金鑰產生 CSR
+    /// # 參數
+    /// * `key_pem`: 私鑰的 PEM Bytes
+    /// * `country`, `state`, `locality`, `organization`, `common_name
+    /// * Subject 欄位
+    /// * `subject_alt_names`: 要加入的 SAN DNS 名稱列表
+    /// # 回傳
+    /// * `Ok((private_key_pem, csr_pem))`：分別是私鑰和 CSR 的 PEM Bytes
+    /// * `Err(e)`：若任何步驟失敗，回傳錯誤
+    pub fn generate_csr(
+        key_pem: Vec<u8>,
+        country: &str,
+        state: &str,
+        locality: &str,
+        organization: &str,
+        common_name: &str,
+        subject_alt_names: &[&str],
+    ) -> Result<(Vec<u8>, Vec<u8>)> {
         let private_key = PKey::private_key_from_pem(&key_pem)?;
         let mut csr_builder = X509ReqBuilder::new()?;
         let mut name_builder = X509NameBuilder::new()?;
@@ -145,7 +195,7 @@ impl CertUtils {
     /// * `private_key`: 私鑰
     /// # 回傳
     /// * `CaResult<()>`：返回結果，成功時為 Ok，失敗時為 Err
-    pub fn save_cert(filename: &str, private_key: Vec<u8>, cert: Vec<u8>) -> Result<()> {
+    pub fn save_cert(filename: &str, private_key: &[u8], cert: &[u8]) -> Result<()> {
         let save_path = ProjectConst::certs_path();
         let key_path = save_path.join(format!("{filename}.key"));
         let cert_path = save_path.join(format!("{filename}.pem"));
@@ -154,12 +204,12 @@ impl CertUtils {
         }
         let mut f = fs::File::create(cert_path)?;
         let mut f_key = fs::File::create(key_path)?;
-        let r = X509::from_der(&cert)
-            .or_else(|_| X509::from_pem(&cert))
+        let r = X509::from_der(cert)
+            .or_else(|_| X509::from_pem(cert))
             .map_err(|e| format!("解析憑證失敗: {e}"))?;
         let r = String::from_utf8(r.to_pem()?)?;
         f.write_all(r.as_bytes())?;
-        f_key.write_all(&private_key)?;
+        f_key.write_all(private_key)?;
         Ok(())
     }
     /// 從指定的路徑載入憑證

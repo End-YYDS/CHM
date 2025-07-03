@@ -4,7 +4,7 @@ use first::first_run;
 use project_const::ProjectConst;
 use run::run;
 
-pub type ConResult<T> = Result<T, Box<dyn std::error::Error>>;
+pub type ConResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 pub async fn entry() -> ConResult<()> {
     let data_dir = ProjectConst::data_path();
@@ -12,7 +12,7 @@ pub async fn entry() -> ConResult<()> {
     let marker_path = data_dir.join(".controller_first_run.done");
     let is_first_run = !marker_path.exists();
     if is_first_run {
-        first_run().await?;
+        first_run(&marker_path).await?;
     }
     run().await?;
     Ok(())
