@@ -28,6 +28,14 @@ struct Otp {
     csr_cert: Vec<u8>,
     days: u32,
 }
+
+#[derive(Clone)]
+struct AppState {
+    cert_process: Arc<CertificateProcess>,
+    shutdown_tx: Sender<()>,
+    marker_path: PathBuf,
+    otp_code: String,
+}
 /// MiniController 用於管理初始化過程的控制器
 pub struct MiniController {
     /// 伺服器自己的已簽署憑證
@@ -112,7 +120,6 @@ impl MiniController {
         let otp_code = password::generate_otp(otp_len);
         tracing::info!("OTP code: {otp_code}");
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
-        let tx_clone = tx.clone();
         let rootca = {
             if GlobalConfig::has_active_readers() {
                 tracing::trace!("還有讀鎖未釋放");
@@ -124,13 +131,15 @@ impl MiniController {
         let ssl_acceptor = self
             .build_ssl_builder(&rootca)
             .map_err(|e| format!("SSL 建構失敗: {e}"))?;
-        let cert_process = self.cert_process.clone();
+        let state = AppState {
+            cert_process: self.cert_process.clone(),
+            shutdown_tx: tx.clone(),
+            marker_path: marker_path.clone(),
+            otp_code: otp_code.clone(),
+        };
         let server = HttpServer::new(move || {
             App::new()
-                .app_data(web::Data::new(marker_path.clone()))
-                .app_data(web::Data::new(tx_clone.clone()))
-                .app_data(web::Data::new(otp_code.clone()))
-                .app_data(web::Data::from(cert_process.clone()))
+                .app_data(web::Data::new(state.clone()))
                 .service(init_api)
         })
         .bind_openssl(addr, ssl_acceptor)?
@@ -187,20 +196,20 @@ impl MiniController {
     }
 }
 
-#[post("init")]
+#[post("/init")]
 /// 初始化 API，寫入 marker 檔案並關閉伺服器
 /// # 參數
 /// * `shutdown_tx`: 用於關閉伺服器的通道
 /// * `marker_path`: 用於標記初始化完成的檔案路徑
 /// # 回傳
 /// * `HttpResponse`: 返回 HTTP 響應，成功時為 Ok，失敗時為 InternalServerError
-async fn init_api(
-    cert_process: web::Data<Arc<CertificateProcess>>,
-    shutdown_tx: web::Data<tokio::sync::mpsc::Sender<()>>,
-    marker_path: web::Data<PathBuf>,
-    otp_code: web::Data<String>,
-    data: web::Json<Otp>,
-) -> HttpResponse {
+async fn init_api(state: web::Data<AppState>, data: web::Json<Otp>) -> HttpResponse {
+    let AppState {
+        cert_process,
+        shutdown_tx,
+        marker_path,
+        otp_code,
+    } = state.get_ref();
     if data.code.as_str() != otp_code.as_str() {
         tracing::error!("OTP 驗證失敗: {}", data.code);
         return HttpResponse::Unauthorized().body("OTP 驗證失敗");
@@ -231,13 +240,13 @@ async fn init_api(
         cfg.settings.controller.fingerprint =
             CertUtils::cert_fingerprint_sha256(&X509::from_der(&signed_cert.0).unwrap())
                 .expect("fingerprint");
-        if let Err(e) = GlobalConfig::save_config().await {
-            tracing::error!("儲存設定失敗: {:?}", e);
-            return HttpResponse::InternalServerError().body("儲存設定失敗");
-        }
+    }
+    if let Err(e) = GlobalConfig::save_config().await {
+        tracing::error!("儲存設定失敗: {:?}", e);
+        return HttpResponse::InternalServerError().body("儲存設定失敗");
     }
 
-    if let Err(e) = tokio::fs::write(marker_path.get_ref(), b"done").await {
+    if let Err(e) = tokio::fs::write(marker_path, b"done").await {
         eprint!("寫入marker檔案失敗: {e}");
         return HttpResponse::InternalServerError().body("寫入marker檔案失敗");
     }

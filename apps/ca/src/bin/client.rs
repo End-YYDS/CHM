@@ -1,4 +1,5 @@
 #![allow(unused)]
+use cert_utils::CertUtils;
 use chrono::{DateTime, Duration, Local, Utc};
 use grpc::ca::CertStatus;
 use grpc::crl::crl_client::CrlClient;
@@ -15,9 +16,22 @@ use grpc::{
 use openssl::hash::MessageDigest;
 use openssl::sign::Verifier;
 use openssl::x509::X509;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+#[derive(Debug, Deserialize)]
+struct SignedCertResponse {
+    cert: Vec<u8>,
+    chain: Vec<Vec<u8>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct Otp {
+    code: String,
+    csr_cert: Vec<u8>,
+    days: u32,
+}
 
 #[derive(Debug)]
 struct Info {
@@ -229,20 +243,27 @@ async fn test_first_controller_connect(client: &reqwest::Client) -> Result<()> {
     println!("OTP code: ");
     let mut input = String::new();
     std::io::stdin().read_line(&mut input)?;
-    let mut map = HashMap::new();
-    map.insert("code", input.trim());
+    let (pri_key, csr_cert) = CertUtils::generate_csr(
+        4096,
+        "TW",
+        "Taipei",
+        "Taipei",
+        "CHM Organization",
+        "one.chm.com",
+        &["127.0.0.1"],
+    )?;
+    let data = Otp {
+        code: input.trim().to_string(),
+        csr_cert,
+        days: 365,
+    };
     let resp = client
         .post("https://127.0.0.1:50052/init")
-        .json(&map)
+        .json(&data)
         .send()
-        .await?
-        .error_for_status()?;
-    let status: reqwest::StatusCode = resp.status();
-    let body: String = resp.text_with_charset("utf-8").await?;
-
-    // 5. 输出
-    println!("Response Status: {status}"); // e.g. 200 OK
-    println!("Response Body:\n{body}");
+        .await?;
+    let signed_cert: SignedCertResponse = resp.json().await?;
+    dbg!(&signed_cert);
     Ok(())
 }
 
