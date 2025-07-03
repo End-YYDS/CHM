@@ -223,6 +223,19 @@ impl CertUtils {
             .or_else(|_| X509::from_der(&cert_pem))
             .map_err(|e| format!("無法解析憑證: {e}").into())
     }
+    /// 從 PEM 或 DER 格式的憑證 Bytes 載入憑證
+    /// # 參數
+    /// * `cert_pem`: 憑證的 PEM 或 DER 格式 Bytes
+    /// # 回傳
+    /// * `CaResult<X509>`：返回憑證或錯誤
+    /// # 注意
+    /// 此函式會嘗試先解析 PEM 格式，如果失敗，則嘗試解析 DER 格式。
+    /// 如果兩種格式都無法 解析，則返回錯誤。
+    pub fn load_cert_from_bytes(cert_pem: &[u8]) -> Result<X509> {
+        X509::from_pem(cert_pem)
+            .or_else(|_| X509::from_der(cert_pem))
+            .map_err(|e| format!("無法解析憑證: {e}").into())
+    }
     /// 從指定的路徑載入私鑰
     /// # 參數
     /// * `path`: 私鑰檔案的路徑
