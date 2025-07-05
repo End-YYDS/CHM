@@ -38,8 +38,6 @@ pub struct Cert {
     pub thumbprint: ::prost::alloc::string::String,
     #[prost(enumeration = "CertStatus", tag = "8")]
     pub status: i32,
-    #[prost(bytes = "vec", tag = "9")]
-    pub cert_der: ::prost::alloc::vec::Vec<u8>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CrlEntry {

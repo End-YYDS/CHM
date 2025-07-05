@@ -29,7 +29,6 @@ message Cert {
   google.protobuf.Timestamp expiration = 6;
   string thumbprint = 7;
   CertStatus status = 8;
-  bytes cert_der = 9;
 }
 message CrlEntry {
   string cert_serial = 1;
