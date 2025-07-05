@@ -8,7 +8,8 @@ use futures::{future::BoxFuture, FutureExt};
 use grpc::{
     ca::{ca_server::CaServer, *},
     crl::crl_server,
-    tonic, tonic_health,
+    tonic::{self, codec::CompressionEncoding},
+    tonic_health,
 };
 use openssl::x509::{X509Req, X509};
 use tokio::sync::watch;
@@ -163,18 +164,22 @@ pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>)
             cert_handler.clone(),
             controller_args.clone(),
         ));
-        let ca_svc = ServiceBuilder::new()
-            .layer(ca_layer)
-            .service(CaServer::new(MyCa {
+        let ca_svc = ServiceBuilder::new().layer(ca_layer).service(
+            CaServer::new(MyCa {
                 cert: cert_handler.clone(),
                 reloader: cert_update_tx.clone(),
-            }));
+            })
+            .send_compressed(CompressionEncoding::Zstd)
+            .accept_compressed(CompressionEncoding::Zstd),
+        );
         let crl_layer = async_interceptor(make_crl_middleware(cert_handler.clone()));
-        let crl_svc = ServiceBuilder::new()
-            .layer(crl_layer)
-            .service(crl_server::CrlServer::new(CrlList {
+        let crl_svc = ServiceBuilder::new().layer(crl_layer).service(
+            crl_server::CrlServer::new(CrlList {
                 cert: cert_handler.clone(),
-            }));
+            })
+            .send_compressed(CompressionEncoding::Zstd)
+            .accept_compressed(CompressionEncoding::Zstd),
+        );
         tracing::info!("[gRPC] 啟動 gRPC 服務於 {addr}");
         let server = tonic::transport::Server::builder()
             .layer(

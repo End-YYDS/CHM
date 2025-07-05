@@ -10,7 +10,7 @@ use grpc::{
 
 use crate::cert::process::CertificateProcess;
 
-use crate::cert::store::{Cert as StoreCert, CertDer, CertStatus as StoreStatus};
+use crate::cert::store::{Cert as StoreCert, CertStatus as StoreStatus};
 use grpc::ca::{Cert as GrpcCert, CertStatus as GrpcStatus};
 use grpc::prost_types::Timestamp;
 
@@ -34,16 +34,6 @@ impl From<StoreCert> for GrpcCert {
                 StoreStatus::Valid => GrpcStatus::Valid as i32,
                 StoreStatus::Revoked => GrpcStatus::Revoked as i32,
             },
-            cert_der: c
-                .cert_der
-                .and_then(|d| {
-                    if let CertDer::Inline(v) = d {
-                        Some(v)
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or_default(),
         }
     }
 }
