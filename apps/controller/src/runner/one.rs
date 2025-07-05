@@ -1,6 +1,9 @@
-use std::path::{Path, PathBuf};
+use std::{
+    io::Write,
+    path::{Path, PathBuf},
+};
 
-use crate::ConResult;
+use crate::{globals::DEFAULT, reload_globals, ConResult};
 use cert_utils::CertUtils;
 use cluster_utils::{ClusterClient, Default_ClientCluster};
 use grpc::tonic::async_trait;
@@ -89,8 +92,18 @@ impl ClusterClient for FirstStart {
 
 pub async fn first_run(marker_path: &Path) -> ConResult<()> {
     tracing::info!("第一次啟動，正在初始化...");
+    let mca_path = {
+        print!("請輸入mCA位置: ");
+        std::io::stdout().flush()?;
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input)?;
+        Some(input.trim())
+            .filter(|s| !s.is_empty())
+            .unwrap_or(DEFAULT)
+            .to_string()
+    };
     let (pri_key, _) = CertUtils::generate_rsa_keypair(4096).expect("生成 RSA 金鑰對失敗");
-    let mut conn = FirstStart::new("https://127.0.0.1:50052", pri_key.clone(), None);
+    let mut conn = FirstStart::new(mca_path, pri_key.clone(), None);
     conn.inner = conn
         .inner
         .with_root_ca(Some(ProjectConst::certs_path().join("rootCA.pem")));
@@ -102,7 +115,8 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
         tracing::error!("未包含有效憑證，請檢查伺服器設定");
         return Err("未收到憑證".into());
     }
-
     std::fs::write(marker_path, "done")?;
+    reload_globals().await;
+    // TODO: 將連線資訊寫入檔案
     Ok(())
 }
