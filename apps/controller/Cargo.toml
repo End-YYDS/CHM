@@ -3,19 +3,18 @@ name = "controller"
 version = { workspace = true }
 edition = { workspace = true }
 
-[dependencies]
-tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
-grpc = { workspace = true, features = ["controller"] }
-cert-utils = { workspace = true }
-crl_cache = { workspace = true }
-serde = { workspace = true }
-config_loader = { workspace = true,default-features = true }
-tokio = {workspace = true }
-cluster-utils = { workspace = true, features = ["client", "server"] }
-project_const = { workspace = true }
-
-
 [[bin]]
 name = "CHMcd"
 path = "src/main.rs"
+
+[dependencies]
+cert-utils = { workspace = true }
+cluster-utils = { workspace = true, features = ["client", "server"] }
+config_loader = { workspace = true, default-features = true }
+crl_cache = { workspace = true }
+grpc = { workspace = true, features = ["controller","ca-client"] }
+project_const = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
