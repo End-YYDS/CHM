@@ -15,8 +15,7 @@ impl ClientCA {
         tracing::info!("建立 CA 客戶端...");
         let client = CaClient::new(channel)
             .accept_compressed(CompressionEncoding::Zstd)
-            .send_compressed(CompressionEncoding::Zstd)
-            .accept_compressed(CompressionEncoding::Zstd);
+            .send_compressed(CompressionEncoding::Zstd);
         tracing::info!("CA 客戶端已建立");
         Self { client }
     }
