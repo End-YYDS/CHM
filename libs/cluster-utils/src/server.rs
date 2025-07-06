@@ -27,14 +27,14 @@ struct Otp {
     code: String,
 }
 pub struct ServerCluster {
-    bind_address: String,
-    cert_chain: Option<(ServerCert, ServerKey)>,
-    root_ca: Option<PathBuf>,
-    otp: Option<String>,
-    otp_len: usize,
-    ssl_acceptor: Option<openssl::ssl::SslAcceptorBuilder>,
-    custom_otp: bool,
-    marker_path: Option<PathBuf>,
+    bind_address:       String,
+    cert_chain:         Option<(ServerCert, ServerKey)>,
+    root_ca:            Option<PathBuf>,
+    otp:                Option<String>,
+    otp_len:            usize,
+    ssl_acceptor:       Option<openssl::ssl::SslAcceptorBuilder>,
+    custom_otp:         bool,
+    marker_path:        Option<PathBuf>,
     valid_cert_handler: Option<ValidCertHandler>,
 }
 impl Debug for ServerCluster {
@@ -54,14 +54,14 @@ impl Debug for ServerCluster {
 impl Default for ServerCluster {
     fn default() -> Self {
         Self {
-            bind_address: "0.0.0.0:50051".into(),
-            cert_chain: None,
-            root_ca: None,
-            otp: None,
-            otp_len: 6,
-            ssl_acceptor: None,
-            custom_otp: false,
-            marker_path: None,
+            bind_address:       "0.0.0.0:50051".into(),
+            cert_chain:         None,
+            root_ca:            None,
+            otp:                None,
+            otp_len:            6,
+            ssl_acceptor:       None,
+            custom_otp:         false,
+            marker_path:        None,
             valid_cert_handler: None,
         }
     }
@@ -165,15 +165,9 @@ impl super::ClusterServer for ServerCluster {
         let tx_clone = tx.clone();
         let bind_addr = self.bind_address.clone();
         let otp_code = self.otp.clone().expect("otp should have been set by new()");
-        let marker_path = self
-            .marker_path
-            .clone()
-            .expect("marker_path should have been set");
+        let marker_path = self.marker_path.clone().expect("marker_path should have been set");
         let ssl_builder = self.make_ssl_acceptor_builder()?;
-        let valid_cb = self
-            .valid_cert_handler
-            .clone()
-            .expect("請先呼叫 with_valid_cert_handler");
+        let valid_cb = self.valid_cert_handler.clone().expect("請先呼叫 with_valid_cert_handler");
         let server = HttpServer::new(move || {
             App::new()
                 .app_data(web::Data::new(marker_path.clone()))
@@ -231,27 +225,20 @@ async fn init_api(
 ) -> impl Responder {
     if data.code.as_str() != otp_code.as_str() {
         tracing::error!("OTP 驗證失敗: {}", data.code);
-        return HttpResponse::Unauthorized().json(ApiResponse {
-            message: "OTP 驗證失敗".to_string(),
-            ok: false,
-        });
+        return HttpResponse::Unauthorized()
+            .json(ApiResponse { message: "OTP 驗證失敗".to_string(), ok: false });
     }
     if let Some(peer) = req.conn_data::<PeerCerts>() {
-        let serial = peer
-            .0
-            .first()
-            .and_then(|cert| CertUtils::cert_serial_sha256(cert).ok());
-        let fingerprint = peer
-            .0
-            .first()
-            .and_then(|cert| CertUtils::cert_fingerprint_sha256(cert).ok());
+        let serial = peer.0.first().and_then(|cert| CertUtils::cert_serial_sha256(cert).ok());
+        let fingerprint =
+            peer.0.first().and_then(|cert| CertUtils::cert_fingerprint_sha256(cert).ok());
         if let (Some(s), Some(f)) = (serial, fingerprint) {
             {
                 if !(valid_cb.as_ref())(&s, &f) {
-                    return HttpResponse::Forbidden().json(ApiResponse {
-                        message: "憑證驗證失敗".to_string(),
-                        ok: false,
-                    });
+                    return HttpResponse::Forbidden()
+                        .json(ApiResponse {
+                            message: "憑證驗證失敗".to_string(), ok: false
+                        });
                 }
             }
         }
@@ -259,23 +246,21 @@ async fn init_api(
         tracing::warn!("沒有找到 PeerCerts，請確保使用正確的憑證連接");
         return HttpResponse::PreconditionFailed().json(ApiResponse {
             message: "沒有找到 PeerCerts，請確保使用正確的憑證連接".to_string(),
-            ok: false,
+            ok:      false,
         });
     }
 
     if let Err(e) = tokio::fs::write(marker_path.get_ref(), b"done").await {
         eprint!("寫入marker檔案失敗: {e}");
-        return HttpResponse::InternalServerError().json(ApiResponse {
-            message: format!("寫入marker檔案失敗: {e}"),
-            ok: false,
-        });
+        return HttpResponse::InternalServerError()
+            .json(ApiResponse { message: format!("寫入marker檔案失敗: {e}"), ok: false });
     }
     if cfg!(debug_assertions) {
         tracing::info!("初始化完成，關閉伺服器");
     }
     let _ = shutdown_tx.send(()).await;
-    HttpResponse::Ok().json(ApiResponse {
-        message: "初始化完成，web服務器將關閉".to_string(),
-        ok: true,
-    })
+    HttpResponse::Ok()
+        .json(ApiResponse {
+            message: "初始化完成，web服務器將關閉".to_string(), ok: true
+        })
 }

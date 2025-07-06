@@ -1,6 +1,6 @@
 use chm_cert_utils::CertUtils;
-use chrono::{DateTime, Utc};
 use chm_grpc::tonic::async_trait;
+use chrono::{DateTime, Utc};
 use openssl::nid::Nid;
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
@@ -20,11 +20,7 @@ pub struct SqlConnection {
 
 impl SqlConnection {
     pub async fn new(cfg: BackendConfig) -> CaResult<Self> {
-        let BackendConfig::Sqlite {
-            store_path,
-            max_connections,
-            timeout,
-        } = cfg;
+        let BackendConfig::Sqlite { store_path, max_connections, timeout } = cfg;
         let store_path = std::path::Path::new(&store_path);
         if !store_path.exists() {
             if let Some(parent) = store_path.parent() {
@@ -87,29 +83,29 @@ impl std::fmt::Display for CertStatus {
 
 #[derive(Debug)]
 struct SqlCert {
-    serial: Option<String>,     // PK: 憑證序號 (hex string)
-    subject_cn: Option<String>, // Common Name
-    subject_dn: Option<String>, // 完整 Subject DN
-    issuer: Option<String>,     // 完整 Issuer DN
-    issued_date: DateTime<Utc>, // 解析自 ISO8601
-    expiration: DateTime<Utc>,  // 同上
-    thumbprint: Option<String>, // SHA-256 指紋 hex
-    status: CertStatus,         // 'valid' / 'revoked' / ...
-    cert_der: Option<Vec<u8>>,  // BLOB 原始 DER bytes
+    serial:      Option<String>,  // PK: 憑證序號 (hex string)
+    subject_cn:  Option<String>,  // Common Name
+    subject_dn:  Option<String>,  // 完整 Subject DN
+    issuer:      Option<String>,  // 完整 Issuer DN
+    issued_date: DateTime<Utc>,   // 解析自 ISO8601
+    expiration:  DateTime<Utc>,   // 同上
+    thumbprint:  Option<String>,  // SHA-256 指紋 hex
+    status:      CertStatus,      // 'valid' / 'revoked' / ...
+    cert_der:    Option<Vec<u8>>, // BLOB 原始 DER bytes
 }
 
 impl From<SqlCert> for Cert {
     fn from(s: SqlCert) -> Self {
         Cert {
-            serial: s.serial,
-            subject_cn: s.subject_cn,
-            subject_dn: s.subject_dn,
-            issuer: s.issuer,
+            serial:      s.serial,
+            subject_cn:  s.subject_cn,
+            subject_dn:  s.subject_dn,
+            issuer:      s.issuer,
             issued_date: s.issued_date,
-            expiration: s.expiration,
-            thumbprint: s.thumbprint,
-            status: s.status,
-            cert_der: s.cert_der.map(CertDer::Inline),
+            expiration:  s.expiration,
+            thumbprint:  s.thumbprint,
+            status:      s.status,
+            cert_der:    s.cert_der.map(CertDer::Inline),
         }
     }
 }
@@ -117,18 +113,14 @@ impl From<SqlCert> for Cert {
 #[derive(Debug)]
 #[allow(dead_code)]
 struct SqlCrlEntry {
-    id: Option<i64>,             // AUTOINCREMENT 主鍵
+    id:          Option<i64>,    // AUTOINCREMENT 主鍵
     cert_serial: Option<String>, // FK: 對應到 certs.serial
-    revoked_at: DateTime<Utc>,   // 解析自 ISO8601
-    reason: Option<String>,      // 註銷原因
+    revoked_at:  DateTime<Utc>,  // 解析自 ISO8601
+    reason:      Option<String>, // 註銷原因
 }
 impl From<SqlCrlEntry> for CrlEntry {
     fn from(s: SqlCrlEntry) -> Self {
-        CrlEntry {
-            cert_serial: s.cert_serial,
-            revoked_at: s.revoked_at,
-            reason: s.reason,
-        }
+        CrlEntry { cert_serial: s.cert_serial, revoked_at: s.revoked_at, reason: s.reason }
     }
 }
 #[async_trait]
@@ -264,11 +256,7 @@ impl CertificateStore for SqlConnection {
                 Ok(format!("{key}={value}"))
             })
             .collect();
-        let subject_dn = subject_dn?
-            .iter()
-            .map(|s| s.to_string())
-            .collect::<Vec<_>>()
-            .join(",");
+        let subject_dn = subject_dn?.iter().map(|s| s.to_string()).collect::<Vec<_>>().join(",");
         let issuer = cert
             .issuer_name()
             .entries_by_nid(Nid::COMMONNAME)
@@ -286,28 +274,34 @@ impl CertificateStore for SqlConnection {
         let expiration = expiration.with_timezone(&chrono::Utc);
         let cert_der = cert.to_der()?;
         let thumbprint = CertUtils::cert_fingerprint_sha256(&cert)?;
-        let result = sqlx::query!("
-        INSERT INTO certs (serial, subject_cn, subject_dn, issuer, issued_date, expiration, thumbprint,cert_der)
+        let result = sqlx::query!(
+            "
+        INSERT INTO certs (serial, subject_cn, subject_dn, issuer, issued_date, expiration, \
+             thumbprint,cert_der)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        serial,subject_cn,subject_dn,issuer,issued_date,expiration,thumbprint,cert_der)
-        .execute(&mut *tx).await?;
+            serial,
+            subject_cn,
+            subject_dn,
+            issuer,
+            issued_date,
+            expiration,
+            thumbprint,
+            cert_der
+        )
+        .execute(&mut *tx)
+        .await?;
         if result.rows_affected() == 0 {
             return Err("Failed to insert cert".into());
         }
-        tracing::debug!(
-            "憑證已成功插入,序號: {}, ID: {}",
-            serial,
-            result.last_insert_rowid()
-        );
+        tracing::debug!("憑證已成功插入,序號: {}, ID: {}", serial, result.last_insert_rowid());
         tx.commit().await?;
         Ok(true)
     }
     /// 刪除憑證
     async fn delete(&self, serial: &str) -> CaResult<bool> {
         let mut tx = self.pool.begin().await?;
-        let result = sqlx::query!("DELETE FROM certs WHERE serial = ?", serial)
-            .execute(&mut *tx)
-            .await?;
+        let result =
+            sqlx::query!("DELETE FROM certs WHERE serial = ?", serial).execute(&mut *tx).await?;
         if result.rows_affected() == 0 {
             return Err("No cert found with the given serial".into());
         }
@@ -357,12 +351,10 @@ impl CertificateStore for SqlConnection {
             return Err("Failed to insert CRL entry".into());
         }
 
-        let update_result = sqlx::query!(
-            "UPDATE certs SET status = 'revoked' WHERE serial = ?",
-            serial
-        )
-        .execute(&mut *tx)
-        .await?;
+        let update_result =
+            sqlx::query!("UPDATE certs SET status = 'revoked' WHERE serial = ?", serial)
+                .execute(&mut *tx)
+                .await?;
 
         if update_result.rows_affected() == 0 {
             return Err("No cert found with the given serial to update".into());

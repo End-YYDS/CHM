@@ -11,26 +11,28 @@ use chm_grpc::{
 use crate::cert::process::CertificateProcess;
 
 use crate::cert::store::{Cert as StoreCert, CertStatus as StoreStatus};
-use chm_grpc::ca::{Cert as GrpcCert, CertStatus as GrpcStatus};
-use chm_grpc::prost_types::Timestamp;
+use chm_grpc::{
+    ca::{Cert as GrpcCert, CertStatus as GrpcStatus},
+    prost_types::Timestamp,
+};
 
 impl From<StoreCert> for GrpcCert {
     fn from(c: StoreCert) -> Self {
         GrpcCert {
-            serial: c.serial.unwrap_or_default(),
-            subject_cn: c.subject_cn.unwrap_or_default(),
-            subject_dn: c.subject_dn.unwrap_or_default(),
-            issuer: c.issuer.unwrap_or_default(),
+            serial:      c.serial.unwrap_or_default(),
+            subject_cn:  c.subject_cn.unwrap_or_default(),
+            subject_dn:  c.subject_dn.unwrap_or_default(),
+            issuer:      c.issuer.unwrap_or_default(),
             issued_date: Some(Timestamp {
                 seconds: c.issued_date.timestamp(),
-                nanos: c.issued_date.timestamp_subsec_nanos() as i32,
+                nanos:   c.issued_date.timestamp_subsec_nanos() as i32,
             }),
-            expiration: Some(Timestamp {
+            expiration:  Some(Timestamp {
                 seconds: c.expiration.timestamp(),
-                nanos: c.expiration.timestamp_subsec_nanos() as i32,
+                nanos:   c.expiration.timestamp_subsec_nanos() as i32,
             }),
-            thumbprint: c.thumbprint.unwrap_or_default(),
-            status: match c.status {
+            thumbprint:  c.thumbprint.unwrap_or_default(),
+            status:      match c.status {
                 StoreStatus::Valid => GrpcStatus::Valid as i32,
                 StoreStatus::Revoked => GrpcStatus::Revoked as i32,
             },
@@ -41,7 +43,7 @@ impl From<StoreCert> for GrpcCert {
 /// gRPC CA 實現
 pub struct MyCa {
     /// 憑證處理器
-    pub cert: Arc<CertificateProcess>,
+    pub cert:     Arc<CertificateProcess>,
     pub reloader: tokio::sync::watch::Sender<()>,
 }
 
@@ -51,7 +53,8 @@ impl Ca for MyCa {
     /// # 參數
     /// * `req`: 包含 CSR 和有效天數的請求
     /// # 回傳
-    /// * `Result<Response<CsrResponse>, Status>`: 返回簽署的憑證和鏈，或錯誤狀態
+    /// * `Result<Response<CsrResponse>, Status>`:
+    ///   返回簽署的憑證和鏈，或錯誤狀態
     async fn sign_csr(&self, req: Request<CsrRequest>) -> Result<Response<CsrResponse>, Status> {
         let temp = req.into_parts();
         let debug = cfg!(debug_assertions);
@@ -112,9 +115,7 @@ impl Ca for MyCa {
             .await
             .map_err(|e| Status::internal(format!("Failed to get cert: {e}")))?
             .ok_or_else(|| Status::not_found(format!("Cert not found: {serial}")))?;
-        Ok(Response::new(GetCertResponse {
-            cert: Some(cert.into()),
-        }))
+        Ok(Response::new(GetCertResponse { cert: Some(cert.into()) }))
     }
     async fn get_by_thumbprint(
         &self,
@@ -130,9 +131,7 @@ impl Ca for MyCa {
             .ok_or_else(|| {
                 Status::not_found(format!("Cert not found for thumbprint: {thumbprint}"))
             })?;
-        Ok(Response::new(GetByThumprintResponse {
-            cert: Some(cert.into()),
-        }))
+        Ok(Response::new(GetByThumprintResponse { cert: Some(cert.into()) }))
     }
     async fn get_by_common_name(
         &self,
@@ -148,9 +147,7 @@ impl Ca for MyCa {
             .ok_or_else(|| {
                 Status::not_found(format!("Cert not found for common name: {common_name}"))
             })?;
-        Ok(Response::new(GetByCommonNameResponse {
-            cert: Some(cert.into()),
-        }))
+        Ok(Response::new(GetByCommonNameResponse { cert: Some(cert.into()) }))
     }
     async fn query_cert_status(
         &self,

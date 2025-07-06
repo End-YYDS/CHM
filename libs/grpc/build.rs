@@ -1,5 +1,4 @@
-use std::path::Path;
-use std::{env, fs};
+use std::{env, fs, path::Path};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE");
@@ -15,10 +14,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
         println!("cargo:rerun-if-changed={}", path.display());
-        let stem = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .expect("檔名一定要是 valid UTF-8");
+        let stem = path.file_stem().and_then(|s| s.to_str()).expect("檔名一定要是 valid UTF-8");
         let feature_client = format!("CARGO_FEATURE_{}_CLIENT", stem.to_uppercase());
         let feature_server = format!("CARGO_FEATURE_{}_SERVER", stem.to_uppercase());
         if env::var(&feature_client).is_err() && env::var(&feature_server).is_err() {
@@ -41,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .server_mod_attribute(stem, format!("#[cfg(feature = \"{stem}-server\")]"))
             .build_client(want_client)
             .build_server(want_server)
-            .compile_protos(&[path.clone()], &[&proto_root])?;
+            .compile_protos(&[&path], &[&proto_root])?;
     }
     let mut mod_rs = String::new();
     for entry in fs::read_dir(&proto_root)? {

@@ -14,9 +14,7 @@ pub fn decode_base64(input: &str) -> Result<String, Box<dyn std::error::Error>> 
 pub fn hash_password(password: &str) -> Result<String, Box<dyn std::error::Error>> {
     let salt = SaltString::generate(&mut OsRng);
     let argon2 = Argon2::default();
-    let password_hash = argon2
-        .hash_password(password.as_bytes(), &salt)?
-        .to_string();
+    let password_hash = argon2.hash_password(password.as_bytes(), &salt)?.to_string();
     let encoded_hash = general_purpose::STANDARD.encode(password_hash.as_bytes());
     Ok(encoded_hash)
 }
@@ -39,10 +37,7 @@ pub fn verify_password(
 use rand::{distr::Alphanumeric, Rng};
 pub fn generate_otp(len: usize) -> String {
     let rng = rand::rng();
-    rng.sample_iter(&Alphanumeric)
-        .take(len)
-        .map(char::from)
-        .collect()
+    rng.sample_iter(&Alphanumeric).take(len).map(char::from).collect()
 }
 #[cfg(test)]
 mod tests {

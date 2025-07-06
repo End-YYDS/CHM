@@ -43,9 +43,8 @@ pub type CsrCert = Vec<u8>;
 type CheckFuture = BoxFuture<'static, Result<Request<()>, Status>>;
 
 fn get_ssl_info(req: &Request<()>) -> CaResult<(X509, String)> {
-    let peer_der_vec = req
-        .peer_certs()
-        .ok_or_else(|| Status::unauthenticated("No TLS connection"))?;
+    let peer_der_vec =
+        req.peer_certs().ok_or_else(|| Status::unauthenticated("No TLS connection"))?;
     let peer_slice: &[tonic::transport::CertificateDer] = peer_der_vec.as_ref().as_slice();
     let leaf = peer_slice
         .first()
@@ -118,7 +117,8 @@ fn make_crl_middleware(
 /// * `addr`: gRPC 服務的地址
 /// * `cert_handler`: 憑證處理器，用於憑證簽署和 CRL 驗證
 /// # 回傳
-/// * `Result<(), Box<dyn std::error::Error>>`: 返回結果，成功時為 Ok，失敗時為 Err
+/// * `Result<(), Box<dyn std::error::Error>>`: 返回結果，成功時為 Ok，失敗時為
+///   Err
 pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>) -> CaResult<()> {
     let (cert_update_tx, mut cert_update_rx) = watch::channel(());
     loop {
@@ -132,9 +132,7 @@ pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>)
         // ----------
         // 啟動健康檢查服務
         let (health_reporter, health_service) = health_reporter();
-        health_reporter
-            .set_serving::<ca_server::CaServer<MyCa>>()
-            .await;
+        health_reporter.set_serving::<ca_server::CaServer<MyCa>>().await;
         // ----------
         let shutdown_signal = {
             let health_reporter = health_reporter.clone();
@@ -147,26 +145,19 @@ pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>)
                         tracing::info!("[gRPC] 憑證更新，開始重新啟動 gRPC...");
                     }
                 }
-                health_reporter
-                    .set_not_serving::<ca_server::CaServer<MyCa>>()
-                    .await;
+                health_reporter.set_not_serving::<ca_server::CaServer<MyCa>>().await;
             }
         };
 
         let controller_args = {
             let lock = GlobalConfig::read().await;
-            (
-                lock.settings.controller.serial.clone(),
-                lock.settings.controller.fingerprint.clone(),
-            )
+            (lock.settings.controller.serial.clone(), lock.settings.controller.fingerprint.clone())
         };
-        let ca_layer = async_interceptor(make_ca_middleware(
-            cert_handler.clone(),
-            controller_args.clone(),
-        ));
+        let ca_layer =
+            async_interceptor(make_ca_middleware(cert_handler.clone(), controller_args.clone()));
         let ca_svc = ServiceBuilder::new().layer(ca_layer).service(
             CaServer::new(MyCa {
-                cert: cert_handler.clone(),
+                cert:     cert_handler.clone(),
                 reloader: cert_update_tx.clone(),
             })
             .send_compressed(CompressionEncoding::Zstd)
@@ -174,11 +165,9 @@ pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>)
         );
         let crl_layer = async_interceptor(make_crl_middleware(cert_handler.clone()));
         let crl_svc = ServiceBuilder::new().layer(crl_layer).service(
-            crl_server::CrlServer::new(CrlList {
-                cert: cert_handler.clone(),
-            })
-            .send_compressed(CompressionEncoding::Zstd)
-            .accept_compressed(CompressionEncoding::Zstd),
+            crl_server::CrlServer::new(CrlList { cert: cert_handler.clone() })
+                .send_compressed(CompressionEncoding::Zstd)
+                .accept_compressed(CompressionEncoding::Zstd),
         );
         tracing::info!("[gRPC] 啟動 gRPC 服務於 {addr}");
         let server = tonic::transport::Server::builder()

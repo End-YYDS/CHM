@@ -8,8 +8,11 @@ use ca::{
     *,
 };
 use chm_project_const::ProjectConst;
-use std::sync::atomic::Ordering::Relaxed;
-use std::{env, fs, net::SocketAddr, sync::Arc};
+use std::{
+    env, fs,
+    net::SocketAddr,
+    sync::{atomic::Ordering::Relaxed, Arc},
+};
 use tracing_subscriber::EnvFilter;
 #[actix_web::main]
 async fn main() -> CaResult<()> {

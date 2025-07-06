@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 struct ApiResponse {
     message: String,
-    ok: bool,
+    ok:      bool,
 }
 #[cfg(feature = "client")]
 mod client;

@@ -11,10 +11,10 @@ pub static ID: &str = "CA";
 pub struct Server {
     #[serde(default = "Server::default_host")]
     /// 伺服器主機名稱或 IP 地址
-    pub host: String,
+    pub host:    String,
     #[serde(default = "Server::default_port")]
     /// 伺服器埠號
-    pub port: u16,
+    pub port:    u16,
     #[serde(default = "Server::default_otp_len")]
     pub otp_len: usize,
 }
@@ -35,8 +35,8 @@ impl Server {
 impl Default for Server {
     fn default() -> Self {
         Server {
-            host: Server::default_host(),
-            port: Server::default_port(),
+            host:    Server::default_host(),
+            port:    Server::default_port(),
             otp_len: Server::default_otp_len(),
         }
     }
@@ -49,19 +49,19 @@ pub enum BackendConfig {
     /// 最大連線數量預設為 5，逾時時間預設為 10 秒
     Sqlite {
         #[serde(default = "SqliteSettings::default_store_path")]
-        store_path: String,
+        store_path:      String,
         #[serde(default = "SqliteSettings::default_max_connections")]
         max_connections: u32,
         #[serde(default = "SqliteSettings::default_timeout")]
-        timeout: u64,
+        timeout:         u64,
     },
 }
 impl Default for BackendConfig {
     fn default() -> Self {
         BackendConfig::Sqlite {
-            store_path: SqliteSettings::default_store_path(),
+            store_path:      SqliteSettings::default_store_path(),
             max_connections: SqliteSettings::default_max_connections(),
-            timeout: SqliteSettings::default_timeout(),
+            timeout:         SqliteSettings::default_timeout(),
         }
     }
 }
@@ -88,23 +88,20 @@ impl SqliteSettings {
 pub struct Certificate {
     #[serde(default = "Certificate::default_rootca")]
     /// 根憑證的路徑
-    pub rootca: String,
+    pub rootca:              String,
     #[serde(default = "Certificate::default_rootca_key")]
     /// 根憑證的私鑰路徑
-    pub rootca_key: String,
+    pub rootca_key:          String,
     #[serde(default = "Certificate::default_passphrase")]
     /// 根憑證的密碼短語
-    pub passphrase: String,
+    pub passphrase:          String,
     #[serde(default = "Certificate::default_bits")]
-    pub bits: i32,
-    #[serde(
-        with = "humantime_serde",
-        default = "Certificate::default_crl_update_interval"
-    )]
+    pub bits:                i32,
+    #[serde(with = "humantime_serde", default = "Certificate::default_crl_update_interval")]
     pub crl_update_interval: std::time::Duration,
     #[serde(flatten)]
     #[serde(default)]
-    pub backend: BackendConfig,
+    pub backend:             BackendConfig,
 }
 
 impl Certificate {
@@ -139,11 +136,11 @@ impl Certificate {
 impl Default for Certificate {
     fn default() -> Self {
         Certificate {
-            rootca: Certificate::default_rootca(),
-            rootca_key: Certificate::default_rootca_key(),
-            passphrase: "".into(),
-            backend: BackendConfig::default(),
-            bits: Certificate::default_bits(),
+            rootca:              Certificate::default_rootca(),
+            rootca_key:          Certificate::default_rootca_key(),
+            passphrase:          "".into(),
+            backend:             BackendConfig::default(),
+            bits:                Certificate::default_bits(),
             crl_update_interval: Certificate::default_crl_update_interval(),
         }
     }
@@ -157,7 +154,7 @@ pub struct Controller {
     pub fingerprint: String,
     /// 控制器的序列號，用於唯一標識
     #[serde(default = "Controller::default_serial")]
-    pub serial: String,
+    pub serial:      String,
 }
 
 impl Controller {
@@ -176,13 +173,13 @@ impl Controller {
 pub struct Settings {
     #[serde(default)]
     /// 伺服器設定
-    pub server: Server,
+    pub server:      Server,
     #[serde(default)]
     /// 憑證設定
     pub certificate: Certificate,
     #[serde(default)]
     /// 控制器設定
-    pub controller: Controller,
+    pub controller:  Controller,
 }
 
 impl Settings {
@@ -198,7 +195,8 @@ impl Settings {
     /// # 參數
     /// * `path` - 要生成的設定檔路徑
     /// # 回傳
-    /// * `Result<(), Box<dyn std::error::Error>>` - 返回結果，成功時為 Ok，失敗時為 Err
+    /// * `Result<(), Box<dyn std::error::Error>>` - 返回結果，成功時為
+    ///   Ok，失敗時為 Err
     pub async fn init(path: &str) -> CaResult<()> {
         store_config(&Settings::default(), path).await?;
         println!("Generated default config at {path}");

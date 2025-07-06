@@ -1,52 +1,49 @@
-use crate::cert::process::CertificateProcess;
-use crate::globals::GlobalConfig;
-use crate::{CaResult, PrivateKey, SignedCert};
+use crate::{
+    cert::process::CertificateProcess, globals::GlobalConfig, CaResult, PrivateKey, SignedCert,
+};
 use actix_web::{dev::ServerHandle, post, web, App, HttpResponse, HttpServer};
 use chm_cert_utils::CertUtils;
 use chm_project_const::ProjectConst;
-use openssl::ssl::SslVerifyMode;
-use openssl::x509::X509Req;
 use openssl::{
     pkey::PKey,
-    ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod},
-    x509::X509,
+    ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod, SslVerifyMode},
+    x509::{X509Req, X509},
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use std::{fs, io::Write, net::SocketAddr, path::PathBuf};
+use std::{fs, io::Write, net::SocketAddr, path::PathBuf, sync::Arc};
 use tokio::sync::mpsc::Sender;
 #[derive(Serialize)]
 struct SignedCertResponse {
-    cert: Vec<u8>,
+    cert:  Vec<u8>,
     chain: Vec<Vec<u8>>,
 }
 
 #[allow(unused)]
 #[derive(Debug, Clone, Deserialize)]
 struct Otp {
-    code: String,
+    code:     String,
     csr_cert: Vec<u8>,
-    days: u32,
+    days:     u32,
 }
 
 #[derive(Clone)]
 struct AppState {
     cert_process: Arc<CertificateProcess>,
-    shutdown_tx: Sender<()>,
-    marker_path: PathBuf,
-    otp_code: String,
+    shutdown_tx:  Sender<()>,
+    marker_path:  PathBuf,
+    otp_code:     String,
 }
 /// MiniController 用於管理初始化過程的控制器
 pub struct MiniController {
     /// 伺服器自己的已簽署憑證
-    sign_cert: Option<SignedCert>,
+    sign_cert:     Option<SignedCert>,
     /// 伺服器自己的私鑰
-    private_key: Option<PrivateKey>,
+    private_key:   Option<PrivateKey>,
     /// 伺服器的 handle
     server_handle: Option<ServerHandle>,
     /// 用於關閉伺服器的通道
-    shutdown_tx: Option<Sender<()>>,
-    cert_process: Arc<CertificateProcess>,
+    shutdown_tx:   Option<Sender<()>>,
+    cert_process:  Arc<CertificateProcess>,
 }
 impl MiniController {
     /// 建立一個新的 MiniController
@@ -60,13 +57,7 @@ impl MiniController {
         private_key: Option<PrivateKey>,
         cert_process: Arc<CertificateProcess>,
     ) -> Self {
-        Self {
-            sign_cert,
-            private_key,
-            server_handle: None,
-            shutdown_tx: None,
-            cert_process,
-        }
+        Self { sign_cert, private_key, server_handle: None, shutdown_tx: None, cert_process }
     }
     /// 回傳伺服器X509憑證
     /// # 回傳
@@ -128,19 +119,16 @@ impl MiniController {
             let cfg = GlobalConfig::read().await;
             cfg.settings.certificate.rootca.clone()
         };
-        let ssl_acceptor = self
-            .build_ssl_builder(&rootca)
-            .map_err(|e| format!("SSL 建構失敗: {e}"))?;
+        let ssl_acceptor =
+            self.build_ssl_builder(&rootca).map_err(|e| format!("SSL 建構失敗: {e}"))?;
         let state = AppState {
             cert_process: self.cert_process.clone(),
-            shutdown_tx: tx.clone(),
-            marker_path: marker_path.clone(),
-            otp_code: otp_code.clone(),
+            shutdown_tx:  tx.clone(),
+            marker_path:  marker_path.clone(),
+            otp_code:     otp_code.clone(),
         };
         let server = HttpServer::new(move || {
-            App::new()
-                .app_data(web::Data::new(state.clone()))
-                .service(init_api)
+            App::new().app_data(web::Data::new(state.clone())).service(init_api)
         })
         .bind_openssl(addr, ssl_acceptor)?
         .disable_signals()
@@ -183,9 +171,7 @@ impl MiniController {
             .or_else(|_| X509::from_der(cert_bytes))
             .map_err(|e| format!("解析Leaf失敗: {e}"))?;
         builder.set_certificate(&cert)?;
-        builder
-            .set_ca_file(rootca)
-            .map_err(|e| format!("設置CA檔案失敗: {e}"))?;
+        builder.set_ca_file(rootca).map_err(|e| format!("設置CA檔案失敗: {e}"))?;
         let pkey = PKey::private_key_from_pem(key_bytes)
             .or_else(|_| PKey::private_key_from_der(key_bytes))
             .map_err(|e| format!("解析PrivateKey失敗: {e}"))?;
@@ -204,12 +190,7 @@ impl MiniController {
 /// # 回傳
 /// * `HttpResponse`: 返回 HTTP 響應，成功時為 Ok，失敗時為 InternalServerError
 async fn init_api(state: web::Data<AppState>, data: web::Json<Otp>) -> HttpResponse {
-    let AppState {
-        cert_process,
-        shutdown_tx,
-        marker_path,
-        otp_code,
-    } = state.get_ref();
+    let AppState { cert_process, shutdown_tx, marker_path, otp_code } = state.get_ref();
     if data.code.as_str() != otp_code.as_str() {
         tracing::error!("OTP 驗證失敗: {}", data.code);
         return HttpResponse::Unauthorized().body("OTP 驗證失敗");
@@ -254,9 +235,6 @@ async fn init_api(state: web::Data<AppState>, data: web::Json<Otp>) -> HttpRespo
         tracing::info!("初始化完成，關閉伺服器");
     }
     let _ = shutdown_tx.send(()).await;
-    let ret_data = SignedCertResponse {
-        cert: signed_cert.0,
-        chain: signed_cert.1,
-    };
+    let ret_data = SignedCertResponse { cert: signed_cert.0, chain: signed_cert.1 };
     HttpResponse::Ok().json(ret_data)
 }

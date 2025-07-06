@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use std::fmt::Debug;
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, fmt::Debug, sync::Arc};
 use thiserror::Error;
 use tokio::{sync::RwLock, time::Duration};
 pub mod providers;
@@ -22,10 +21,10 @@ pub trait CrlProvider: Send + Sync + Debug {
 
 #[derive(Debug)]
 pub struct CrlCache {
-    entries: RwLock<HashSet<String>>,
+    entries:     RwLock<HashSet<String>>,
     last_update: RwLock<DateTime<Utc>>,
     next_update: RwLock<DateTime<Utc>>,
-    provider: Arc<dyn CrlProvider>,
+    provider:    Arc<dyn CrlProvider>,
 }
 
 impl CrlCache {

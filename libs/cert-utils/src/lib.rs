@@ -28,7 +28,8 @@ impl CertUtils {
     /// 產生 CSR 與對應的私鑰
     /// # 參數
     /// * `key_bits`: RSA 金鑰長度 (e.g. 2048)
-    /// * `country`, `state`, `locality`, `organization`, `common_name`: Subject 欄位
+    /// * `country`, `state`, `locality`, `organization`, `common_name`: Subject
+    ///   欄位
     /// * `subject_alt_names`: 要加入的 SAN DNS 名稱列表
     /// # 回傳
     /// * `Ok((private_key_pem, csr_pem))`：分別是私鑰和 CSR 的 PEM Bytes
@@ -130,7 +131,6 @@ impl CertUtils {
     /// 產生自簽名憑證
     /// # 參數
     /// * `csr`: CSR 的 PEM Bytes
-    ///
     pub fn generate_self_signed_cert(
         bits: u32,
         country: &str,
@@ -152,13 +152,9 @@ impl CertUtils {
         builder.set_not_before(&not_before)?;
         builder.set_not_after(&not_after)?;
         let mut name_b = X509NameBuilder::new()?;
-        for &(field, value) in &[
-            ("C", country),
-            ("ST", state),
-            ("L", locality),
-            ("O", org),
-            ("CN", cn),
-        ] {
+        for &(field, value) in
+            &[("C", country), ("ST", state), ("L", locality), ("O", org), ("CN", cn)]
+        {
             name_b.append_entry_by_text(field, value)?;
         }
         let name = name_b.build();
@@ -166,12 +162,8 @@ impl CertUtils {
         builder.set_issuer_name(&name)?;
         builder.set_pubkey(&key)?;
         builder.append_extension(BasicConstraints::new().critical().build()?)?;
-        builder.append_extension(
-            KeyUsage::new()
-                .digital_signature()
-                .key_encipherment()
-                .build()?,
-        )?;
+        builder
+            .append_extension(KeyUsage::new().digital_signature().key_encipherment().build()?)?;
         if !san.is_empty() {
             let mut san_b = SubjectAlternativeName::new();
             for &entry in san {
@@ -274,21 +266,13 @@ impl CertUtils {
     pub fn cert_fingerprint_sha256(cert: &X509) -> Result<String> {
         let der = cert.to_der()?;
         let digest = hash(MessageDigest::sha256(), &der)?;
-        let hex = digest
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect::<Vec<_>>()
-            .join("");
+        let hex = digest.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join("");
         Ok(hex)
     }
     pub fn cert_serial_sha256(cert: &X509) -> Result<String> {
         let serial = cert.serial_number();
         let digest = hash(MessageDigest::sha256(), serial.to_bn()?.to_vec().as_slice())?;
-        let hex = digest
-            .iter()
-            .map(|b| format!("{b:02x}"))
-            .collect::<Vec<_>>()
-            .join("");
+        let hex = digest.iter().map(|b| format!("{b:02x}")).collect::<Vec<_>>().join("");
         Ok(hex)
     }
     /// 驗證 CRL 回應的簽名是否來自於指定的 CA
@@ -300,18 +284,11 @@ impl CertUtils {
         let mut clean = resp.clone();
         clean.signature = Vec::new();
         let raw = Message::encode_to_vec(&clean);
-        let pubkey = ca_cert
-            .public_key()
-            .map_err(|e| format!("取公鑰失敗: {e}"))?;
+        let pubkey = ca_cert.public_key().map_err(|e| format!("取公鑰失敗: {e}"))?;
         let mut verifier = Verifier::new(MessageDigest::sha256(), &pubkey)
             .map_err(|e| format!("建立 Verifier 失敗: {e}"))?;
-        verifier
-            .update(&raw)
-            .map_err(|e| format!("Verifier update 失敗: {e}"))?;
-        if verifier
-            .verify(signature)
-            .map_err(|e| format!("執行 verify 失敗: {e}"))?
-        {
+        verifier.update(&raw).map_err(|e| format!("Verifier update 失敗: {e}"))?;
+        if verifier.verify(signature).map_err(|e| format!("執行 verify 失敗: {e}"))? {
             Ok(())
         } else {
             Err("簽名驗證失敗：簽章不符".into())

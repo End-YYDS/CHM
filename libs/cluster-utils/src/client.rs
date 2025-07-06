@@ -8,19 +8,19 @@ type ClientKey = PathBuf;
 
 #[derive(Debug)]
 pub struct ClientCluster {
-    base_url: String,
-    timeout: Duration,
+    base_url:   String,
+    timeout:    Duration,
     cert_chain: Option<(ClientCert, ClientKey)>,
-    root_ca: Option<PathBuf>,
+    root_ca:    Option<PathBuf>,
 }
 
 impl Default for ClientCluster {
     fn default() -> Self {
         Self {
-            base_url: "localhost:50051".into(),
-            timeout: Duration::from_secs(5),
+            base_url:   "localhost:50051".into(),
+            timeout:    Duration::from_secs(5),
             cert_chain: None,
-            root_ca: None,
+            root_ca:    None,
         }
     }
 }
@@ -104,11 +104,7 @@ impl ClusterClient for ClientCluster {
         })?;
         let mut map = HashMap::new();
         map.insert("code", otp);
-        let resp = client
-            .post(format!("https://{}/init", self.base_url))
-            .json(&map)
-            .send()
-            .await?;
+        let resp = client.post(format!("https://{}/init", self.base_url)).json(&map).send().await?;
         let api_resp: ApiResponse = resp.json().await?;
         if !api_resp.ok {
             let err_msg = api_resp.message.clone();

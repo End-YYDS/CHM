@@ -34,25 +34,15 @@ pub async fn grpc_connection_init() -> ConResult<Channel> {
     };
     let ca_certificate = Certificate::from_pem(root_cert);
     let client_identity = Identity::from_pem(client_cert, client_key);
-    let tls = ClientTlsConfig::new()
-        .ca_certificate(ca_certificate)
-        .identity(client_identity);
-    let channel = Endpoint::from_shared(mca_info)?
-        .tls_config(tls)?
-        .connect()
-        .await?;
+    let tls = ClientTlsConfig::new().ca_certificate(ca_certificate).identity(client_identity);
+    let channel = Endpoint::from_shared(mca_info)?.tls_config(tls)?.connect().await?;
     Ok(channel)
 }
 pub async fn health_check(channel: Channel, service_name: impl AsRef<str>) -> crate::ConResult<()> {
     let svc = service_name.as_ref(); // &str
     tracing::info!("執行{svc}健康檢查...");
     let mut health = HealthClient::new(channel.clone());
-    let resp = health
-        .check(HealthCheckRequest {
-            service: svc.into(),
-        })
-        .await?
-        .into_inner();
+    let resp = health.check(HealthCheckRequest { service: svc.into() }).await?.into_inner();
     tracing::info!("{svc} 健康狀態 = {:?}", resp.status());
     Ok(())
 }

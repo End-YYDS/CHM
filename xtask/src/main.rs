@@ -35,7 +35,7 @@ enum Commands {
     Completions {
         /// 指定要生成哪種 shell 的 completion
         #[arg(long, value_parser = value_parser!(ClapShell))]
-        shell: ClapShell,
+        shell:   ClapShell,
         /// output directory (預設: "./completions")
         #[arg(long, default_value = "completions",value_hint = ValueHint::AnyPath)]
         out_dir: String,
@@ -83,52 +83,32 @@ enum FrontendAction {
 enum BackendAction {
     /// 建置release版本
     Build {
-        #[arg(
-            short = 'b',
-            long = "bin",
-            value_name = "BIN",
-            conflicts_with = "package"
-        )]
-        bin: Option<String>,
+        #[arg(short = 'b', long = "bin", value_name = "BIN", conflicts_with = "package")]
+        bin:     Option<String>,
         /// 要編譯哪些 package（可重複指定多個)；不指定就用 `--workspace`
         #[arg(short='p', long="package", value_name="PKG", num_args=1.., conflicts_with = "bin")]
         package: Vec<String>,
     },
     /// Debug版本
     Debug {
-        #[arg(
-            short = 'b',
-            long = "bin",
-            value_name = "BIN",
-            conflicts_with = "package"
-        )]
-        bin: Option<String>,
+        #[arg(short = 'b', long = "bin", value_name = "BIN", conflicts_with = "package")]
+        bin:     Option<String>,
         /// 要編譯哪些 package（可重複指定多個)；不指定就用 `--workspace`
         #[arg(short='p', long="package", value_name="PKG", num_args=1.., conflicts_with = "bin")]
         package: Vec<String>,
     },
     /// 測試
     Test {
-        #[arg(
-            short = 'b',
-            long = "bin",
-            value_name = "BIN",
-            conflicts_with = "package"
-        )]
-        bin: Option<String>,
+        #[arg(short = 'b', long = "bin", value_name = "BIN", conflicts_with = "package")]
+        bin:     Option<String>,
         /// 要編譯哪些 package（可重複指定多個)；不指定就用 `--workspace`
         #[arg(short='p', long="package", value_name="PKG", num_args=1.., conflicts_with = "bin")]
         package: Vec<String>,
     },
     /// 執行
     Run {
-        #[arg(
-            short = 'b',
-            long = "bin",
-            value_name = "BIN",
-            conflicts_with = "package"
-        )]
-        bin: Option<String>,
+        #[arg(short = 'b', long = "bin", value_name = "BIN", conflicts_with = "package")]
+        bin:     Option<String>,
         /// 要編譯哪些 package（可重複指定多個)；不指定就用 `--workspace`
         #[arg(short='p', long="package", value_name="PKG", num_args=1.., conflicts_with = "bin")]
         package: Vec<String>,
@@ -191,35 +171,23 @@ fn run_backend(action: BackendAction) {
     let mut targets = Vec::new();
 
     match action {
-        BackendAction::Build {
-            ref bin,
-            ref package,
-        } => {
+        BackendAction::Build { ref bin, ref package } => {
             let (base_args, base_targets) = process_package_and_bin(bin.as_ref(), package, "build");
             args.extend(base_args);
             targets.extend(base_targets);
             args.push("--release");
         }
-        BackendAction::Debug {
-            ref bin,
-            ref package,
-        } => {
+        BackendAction::Debug { ref bin, ref package } => {
             let (base_args, base_targets) = process_package_and_bin(bin.as_ref(), package, "build");
             args.extend(base_args);
             targets.extend(base_targets);
         }
-        BackendAction::Test {
-            ref bin,
-            ref package,
-        } => {
+        BackendAction::Test { ref bin, ref package } => {
             let (base_args, base_targets) = process_package_and_bin(bin.as_ref(), package, "test");
             args.extend(base_args);
             targets.extend(base_targets);
         }
-        BackendAction::Run {
-            ref bin,
-            ref package,
-        } => {
+        BackendAction::Run { ref bin, ref package } => {
             let (base_args, base_targets) = process_package_and_bin(bin.as_ref(), package, "run");
             args.extend(base_args);
             targets.extend(base_targets);
@@ -254,16 +222,7 @@ fn run_cmd<S: AsRef<str>>(program: S, args: &[&str], cwd: &str) {
             .chain(args.iter().copied())
             .collect::<Vec<_>>()
             .join(" ");
-        cmd(
-            "powershell",
-            &[
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-Command",
-                &full_cmd,
-            ],
-        )
+        cmd("powershell", &["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", &full_cmd])
     } else {
         cmd(program.as_ref(), args)
     };
@@ -275,10 +234,7 @@ fn run_cmd<S: AsRef<str>>(program: S, args: &[&str], cwd: &str) {
 }
 
 fn workspace_members() -> (Vec<String>, Vec<String>) {
-    let meta = MetadataCommand::new()
-        .no_deps()
-        .exec()
-        .expect("無法讀取 cargo metadata");
+    let meta = MetadataCommand::new().no_deps().exec().expect("無法讀取 cargo metadata");
     let (package_names, bin_names): (Vec<_>, Vec<_>) = meta
         .workspace_members
         .iter()
@@ -366,10 +322,7 @@ fn generate_completions(shell: ClapShell, out_dir: &str) {
         });
         let mut buf = BufWriter::new(file);
         generate(ClapShell::PowerShell, &mut cmd, &bin_name, &mut buf);
-        println!(
-            "✅ 已生成 PowerShell (psm1) completion 到 `{}`",
-            file_path.display()
-        );
+        println!("✅ 已生成 PowerShell (psm1) completion 到 `{}`", file_path.display());
     } else {
         generate_to(shell, &mut cmd, &bin_name, &out_path).unwrap_or_else(|e| {
             eprintln!("❌ 無法生成 completion: {e}");
@@ -395,10 +348,7 @@ fn install_to_user_dir(shell: ClapShell) {
         let mut module_dirs: Vec<PathBuf> =
             vec![home.join("Documents/PowerShell/Modules").join(&bin_name)];
         #[cfg(windows)]
-        module_dirs.push(
-            home.join("Documents/WindowsPowerShell/Modules")
-                .join(&bin_name),
-        );
+        module_dirs.push(home.join("Documents/WindowsPowerShell/Modules").join(&bin_name));
 
         for target_dir in module_dirs {
             if let Err(e) = fs::create_dir_all(&target_dir) {
@@ -434,22 +384,16 @@ Set-Alias -Name "cargo-chm" -Value Invoke-CargoChm
     }
 
     let (mut target_dir, filename) = match shell {
-        ClapShell::Bash => (
-            home_dir().unwrap().join(".bash_completion.d"),
-            format!("{bin_name}.bash"),
-        ),
-        ClapShell::Zsh => (
-            home_dir().unwrap().join(".zsh/completion"),
-            format!("_{bin_name}"),
-        ),
-        ClapShell::Fish => (
-            home_dir().unwrap().join(".config/fish/completions"),
-            format!("{bin_name}.fish"),
-        ),
-        ClapShell::Elvish => (
-            home_dir().unwrap().join(".config/elvish/rc.d"),
-            format!("{bin_name}.elvish"),
-        ),
+        ClapShell::Bash => {
+            (home_dir().unwrap().join(".bash_completion.d"), format!("{bin_name}.bash"))
+        }
+        ClapShell::Zsh => (home_dir().unwrap().join(".zsh/completion"), format!("_{bin_name}")),
+        ClapShell::Fish => {
+            (home_dir().unwrap().join(".config/fish/completions"), format!("{bin_name}.fish"))
+        }
+        ClapShell::Elvish => {
+            (home_dir().unwrap().join(".config/elvish/rc.d"), format!("{bin_name}.elvish"))
+        }
         _ => unreachable!(),
     };
 

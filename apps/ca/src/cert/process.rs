@@ -12,8 +12,7 @@ use openssl::{
         X509Builder, X509NameBuilder, X509Req, X509,
     },
 };
-use std::path::Path;
-use std::{fs, sync::Arc};
+use std::{fs, path::Path, sync::Arc};
 
 use crate::{
     cert::crl::{self, CrlVerifier},
@@ -26,10 +25,10 @@ pub struct CertificateProcess {
     /// CA 憑證
     ca_cert: X509,
     /// CA 私鑰
-    ca_key: PKey<Private>,
+    ca_key:  PKey<Private>,
     /// CRL 驗證器
-    crl: Arc<crl::CrlVerifier>,
-    store: Arc<dyn crate::cert::store::CertificateStore>,
+    crl:     Arc<crl::CrlVerifier>,
+    store:   Arc<dyn crate::cert::store::CertificateStore>,
 }
 // #[allow(unused)]
 impl CertificateProcess {
@@ -71,12 +70,7 @@ impl CertificateProcess {
             )
             .await?,
         );
-        Ok(CertificateProcess {
-            ca_cert,
-            ca_key,
-            crl,
-            store,
-        })
+        Ok(CertificateProcess { ca_cert, ca_key, crl, store })
     }
 
     /// 獲取RootCA憑證
@@ -153,7 +147,8 @@ impl CertificateProcess {
     /// 產生 Root CA 憑證和對應的私鑰
     /// # 參數
     /// * `key_bits`: RSA 金鑰長度 (e.g. 204
-    /// * `country`, `state`, `locality`, `organization`, `common_name`: Subject 欄位
+    /// * `country`, `state`, `locality`, `organization`, `common_name`: Subject
+    ///   欄位
     /// * `days_valid`: 憑證有效天數
     /// * `passphrase`: 可選的私鑰密碼短語
     /// * `bits`: 用於序列號的位數
@@ -200,13 +195,7 @@ impl CertificateProcess {
         builder.set_issuer_name(&name)?;
         builder.set_pubkey(&pkey)?;
         builder.append_extension(BasicConstraints::new().ca().build()?)?;
-        builder.append_extension(
-            KeyUsage::new()
-                .key_cert_sign()
-                .critical()
-                .crl_sign()
-                .build()?,
-        )?;
+        builder.append_extension(KeyUsage::new().key_cert_sign().critical().crl_sign().build()?)?;
         builder.append_extension(
             SubjectKeyIdentifier::new().build(&builder.x509v3_context(None, None))?,
         )?;
@@ -229,7 +218,8 @@ impl CertificateProcess {
     /// 產生中介 CA 憑證和對應的私鑰
     /// # 參數
     /// * `key_bits`: RSA 金鑰長度 (e.g. 2048)
-    /// * `country`, `state`, `locality`, `organization`, `common_name`: Subject 欄位
+    /// * `country`, `state`, `locality`, `organization`, `common_name`: Subject
+    ///   欄位
     /// * `days_valid`: 憑證有效天數
     /// * `bits`: 用於序列號的位數
     /// * `pathlen`: 可選的 BasicConstraints 路徑長度限制
@@ -279,13 +269,7 @@ impl CertificateProcess {
             bc = bc.pathlen(pl);
         }
         builder.append_extension(bc.build()?)?;
-        builder.append_extension(
-            KeyUsage::new()
-                .key_cert_sign()
-                .crl_sign()
-                .critical()
-                .build()?,
-        )?;
+        builder.append_extension(KeyUsage::new().key_cert_sign().crl_sign().critical().build()?)?;
         builder.append_extension(
             SubjectKeyIdentifier::new().build(&builder.x509v3_context(None, None))?,
         )?;
@@ -310,12 +294,8 @@ impl CertificateProcess {
     pub fn sign_crl(&self, data: &[u8]) -> CaResult<Vec<u8>> {
         let mut signer = Signer::new(MessageDigest::sha256(), &self.ca_key)
             .map_err(|e| format!("無法建立簽名器: {e}"))?;
-        signer
-            .update(data)
-            .map_err(|e| format!("簽名資料失敗: {e}"))?;
-        let sig = signer
-            .sign_to_vec()
-            .map_err(|e| format!("生成簽名失敗: {e}"))?;
+        signer.update(data).map_err(|e| format!("簽名資料失敗: {e}"))?;
+        let sig = signer.sign_to_vec().map_err(|e| format!("生成簽名失敗: {e}"))?;
         Ok(sig)
     }
 

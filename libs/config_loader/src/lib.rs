@@ -5,15 +5,12 @@ use config::{Config, Environment, File};
 use serde::de::DeserializeOwned;
 pub extern crate toml;
 pub struct ConfigLoader<T> {
-    pub config: T,
+    pub config:      T,
     pub config_file: Vec<PathBuf>,
 }
 impl<T> ConfigLoader<T> {
     pub fn new(config: T, config_file: Vec<PathBuf>) -> Self {
-        Self {
-            config,
-            config_file,
-        }
+        Self { config, config_file }
     }
 }
 pub fn load_config<T>(
@@ -24,15 +21,11 @@ pub fn load_config<T>(
 where
     T: DeserializeOwned,
 {
-    let default_system_path = ProjectConst::release_save_dir(); //TODO: 安裝腳本安裝時注意資料夾權限問題
+    let default_system_path = ProjectConst::release_save_dir(); // TODO: 安裝腳本安裝時注意資料夾權限問題
     let default_dev_path = PathBuf::from("config");
     let default_name = format!("{env_prefix}_config.toml");
-    let system_config = system_config
-        .filter(|s| !s.is_empty())
-        .unwrap_or(&default_name);
-    let dev_config = dev_config
-        .filter(|s| !s.is_empty())
-        .unwrap_or(&default_name);
+    let system_config = system_config.filter(|s| !s.is_empty()).unwrap_or(&default_name);
+    let dev_config = dev_config.filter(|s| !s.is_empty()).unwrap_or(&default_name);
     let builder = Config::builder()
         .add_source(File::from(default_system_path.join(system_config)).required(false))
         .add_source(File::from(default_dev_path.join(dev_config)).required(false))
@@ -45,9 +38,7 @@ where
     let ret = builder.build()?.try_deserialize::<T>();
     match ret {
         Ok(cfg) => Ok(cfg),
-        Err(e) => Err(config::ConfigError::Message(format!(
-            "Failed to deserialize config: {e}"
-        ))),
+        Err(e) => Err(config::ConfigError::Message(format!("Failed to deserialize config: {e}"))),
     }
 }
 

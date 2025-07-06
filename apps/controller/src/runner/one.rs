@@ -11,11 +11,11 @@ use chm_project_const::ProjectConst;
 use serde::{Deserialize, Serialize};
 
 struct FirstStart {
-    base_url: String,
+    base_url:    String,
     private_key: Vec<u8>,
-    cert: Option<Vec<u8>>,
-    cert_chain: Option<Vec<Vec<u8>>>,
-    inner: Default_ClientCluster,
+    cert:        Option<Vec<u8>>,
+    cert_chain:  Option<Vec<Vec<u8>>>,
+    inner:       Default_ClientCluster,
 }
 impl FirstStart {
     pub fn new(base_url: impl Into<String>, private_key: Vec<u8>, cert: Option<Vec<u8>>) -> Self {
@@ -43,15 +43,15 @@ impl FirstStart {
 
 #[derive(Debug, Deserialize)]
 struct SignedCertResponse {
-    cert: Vec<u8>,
+    cert:  Vec<u8>,
     chain: Vec<Vec<u8>>,
 }
 
 #[derive(Debug, Clone, Serialize)]
 struct Otp {
-    code: String,
+    code:     String,
     csr_cert: Vec<u8>,
-    days: u32,
+    days:     u32,
 }
 
 #[async_trait]
@@ -72,11 +72,7 @@ impl ClusterClient for FirstStart {
             "controller.chm.com",
             &["127.0.0.1", "localhost"],
         )?;
-        let data = Otp {
-            code: otp,
-            csr_cert,
-            days: 365,
-        };
+        let data = Otp { code: otp, csr_cert, days: 365 };
         let resp = client
             .post(format!("{}/init", self.base_url))
             .json(&data)
@@ -97,16 +93,11 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
         std::io::stdout().flush()?;
         let mut input = String::new();
         std::io::stdin().read_line(&mut input)?;
-        Some(input.trim())
-            .filter(|s| !s.is_empty())
-            .unwrap_or(DEFAULT)
-            .to_string()
+        Some(input.trim()).filter(|s| !s.is_empty()).unwrap_or(DEFAULT).to_string()
     };
     let (pri_key, _) = CertUtils::generate_rsa_keypair(4096).expect("生成 RSA 金鑰對失敗");
     let mut conn = FirstStart::new(mca_path, pri_key.clone(), None);
-    conn.inner = conn
-        .inner
-        .with_root_ca(Some(ProjectConst::certs_path().join("rootCA.pem")));
+    conn.inner = conn.inner.with_root_ca(Some(ProjectConst::certs_path().join("rootCA.pem")));
     conn.init().await?;
     if let Some(cert) = conn.cert {
         CertUtils::save_cert("controller", &conn.private_key, &cert).expect("儲存憑證失敗");

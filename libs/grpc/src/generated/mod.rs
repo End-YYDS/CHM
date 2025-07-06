@@ -6,4 +6,3 @@ pub mod ca;
 
 #[cfg(any(feature = "controller-client", feature = "controller-server"))]
 pub mod controller;
-

@@ -19,19 +19,11 @@ impl GlobalConfig {
         GLOBAL_CFG.get_or_init(|| RwLock::new(GlobalConfig { settings: cfg }));
     }
     pub async fn read() -> tokio::sync::RwLockReadGuard<'static, GlobalConfig> {
-        GLOBAL_CFG
-            .get()
-            .expect("Global configuration not initialized")
-            .read()
-            .await
+        GLOBAL_CFG.get().expect("Global configuration not initialized").read().await
     }
 
     pub async fn write() -> tokio::sync::RwLockWriteGuard<'static, GlobalConfig> {
-        GLOBAL_CFG
-            .get()
-            .expect("Global configuration not initialized")
-            .write()
-            .await
+        GLOBAL_CFG.get().expect("Global configuration not initialized").write().await
     }
     pub fn has_active_readers() -> bool {
         let lock = GLOBAL_CFG.get().expect("GlobalConfig not initialized");

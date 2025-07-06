@@ -28,10 +28,7 @@ impl ClientCA {
         csr: Vec<u8>,
         days: u32,
     ) -> ConResult<(SignedCertificate, CertificateChain)> {
-        let resp = self
-            .client
-            .sign_csr(chm_grpc::ca::CsrRequest { csr, days })
-            .await?;
+        let resp = self.client.sign_csr(chm_grpc::ca::CsrRequest { csr, days }).await?;
         let reply = resp.into_inner();
         Ok((reply.cert, reply.chain))
     }
@@ -50,12 +47,7 @@ impl ClientCA {
         serial: impl Into<String>,
     ) -> ConResult<Option<chm_grpc::ca::Cert>> {
         let serial: String = serial.into();
-        let resp = self
-            .client
-            .get(chm_grpc::ca::GetCertRequest {
-                serial: serial.clone(),
-            })
-            .await?;
+        let resp = self.client.get(chm_grpc::ca::GetCertRequest { serial: serial.clone() }).await?;
         let reply = resp.into_inner().cert;
         match reply {
             Some(cert) => Ok(Some(cert)),
@@ -92,9 +84,7 @@ impl ClientCA {
         let common_name: String = common_name.into();
         let resp = self
             .client
-            .get_by_common_name(chm_grpc::ca::GetByCommonNameRequest {
-                name: common_name.clone(),
-            })
+            .get_by_common_name(chm_grpc::ca::GetByCommonNameRequest { name: common_name.clone() })
             .await?;
         let reply = resp.into_inner().cert;
         match reply {
@@ -112,9 +102,7 @@ impl ClientCA {
         let serial: String = serial.into();
         let resp = self
             .client
-            .query_cert_status(chm_grpc::ca::QueryCertStatusRequest {
-                serial: serial.clone(),
-            })
+            .query_cert_status(chm_grpc::ca::QueryCertStatusRequest { serial: serial.clone() })
             .await?;
         let reply = resp.into_inner().status;
         tracing::info!("憑證 {} 的狀態為 {:?}", serial, reply);
