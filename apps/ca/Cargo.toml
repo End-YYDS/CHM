@@ -6,19 +6,19 @@ edition.workspace = true
 [dependencies]
 actix-tls = { workspace = true }
 actix-web = { workspace = true }
-cert-utils = { workspace = true }
+chm-cert-utils = { workspace = true }
+chm-config_loader = { workspace = true, default-features = true }
+chm-crl_cache = { workspace = true }
+chm-grpc = { workspace = true, features = ["ca","crl-server"] }
+chm-password = { workspace = true }
+chm-project_const = { workspace = true }
 chrono = { workspace = true }
-config_loader = { workspace = true, default-features = true }
-crl_cache = { workspace = true }
 futures = { workspace = true }
-grpc = { workspace = true, features = ["ca","crl-server"] }
 humantime = { workspace = true }
 humantime-serde = { workspace = true }
 once_cell = { workspace = true }
 openssl = { workspace = true }
 openssl-sys = { workspace = true }
-password = { workspace = true }
-project_const = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 sqlx = { workspace = true }

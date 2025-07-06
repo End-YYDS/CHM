@@ -1,6 +1,7 @@
 [package]
-name = "project_const"
+name = "chm-project_const"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]

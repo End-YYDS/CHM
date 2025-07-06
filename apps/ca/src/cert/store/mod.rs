@@ -1,6 +1,6 @@
 use crate::{config::BackendConfig, globals::GlobalConfig, CaResult};
 use chrono::{DateTime, Utc};
-use grpc::tonic::async_trait;
+use chm_grpc::tonic::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::PathBuf};
 

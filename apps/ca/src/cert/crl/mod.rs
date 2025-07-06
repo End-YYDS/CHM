@@ -1,14 +1,14 @@
 mod verifier;
 use crate::cert::store::CrlEntry as StoreCrlEntry;
 use crate::{cert::process::CertificateProcess, globals::GlobalConfig, CaResult};
-use chrono::{DateTime, Duration, TimeZone, Utc};
-use grpc::crl::CrlEntry as GrpcCrlEntry;
-use grpc::{
+use chm_grpc::crl::CrlEntry as GrpcCrlEntry;
+use chm_grpc::{
     crl::{crl_server::Crl, ListCrlEntriesRequest, ListCrlEntriesResponse},
     prost::Message,
     prost_types::Timestamp,
     tonic::{self, Request, Response, Status},
 };
+use chrono::{DateTime, Duration, TimeZone, Utc};
 use std::sync::Arc;
 pub use verifier::*;
 

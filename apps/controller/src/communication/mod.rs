@@ -1,4 +1,4 @@
-use grpc::{
+use chm_grpc::{
     tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint, Identity},
     tonic_health::pb::{health_client::HealthClient, HealthCheckRequest},
 };

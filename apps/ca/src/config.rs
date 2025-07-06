@@ -1,4 +1,4 @@
-use config_loader::store_config;
+use chm_config_loader::store_config;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
 
@@ -192,7 +192,7 @@ impl Settings {
     /// # 回傳
     /// * `Result<Self, config::ConfigError>` - 返回設定實例或錯誤
     pub fn new() -> CaResult<Self> {
-        Ok(config_loader::load_config(ID, None, None)?)
+        Ok(chm_config_loader::load_config(ID, None, None)?)
     }
     /// 初始化設定檔，生成一個包含預設值的 TOML 檔案。
     /// # 參數

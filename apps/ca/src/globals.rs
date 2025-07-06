@@ -1,4 +1,4 @@
-use config_loader::store_config;
+use chm_config_loader::store_config;
 use once_cell::sync::OnceCell;
 use tokio::sync::RwLock;
 

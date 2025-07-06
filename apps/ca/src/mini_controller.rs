@@ -2,7 +2,8 @@ use crate::cert::process::CertificateProcess;
 use crate::globals::GlobalConfig;
 use crate::{CaResult, PrivateKey, SignedCert};
 use actix_web::{dev::ServerHandle, post, web, App, HttpResponse, HttpServer};
-use cert_utils::CertUtils;
+use chm_cert_utils::CertUtils;
+use chm_project_const::ProjectConst;
 use openssl::ssl::SslVerifyMode;
 use openssl::x509::X509Req;
 use openssl::{
@@ -10,7 +11,6 @@ use openssl::{
     ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod},
     x509::X509,
 };
-use project_const::ProjectConst;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::{fs, io::Write, net::SocketAddr, path::PathBuf};
@@ -117,7 +117,7 @@ impl MiniController {
             let cfg = GlobalConfig::read().await;
             cfg.settings.server.otp_len
         };
-        let otp_code = password::generate_otp(otp_len);
+        let otp_code = chm_password::generate_otp(otp_len);
         tracing::info!("OTP code: {otp_code}");
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
         let rootca = {

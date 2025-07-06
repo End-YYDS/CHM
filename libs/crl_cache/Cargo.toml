@@ -1,7 +1,8 @@
 [package]
-name = "crl_cache"
+name = "chm-crl_cache"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]
 async-trait = "0.1.88"

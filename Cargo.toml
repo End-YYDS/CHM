@@ -19,20 +19,20 @@ edition = "2021"
 [workspace.dependencies]
 actix-tls = { version = "3.4.0", features = ["openssl"] }
 actix-web = { version = "4.11.0", features = ["openssl"] }
-cert-utils = { version = "0.1.0", path = "./libs/cert-utils" }
+chm-cert-utils = { version = "0.1.0", path = "./libs/cert-utils" }
+chm-cluster-utils = { version = "0.1.0", path = "./libs/cluster-utils" }
+chm-config_loader = { version = "0.1.0", path = "./libs/config_loader", default-features = false }
+chm-crl_cache = { version = "0.1.0", path = "./libs/crl_cache" }
+chm-grpc = { version = "0.1.0", path = "./libs/grpc" }
+chm-password = { version = "0.1.0", path = "./libs/password" }
+chm-project_const = { version = "0.1.0", path = "./libs/project_const" }
 chrono = { version = "0.4.41", features = ["serde"] }
-cluster-utils = { version = "0.1.0", path = "./libs/cluster-utils" }
-config_loader = { version = "0.1.0", path = "./libs/config_loader", default-features = false }
-crl_cache = { version = "0.1.0", path = "./libs/crl_cache" }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
-grpc = { version = "0.1.0", path = "./libs/grpc" }
 humantime = "2.2.0"
 humantime-serde = "1.1.1"
 once_cell = "1.21.3"
 openssl = "0.10.72"
 openssl-sys = "0.9.109"
-password = { version = "0.1.0", path = "./libs/password" }
-project_const = { version = "0.1.0", path = "./libs/project_const" }
 prost = "0.13.5"
 prost-types = "0.13.5"
 reqwest = { version = "0.12.20", features = ["json", "rustls-tls"] }

@@ -7,7 +7,7 @@ use ca::{
     globals::GlobalConfig,
     *,
 };
-use project_const::ProjectConst;
+use chm_project_const::ProjectConst;
 use std::sync::atomic::Ordering::Relaxed;
 use std::{env, fs, net::SocketAddr, sync::Arc};
 use tracing_subscriber::EnvFilter;

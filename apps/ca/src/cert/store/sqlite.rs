@@ -1,6 +1,6 @@
-use cert_utils::CertUtils;
+use chm_cert_utils::CertUtils;
 use chrono::{DateTime, Utc};
-use grpc::tonic::async_trait;
+use chm_grpc::tonic::async_trait;
 use openssl::nid::Nid;
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},

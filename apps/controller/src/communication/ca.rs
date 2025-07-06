@@ -1,4 +1,4 @@
-use grpc::{
+use chm_grpc::{
     ca::{ca_client::CaClient, CertStatus},
     tonic::{codec::CompressionEncoding, transport::Channel},
 };
@@ -30,29 +30,29 @@ impl ClientCA {
     ) -> ConResult<(SignedCertificate, CertificateChain)> {
         let resp = self
             .client
-            .sign_csr(grpc::ca::CsrRequest { csr, days })
+            .sign_csr(chm_grpc::ca::CsrRequest { csr, days })
             .await?;
         let reply = resp.into_inner();
         Ok((reply.cert, reply.chain))
     }
     pub async fn reload_grpc(&mut self) -> ConResult<bool> {
-        let resp = self.client.reload_grpc(grpc::ca::Empty {}).await?;
+        let resp = self.client.reload_grpc(chm_grpc::ca::Empty {}).await?;
         let reply = resp.into_inner();
         Ok(reply.success)
     }
-    pub async fn get_all_certificates(&mut self) -> ConResult<Vec<grpc::ca::Cert>> {
-        let resp = self.client.list_all(grpc::ca::Empty {}).await?;
+    pub async fn get_all_certificates(&mut self) -> ConResult<Vec<chm_grpc::ca::Cert>> {
+        let resp = self.client.list_all(chm_grpc::ca::Empty {}).await?;
         let reply = resp.into_inner();
         Ok(reply.certs)
     }
     pub async fn get_certificate_by_serial(
         &mut self,
         serial: impl Into<String>,
-    ) -> ConResult<Option<grpc::ca::Cert>> {
+    ) -> ConResult<Option<chm_grpc::ca::Cert>> {
         let serial: String = serial.into();
         let resp = self
             .client
-            .get(grpc::ca::GetCertRequest {
+            .get(chm_grpc::ca::GetCertRequest {
                 serial: serial.clone(),
             })
             .await?;
@@ -68,11 +68,11 @@ impl ClientCA {
     pub async fn get_certificate_by_thumbprint(
         &mut self,
         thumbprint: impl Into<String>,
-    ) -> ConResult<Option<grpc::ca::Cert>> {
+    ) -> ConResult<Option<chm_grpc::ca::Cert>> {
         let thumbprint: String = thumbprint.into();
         let resp = self
             .client
-            .get_by_thumbprint(grpc::ca::GetByThumprintRequest {
+            .get_by_thumbprint(chm_grpc::ca::GetByThumprintRequest {
                 thumbprint: thumbprint.clone(),
             })
             .await?;
@@ -88,11 +88,11 @@ impl ClientCA {
     pub async fn get_certificate_by_common_name(
         &mut self,
         common_name: impl Into<String>,
-    ) -> ConResult<Option<grpc::ca::Cert>> {
+    ) -> ConResult<Option<chm_grpc::ca::Cert>> {
         let common_name: String = common_name.into();
         let resp = self
             .client
-            .get_by_common_name(grpc::ca::GetByCommonNameRequest {
+            .get_by_common_name(chm_grpc::ca::GetByCommonNameRequest {
                 name: common_name.clone(),
             })
             .await?;
@@ -108,11 +108,11 @@ impl ClientCA {
     pub async fn get_cert_status_by_serial(
         &mut self,
         serial: impl Into<String>,
-    ) -> ConResult<grpc::ca::CertStatus> {
+    ) -> ConResult<chm_grpc::ca::CertStatus> {
         let serial: String = serial.into();
         let resp = self
             .client
-            .query_cert_status(grpc::ca::QueryCertStatusRequest {
+            .query_cert_status(chm_grpc::ca::QueryCertStatusRequest {
                 serial: serial.clone(),
             })
             .await?;
@@ -129,7 +129,7 @@ impl ClientCA {
         let serial: String = serial.into();
         let resp = self
             .client
-            .mark_cert_revoked(grpc::ca::MarkCertRevokedRequest {
+            .mark_cert_revoked(chm_grpc::ca::MarkCertRevokedRequest {
                 serial: serial.clone(),
                 reason: reason.map(Into::into),
             })

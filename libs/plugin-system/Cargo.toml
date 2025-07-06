@@ -1,7 +1,8 @@
 [package]
-name = "plugin-system"
+name = "chm-plugin-system"
 version = { workspace = true }
 edition = { workspace = true }
+publish = false
 
 [dependencies]
 actix-web = "4.9.0"

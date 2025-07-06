@@ -519,19 +519,19 @@ version = "0.1.0"
 dependencies = [
  "actix-tls",
  "actix-web",
- "cert-utils",
+ "chm-cert-utils",
+ "chm-config_loader",
+ "chm-crl_cache",
+ "chm-grpc",
+ "chm-password",
+ "chm-project_const",
  "chrono",
- "config_loader",
- "crl_cache",
  "futures",
- "grpc",
  "humantime",
  "humantime-serde",
  "once_cell",
  "openssl",
  "openssl-sys",
- "password",
- "project_const",
  "reqwest",
  "serde",
  "sqlx",
@@ -587,17 +587,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cert-utils"
-version = "0.1.0"
-dependencies = [
- "config_loader",
- "grpc",
- "openssl",
- "openssl-sys",
- "project_const",
-]
-
-[[package]]
 name = "cfg-if"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -608,6 +597,80 @@ name = "cfg_aliases"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
+
+[[package]]
+name = "chm-cert-utils"
+version = "0.1.0"
+dependencies = [
+ "chm-config_loader",
+ "chm-grpc",
+ "chm-project_const",
+ "openssl",
+ "openssl-sys",
+]
+
+[[package]]
+name = "chm-cluster-utils"
+version = "0.1.0"
+dependencies = [
+ "actix-tls",
+ "actix-web",
+ "async-trait",
+ "chm-cert-utils",
+ "chm-password",
+ "openssl",
+ "openssl-sys",
+ "reqwest",
+ "serde",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "chm-config_loader"
+version = "0.1.0"
+dependencies = [
+ "chm-project_const",
+ "config",
+ "serde",
+ "tempfile",
+ "tokio",
+ "toml",
+]
+
+[[package]]
+name = "chm-crl_cache"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "chm-grpc"
+version = "0.1.0"
+dependencies = [
+ "prost",
+ "prost-types",
+ "tonic",
+ "tonic-build",
+ "tonic-health",
+]
+
+[[package]]
+name = "chm-password"
+version = "0.1.0"
+dependencies = [
+ "argon2",
+ "base64",
+ "rand 0.9.1",
+]
+
+[[package]]
+name = "chm-project_const"
+version = "0.1.0"
 
 [[package]]
 name = "chrono"
@@ -674,23 +737,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b94f61472cee1439c0b966b47e3aca9ae07e45d070759512cd390ea2bebc6675"
 
 [[package]]
-name = "cluster-utils"
-version = "0.1.0"
-dependencies = [
- "actix-tls",
- "actix-web",
- "async-trait",
- "cert-utils",
- "openssl",
- "openssl-sys",
- "password",
- "reqwest",
- "serde",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "colorchoice"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -718,18 +764,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "config_loader"
-version = "0.1.0"
-dependencies = [
- "config",
- "project_const",
- "serde",
- "tempfile",
- "tokio",
- "toml",
-]
-
-[[package]]
 name = "const-oid"
 version = "0.9.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -739,12 +773,12 @@ checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 name = "controller"
 version = "0.1.0"
 dependencies = [
- "cert-utils",
- "cluster-utils",
- "config_loader",
- "crl_cache",
- "grpc",
- "project_const",
+ "chm-cert-utils",
+ "chm-cluster-utils",
+ "chm-config_loader",
+ "chm-crl_cache",
+ "chm-grpc",
+ "chm-project_const",
  "serde",
  "tokio",
  "tracing",
@@ -809,16 +843,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a97769d94ddab943e4510d138150169a2758b5ef3eb191a9ee688de3e23ef7b3"
 dependencies = [
  "cfg-if",
-]
-
-[[package]]
-name = "crl_cache"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "thiserror",
- "tokio",
 ]
 
 [[package]]
@@ -1202,17 +1226,6 @@ name = "gimli"
 version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07e28edb80900c19c28f1072f2e8aeca7fa06b23cd4169cefe1af5aa3260783f"
-
-[[package]]
-name = "grpc"
-version = "0.1.0"
-dependencies = [
- "prost",
- "prost-types",
- "tonic",
- "tonic-build",
- "tonic-health",
-]
 
 [[package]]
 name = "h2"
@@ -2041,15 +2054,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "password"
-version = "0.1.0"
-dependencies = [
- "argon2",
- "base64",
- "rand 0.9.1",
-]
-
-[[package]]
 name = "password-hash"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2192,10 +2196,6 @@ checksum = "02b3e5e68a3a1a02aad3ec490a98007cbc13c37cbe84a3cd7b8e406d76e7f778"
 dependencies = [
  "unicode-ident",
 ]
-
-[[package]]
-name = "project_const"
-version = "0.1.0"
 
 [[package]]
 name = "prost"

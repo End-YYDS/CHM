@@ -1,5 +1,5 @@
 #![allow(unused)]
-use project_const::ProjectConst;
+use chm_project_const::ProjectConst;
 use tokio::sync::{OnceCell, RwLock};
 #[derive(Debug)]
 pub struct GlobalsVar {

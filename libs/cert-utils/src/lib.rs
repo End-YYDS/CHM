@@ -1,6 +1,7 @@
 use std::{fs, io::Write, net::IpAddr, path::Path};
 
-use grpc::{crl::ListCrlEntriesResponse, prost::Message};
+use chm_grpc::{crl::ListCrlEntriesResponse, prost::Message};
+use chm_project_const::ProjectConst;
 use openssl::{
     bn::BigNum,
     hash::{hash, MessageDigest},
@@ -12,7 +13,6 @@ use openssl::{
         X509Builder, X509NameBuilder, X509ReqBuilder, X509,
     },
 };
-use project_const::ProjectConst;
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 #[derive(Debug)]

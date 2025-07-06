@@ -8,12 +8,12 @@ name = "CHMcd"
 path = "src/main.rs"
 
 [dependencies]
-cert-utils = { workspace = true }
-cluster-utils = { workspace = true, features = ["client", "server"] }
-config_loader = { workspace = true, default-features = true }
-crl_cache = { workspace = true }
-grpc = { workspace = true, features = ["controller","ca-client"] }
-project_const = { workspace = true }
+chm-cert-utils = { workspace = true }
+chm-cluster-utils = { workspace = true, features = ["client", "server"] }
+chm-config_loader = { workspace = true, default-features = true }
+chm-crl_cache = { workspace = true }
+chm-grpc = { workspace = true, features = ["controller","ca-client"] }
+chm-project_const = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }

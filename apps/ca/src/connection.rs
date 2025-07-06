@@ -3,7 +3,7 @@ use std::sync::Arc;
 use openssl::x509::X509Req;
 use tonic::{Request, Response, Status};
 
-use grpc::{
+use chm_grpc::{
     ca::{ca_server::Ca, *},
     tonic,
 };
@@ -11,8 +11,8 @@ use grpc::{
 use crate::cert::process::CertificateProcess;
 
 use crate::cert::store::{Cert as StoreCert, CertStatus as StoreStatus};
-use grpc::ca::{Cert as GrpcCert, CertStatus as GrpcStatus};
-use grpc::prost_types::Timestamp;
+use chm_grpc::ca::{Cert as GrpcCert, CertStatus as GrpcStatus};
+use chm_grpc::prost_types::Timestamp;
 
 impl From<StoreCert> for GrpcCert {
     fn from(c: StoreCert) -> Self {
@@ -78,7 +78,7 @@ impl Ca for MyCa {
     /// * `Result<Response<ReloadResponse>, Status>`: 返回是否成功重新加載
     async fn reload_grpc(
         &self,
-        _req: Request<grpc::ca::Empty>,
+        _req: Request<chm_grpc::ca::Empty>,
     ) -> Result<Response<ReloadResponse>, Status> {
         if let Err(e) = self.reloader.send(()) {
             return Err(Status::internal(format!("Reloader error: {e}")));
@@ -100,7 +100,7 @@ impl Ca for MyCa {
             .list_all()
             .await
             .map_err(|e| Status::internal(format!("Failed to list all certs: {e}")))?;
-        let grpc_certs: Vec<grpc::ca::Cert> = certs.into_iter().map(Into::into).collect();
+        let grpc_certs: Vec<chm_grpc::ca::Cert> = certs.into_iter().map(Into::into).collect();
         Ok(Response::new(ListAllCertsResponse { certs: grpc_certs }))
     }
     async fn get(&self, req: Request<GetCertRequest>) -> Result<Response<GetCertResponse>, Status> {

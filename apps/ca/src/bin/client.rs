@@ -1,18 +1,18 @@
 #![allow(unused)]
-use cert_utils::CertUtils;
-use chrono::{DateTime, Duration, Local, Utc};
-use grpc::ca::CertStatus;
-use grpc::crl::crl_client::CrlClient;
-use grpc::crl::{ListCrlEntriesRequest, ListCrlEntriesResponse};
-use grpc::prost::Message;
-use grpc::prost_types::Timestamp;
-use grpc::tonic::client;
-use grpc::tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint};
-use grpc::tonic_health::pb::{health_client::HealthClient, HealthCheckRequest};
-use grpc::{
+use chm_cert_utils::CertUtils;
+use chm_grpc::ca::CertStatus;
+use chm_grpc::crl::crl_client::CrlClient;
+use chm_grpc::crl::{ListCrlEntriesRequest, ListCrlEntriesResponse};
+use chm_grpc::prost::Message;
+use chm_grpc::prost_types::Timestamp;
+use chm_grpc::tonic::client;
+use chm_grpc::tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint};
+use chm_grpc::tonic_health::pb::{health_client::HealthClient, HealthCheckRequest};
+use chm_grpc::{
     ca::{ca_client::CaClient, CsrRequest},
     tonic,
 };
+use chrono::{DateTime, Duration, Local, Utc};
 use openssl::hash::MessageDigest;
 use openssl::sign::Verifier;
 use openssl::x509::X509;
@@ -129,7 +129,7 @@ async fn main() -> Result<()> {
 
 async fn sign_cert(mut client: CaClient<Channel>) -> Result<()> {
     let resp = client
-        .sign_csr(grpc::ca::CsrRequest {
+        .sign_csr(chm_grpc::ca::CsrRequest {
             csr: std::fs::read("certs/intermediateCA.csr")?,
             days: 365,
         })
@@ -197,7 +197,10 @@ async fn test_crl(mut client: CrlClient<Channel>) -> Result<()> {
 
 async fn test_grpc_restart(mut client: CaClient<Channel>) -> Result<()> {
     // 模擬憑證更新
-    let resp = client.reload_grpc(grpc::ca::Empty {}).await?.into_inner();
+    let resp = client
+        .reload_grpc(chm_grpc::ca::Empty {})
+        .await?
+        .into_inner();
     if resp.success {
         println!("gRPC CA 重啟成功");
     } else {
@@ -312,7 +315,7 @@ pub fn verify_crl_signature(
 }
 
 pub async fn get_all_certs(mut client: CaClient<Channel>) -> Result<()> {
-    let resp = client.list_all(grpc::ca::Empty {}).await?;
+    let resp = client.list_all(chm_grpc::ca::Empty {}).await?;
     let reply = resp.into_inner();
     println!("All Certificates: {:?}", reply.certs);
     Ok(())
@@ -321,9 +324,9 @@ pub async fn get_all_certs(mut client: CaClient<Channel>) -> Result<()> {
 pub async fn get_cert_by_serial(
     mut client: CaClient<Channel>,
     serial: &str,
-) -> Result<Option<grpc::ca::Cert>> {
+) -> Result<Option<chm_grpc::ca::Cert>> {
     let resp = client
-        .get(grpc::ca::GetCertRequest {
+        .get(chm_grpc::ca::GetCertRequest {
             serial: serial.to_string(),
         })
         .await?;
@@ -339,9 +342,9 @@ pub async fn get_cert_by_serial(
 pub async fn get_cert_by_thumbprint(
     mut client: CaClient<Channel>,
     thumbprint: &str,
-) -> Result<Option<grpc::ca::Cert>> {
+) -> Result<Option<chm_grpc::ca::Cert>> {
     let resp = client
-        .get_by_thumbprint(grpc::ca::GetByThumprintRequest {
+        .get_by_thumbprint(chm_grpc::ca::GetByThumprintRequest {
             thumbprint: thumbprint.to_string(),
         })
         .await?;
@@ -357,9 +360,9 @@ pub async fn get_cert_by_thumbprint(
 pub async fn get_cert_status_by_serial(
     mut client: CaClient<Channel>,
     serial: &str,
-) -> Result<Option<grpc::ca::CertStatus>> {
+) -> Result<Option<chm_grpc::ca::CertStatus>> {
     let resp = client
-        .query_cert_status(grpc::ca::QueryCertStatusRequest {
+        .query_cert_status(chm_grpc::ca::QueryCertStatusRequest {
             serial: serial.to_string(),
         })
         .await?;
@@ -378,9 +381,9 @@ pub async fn get_cert_status_by_serial(
 pub async fn get_cert_by_common_name(
     mut client: CaClient<Channel>,
     common_name: &str,
-) -> Result<Option<grpc::ca::Cert>> {
+) -> Result<Option<chm_grpc::ca::Cert>> {
     let resp = client
-        .get_by_common_name(grpc::ca::GetByCommonNameRequest {
+        .get_by_common_name(chm_grpc::ca::GetByCommonNameRequest {
             name: common_name.to_string(),
         })
         .await?;
@@ -399,7 +402,7 @@ pub async fn mark_cert_revoked(
     reason: Option<String>,
 ) -> Result<()> {
     let resp = client
-        .mark_cert_revoked(grpc::ca::MarkCertRevokedRequest {
+        .mark_cert_revoked(chm_grpc::ca::MarkCertRevokedRequest {
             serial: serial.to_string(),
             reason,
         })

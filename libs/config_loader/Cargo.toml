@@ -1,11 +1,12 @@
 [package]
-name = "config_loader"
+name = "chm-config_loader"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]
+chm-project_const = { workspace = true }
 config = { version = "0.15.11", default-features = false, features = ["toml"] }
-project_const = { workspace = true }
 serde = { version = "1.0.219", features = ["derive"] }
 tokio = { version = "1.43.0", features = ["fs"] }
 toml = "0.8.22"

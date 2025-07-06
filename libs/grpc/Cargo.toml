@@ -1,7 +1,8 @@
 [package]
-name = "grpc"
+name = "chm-grpc"
 version.workspace = true
 edition.workspace = true
+publish = false
 [features]
 ca-client = []
 ca-server = []

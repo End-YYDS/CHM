@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
+use chm_project_const::ProjectConst;
 use config::{Config, Environment, File};
-use project_const::ProjectConst;
 use serde::de::DeserializeOwned;
 pub extern crate toml;
 pub struct ConfigLoader<T> {

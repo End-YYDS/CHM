@@ -1,8 +1,8 @@
 mod communication;
 mod globals;
 mod runner;
+use chm_project_const::ProjectConst;
 pub use globals::{globals_lock, reload_globals};
-use project_const::ProjectConst;
 use runner::{one::first_run, two::run};
 
 pub type ConResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;

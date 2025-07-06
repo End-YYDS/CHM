@@ -1,7 +1,8 @@
 [package]
-name = "cluster-utils"
+name = "chm-cluster-utils"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [features]
 client = ["dep:reqwest"]
@@ -13,10 +14,10 @@ default = ["openssl", "dep:tokio"]
 actix-tls = { workspace = true, optional = true }
 actix-web = { workspace = true, optional = true }
 async-trait = "0.1.88"
-cert-utils = { workspace = true }
+chm-cert-utils = { workspace = true }
+chm-password = { workspace = true }
 openssl = { workspace = true, optional = true }
 openssl-sys = { workspace = true, optional = true }
-password = { workspace = true }
 reqwest = { workspace = true, optional = true }
 serde = { workspace = true }
 tokio = { workspace = true, optional = true }

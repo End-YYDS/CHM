@@ -6,7 +6,7 @@ use actix_web::{
     web::{self},
     App, HttpRequest, HttpResponse, HttpServer, Responder,
 };
-use cert_utils::CertUtils;
+use chm_cert_utils::CertUtils;
 use openssl::{
     error::ErrorStack,
     ssl::{SslAcceptorBuilder, SslFiletype, SslMethod, SslVerifyMode},
@@ -114,7 +114,7 @@ impl ServerCluster {
         self
     }
     pub fn with_otp(mut self) -> Self {
-        self.otp = Some(password::generate_otp(self.otp_len));
+        self.otp = Some(chm_password::generate_otp(self.otp_len));
         self
     }
     pub fn with_marker_path(mut self, path: impl Into<PathBuf>) -> Self {
@@ -131,7 +131,7 @@ impl ServerCluster {
             if let Some(passwd) = passwd {
                 self.otp = Some(passwd.into());
             } else {
-                self.otp = Some(password::generate_otp(self.otp_len));
+                self.otp = Some(chm_password::generate_otp(self.otp_len));
             }
         }
         self

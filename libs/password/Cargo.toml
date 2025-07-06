@@ -1,7 +1,8 @@
 [package]
-name = "password"
+name = "chm-password"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]
 argon2 = { version = "0.5.3", features = ["std"] }
