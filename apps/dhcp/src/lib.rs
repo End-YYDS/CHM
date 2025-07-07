@@ -194,7 +194,6 @@ impl dhcp::dhcp_service_server::DhcpService for DhcpServiceImpl {
     /// 刪除指定的 DHCP Zone
     /// # 參數
     /// * `request` - DeleteZoneRequest
-    ///   - `group_name`: 所屬群組名稱
     ///   - `zone_name`: 欲刪除的 Zone 名稱
     /// 
     /// # 回傳
