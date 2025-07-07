@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO certs (serial, subject_cn, subject_dn, issuer, issued_date, expiration,thumbprint,cert_der)\n            VALUES (?, ?, ?, ?, ?, ?, ?, ?)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 8
+    },
+    "nullable": []
+  },
+  "hash": "36fba066433d6f45c0ffc718a1e8e4b3631194842de567730440ad8bc2da37d2"
+}

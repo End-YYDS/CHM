@@ -6,7 +6,7 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
     SqlitePool,
 };
-use std::{str::FromStr, time::Duration};
+use std::time::Duration;
 
 use crate::{
     cert::store::{Cert, CertDer, CertStatus, CertificateStore, CrlEntry},
@@ -27,19 +27,18 @@ impl SqlConnection {
                 std::fs::create_dir_all(parent).map_err(|e| format!("建立資料庫目錄失敗: {e}"))?;
             }
         }
-        let connect_opts = SqliteConnectOptions::from_str(
-            store_path.to_str().expect("轉換不了,可能不是UTF-8字元"),
-        )?
-        .create_if_missing(true)
-        .pragma("auto_vacuum", "FULL")
-        .journal_mode(SqliteJournalMode::Wal)
-        .foreign_keys(true);
+        let connect_opts = SqliteConnectOptions::new()
+            .filename(store_path)
+            .create_if_missing(true)
+            .pragma("auto_vacuum", "FULL")
+            .journal_mode(SqliteJournalMode::Wal)
+            .foreign_keys(true);
         let pool: SqlitePool = SqlitePoolOptions::new()
             .max_connections(max_connections)
             .acquire_timeout(Duration::from_secs(timeout))
             .connect_with(connect_opts)
             .await?;
-        sqlx::migrate!("./migrations")
+        sqlx::migrate!()
             .run(&pool)
             .await
             .map_err(|e| format!("執行資料庫 migrations 失敗: {e}"))?;
@@ -275,10 +274,10 @@ impl CertificateStore for SqlConnection {
         let cert_der = cert.to_der()?;
         let thumbprint = CertUtils::cert_fingerprint_sha256(&cert)?;
         let result = sqlx::query!(
-            "
-        INSERT INTO certs (serial, subject_cn, subject_dn, issuer, issued_date, expiration, \
-             thumbprint,cert_der)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        r#"
+            INSERT INTO certs (serial, subject_cn, subject_dn, issuer, issued_date, expiration,thumbprint,cert_der)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        "#,
             serial,
             subject_cn,
             subject_dn,
@@ -339,7 +338,10 @@ impl CertificateStore for SqlConnection {
         }
         let now = chrono::Utc::now();
         let result = sqlx::query!(
-            "INSERT INTO crl_entries (cert_serial, revoked_at, reason) VALUES (?, ?, ?)",
+            r#"
+            INSERT INTO crl_entries (cert_serial, revoked_at, reason)
+            VALUES (?, ?, ?)
+            "#,
             serial,
             now,
             reason
@@ -351,10 +353,15 @@ impl CertificateStore for SqlConnection {
             return Err("Failed to insert CRL entry".into());
         }
 
-        let update_result =
-            sqlx::query!("UPDATE certs SET status = 'revoked' WHERE serial = ?", serial)
-                .execute(&mut *tx)
-                .await?;
+        let update_result = sqlx::query!(
+            r#"
+                UPDATE certs SET status = 'revoked'
+                WHERE serial = ?
+                "#,
+            serial
+        )
+        .execute(&mut *tx)
+        .await?;
 
         if update_result.rows_affected() == 0 {
             return Err("No cert found with the given serial to update".into());
