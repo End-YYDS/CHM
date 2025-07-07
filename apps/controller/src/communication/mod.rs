@@ -1,9 +1,8 @@
+use crate::ConResult;
 use chm_grpc::{
     tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint, Identity},
     tonic_health::pb::{health_client::HealthClient, HealthCheckRequest},
 };
-
-use crate::ConResult;
 pub mod ca;
 #[allow(unused)]
 #[derive(Debug)]
@@ -35,7 +34,7 @@ pub async fn grpc_connection_init() -> ConResult<Channel> {
     let ca_certificate = Certificate::from_pem(root_cert);
     let client_identity = Identity::from_pem(client_cert, client_key);
     let tls = ClientTlsConfig::new().ca_certificate(ca_certificate).identity(client_identity);
-    let channel = Endpoint::from_shared(mca_info)?.tls_config(tls)?.connect().await?;
+    let channel = Endpoint::from_shared(mca_info)?.tls_config(tls)?.connect().await?; // 從Config中讀取Controller的地址
     Ok(channel)
 }
 pub async fn health_check(channel: Channel, service_name: impl AsRef<str>) -> crate::ConResult<()> {

@@ -1,0 +1,165 @@
+use std::net::Ipv4Addr;
+
+use chm_grpc::{dns::dns_service_client::DnsServiceClient, tonic::transport::Channel};
+use url::{Host, Url};
+use uuid::Uuid;
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+#[derive(Debug)]
+pub struct DnsResolver {
+    dns_address: String,
+    client:      DnsServiceClient<Channel>,
+}
+pub enum DnsQuery {
+    Hostname(String),
+    Uuid(Uuid),
+}
+impl From<String> for DnsQuery {
+    fn from(s: String) -> Self {
+        DnsQuery::Hostname(s)
+    }
+}
+
+impl From<&String> for DnsQuery {
+    fn from(s: &String) -> Self {
+        DnsQuery::Hostname(s.clone())
+    }
+}
+
+impl From<&str> for DnsQuery {
+    fn from(s: &str) -> Self {
+        DnsQuery::Hostname(s.to_string())
+    }
+}
+
+impl From<Uuid> for DnsQuery {
+    fn from(u: Uuid) -> Self {
+        DnsQuery::Uuid(u)
+    }
+}
+impl DnsResolver {
+    pub async fn new(dns_address: impl Into<String>) -> Self {
+        let dns_address = dns_address.into();
+        let client = DnsServiceClient::connect(dns_address.clone())
+            .await
+            .expect("Failed to connect to DNS service");
+        Self { dns_address, client }
+    }
+    pub async fn resolve_ip<Q>(&mut self, query: Q) -> Result<String>
+    where
+        Q: Into<DnsQuery>,
+    {
+        let s = match query.into() {
+            DnsQuery::Uuid(u) => return self.get_ip_by_uuid(u).await,
+            DnsQuery::Hostname(s) => s,
+        };
+        if let Ok(url) = Url::parse(&s) {
+            let scheme = url.scheme();
+            if scheme == "http" || scheme == "https" {
+                if let Some(host_str) = url.host_str() {
+                    let port = url.port_or_known_default().unwrap();
+                    let ip_addr = if host_str.parse::<Ipv4Addr>().is_ok() {
+                        host_str.to_string()
+                    } else if let Ok(uuid) = Uuid::parse_str(host_str) {
+                        self.get_ip_by_uuid(uuid).await?
+                    } else {
+                        self.get_ip_by_hostname(host_str).await?
+                    };
+                    return Ok(format!("{scheme}://{ip_addr}:{port}"));
+                }
+            }
+        }
+        if let Ok(uuid) = Self::get_uuid_from_url(&s) {
+            return self.get_ip_by_uuid(uuid).await;
+        }
+        if let Ok(ipv4) = Self::get_ipv4_from_url(&s) {
+            return Ok(ipv4.to_string());
+        }
+        if let Ok(domain) = Self::get_hostname_from_url(&s) {
+            return self.get_ip_by_hostname(&domain).await;
+        }
+        if let Ok(uuid) = Uuid::parse_str(&s) {
+            return self.get_ip_by_uuid(uuid).await;
+        }
+        if s.parse::<Ipv4Addr>().is_ok() {
+            return Ok(s);
+        }
+        self.get_ip_by_hostname(&s).await
+    }
+    pub fn get_dns_address(&self) -> &str {
+        &self.dns_address
+    }
+    async fn get_ip_by_hostname(&mut self, hostname: &str) -> Result<String> {
+        let request = chm_grpc::dns::GetIpByHostnameRequest { hostname: hostname.to_string() };
+        let response = self.client.get_ip_by_hostname(request).await?.into_inner();
+        Ok(response.ip)
+    }
+    async fn get_ip_by_uuid(&mut self, uid: uuid::Uuid) -> Result<String> {
+        let request = chm_grpc::dns::GetIpByUuidRequest { id: uid.to_string() };
+        let response = self.client.get_ip_by_uuid(request).await?.into_inner();
+        Ok(response.ip)
+    }
+    pub async fn get_hostname_by_ip(&mut self, ip: &str) -> Result<String> {
+        let request = chm_grpc::dns::GetHostnameByIpRequest { ip: ip.to_string() };
+        let response = self.client.get_hostname_by_ip(request).await?.into_inner();
+        Ok(response.hostname)
+    }
+    pub async fn get_hostname_by_uuid(&mut self, uid: uuid::Uuid) -> Result<String> {
+        let request = chm_grpc::dns::GetHostnameByUuidRequest { id: uid.to_string() };
+        let response = self.client.get_hostname_by_uuid(request).await?.into_inner();
+        Ok(response.hostname)
+    }
+    pub async fn get_uuid_by_ip(&mut self, ip: &str) -> Result<uuid::Uuid> {
+        let request = chm_grpc::dns::GetUuidByIpRequest { ip: ip.to_string() };
+        let response = self.client.get_uuid_by_ip(request).await?.into_inner();
+        Ok(uuid::Uuid::parse_str(&response.id)?)
+    }
+    pub async fn get_uuid_by_hostname(&mut self, hostname: &str) -> Result<uuid::Uuid> {
+        let request = chm_grpc::dns::GetUuidByHostnameRequest { hostname: hostname.to_string() };
+        let response = self.client.get_uuid_by_hostname(request).await?.into_inner();
+        Ok(uuid::Uuid::parse_str(&response.id)?)
+    }
+    pub fn is_ipv4(s: &str) -> bool {
+        s.parse::<Ipv4Addr>().is_ok()
+    }
+    pub fn is_http_ipv4_url(s: &str) -> bool {
+        let url = match Url::parse(s) {
+            Ok(u) => u,
+            Err(_) => return false,
+        };
+        match url.scheme() {
+            "http" | "https" => {}
+            _ => return false,
+        }
+        matches!(url.host(), Some(Host::Ipv4(_)))
+    }
+    pub fn get_ipv4_from_url(s: &str) -> Result<Ipv4Addr> {
+        let url = Url::parse(s)?;
+        match url.host() {
+            Some(Host::Ipv4(ip)) => Ok(ip),
+            _ => Err("URL does not contain a valid IPv4 address".into()),
+        }
+    }
+    pub fn get_hostname_from_url(s: &str) -> Result<String> {
+        let url = Url::parse(s)?;
+        match url.host() {
+            Some(Host::Domain(hostname)) => Ok(hostname.to_string()),
+            _ => Err("URL does not contain a valid hostname".into()),
+        }
+    }
+    pub fn get_uuid_from_url(s: &str) -> Result<Uuid> {
+        let url = Url::parse(s)?;
+        if let Some(host) = url.host_str() {
+            if let Ok(u) = Uuid::parse_str(host) {
+                return Ok(u);
+            }
+        }
+        if let Some(segments) = url.path_segments() {
+            for seg in segments {
+                if let Ok(u) = Uuid::parse_str(seg) {
+                    return Ok(u);
+                }
+            }
+        }
+        Err("URL does not contain a valid UUID".into())
+    }
+}

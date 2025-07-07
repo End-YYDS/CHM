@@ -3,9 +3,13 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{globals::DEFAULT, reload_globals, ConResult};
+use crate::{
+    globals::{DEFAULT_CA, DEFAULT_DNS},
+    reload_globals, ConResult,
+};
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{ClusterClient, Default_ClientCluster};
+use chm_dns_resolver::DnsResolver;
 use chm_grpc::tonic::async_trait;
 use chm_project_const::ProjectConst;
 use serde::{Deserialize, Serialize};
@@ -93,8 +97,22 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
         std::io::stdout().flush()?;
         let mut input = String::new();
         std::io::stdin().read_line(&mut input)?;
-        Some(input.trim()).filter(|s| !s.is_empty()).unwrap_or(DEFAULT).to_string()
+        Some(input.trim()).filter(|s| !s.is_empty()).unwrap_or(DEFAULT_CA).to_string()
     };
+    let mdns_path = {
+        print!("請輸入mDNS位置: ");
+        std::io::stdout().flush()?;
+        let mut input = String::new();
+        std::io::stdin().read_line(&mut input)?;
+        Some(input.trim()).filter(|s| !s.is_empty()).unwrap_or(DEFAULT_DNS).to_string()
+    };
+    if !DnsResolver::is_http_ipv4_url(&mdns_path) {
+        tracing::warn!("mDNS 位置應為IPv4 地址，請確認輸入正確");
+        return Err("mDNS 位置應為IPv4 地址".into());
+    }
+    let mut dns_resolver = DnsResolver::new(mdns_path).await;
+    let mca_path = dns_resolver.resolve_ip(&mca_path).await?;
+    tracing::info!("mCA 位置: {}", mca_path);
     let (pri_key, _) = CertUtils::generate_rsa_keypair(4096).expect("生成 RSA 金鑰對失敗");
     let mut conn = FirstStart::new(mca_path, pri_key.clone(), None);
     conn.inner = conn.inner.with_root_ca(Some(ProjectConst::certs_path().join("rootCA.pem")));

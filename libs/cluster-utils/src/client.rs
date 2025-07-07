@@ -38,6 +38,7 @@ impl ClientCluster {
     }
     pub fn with_base_url(mut self, url: impl Into<String>) -> Self {
         self.base_url = url.into();
+        // TODO: 從mDNS中解析IP地址
         self
     }
 

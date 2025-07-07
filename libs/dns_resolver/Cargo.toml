@@ -1,0 +1,10 @@
+[package]
+name = "chm-dns_resolver"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+chm-grpc = { workspace = true }
+url = "2.5.4"
+uuid = { workspace = true }

@@ -5,11 +5,14 @@ use chm_grpc::dns::{
     GetIpByHostnameRequest, GetIpByUuidRequest, GetUuidByHostnameRequest, GetUuidByIpRequest,
     HostnameResponse, IpResponse, UuidResponse,
 };
-use dotenv::dotenv;
 use sqlx::{types::ipnetwork::IpNetwork, Error as SqlxError, PgPool};
-use std::{env, net::IpAddr};
+use std::{
+    env,
+    net::{IpAddr, SocketAddr},
+};
 use thiserror::Error;
 use tonic::{transport::Server, Request, Response, Status};
+use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
 
 #[derive(Debug, Error)]
@@ -68,7 +71,6 @@ pub struct DnsSolver {
 
 impl DnsSolver {
     pub async fn new() -> Result<Self, DnsSolverError> {
-        dotenv().ok();
         let database_url =
             env::var("DATABASE_URL").map_err(|_| DnsSolverError::MissingDatabaseUrl)?;
         let pool = PgPool::connect(&database_url).await?;
@@ -77,7 +79,7 @@ impl DnsSolver {
 
     pub async fn add_host(&self, hostname: &str, ip: IpNetwork) -> Result<Uuid, DnsSolverError> {
         // Check if the hostname already exists
-        let existing = sqlx::query!("SELECT id FROM hosts WHERE hostname = $1", hostname)
+        let existing = sqlx::query!("SELECT id FROM hosts WHERE hostname = $1::citext", hostname)
             .fetch_optional(&self.pool)
             .await?;
 
@@ -115,9 +117,10 @@ impl DnsSolver {
 
     pub async fn edit_hostname(&self, id: Uuid, new_hostname: &str) -> Result<(), DnsSolverError> {
         // Check if the hostname already exists
-        let existing = sqlx::query!("SELECT id FROM hosts WHERE hostname = $1", new_hostname)
-            .fetch_optional(&self.pool)
-            .await?;
+        let existing =
+            sqlx::query!("SELECT id FROM hosts WHERE hostname = $1::citext", new_hostname)
+                .fetch_optional(&self.pool)
+                .await?;
 
         if existing.is_some() {
             return Err(DnsSolverError::AlreadyExists(new_hostname.to_string()));
@@ -146,7 +149,7 @@ impl DnsSolver {
     }
 
     pub async fn get_uuid_by_hostname(&self, hostname: &str) -> Result<Uuid, DnsSolverError> {
-        let row = sqlx::query!("SELECT id FROM hosts WHERE hostname = $1", hostname)
+        let row = sqlx::query!("SELECT id FROM hosts WHERE hostname = $1::citext", hostname)
             .fetch_optional(&self.pool)
             .await?;
 
@@ -181,12 +184,11 @@ impl DnsSolver {
         let row = sqlx::query!("SELECT ip FROM hosts WHERE id = $1", id)
             .fetch_optional(&self.pool)
             .await?;
-
         row.map(|r| r.ip.ip()).ok_or(DnsSolverError::NotFoundUuid(id))
     }
 
     pub async fn get_ip_by_hostname(&self, hostname: &str) -> Result<IpAddr, DnsSolverError> {
-        let row = sqlx::query!("SELECT ip FROM hosts WHERE hostname = $1", hostname)
+        let row = sqlx::query!("SELECT ip FROM hosts WHERE hostname = $1::citext", hostname)
             .fetch_optional(&self.pool)
             .await?;
 
@@ -356,12 +358,20 @@ impl DnsService for MyDnsService {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "[::1]:50051".parse()?;
+    tracing_subscriber::fmt()
+        .with_env_filter(EnvFilter::from_default_env().add_directive("info".parse().unwrap()))
+        .init();
+    tracing::info!("正在啟動DNS...");
+    let addr: SocketAddr = "127.0.0.1:50053".parse()?;
     let solver = DnsSolver::new().await?;
+    if let Err(e) = solver.add_host("mdns.chm.com", addr.ip().into()).await {
+        tracing::warn!("Failed to add default host: {}", e);
+    }
     let service = MyDnsService::new(solver);
-
-    println!("Starting gRPC server on {addr}");
+    tracing::info!("Starting gRPC server on {addr}");
     Server::builder().add_service(DnsServiceServer::new(service)).serve(addr).await?;
+    // TODO: 添加TLS支持,及添加CRL檢查
+    // TODO: 配置添加至Controller中的服務
 
     Ok(())
 }

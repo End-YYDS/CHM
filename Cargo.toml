@@ -2,10 +2,11 @@
 members = [
     "apps/ca",
     "apps/controller",
+    "apps/dns",
     "libs/cert-utils",
     "libs/cluster-utils",
     "libs/config_loader",
-    "libs/crl_cache",
+    "libs/crl_cache", "libs/dns_resolver",
     "libs/grpc",
     "libs/password",
     "libs/project_const",
@@ -26,6 +27,7 @@ chm-crl_cache = { version = "0.1.0", path = "./libs/crl_cache" }
 chm-grpc = { version = "0.1.0", path = "./libs/grpc" }
 chm-password = { version = "0.1.0", path = "./libs/password" }
 chm-project_const = { version = "0.1.0", path = "./libs/project_const" }
+chm-dns_resolver = { version = "0.1.0", path = "./libs/dns_resolver" }
 chrono = { version = "0.4.41", features = ["serde"] }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
 humantime = "2.2.0"
@@ -37,7 +39,7 @@ prost = "0.13.5"
 prost-types = "0.13.5"
 reqwest = { version = "0.12.20", features = ["json", "rustls-tls"] }
 serde = { version = "1.0.219", features = ["derive"] }
-sqlx = { version = "0.8.6", features = ["sqlite", "macros", "chrono", "runtime-tokio","migrate"] }
+sqlx = { version = "0.8.6", features = ["sqlite","postgres" ,"uuid","ipnetwork","macros", "chrono", "runtime-tokio","migrate"] }
 tokio = { version = "1.43.0", features = ["rt","macros","rt-multi-thread","fs"] }
 tonic = { version = "0.13.1", features = ["tls-ring","zstd"] }
 tonic-async-interceptor = "0.13.0"
@@ -46,6 +48,8 @@ tower = "0.5.2"
 tower-http = { version = "0.6.6", features = ["trace"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
+uuid = { version = "1.17.0", features = ["v4", "serde"] }
+thiserror = "2.0.12"
 
 [profile.release]
 opt-level = 3
