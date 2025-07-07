@@ -4,7 +4,7 @@ pub struct AddHostRequest {
     #[prost(string, tag = "1")]
     pub hostname: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub ip: ::prost::alloc::string::String,
+    pub ip:       ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AddHostResponse {
@@ -24,21 +24,21 @@ pub struct DeleteHostResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EditUuidRequest {
     #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
+    pub id:     ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub new_id: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EditHostnameRequest {
     #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
+    pub id:           ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub new_hostname: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EditIpRequest {
     #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
+    pub id:     ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub new_ip: ::prost::alloc::string::String,
 }
@@ -100,10 +100,9 @@ pub mod dns_service_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
-    use tonic::codegen::http::Uri;
+    use tonic::codegen::{http::Uri, *};
     #[derive(Debug, Clone)]
     pub struct DnsServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -147,16 +146,15 @@ pub mod dns_service_client {
                     <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             DnsServiceClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
-        /// This requires the server to support it otherwise it might respond with an
-        /// error.
+        /// This requires the server to support it otherwise it might respond
+        /// with an error.
         #[must_use]
         pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
             self.inner = self.inner.send_compressed(encoding);
@@ -187,18 +185,10 @@ pub mod dns_service_client {
         pub async fn add_host(
             &mut self,
             request: impl tonic::IntoRequest<super::AddHostRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::AddHostResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::AddHostResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/dns.DnsService/AddHost");
             let mut req = request.into_request();
@@ -208,22 +198,13 @@ pub mod dns_service_client {
         pub async fn delete_host(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteHostRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::DeleteHostResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::DeleteHostResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/dns.DnsService/DeleteHost",
-            );
+            let path = http::uri::PathAndQuery::from_static("/dns.DnsService/DeleteHost");
             let mut req = request.into_request();
             req.extensions_mut().insert(GrpcMethod::new("dns.DnsService", "DeleteHost"));
             self.inner.unary(req, path, codec).await
@@ -232,14 +213,9 @@ pub mod dns_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::EditUuidRequest>,
         ) -> std::result::Result<tonic::Response<super::EditResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/dns.DnsService/EditUuid");
             let mut req = request.into_request();
@@ -250,35 +226,22 @@ pub mod dns_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::EditHostnameRequest>,
         ) -> std::result::Result<tonic::Response<super::EditResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/dns.DnsService/EditHostname",
-            );
+            let path = http::uri::PathAndQuery::from_static("/dns.DnsService/EditHostname");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("dns.DnsService", "EditHostname"));
+            req.extensions_mut().insert(GrpcMethod::new("dns.DnsService", "EditHostname"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn edit_ip(
             &mut self,
             request: impl tonic::IntoRequest<super::EditIpRequest>,
         ) -> std::result::Result<tonic::Response<super::EditResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/dns.DnsService/EditIp");
             let mut req = request.into_request();
@@ -289,132 +252,78 @@ pub mod dns_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetUuidByHostnameRequest>,
         ) -> std::result::Result<tonic::Response<super::UuidResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/dns.DnsService/GetUuidByHostname",
-            );
+            let path = http::uri::PathAndQuery::from_static("/dns.DnsService/GetUuidByHostname");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("dns.DnsService", "GetUuidByHostname"));
+            req.extensions_mut().insert(GrpcMethod::new("dns.DnsService", "GetUuidByHostname"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_uuid_by_ip(
             &mut self,
             request: impl tonic::IntoRequest<super::GetUuidByIpRequest>,
         ) -> std::result::Result<tonic::Response<super::UuidResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/dns.DnsService/GetUuidByIp",
-            );
+            let path = http::uri::PathAndQuery::from_static("/dns.DnsService/GetUuidByIp");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("dns.DnsService", "GetUuidByIp"));
+            req.extensions_mut().insert(GrpcMethod::new("dns.DnsService", "GetUuidByIp"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_hostname_by_uuid(
             &mut self,
             request: impl tonic::IntoRequest<super::GetHostnameByUuidRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::HostnameResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::HostnameResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/dns.DnsService/GetHostnameByUuid",
-            );
+            let path = http::uri::PathAndQuery::from_static("/dns.DnsService/GetHostnameByUuid");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("dns.DnsService", "GetHostnameByUuid"));
+            req.extensions_mut().insert(GrpcMethod::new("dns.DnsService", "GetHostnameByUuid"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_hostname_by_ip(
             &mut self,
             request: impl tonic::IntoRequest<super::GetHostnameByIpRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::HostnameResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::HostnameResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/dns.DnsService/GetHostnameByIp",
-            );
+            let path = http::uri::PathAndQuery::from_static("/dns.DnsService/GetHostnameByIp");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("dns.DnsService", "GetHostnameByIp"));
+            req.extensions_mut().insert(GrpcMethod::new("dns.DnsService", "GetHostnameByIp"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_ip_by_uuid(
             &mut self,
             request: impl tonic::IntoRequest<super::GetIpByUuidRequest>,
         ) -> std::result::Result<tonic::Response<super::IpResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/dns.DnsService/GetIpByUuid",
-            );
+            let path = http::uri::PathAndQuery::from_static("/dns.DnsService/GetIpByUuid");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("dns.DnsService", "GetIpByUuid"));
+            req.extensions_mut().insert(GrpcMethod::new("dns.DnsService", "GetIpByUuid"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_ip_by_hostname(
             &mut self,
             request: impl tonic::IntoRequest<super::GetIpByHostnameRequest>,
         ) -> std::result::Result<tonic::Response<super::IpResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/dns.DnsService/GetIpByHostname",
-            );
+            let path = http::uri::PathAndQuery::from_static("/dns.DnsService/GetIpByHostname");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("dns.DnsService", "GetIpByHostname"));
+            req.extensions_mut().insert(GrpcMethod::new("dns.DnsService", "GetIpByHostname"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -427,10 +336,11 @@ pub mod dns_service_server {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with DnsServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for
+    /// use with DnsServiceServer.
     #[async_trait]
     pub trait DnsService: std::marker::Send + std::marker::Sync + 'static {
         async fn add_host(
@@ -440,10 +350,7 @@ pub mod dns_service_server {
         async fn delete_host(
             &self,
             request: tonic::Request<super::DeleteHostRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::DeleteHostResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::DeleteHostResponse>, tonic::Status>;
         async fn edit_uuid(
             &self,
             request: tonic::Request<super::EditUuidRequest>,
@@ -467,17 +374,11 @@ pub mod dns_service_server {
         async fn get_hostname_by_uuid(
             &self,
             request: tonic::Request<super::GetHostnameByUuidRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::HostnameResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::HostnameResponse>, tonic::Status>;
         async fn get_hostname_by_ip(
             &self,
             request: tonic::Request<super::GetHostnameByIpRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::HostnameResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::HostnameResponse>, tonic::Status>;
         async fn get_ip_by_uuid(
             &self,
             request: tonic::Request<super::GetIpByUuidRequest>,
@@ -508,10 +409,7 @@ pub mod dns_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -523,7 +421,8 @@ pub mod dns_service_server {
             self.accept_compression_encodings.enable(encoding);
             self
         }
-        /// Compress responses with the given encoding, if the client supports it.
+        /// Compress responses with the given encoding, if the client supports
+        /// it.
         #[must_use]
         pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
             self.send_compression_encodings.enable(encoding);
@@ -566,23 +465,16 @@ pub mod dns_service_server {
                 "/dns.DnsService/AddHost" => {
                     #[allow(non_camel_case_types)]
                     struct AddHostSvc<T: DnsService>(pub Arc<T>);
-                    impl<
-                        T: DnsService,
-                    > tonic::server::UnaryService<super::AddHostRequest>
-                    for AddHostSvc<T> {
+                    impl<T: DnsService> tonic::server::UnaryService<super::AddHostRequest> for AddHostSvc<T> {
                         type Response = super::AddHostResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::AddHostRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as DnsService>::add_host(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as DnsService>::add_host(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -611,15 +503,9 @@ pub mod dns_service_server {
                 "/dns.DnsService/DeleteHost" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteHostSvc<T: DnsService>(pub Arc<T>);
-                    impl<
-                        T: DnsService,
-                    > tonic::server::UnaryService<super::DeleteHostRequest>
-                    for DeleteHostSvc<T> {
+                    impl<T: DnsService> tonic::server::UnaryService<super::DeleteHostRequest> for DeleteHostSvc<T> {
                         type Response = super::DeleteHostResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteHostRequest>,
@@ -656,23 +542,16 @@ pub mod dns_service_server {
                 "/dns.DnsService/EditUuid" => {
                     #[allow(non_camel_case_types)]
                     struct EditUuidSvc<T: DnsService>(pub Arc<T>);
-                    impl<
-                        T: DnsService,
-                    > tonic::server::UnaryService<super::EditUuidRequest>
-                    for EditUuidSvc<T> {
+                    impl<T: DnsService> tonic::server::UnaryService<super::EditUuidRequest> for EditUuidSvc<T> {
                         type Response = super::EditResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::EditUuidRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as DnsService>::edit_uuid(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as DnsService>::edit_uuid(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -701,15 +580,9 @@ pub mod dns_service_server {
                 "/dns.DnsService/EditHostname" => {
                     #[allow(non_camel_case_types)]
                     struct EditHostnameSvc<T: DnsService>(pub Arc<T>);
-                    impl<
-                        T: DnsService,
-                    > tonic::server::UnaryService<super::EditHostnameRequest>
-                    for EditHostnameSvc<T> {
+                    impl<T: DnsService> tonic::server::UnaryService<super::EditHostnameRequest> for EditHostnameSvc<T> {
                         type Response = super::EditResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::EditHostnameRequest>,
@@ -746,21 +619,16 @@ pub mod dns_service_server {
                 "/dns.DnsService/EditIp" => {
                     #[allow(non_camel_case_types)]
                     struct EditIpSvc<T: DnsService>(pub Arc<T>);
-                    impl<T: DnsService> tonic::server::UnaryService<super::EditIpRequest>
-                    for EditIpSvc<T> {
+                    impl<T: DnsService> tonic::server::UnaryService<super::EditIpRequest> for EditIpSvc<T> {
                         type Response = super::EditResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::EditIpRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as DnsService>::edit_ip(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as DnsService>::edit_ip(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -789,23 +657,18 @@ pub mod dns_service_server {
                 "/dns.DnsService/GetUuidByHostname" => {
                     #[allow(non_camel_case_types)]
                     struct GetUuidByHostnameSvc<T: DnsService>(pub Arc<T>);
-                    impl<
-                        T: DnsService,
-                    > tonic::server::UnaryService<super::GetUuidByHostnameRequest>
-                    for GetUuidByHostnameSvc<T> {
+                    impl<T: DnsService> tonic::server::UnaryService<super::GetUuidByHostnameRequest>
+                        for GetUuidByHostnameSvc<T>
+                    {
                         type Response = super::UuidResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetUuidByHostnameRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as DnsService>::get_uuid_by_hostname(&inner, request)
-                                    .await
+                                <T as DnsService>::get_uuid_by_hostname(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -835,15 +698,9 @@ pub mod dns_service_server {
                 "/dns.DnsService/GetUuidByIp" => {
                     #[allow(non_camel_case_types)]
                     struct GetUuidByIpSvc<T: DnsService>(pub Arc<T>);
-                    impl<
-                        T: DnsService,
-                    > tonic::server::UnaryService<super::GetUuidByIpRequest>
-                    for GetUuidByIpSvc<T> {
+                    impl<T: DnsService> tonic::server::UnaryService<super::GetUuidByIpRequest> for GetUuidByIpSvc<T> {
                         type Response = super::UuidResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetUuidByIpRequest>,
@@ -880,23 +737,18 @@ pub mod dns_service_server {
                 "/dns.DnsService/GetHostnameByUuid" => {
                     #[allow(non_camel_case_types)]
                     struct GetHostnameByUuidSvc<T: DnsService>(pub Arc<T>);
-                    impl<
-                        T: DnsService,
-                    > tonic::server::UnaryService<super::GetHostnameByUuidRequest>
-                    for GetHostnameByUuidSvc<T> {
+                    impl<T: DnsService> tonic::server::UnaryService<super::GetHostnameByUuidRequest>
+                        for GetHostnameByUuidSvc<T>
+                    {
                         type Response = super::HostnameResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetHostnameByUuidRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as DnsService>::get_hostname_by_uuid(&inner, request)
-                                    .await
+                                <T as DnsService>::get_hostname_by_uuid(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -926,15 +778,11 @@ pub mod dns_service_server {
                 "/dns.DnsService/GetHostnameByIp" => {
                     #[allow(non_camel_case_types)]
                     struct GetHostnameByIpSvc<T: DnsService>(pub Arc<T>);
-                    impl<
-                        T: DnsService,
-                    > tonic::server::UnaryService<super::GetHostnameByIpRequest>
-                    for GetHostnameByIpSvc<T> {
+                    impl<T: DnsService> tonic::server::UnaryService<super::GetHostnameByIpRequest>
+                        for GetHostnameByIpSvc<T>
+                    {
                         type Response = super::HostnameResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetHostnameByIpRequest>,
@@ -971,15 +819,9 @@ pub mod dns_service_server {
                 "/dns.DnsService/GetIpByUuid" => {
                     #[allow(non_camel_case_types)]
                     struct GetIpByUuidSvc<T: DnsService>(pub Arc<T>);
-                    impl<
-                        T: DnsService,
-                    > tonic::server::UnaryService<super::GetIpByUuidRequest>
-                    for GetIpByUuidSvc<T> {
+                    impl<T: DnsService> tonic::server::UnaryService<super::GetIpByUuidRequest> for GetIpByUuidSvc<T> {
                         type Response = super::IpResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetIpByUuidRequest>,
@@ -1016,15 +858,11 @@ pub mod dns_service_server {
                 "/dns.DnsService/GetIpByHostname" => {
                     #[allow(non_camel_case_types)]
                     struct GetIpByHostnameSvc<T: DnsService>(pub Arc<T>);
-                    impl<
-                        T: DnsService,
-                    > tonic::server::UnaryService<super::GetIpByHostnameRequest>
-                    for GetIpByHostnameSvc<T> {
+                    impl<T: DnsService> tonic::server::UnaryService<super::GetIpByHostnameRequest>
+                        for GetIpByHostnameSvc<T>
+                    {
                         type Response = super::IpResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetIpByHostnameRequest>,
@@ -1058,25 +896,16 @@ pub mod dns_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        let mut response = http::Response::new(
-                            tonic::body::Body::default(),
-                        );
-                        let headers = response.headers_mut();
-                        headers
-                            .insert(
-                                tonic::Status::GRPC_STATUS,
-                                (tonic::Code::Unimplemented as i32).into(),
-                            );
-                        headers
-                            .insert(
-                                http::header::CONTENT_TYPE,
-                                tonic::metadata::GRPC_CONTENT_TYPE,
-                            );
-                        Ok(response)
-                    })
-                }
+                _ => Box::pin(async move {
+                    let mut response = http::Response::new(tonic::body::Body::default());
+                    let headers = response.headers_mut();
+                    headers.insert(
+                        tonic::Status::GRPC_STATUS,
+                        (tonic::Code::Unimplemented as i32).into(),
+                    );
+                    headers.insert(http::header::CONTENT_TYPE, tonic::metadata::GRPC_CONTENT_TYPE);
+                    Ok(response)
+                }),
             }
         }
     }
