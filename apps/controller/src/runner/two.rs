@@ -1,11 +1,11 @@
 use crate::{
-    communication::{ca::ClientCA, grpc_connection_init, health_check, ServiceName},
+    communication::{ca::ClientCA, ca_grpc_connection_init, health_check, ServiceName},
     ConResult,
 };
 
 pub async fn run() -> ConResult<()> {
     tracing::debug!("Controller 正在運行...");
-    let channel = grpc_connection_init().await?;
+    let channel = ca_grpc_connection_init().await?;
     tracing::debug!("gRPC Channel 已建立");
     tracing::debug!("執行健康檢查...");
     health_check(channel.clone(), ServiceName::Mca).await?;

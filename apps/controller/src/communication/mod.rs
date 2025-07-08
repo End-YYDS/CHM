@@ -18,7 +18,7 @@ impl AsRef<str> for ServiceName {
         }
     }
 }
-pub async fn grpc_connection_init() -> ConResult<Channel> {
+pub async fn ca_grpc_connection_init() -> ConResult<Channel> {
     let (root_cert, client_cert, client_key, mca_info) = {
         let lock = crate::globals_lock().await;
         let r = lock.read().await;
@@ -34,7 +34,7 @@ pub async fn grpc_connection_init() -> ConResult<Channel> {
     let ca_certificate = Certificate::from_pem(root_cert);
     let client_identity = Identity::from_pem(client_cert, client_key);
     let tls = ClientTlsConfig::new().ca_certificate(ca_certificate).identity(client_identity);
-    let channel = Endpoint::from_shared(mca_info)?.tls_config(tls)?.connect().await?; // 從Config中讀取Controller的地址
+    let channel = Endpoint::from_shared(mca_info)?.tls_config(tls)?.connect().await?; // TODO: 從Config中讀取mCA的地址
     Ok(channel)
 }
 pub async fn health_check(channel: Channel, service_name: impl AsRef<str>) -> crate::ConResult<()> {
