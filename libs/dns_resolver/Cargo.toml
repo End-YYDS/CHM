@@ -6,5 +6,5 @@ publish = false
 
 [dependencies]
 chm-grpc = { workspace = true }
-url = "2.5.4"
+url = { workspace = true }
 uuid = { workspace = true }

@@ -6,7 +6,8 @@ members = [
     "libs/cert-utils",
     "libs/cluster-utils",
     "libs/config_loader",
-    "libs/crl_cache", "libs/dns_resolver",
+    "libs/crl_cache",
+    "libs/dns_resolver",
     "libs/grpc",
     "libs/password",
     "libs/project_const",
@@ -20,14 +21,16 @@ edition = "2021"
 [workspace.dependencies]
 actix-tls = { version = "3.4.0", features = ["openssl"] }
 actix-web = { version = "4.11.0", features = ["openssl"] }
+argon2 = { version = "0.5.3", features = ["std"] }
+base64 = "0.22.1"
 chm-cert-utils = { version = "0.1.0", path = "./libs/cert-utils" }
 chm-cluster-utils = { version = "0.1.0", path = "./libs/cluster-utils" }
 chm-config_loader = { version = "0.1.0", path = "./libs/config_loader", default-features = false }
 chm-crl_cache = { version = "0.1.0", path = "./libs/crl_cache" }
+chm-dns_resolver = { version = "0.1.0", path = "./libs/dns_resolver" }
 chm-grpc = { version = "0.1.0", path = "./libs/grpc" }
 chm-password = { version = "0.1.0", path = "./libs/password" }
 chm-project_const = { version = "0.1.0", path = "./libs/project_const" }
-chm-dns_resolver = { version = "0.1.0", path = "./libs/dns_resolver" }
 chrono = { version = "0.4.41", features = ["serde"] }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
 humantime = "2.2.0"
@@ -37,10 +40,13 @@ openssl = "0.10.72"
 openssl-sys = "0.9.109"
 prost = "0.13.5"
 prost-types = "0.13.5"
+rand = "0.9.1"
 reqwest = { version = "0.12.20", features = ["json", "rustls-tls"] }
 serde = { version = "1.0.219", features = ["derive"] }
 sqlx = { version = "0.8.6", features = ["sqlite","postgres" ,"uuid","ipnetwork","macros", "chrono", "runtime-tokio","migrate"] }
+thiserror = "2.0.12"
 tokio = { version = "1.43.0", features = ["rt","macros","rt-multi-thread","fs"] }
+toml = "0.8.22"
 tonic = { version = "0.13.1", features = ["tls-ring","zstd"] }
 tonic-async-interceptor = "0.13.0"
 tonic-health = "0.13.0"
@@ -48,8 +54,8 @@ tower = "0.5.2"
 tower-http = { version = "0.6.6", features = ["trace"] }
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
+url = "2.5.4"
 uuid = { version = "1.17.0", features = ["v4", "serde"] }
-thiserror = "2.0.12"
 
 [profile.release]
 opt-level = 3

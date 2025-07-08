@@ -615,8 +615,8 @@ version = "0.1.0"
 dependencies = [
  "actix-tls",
  "actix-web",
- "async-trait",
  "chm-cert-utils",
+ "chm-grpc",
  "chm-password",
  "openssl",
  "openssl-sys",
@@ -642,8 +642,9 @@ dependencies = [
 name = "chm-crl_cache"
 version = "0.1.0"
 dependencies = [
- "async-trait",
+ "chm-grpc",
  "chrono",
+ "openssl",
  "thiserror",
  "tokio",
 ]

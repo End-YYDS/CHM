@@ -7,8 +7,8 @@ publish = false
 [dependencies]
 chm-project_const = { workspace = true }
 config = { version = "0.15.11", default-features = false, features = ["toml"] }
-serde = { version = "1.0.219", features = ["derive"] }
-tokio = { version = "1.43.0", features = ["fs"] }
-toml = "0.8.22"
+serde = { workspace = true }
+tokio = { workspace = true, features = ["fs"] }
+toml = { workspace = true }
 [dev-dependencies]
 tempfile = "3.17.1"

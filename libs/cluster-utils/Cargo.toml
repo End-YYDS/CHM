@@ -13,8 +13,8 @@ default = ["openssl", "dep:tokio"]
 [dependencies]
 actix-tls = { workspace = true, optional = true }
 actix-web = { workspace = true, optional = true }
-async-trait = "0.1.88"
 chm-cert-utils = { workspace = true }
+chm-grpc = { workspace = true }
 chm-password = { workspace = true }
 openssl = { workspace = true, optional = true }
 openssl-sys = { workspace = true, optional = true }

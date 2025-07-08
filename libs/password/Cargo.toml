@@ -5,6 +5,6 @@ edition.workspace = true
 publish = false
 
 [dependencies]
-argon2 = { version = "0.5.3", features = ["std"] }
-base64 = "0.22.1"
-rand = "0.9.1"
+argon2 = { workspace = true }
+base64 = { workspace = true }
+rand = { workspace = true }

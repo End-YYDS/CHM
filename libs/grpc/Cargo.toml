@@ -16,7 +16,7 @@ controller = ["controller-client", "controller-server"]
 dns-client = []
 dns-server = []
 dns = ["dns-client", "dns-server"]
-default = ["crl-client","dns-client"]
+default = ["crl-client", "dns-client"]
 [dependencies]
 prost = { workspace = true }
 prost-types = { workspace = true }
