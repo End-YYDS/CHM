@@ -1,7 +1,7 @@
 use std::{collections::HashMap, error::Error, fs, io::Write, path::PathBuf, time::Duration};
 
 use crate::{ApiResponse, ClusterClient};
-use async_trait::async_trait;
+use chm_grpc::tonic::async_trait;
 use reqwest::{Client, Identity};
 type ClientCert = PathBuf;
 type ClientKey = PathBuf;

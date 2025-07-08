@@ -16,10 +16,12 @@ impl CrlProvider for StoreCrlProvider {
     async fn fetch_crl(
         &self,
         since: Option<DateTime<Utc>>,
+        limit: usize,
+        offset: usize,
     ) -> Result<(Vec<String>, DateTime<Utc>, DateTime<Utc>), CrlCacheError> {
         let entries: Vec<StoreCrlEntry> =
             self.store
-                .list_crl_entries(since, usize::MAX, 0)
+                .list_crl_entries(since, limit, offset)
                 .await
                 .map_err(|e| CrlCacheError::ProviderError(e.to_string()))?;
         let serials: Vec<String> = entries.into_iter().filter_map(|e| e.cert_serial).collect();
@@ -50,12 +52,8 @@ impl CrlVerifier {
         poll_interval: ChronoDuration,
     ) -> Result<Self, CrlCacheError> {
         let provider = Arc::new(StoreCrlProvider::new(store.clone(), poll_interval));
-        let (full, this_u, next_u) = provider.fetch_crl(None).await?;
-        let cache = Arc::new(CrlCache::new(this_u, next_u, provider.clone()));
-        {
-            let mut w = cache.writer().await;
-            *w = full.into_iter().collect();
-        }
+        let now = Utc::now();
+        let cache = Arc::new(CrlCache::new(now, now, provider.clone()));
         cache.clone().start();
         Ok(CrlVerifier { cache })
     }

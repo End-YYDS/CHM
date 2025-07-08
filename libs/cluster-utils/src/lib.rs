@@ -1,3 +1,5 @@
+#[cfg(feature = "client")]
+use chm_grpc::tonic::async_trait;
 use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 struct ApiResponse {
@@ -10,7 +12,7 @@ mod client;
 mod server;
 
 #[cfg(feature = "client")]
-#[async_trait::async_trait]
+#[async_trait]
 pub trait ClusterClient {
     async fn init(&mut self) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 }
@@ -19,7 +21,7 @@ pub trait ClusterClient {
 pub use client::ClientCluster as Default_ClientCluster;
 
 #[cfg(feature = "server")]
-#[async_trait::async_trait]
+#[async_trait]
 pub trait ClusterServer {
     async fn init(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 }

@@ -7,6 +7,7 @@ use actix_web::{
     App, HttpRequest, HttpResponse, HttpServer, Responder,
 };
 use chm_cert_utils::CertUtils;
+use chm_grpc::tonic::async_trait;
 use openssl::{
     error::ErrorStack,
     ssl::{SslAcceptorBuilder, SslFiletype, SslMethod, SslVerifyMode},
@@ -156,7 +157,7 @@ impl ServerCluster {
         Ok(self)
     }
 }
-#[async_trait::async_trait]
+#[async_trait]
 impl super::ClusterServer for ServerCluster {
     async fn init(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         tracing::info!("Starting server on {}", self.bind_address);
