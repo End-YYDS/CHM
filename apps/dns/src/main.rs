@@ -8,7 +8,7 @@ use chm_grpc::dns::{
 use sqlx::{types::ipnetwork::IpNetwork, Error as SqlxError, PgPool};
 use std::{
     env,
-    net::{IpAddr, SocketAddr},
+    net::{IpAddr, Ipv4Addr, SocketAddr},
 };
 use thiserror::Error;
 use tonic::{transport::Server, Request, Response, Status};
@@ -357,14 +357,23 @@ impl DnsService for MyDnsService {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env().add_directive("info".parse().unwrap()))
         .init();
     tracing::info!("正在啟動DNS...");
-    let addr: SocketAddr = "127.0.0.1:50053".parse()?;
+    let local_ip = if cfg!(debug_assertions) {
+        IpAddr::V4(Ipv4Addr::LOCALHOST)
+    } else {
+        chm_dns_resolver::DnsResolver::get_local_ip()?
+    };
+    let addr: SocketAddr = format!("{local_ip}:50053").parse()?;
     let solver = DnsSolver::new().await?;
     if let Err(e) = solver.add_host("mdns.chm.com", addr.ip().into()).await {
+        let dns_uuid = solver.get_uuid_by_hostname("mdns.chm.com").await?;
+        if let Err(e) = solver.edit_ip(dns_uuid, local_ip.into()).await {
+            tracing::warn!("Failed to edit default host IP: {}", e);
+        }
         tracing::warn!("Failed to add default host: {}", e);
     }
     let service = MyDnsService::new(solver);

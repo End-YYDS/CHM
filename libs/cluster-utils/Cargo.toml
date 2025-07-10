@@ -15,7 +15,9 @@ actix-tls = { workspace = true, optional = true }
 actix-web = { workspace = true, optional = true }
 chm-cert-utils = { workspace = true }
 chm-grpc = { workspace = true }
+chm-dns_resolver = { workspace = true }
 chm-password = { workspace = true }
+futures = { workspace = true }
 openssl = { workspace = true, optional = true }
 openssl-sys = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }

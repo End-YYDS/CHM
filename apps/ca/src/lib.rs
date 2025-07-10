@@ -17,7 +17,7 @@ use tonic_async_interceptor::async_interceptor;
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 
-use std::{fs, io::Write, net::SocketAddr, path::Path, sync::Arc};
+use std::{net::SocketAddr, sync::Arc};
 use tonic::{
     transport::{Identity, ServerTlsConfig},
     Request, Status,
@@ -210,19 +210,16 @@ pub async fn mini_controller_cert(
         "Taipei",
         "CHM Organization",
         "miniC.chm.com",
-        &["127.0.0.1"],
+        &["127.0.0.1", "miniC.chm.com", "mca.chm.com"],
     )?;
-    let key = Path::new("certs").join("mini_controller.key");
-    let mut f = fs::File::create(key)?;
-    f.write_all(mini_cert.0.as_slice())?;
     let mini_csr = X509Req::from_pem(&mini_cert.1)?;
     let mini_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&mini_csr, 365).await?;
+    CertUtils::save_cert("mini_controller", &mini_cert.0, &mini_sign.0)?;
     let mini_c = mini_controller::MiniController::new(
         Some(mini_sign.0),
         Some(mini_cert.0),
         cert_handler.clone(),
     );
-    mini_c.save_cert("mini_controller.pem")?;
     Ok(mini_c)
 }
 
@@ -239,7 +236,7 @@ pub async fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
         "Taipei",
         "CHM Organization",
         "ca.chm.com",
-        &["127.0.0.1"],
+        &["127.0.0.1", "ca.chm.com", "mca.chm.com"],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
@@ -261,7 +258,7 @@ pub async fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
         "Taipei",
         "CHM Organization",
         "test.chm.com",
-        &["127.0.0.1"],
+        &["127.0.0.1", "test.chm.com"],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
@@ -279,7 +276,7 @@ pub async fn one_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
         "Taipei",
         "CHM Organization",
         "one.chm.com",
-        &["127.0.0.1"],
+        &["127.0.0.1", "one.chm.com"],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;

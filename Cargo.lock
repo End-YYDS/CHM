@@ -522,6 +522,7 @@ dependencies = [
  "chm-cert-utils",
  "chm-config_loader",
  "chm-crl_cache",
+ "chm-dns_resolver",
  "chm-grpc",
  "chm-password",
  "chm-project_const",
@@ -616,8 +617,10 @@ dependencies = [
  "actix-tls",
  "actix-web",
  "chm-cert-utils",
+ "chm-dns_resolver",
  "chm-grpc",
  "chm-password",
+ "futures",
  "openssl",
  "openssl-sys",
  "reqwest",
@@ -970,6 +973,7 @@ dependencies = [
 name = "dns"
 version = "0.1.0"
 dependencies = [
+ "chm-dns_resolver",
  "chm-grpc",
  "prost",
  "serde",

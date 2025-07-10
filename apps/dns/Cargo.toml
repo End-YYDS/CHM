@@ -9,6 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 chm-grpc = { workspace = true, features = ["dns"] }
+chm-dns_resolver = { workspace = true }
 prost = { workspace = true }
 serde = { workspace = true }
 sqlx = { workspace = true }

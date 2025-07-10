@@ -123,7 +123,6 @@ impl From<SqlCrlEntry> for CrlEntry {
     }
 }
 #[async_trait]
-#[allow(unused)]
 impl CertificateStore for SqlConnection {
     // 憑證操作相關的異步方法
     /// 列出所有憑證

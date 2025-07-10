@@ -1,8 +1,9 @@
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr};
 
 use chm_grpc::{dns::dns_service_client::DnsServiceClient, tonic::transport::Channel};
 use url::{Host, Url};
 use uuid::Uuid;
+pub extern crate uuid;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 #[derive(Debug)]
 pub struct DnsResolver {
@@ -88,34 +89,40 @@ impl DnsResolver {
     pub fn get_dns_address(&self) -> &str {
         &self.dns_address
     }
-    async fn get_ip_by_hostname(&mut self, hostname: &str) -> Result<String> {
+    pub async fn get_ip_by_hostname(&self, hostname: &str) -> Result<String> {
+        let mut client = self.client.clone();
         let request = chm_grpc::dns::GetIpByHostnameRequest { hostname: hostname.to_string() };
-        let response = self.client.get_ip_by_hostname(request).await?.into_inner();
+        let response = client.get_ip_by_hostname(request).await?.into_inner();
         Ok(response.ip)
     }
-    async fn get_ip_by_uuid(&mut self, uid: uuid::Uuid) -> Result<String> {
+    pub async fn get_ip_by_uuid(&self, uid: uuid::Uuid) -> Result<String> {
+        let mut client = self.client.clone();
         let request = chm_grpc::dns::GetIpByUuidRequest { id: uid.to_string() };
-        let response = self.client.get_ip_by_uuid(request).await?.into_inner();
+        let response = client.get_ip_by_uuid(request).await?.into_inner();
         Ok(response.ip)
     }
-    pub async fn get_hostname_by_ip(&mut self, ip: &str) -> Result<String> {
+    pub async fn get_hostname_by_ip(&self, ip: &str) -> Result<String> {
+        let mut client = self.client.clone();
         let request = chm_grpc::dns::GetHostnameByIpRequest { ip: ip.to_string() };
-        let response = self.client.get_hostname_by_ip(request).await?.into_inner();
+        let response = client.get_hostname_by_ip(request).await?.into_inner();
         Ok(response.hostname)
     }
-    pub async fn get_hostname_by_uuid(&mut self, uid: uuid::Uuid) -> Result<String> {
+    pub async fn get_hostname_by_uuid(&self, uid: uuid::Uuid) -> Result<String> {
+        let mut client = self.client.clone();
         let request = chm_grpc::dns::GetHostnameByUuidRequest { id: uid.to_string() };
-        let response = self.client.get_hostname_by_uuid(request).await?.into_inner();
+        let response = client.get_hostname_by_uuid(request).await?.into_inner();
         Ok(response.hostname)
     }
-    pub async fn get_uuid_by_ip(&mut self, ip: &str) -> Result<uuid::Uuid> {
+    pub async fn get_uuid_by_ip(&self, ip: &str) -> Result<uuid::Uuid> {
+        let mut client = self.client.clone();
         let request = chm_grpc::dns::GetUuidByIpRequest { ip: ip.to_string() };
-        let response = self.client.get_uuid_by_ip(request).await?.into_inner();
+        let response = client.get_uuid_by_ip(request).await?.into_inner();
         Ok(uuid::Uuid::parse_str(&response.id)?)
     }
-    pub async fn get_uuid_by_hostname(&mut self, hostname: &str) -> Result<uuid::Uuid> {
+    pub async fn get_uuid_by_hostname(&self, hostname: &str) -> Result<uuid::Uuid> {
+        let mut client = self.client.clone();
         let request = chm_grpc::dns::GetUuidByHostnameRequest { hostname: hostname.to_string() };
-        let response = self.client.get_uuid_by_hostname(request).await?.into_inner();
+        let response = client.get_uuid_by_hostname(request).await?.into_inner();
         Ok(uuid::Uuid::parse_str(&response.id)?)
     }
     pub fn is_ipv4(s: &str) -> bool {
@@ -161,5 +168,15 @@ impl DnsResolver {
             }
         }
         Err("URL does not contain a valid UUID".into())
+    }
+    pub fn get_local_ip() -> Result<IpAddr> {
+        let socket = std::net::UdpSocket::bind("0.0.0.0:0")?;
+        socket.connect("8.8.8.8:80")?;
+        let local_addr = socket.local_addr()?;
+        if local_addr.ip().is_ipv4() {
+            Ok(local_addr.ip())
+        } else {
+            Err("Local address is not an IPv4 address".into())
+        }
     }
 }

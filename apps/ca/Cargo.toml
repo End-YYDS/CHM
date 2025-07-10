@@ -9,6 +9,7 @@ actix-web = { workspace = true }
 chm-cert-utils = { workspace = true }
 chm-config_loader = { workspace = true, default-features = true }
 chm-crl_cache = { workspace = true }
+chm-dns_resolver = { workspace = true }
 chm-grpc = { workspace = true, features = ["ca","crl-server"] }
 chm-password = { workspace = true }
 chm-project_const = { workspace = true }

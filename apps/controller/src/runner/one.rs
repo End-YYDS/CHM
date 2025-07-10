@@ -9,7 +9,6 @@ use crate::{
 };
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{ClusterClient, Default_ClientCluster};
-use chm_dns_resolver::DnsResolver;
 use chm_grpc::tonic::async_trait;
 use chm_project_const::ProjectConst;
 use serde::{Deserialize, Serialize};
@@ -31,6 +30,7 @@ impl FirstStart {
             cert_chain: None,
             inner: Default_ClientCluster::new(
                 base_url,
+                None::<String>,
                 None::<PathBuf>,
                 None::<PathBuf>,
                 None::<PathBuf>,
@@ -74,7 +74,7 @@ impl ClusterClient for FirstStart {
             "Taipei",
             "CHM Organization",
             "controller.chm.com",
-            &["127.0.0.1", "localhost"],
+            &["127.0.0.1", "localhost", "controller.chm.com"],
         )?;
         let data = Otp { code: otp, csr_cert, days: 365 };
         let resp = client
@@ -106,15 +106,16 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
         std::io::stdin().read_line(&mut input)?;
         Some(input.trim()).filter(|s| !s.is_empty()).unwrap_or(DEFAULT_DNS).to_string()
     };
-    if !DnsResolver::is_http_ipv4_url(&mdns_path) {
-        tracing::warn!("mDNS 位置應為IPv4 地址，請確認輸入正確");
-        return Err("mDNS 位置應為IPv4 地址".into());
-    }
-    let mut dns_resolver = DnsResolver::new(mdns_path).await;
-    let mca_path = dns_resolver.resolve_ip(&mca_path).await?;
-    tracing::info!("mCA 位置: {}", mca_path);
+    // if !DnsResolver::is_http_ipv4_url(&mdns_path) {
+    //     tracing::warn!("mDNS 位置應為IPv4 地址，請確認輸入正確");
+    //     return Err("mDNS 位置應為IPv4 地址".into());
+    // }
+    // let mut dns_resolver = DnsResolver::new(mdns_path).await;
+    // let mca_path = dns_resolver.resolve_ip(&mca_path).await?;
+    // tracing::info!("mCA 位置: {}", mca_path);
     let (pri_key, _) = CertUtils::generate_rsa_keypair(4096).expect("生成 RSA 金鑰對失敗");
     let mut conn = FirstStart::new(mca_path, pri_key.clone(), None);
+    conn.inner = conn.inner.with_mdns(Some(mdns_path));
     conn.inner = conn.inner.with_root_ca(Some(ProjectConst::certs_path().join("rootCA.pem")));
     conn.init().await?;
     if let Some(cert) = conn.cert {

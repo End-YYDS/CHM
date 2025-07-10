@@ -3,14 +3,13 @@ use crate::{
 };
 use actix_web::{dev::ServerHandle, post, web, App, HttpResponse, HttpServer};
 use chm_cert_utils::CertUtils;
-use chm_project_const::ProjectConst;
 use openssl::{
     pkey::PKey,
     ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod, SslVerifyMode},
     x509::{X509Req, X509},
 };
 use serde::{Deserialize, Serialize};
-use std::{fs, io::Write, net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{net::SocketAddr, path::PathBuf, sync::Arc};
 use tokio::sync::mpsc::Sender;
 #[derive(Serialize)]
 struct SignedCertResponse {
@@ -18,7 +17,6 @@ struct SignedCertResponse {
     chain: Vec<Vec<u8>>,
 }
 
-#[allow(unused)]
 #[derive(Debug, Clone, Deserialize)]
 struct Otp {
     code:     String,
@@ -74,24 +72,6 @@ impl MiniController {
         let r = r.to_pem()?;
         let ret = String::from_utf8(r)?;
         Ok(ret)
-    }
-
-    /// 儲存伺服器憑證到指定的檔案
-    /// # 參數
-    /// * `filename`: 檔案名稱
-    /// # 回傳
-    /// * `CaResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
-    pub fn save_cert(&self, filename: &str) -> CaResult<()> {
-        let file_path = ProjectConst::certs_path();
-        let file_path = file_path.join(format!("{filename}.pem"));
-        if !file_path.exists() {
-            if let Some(parent) = file_path.parent() {
-                std::fs::create_dir_all(parent).map_err(|e| format!("建立資料庫目錄失敗: {e}"))?;
-            }
-        }
-        let mut f = fs::File::create(file_path)?;
-        f.write_all(self.show_cert()?.as_bytes())?;
-        Ok(())
     }
     /// 啟動MiniController伺服器
     /// # 參數
