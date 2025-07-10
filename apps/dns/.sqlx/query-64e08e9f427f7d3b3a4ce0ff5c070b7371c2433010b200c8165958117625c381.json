@@ -5,7 +5,12 @@
     "columns": [],
     "parameters": {
       "Left": [
-        "Text",
+        {
+          "Custom": {
+            "name": "citext",
+            "kind": "Simple"
+          }
+        },
         "Uuid"
       ]
     },

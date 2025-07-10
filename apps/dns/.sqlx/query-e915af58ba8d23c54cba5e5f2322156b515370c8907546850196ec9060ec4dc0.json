@@ -1,27 +1,27 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT hostname FROM hosts WHERE ip = $1",
+  "query": "SELECT ip FROM hosts WHERE hostname = $1::citext",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "hostname",
-        "type_info": {
+        "name": "ip",
+        "type_info": "Inet"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        {
           "Custom": {
             "name": "citext",
             "kind": "Simple"
           }
         }
-      }
-    ],
-    "parameters": {
-      "Left": [
-        "Inet"
       ]
     },
     "nullable": [
       false
     ]
   },
-  "hash": "0014c5fae32c098405b22aa4b5f96238ca70a1527d798bf8717ba39898f392be"
+  "hash": "e915af58ba8d23c54cba5e5f2322156b515370c8907546850196ec9060ec4dc0"
 }

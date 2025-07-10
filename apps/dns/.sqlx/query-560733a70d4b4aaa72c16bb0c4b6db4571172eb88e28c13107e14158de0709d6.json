@@ -1,27 +1,27 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT hostname FROM hosts WHERE ip = $1",
+  "query": "SELECT id FROM hosts WHERE hostname = $1::citext",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "hostname",
-        "type_info": {
+        "name": "id",
+        "type_info": "Uuid"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        {
           "Custom": {
             "name": "citext",
             "kind": "Simple"
           }
         }
-      }
-    ],
-    "parameters": {
-      "Left": [
-        "Inet"
       ]
     },
     "nullable": [
       false
     ]
   },
-  "hash": "0014c5fae32c098405b22aa4b5f96238ca70a1527d798bf8717ba39898f392be"
+  "hash": "560733a70d4b4aaa72c16bb0c4b6db4571172eb88e28c13107e14158de0709d6"
 }
