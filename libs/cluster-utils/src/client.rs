@@ -10,14 +10,14 @@ use std::{
 };
 
 use crate::{ApiResponse, ClusterClient};
+use cached::{proc_macro::cached, TimedSizedCache};
 use chm_dns_resolver::{uuid::Uuid, DnsResolver};
 use chm_grpc::tonic::async_trait;
 use futures::FutureExt;
 use reqwest::{
     dns::{Name, Resolve, Resolving},
-    Client, Identity,
+    Certificate, Client, Identity,
 };
-use tokio::net::lookup_host;
 type ClientCert = PathBuf;
 type ClientKey = PathBuf;
 
@@ -41,6 +41,35 @@ impl Default for ClientCluster {
         }
     }
 }
+
+#[cached(
+    name = "LOAD_CLIENT_IDENTITY_CACHE",
+    ty = "TimedSizedCache<(PathBuf, PathBuf), Identity>",
+    create = "{ TimedSizedCache::with_size_and_lifespan(4, Duration::from_secs(600)) }",
+    convert = r#"{ (cert_path.clone(), key_path.clone()) }"#,
+    result = true
+)]
+fn load_client_identity(
+    cert_path: PathBuf,
+    key_path: PathBuf,
+) -> Result<Identity, Box<dyn StdError + Send + Sync>> {
+    let mut pem = Vec::new();
+    pem.extend(fs::read(cert_path)?);
+    pem.extend(fs::read(key_path)?);
+    Identity::from_pem(&pem).map_err(|e| Box::new(e) as Box<dyn StdError + Send + Sync>)
+}
+#[cached(
+    name = "LOAD_CA_IDENTITY_CACHE",
+    ty = "TimedSizedCache<PathBuf, Certificate>",
+    create = "{ TimedSizedCache::with_size_and_lifespan(4, Duration::from_secs(600)) }",
+    convert = r#"{ ca_p.clone() }"#,
+    result = true
+)]
+fn load_ca_identity(ca_p: PathBuf) -> Result<Certificate, Box<dyn StdError + Send + Sync>> {
+    let ca = fs::read(ca_p)?;
+    reqwest::Certificate::from_pem(&ca).map_err(|e| Box::new(e) as Box<dyn StdError + Send + Sync>)
+}
+
 impl ClientCluster {
     pub fn new(
         base_url: impl Into<String>,
@@ -95,15 +124,11 @@ impl ClientCluster {
         let mut builder =
             Client::builder().dns_resolver(my_resolver).timeout(self.timeout).use_rustls_tls();
         if let Some((ref cert_p, ref key_p)) = self.cert_chain {
-            let mut pem = Vec::new();
-            pem.extend(fs::read(cert_p)?);
-            pem.extend(fs::read(key_p)?);
-            let id = Identity::from_pem(&pem)?;
+            let id = load_client_identity(cert_p.clone(), key_p.clone())?;
             builder = builder.identity(id);
         }
         if let Some(ref ca_p) = self.root_ca {
-            let ca = fs::read(ca_p)?;
-            let ca_cert = reqwest::Certificate::from_pem(&ca)?;
+            let ca_cert = load_ca_identity(ca_p.clone())?;
             builder = builder.add_root_certificate(ca_cert);
         }
 
@@ -135,6 +160,7 @@ impl ClusterClient for ClientCluster {
         map.insert("code", otp);
         let url = format!("{}/init", self.base_url);
         tracing::debug!("初始化請求 URL: {}", url);
+        // TODO: 檢查是否為UUID是就解析成hostname之後
         let resp = client.post(url).json(&map).send().await?;
         let api_resp: ApiResponse = resp.json().await?;
         if !api_resp.ok {
@@ -149,30 +175,36 @@ impl ClusterClient for ClientCluster {
 }
 
 pub struct MyResolver(pub Arc<DnsResolver>);
-async fn lookup_host_or_custom(
+async fn lookup_host_or_custom_uncached(
     resolver: &DnsResolver,
     host: &str,
-) -> Result<Box<dyn Iterator<Item = SocketAddr> + Send>, Box<dyn StdError + Send + Sync>> {
+) -> Result<SocketAddr, Box<dyn StdError + Send + Sync>> {
     if let Ok(ip) = host.parse::<IpAddr>() {
-        return Ok(Box::new(std::iter::once(SocketAddr::new(ip, 0))));
+        return Ok(SocketAddr::new(ip, 0));
     }
     if let Ok(uid) = Uuid::parse_str(host) {
-        let ip = resolver.get_ip_by_uuid(uid).await?.parse::<IpAddr>()?;
-        return Ok(Box::new(std::iter::once(SocketAddr::new(ip, 0))));
+        let ip_str = resolver.get_ip_by_uuid(uid).await?;
+        let ip = ip_str.parse()?;
+        return Ok(SocketAddr::new(ip, 0));
     }
-    match resolver.get_ip_by_hostname(host).await {
-        Ok(ip) => {
-            tracing::debug!("DNS Resolver: {}", ip);
-            let ip = ip.parse::<IpAddr>()?;
-            Ok(Box::new(std::iter::once(SocketAddr::new(ip, 0))))
-        }
-        Err(_) => {
-            tracing::debug!("DNS Resolver 未找到地址，使用系统 DNS 解析");
-            let mut addrs = lookup_host((host, 0)).await?;
-            let first = addrs.next().ok_or_else(|| "系统 DNS 未返回地址".to_string())?;
-            Ok(Box::new(std::iter::once(first)))
-        }
-    }
+    let ip_str = resolver.get_ip_by_hostname(host).await?;
+    let ip = ip_str.parse()?;
+    Ok(SocketAddr::new(ip, 0))
+}
+
+#[cached(
+    name = "DNS_CACHE",
+    time = 60,
+    key = "String",
+    convert = r#"{ host.clone() }"#,
+    size = 100,
+    result = true
+)]
+async fn lookup_cached(
+    resolver: Arc<DnsResolver>,
+    host: String,
+) -> Result<SocketAddr, Box<dyn StdError + Send + Sync>> {
+    lookup_host_or_custom_uncached(&resolver, &host).await
 }
 
 impl Resolve for MyResolver {
@@ -180,8 +212,8 @@ impl Resolve for MyResolver {
         let host = name.as_str().to_string();
         let resolver = Arc::clone(&self.0);
         async move {
-            let iter = lookup_host_or_custom(&resolver, &host).await?;
-            Ok(iter)
+            let addr = lookup_cached(resolver, host).await?;
+            Ok(Box::new(std::iter::once(addr)) as _)
         }
         .boxed()
     }
