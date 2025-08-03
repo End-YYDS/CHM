@@ -71,13 +71,19 @@ pub struct DnsSolver {
 
 impl DnsSolver {
     pub async fn new() -> Result<Self, DnsSolverError> {
+        // TODO: 從Config中讀取數據庫連接字符串
         let database_url =
             env::var("DATABASE_URL").map_err(|_| DnsSolverError::MissingDatabaseUrl)?;
         let pool = PgPool::connect(&database_url).await?;
         Ok(Self { pool })
     }
 
-    pub async fn add_host(&self, hostname: &str, ip: IpNetwork) -> Result<Uuid, DnsSolverError> {
+    pub async fn add_host(
+        &self,
+        hostname: &str,
+        ip: IpNetwork,
+        id: Uuid,
+    ) -> Result<(), DnsSolverError> {
         // Check if the hostname already exists
         let existing = sqlx::query!("SELECT id FROM hosts WHERE hostname = $1::citext", hostname)
             .fetch_optional(&self.pool)
@@ -87,11 +93,11 @@ impl DnsSolver {
             return Err(DnsSolverError::AlreadyExists(hostname.to_string()));
         }
 
-        let id = Uuid::new_v4();
+        // let id = Uuid::new_v4();
         sqlx::query!("INSERT INTO hosts (id, hostname, ip) VALUES ($1, $2, $3)", id, hostname, ip)
             .execute(&self.pool)
             .await?;
-        Ok(id)
+        Ok(())
     }
 
     pub async fn delete_host(&self, id: Uuid) -> Result<(), DnsSolverError> {
@@ -215,9 +221,11 @@ impl DnsService for MyDnsService {
         let req = request.into_inner();
         let ip: IpNetwork =
             req.ip.parse().map_err(|_| Status::invalid_argument("Invalid IP format"))?;
+        let id: Uuid =
+            req.id.parse().map_err(|_| Status::invalid_argument("Invalid UUID format"))?;
 
-        match self.solver.add_host(&req.hostname, ip).await {
-            Ok(id) => Ok(Response::new(AddHostResponse { id: id.to_string() })),
+        match self.solver.add_host(&req.hostname, ip, id).await {
+            Ok(_) => Ok(Response::new(AddHostResponse { success: true })),
             Err(e) => Err(e.into()),
         }
     }
@@ -369,13 +377,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
     let addr: SocketAddr = format!("{local_ip}:50053").parse()?;
     let solver = DnsSolver::new().await?;
-    if let Err(e) = solver.add_host("mdns.chm.com", addr.ip().into()).await {
-        let dns_uuid = solver.get_uuid_by_hostname("mdns.chm.com").await?;
-        if let Err(e) = solver.edit_ip(dns_uuid, local_ip.into()).await {
-            tracing::warn!("Failed to edit default host IP: {}", e);
-        }
-        tracing::warn!("Failed to add default host: {}", e);
-    }
+    // 手動添加默認mCA主機
+    // if let Err(e) = solver.add_host("mdns.chm.com", addr.ip().into()).await {
+    //     let dns_uuid = solver.get_uuid_by_hostname("mdns.chm.com").await?;
+    //     if let Err(e) = solver.edit_ip(dns_uuid, local_ip.into()).await {
+    //         tracing::warn!("Failed to edit default host IP: {}", e);
+    //     }
+    //     tracing::warn!("Failed to add default host: {}", e);
+    // }
     let service = MyDnsService::new(solver);
     tracing::info!("Starting gRPC server on {addr}");
     Server::builder().add_service(DnsServiceServer::new(service)).serve(addr).await?;

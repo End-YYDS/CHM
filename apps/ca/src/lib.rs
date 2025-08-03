@@ -16,6 +16,7 @@ use tokio::sync::watch;
 use tonic_async_interceptor::async_interceptor;
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+use uuid::Uuid;
 
 use std::{net::SocketAddr, sync::Arc};
 use tonic::{
@@ -202,6 +203,7 @@ pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>)
 /// * `CaResult<MiniController>` - 返回 MiniController 實例或錯誤
 pub async fn mini_controller_cert(
     cert_handler: &Arc<CertificateProcess>,
+    uid: Uuid,
 ) -> CaResult<MiniController> {
     let mini_cert: (PrivateKey, CsrCert) = CertUtils::generate_csr_with_new_key(
         4096,
@@ -210,7 +212,7 @@ pub async fn mini_controller_cert(
         "Taipei",
         "CHM Organization",
         "miniC.chm.com",
-        &["127.0.0.1", "miniC.chm.com", "mca.chm.com"],
+        &["127.0.0.1", "miniC.chm.com", "mca.chm.com", uid.to_string().as_str()],
     )?;
     let mini_csr = X509Req::from_pem(&mini_cert.1)?;
     let mini_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&mini_csr, 365).await?;
@@ -228,7 +230,7 @@ pub async fn mini_controller_cert(
 /// * `cert_handler` - 用於簽署憑證的 CertificateProcess 處理器
 /// # 回傳
 /// * `CaResult<()>` - 返回結果，表示操作是否成功
-pub async fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
+pub async fn ca_grpc_cert(cert_handler: &CertificateProcess, uid: Uuid) -> CaResult<()> {
     let ca_grpc: (PrivateKey, CsrCert) = CertUtils::generate_csr_with_new_key(
         4096,
         "TW",
@@ -236,7 +238,7 @@ pub async fn ca_grpc_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
         "Taipei",
         "CHM Organization",
         "ca.chm.com",
-        &["127.0.0.1", "ca.chm.com", "mca.chm.com"],
+        &["127.0.0.1", "ca.chm.com", "mca.chm.com", uid.to_string().as_str()],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;

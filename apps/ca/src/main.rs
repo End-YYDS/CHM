@@ -44,7 +44,10 @@ async fn main() -> CaResult<()> {
     tracing::trace!("進入GlobalConfig讀取鎖定區域");
     let cfg = GlobalConfig::read().await;
     let cmg = &cfg.settings;
-
+    let unique_id = cmg.server.unique_id.clone().parse().unwrap_or_else(|_| {
+        tracing::error!("無效的 unique_id，使用預設值");
+        uuid::Uuid::new_v4()
+    });
     let marker_path = ProjectConst::data_path().join(".ca_first_run.done");
     if let Some(parent) = marker_path.parent() {
         fs::create_dir_all(parent)?;
@@ -70,20 +73,21 @@ async fn main() -> CaResult<()> {
     drop(cfg);
     tracing::trace!("GlobalConfig讀取鎖定區域已釋放");
     tracing::info!("mCA 伺服器將在 {addr} 上運行");
+    tracing::debug!("mCA 伺服器的唯一識別碼: {}", unique_id);
 
     if first_run {
         tracing::info!("第一次啟動，正在初始化 MiniController...");
-        let mut mini_c = mini_controller_cert(&cert_handler).await?;
+        let mut mini_c = mini_controller_cert(&cert_handler, unique_id).await?;
         tracing::info!("MiniController 初始化完成，開始創建憑證...");
         tracing::debug!("創建 ca_grpc 憑證...");
-        ca_grpc_cert(&cert_handler).await?;
+        ca_grpc_cert(&cert_handler, unique_id).await?;
         tracing::debug!("創建 grpc_test 憑證...");
         grpc_test_cert(&cert_handler).await?;
         tracing::debug!("創建 one_test 憑證...");
         one_cert(&cert_handler).await?;
         tracing::debug!("憑證創建完成");
         tracing::info!("正在啟動 MiniController...");
-        mini_c.start(addr, marker_path.clone()).await?;
+        mini_c.start(addr, marker_path.clone(), unique_id).await?;
     }
     if marker_path.exists() {
         tracing::info!("mCA 伺服器已經初始化過，開始啟動 gRPC 服務...");

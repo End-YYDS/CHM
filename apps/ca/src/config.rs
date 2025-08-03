@@ -14,12 +14,16 @@ pub static ID: &str = "CA";
 pub struct Server {
     #[serde(default = "Server::default_host")]
     /// 伺服器主機名稱或 IP 地址
-    pub host:    String,
+    pub host:      String,
     #[serde(default = "Server::default_port")]
     /// 伺服器埠號
-    pub port:    u16,
+    pub port:      u16,
     #[serde(default = "Server::default_otp_len")]
-    pub otp_len: usize,
+    /// 一次性密碼（OTP）的長度
+    pub otp_len:   usize,
+    #[serde(default = "Server::default_unique_id")]
+    /// 伺服器的唯一識別碼
+    pub unique_id: String,
 }
 
 impl Server {
@@ -36,13 +40,17 @@ impl Server {
     fn default_otp_len() -> usize {
         6
     }
+    fn default_unique_id() -> String {
+        uuid::Uuid::new_v4().to_string()
+    }
 }
 impl Default for Server {
     fn default() -> Self {
         Server {
-            host:    Server::default_host(),
-            port:    Server::default_port(),
-            otp_len: Server::default_otp_len(),
+            host:      Server::default_host(),
+            port:      Server::default_port(),
+            otp_len:   Server::default_otp_len(),
+            unique_id: Server::default_unique_id(),
         }
     }
 }
@@ -75,7 +83,7 @@ struct SqliteSettings;
 impl SqliteSettings {
     fn default_store_path() -> String {
         if cfg!(debug_assertions) {
-            "certs/cert_store.db".into()
+            "db/cert_store.db".into()
         } else {
             "/etc/CHM/db/cert_store.db".into()
         }
