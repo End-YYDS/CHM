@@ -31,4 +31,5 @@ certs/*
 data/*
 !data/.gitkeep
 db
+!db/.gitkeep
 config
