@@ -19,10 +19,11 @@ service DnsService {
 message AddHostRequest {
   string hostname = 1;
   string ip = 2;
+  string id = 3;
 }
 
 message AddHostResponse {
-  string id = 1;
+  bool success = 1;
 }
 
 message DeleteHostRequest {

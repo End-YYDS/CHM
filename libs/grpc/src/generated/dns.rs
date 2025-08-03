@@ -5,11 +5,13 @@ pub struct AddHostRequest {
     pub hostname: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub ip:       ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub id:       ::prost::alloc::string::String,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct AddHostResponse {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
+    #[prost(bool, tag = "1")]
+    pub success: bool,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeleteHostRequest {
