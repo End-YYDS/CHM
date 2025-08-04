@@ -33,3 +33,4 @@ data/*
 db
 !db/.gitkeep
 config
+!config/.gitkeep

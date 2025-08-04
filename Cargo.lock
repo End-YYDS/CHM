@@ -843,6 +843,8 @@ dependencies = [
  "chm-dns_resolver",
  "chm-grpc",
  "chm-project_const",
+ "humantime",
+ "humantime-serde",
  "serde",
  "tokio",
  "tracing",
