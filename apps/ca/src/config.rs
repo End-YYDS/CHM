@@ -29,9 +29,13 @@ pub struct Server {
 impl Server {
     /// 取得伺服器的完整地址
     fn default_host() -> String {
-        chm_dns_resolver::DnsResolver::get_local_ip()
-            .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
-            .to_string()
+        if !cfg!(debug_assertions) {
+            chm_dns_resolver::DnsResolver::get_local_ip()
+                .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
+                .to_string()
+        } else {
+            IpAddr::V4(Ipv4Addr::LOCALHOST).to_string()
+        }
     }
     /// 取得伺服器的預設埠號
     fn default_port() -> u16 {
