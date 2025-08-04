@@ -81,12 +81,14 @@ async fn main() -> CaResult<()> {
         tracing::info!("MiniController 初始化完成，開始創建憑證...");
         tracing::debug!("創建 ca_grpc 憑證...");
         ca_grpc_cert(&cert_handler, unique_id).await?;
-        tracing::debug!("創建 grpc_test 憑證...");
-        grpc_test_cert(&cert_handler).await?;
-        tracing::debug!("創建 one_test 憑證...");
-        one_cert(&cert_handler).await?;
-        tracing::debug!("憑證創建完成");
-        tracing::info!("正在啟動 MiniController...");
+        if cfg!(debug_assertions) {
+            tracing::debug!("創建 grpc_test 憑證...");
+            grpc_test_cert(&cert_handler).await?;
+            tracing::debug!("創建 one_test 憑證...");
+            one_cert(&cert_handler).await?;
+            tracing::debug!("憑證創建完成");
+            tracing::info!("正在啟動 MiniController...");
+        }
         mini_c.start(addr, marker_path.clone(), unique_id).await?;
     }
     if marker_path.exists() {
