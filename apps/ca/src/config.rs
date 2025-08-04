@@ -225,7 +225,7 @@ impl Settings {
 /// * `Result<(), Box<dyn std::error::Error>>` 返回設定實例和專案目錄，或錯誤
 pub async fn config() -> CaResult<()> {
     if NEED_EXAMPLE.load(Relaxed) {
-        Settings::init("CA_config.toml.example").await?;
+        Settings::init(format!("{ID}_config.toml.example").as_str()).await?;
         return Ok(());
     }
     let settings = Settings::new()?;

@@ -1,62 +1,59 @@
-use chm_dns_resolver::DnsResolver;
+use crate::ID;
 use chm_project_const::ProjectConst;
 use tokio::sync::{OnceCell, RwLock};
+
+use crate::config::Settings;
 #[derive(Debug)]
-pub struct GlobalsVar {
-    pub root_ca_cert: Option<Vec<u8>>,
-    pub client_cert:  Option<Vec<u8>>,
-    pub client_key:   Option<Vec<u8>>,
-    pub mca_info:     Option<String>,
-    pub mdns_info:    Option<String>,
-    pub dns_resolver: DnsResolver,
+pub struct GlobalConfig {
+    pub settings: Settings,
 }
 
-static GLOBALS: OnceCell<RwLock<GlobalsVar>> = OnceCell::const_new();
+static GLOBALS: OnceCell<RwLock<GlobalConfig>> = OnceCell::const_new();
 
 pub const DEFAULT_CA: &str = "https://mCA.chm.com:50052";
 pub const DEFAULT_DNS: &str = "http://127.0.0.1:50053";
-
-pub async fn certificate_loader(
-) -> (Option<Vec<u8>>, Option<Vec<u8>>, Option<Vec<u8>>, DnsResolver, String) {
+pub async fn certificate_loader() -> (String, String, String) {
     let cert_path = ProjectConst::certs_path();
-    let root_ca_cert = std::fs::read(cert_path.join("rootCA.pem")).ok();
-    let client_cert = std::fs::read(cert_path.join("controller.pem")).ok();
-    let client_key = std::fs::read(cert_path.join("controller.key")).ok();
-    let mut resolver = DnsResolver::new(DEFAULT_DNS).await;
-    let mca_ip = resolver.resolve_ip(DEFAULT_CA).await.expect("解析 DEFAULT_CA 失敗");
-    (root_ca_cert, client_cert, client_key, resolver, mca_ip)
+    (
+        cert_path.join("rootCA.pem").display().to_string(),
+        cert_path.join("controller.pem").display().to_string(),
+        cert_path.join("controller.key").display().to_string(),
+    )
 }
 
-impl GlobalsVar {
-    pub async fn load() -> Self {
-        let (root_ca_cert, client_cert, client_key, resolver, mca_ip) = certificate_loader().await;
-        GlobalsVar {
-            root_ca_cert,
-            client_cert,
-            client_key,
-            mca_info: Some(mca_ip),
-            mdns_info: Some(DEFAULT_DNS.to_string()),
-            dns_resolver: resolver,
+impl GlobalConfig {
+    pub async fn init_global_config(cfg: Settings) {
+        let initial = GlobalConfig { settings: cfg };
+        GLOBALS.get_or_init(|| async { RwLock::new(initial) }).await;
+    }
+    pub async fn read() -> tokio::sync::RwLockReadGuard<'static, GlobalConfig> {
+        GLOBALS.get().expect("Global configuration not initialized").read().await
+    }
+    pub async fn write() -> tokio::sync::RwLockWriteGuard<'static, GlobalConfig> {
+        GLOBALS.get().expect("Global configuration not initialized").write().await
+    }
+    pub fn has_active_readers() -> bool {
+        let lock = GLOBALS.get().expect("GlobalConfig not initialized");
+        lock.try_write().is_err()
+    }
+    pub async fn save_config() -> crate::ConResult<()> {
+        if GlobalConfig::has_active_readers() {
+            tracing::trace!("還有讀鎖沒有釋放!");
         }
+        let cfg = &GlobalConfig::read().await.settings;
+        let config_name = format!("{ID}_config.toml");
+        chm_config_loader::store_config(cfg, &config_name).await?;
+        Ok(())
     }
 }
-pub async fn globals_lock() -> &'static RwLock<GlobalsVar> {
-    GLOBALS
-        .get_or_init(|| async {
-            let initial = GlobalsVar::load().await;
-            RwLock::new(initial)
-        })
-        .await
-}
-pub async fn reload_globals() {
-    let lock = globals_lock().await;
-    let mut w = lock.write().await;
-    let (root_ca_cert, client_cert, client_key, resolver, mca_ip) = certificate_loader().await;
-    w.root_ca_cert = root_ca_cert;
-    w.client_cert = client_cert;
-    w.client_key = client_key;
-    w.dns_resolver = resolver;
-    w.mca_info = Some(mca_ip);
-    w.mdns_info = Some(DEFAULT_DNS.to_string());
-    tracing::info!("GlobalsVar DNS 重新載入完成");
+
+pub async fn reload_globals(mca_ip: Option<String>, mdns_info: Option<String>) {
+    let mut w = GlobalConfig::write().await;
+    let (root_ca_cert, client_cert, client_key) = certificate_loader().await;
+    w.settings.certificate.root_ca = root_ca_cert;
+    w.settings.certificate.client_cert = client_cert;
+    w.settings.certificate.client_key = client_key;
+    w.settings.server.ca_server = mca_ip.unwrap_or_else(|| DEFAULT_CA.to_string());
+    w.settings.server.dns_server = mdns_info.unwrap_or_else(|| DEFAULT_DNS.to_string());
+    tracing::info!("GlobalsConfig 重新載入完成");
 }
