@@ -59,7 +59,8 @@ uuid = { version = "1.17.0", features = ["v4", "serde"] }
 cached = { version = "0.56.0", features = ["async", "proc_macro"] }
 
 [profile.release]
-opt-level = 3
+opt-level = "s"
+strip = true
 lto = true
 codegen-units = 1
 debug = false
