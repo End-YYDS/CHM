@@ -1,11 +1,11 @@
 {
   "rust-analyzer.cargo.features": "all",
-  "rust-analyzer.rustfmt.overrideCommand": [
-    "rustup",
-    "run",
-    "nightly",
-    "rustfmt"
-  ],
+  // "rust-analyzer.rustfmt.overrideCommand": [
+  //   "rustup",
+  //   "run",
+  //   "nightly",
+  //   "rustfmt"
+  // ],
 
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer",

@@ -6,7 +6,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering::Relaxed},
 };
 
-use crate::ConResult;
+use crate::{ConResult, GlobalConfig};
 
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
 pub static ID: &str = "CHMcd";
@@ -92,7 +92,7 @@ impl Default for Server {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Certificate {
-    #[serde(default = "Certificate::default_root_ca")]
+    #[serde(default = "Certificate::default_rootca")]
     /// 根憑證
     pub root_ca:     String,
     #[serde(default = "Certificate::default_client_cert")]
@@ -107,14 +107,26 @@ pub struct Certificate {
 }
 
 impl Certificate {
-    fn default_root_ca() -> String {
-        "rootCA.pem".to_string()
+    fn default_rootca() -> String {
+        if cfg!(debug_assertions) {
+            "certs/rootCA.pem".into()
+        } else {
+            "/etc/CHM/certs/rootCA.pem".into() // 預設在系統目錄下
+        }
     }
     fn default_client_cert() -> String {
-        "controller.pem".to_string()
+        if cfg!(debug_assertions) {
+            "certs/controller.pem".to_string()
+        } else {
+            "/etc/CHM/certs/controller.pem".to_string() // 預設在系統目錄下
+        }
     }
     fn default_client_key() -> String {
-        "controller.key".to_string()
+        if cfg!(debug_assertions) {
+            "certs/controller.key".to_string()
+        } else {
+            "/etc/CHM/certs/controller.key".to_string() // 預設在系統目錄下
+        }
     }
     fn default_passphrase() -> String {
         "".to_string()
@@ -124,7 +136,7 @@ impl Certificate {
 impl Default for Certificate {
     fn default() -> Self {
         Certificate {
-            root_ca:     Certificate::default_root_ca(),
+            root_ca:     Certificate::default_rootca(),
             client_cert: Certificate::default_client_cert(),
             client_key:  Certificate::default_client_key(),
             passphrase:  Certificate::default_passphrase(),
@@ -159,7 +171,6 @@ pub async fn config() -> ConResult<()> {
         return Ok(());
     }
     let settings = Settings::new()?;
-    // GlobalConfig::init_global_config(settings);
-    dbg!(settings);
+    GlobalConfig::init_global_config(settings).await;
     Ok(())
 }

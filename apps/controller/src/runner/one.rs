@@ -1,12 +1,6 @@
-use std::{
-    io::Write,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
-use crate::{
-    globals::{DEFAULT_CA, DEFAULT_DNS},
-    reload_globals, ConResult,
-};
+use crate::{reload_globals, ConResult, GlobalConfig};
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{ClusterClient, Default_ClientCluster};
 use chm_dns_resolver::uuid::Uuid;
@@ -47,15 +41,19 @@ impl FirstStart {
         self.cert_chain = Some(cert_chain);
     }
     pub fn set_unique_id(&mut self, unique_id: Uuid) {
+        // let unique_id = Uuid::parse_str(&unique_id).unwrap_or_else(|_| {
+        //     tracing::error!("無效的 unique_id，使用預設值");
+        //     Uuid::new_v4()
+        // });
         self.ca_unique_id = Some(unique_id);
     }
 }
 
 #[derive(Debug, Deserialize)]
 struct SignedCertResponse {
-    cert:         Vec<u8>,
-    chain:        Vec<Vec<u8>>,
-    ca_unique_id: Uuid,
+    cert:      Vec<u8>,
+    chain:     Vec<Vec<u8>>,
+    unique_id: Uuid,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -93,30 +91,32 @@ impl ClusterClient for FirstStart {
         let signed_cert: SignedCertResponse = resp.json().await?;
         self.set_cert(signed_cert.cert);
         self.set_cert_chain(signed_cert.chain);
-        self.set_unique_id(signed_cert.ca_unique_id); // TODO: 這個unique_id應該從mCA獲取，之後寫入全域設定
+        self.set_unique_id(signed_cert.unique_id); // TODO: 這個unique_id應該從mCA獲取，之後寫入全域設定
         Ok(())
     }
 }
 
 pub async fn first_run(marker_path: &Path) -> ConResult<()> {
     tracing::info!("第一次啟動，正在初始化...");
-    let mca_path = {
-        print!("請輸入mCA位置: ");
-        std::io::stdout().flush()?;
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input)?;
-        Some(input.trim()).filter(|s| !s.is_empty()).unwrap_or(DEFAULT_CA).to_string()
-    };
-    let mdns_path = {
-        print!("請輸入mDNS位置: ");
-        std::io::stdout().flush()?;
-        let mut input = String::new();
-        std::io::stdin().read_line(&mut input)?;
-        Some(input.trim()).filter(|s| !s.is_empty()).unwrap_or(DEFAULT_DNS).to_string()
-    };
+    // let mca_path = {
+    //     print!("請輸入mCA位置: ");
+    //     std::io::stdout().flush()?;
+    //     let mut input = String::new();
+    //     std::io::stdin().read_line(&mut input)?;
+    //     Some(input.trim()).filter(|s|
+    // !s.is_empty()).unwrap_or(DEFAULT_CA).to_string() };
+    // let mdns_path = {
+    //     print!("請輸入mDNS位置: ");
+    //     std::io::stdout().flush()?;
+    //     let mut input = String::new();
+    //     std::io::stdin().read_line(&mut input)?;
+    //     Some(input.trim()).filter(|s|
+    // !s.is_empty()).unwrap_or(DEFAULT_DNS).to_string() };
     let (pri_key, _) = CertUtils::generate_rsa_keypair(4096).expect("生成 RSA 金鑰對失敗");
-    let mut conn = FirstStart::new(mca_path.clone(), pri_key.clone(), None);
-    conn.inner = conn.inner.with_mdns(Some(mdns_path.clone()));
+    let r = GlobalConfig::read().await;
+    let ca_url = r.settings.server.ca_server.clone();
+    drop(r);
+    let mut conn = FirstStart::new(ca_url, pri_key.clone(), None);
     conn.inner = conn.inner.with_root_ca(Some(ProjectConst::certs_path().join("rootCA.pem")));
     conn.init().await?;
     if let Some(cert) = conn.cert {
@@ -127,7 +127,7 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
         return Err("未收到憑證".into());
     }
     std::fs::write(marker_path, "done")?;
-    reload_globals(Some(mca_path), Some(mdns_path)).await;
+    reload_globals().await;
     tracing::debug!("mCA UUID: {:?}", conn.ca_unique_id);
     // TODO: 將連線資訊寫入檔案, 並且將mCA的UUID寫入全域設定
     Ok(())
