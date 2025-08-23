@@ -11,7 +11,6 @@ members = [
     "libs/grpc",
     "libs/password",
     "libs/project_const",
-    "xtask",
 ]
 resolver = "2"
 [workspace.package]
