@@ -24,6 +24,7 @@ struct Otp {
     code:     String,
     csr_cert: Vec<u8>,
     days:     u32,
+    uuid:     Uuid,
 }
 
 #[derive(Clone)]
@@ -210,6 +211,7 @@ async fn init_api(state: web::Data<AppState>, data: web::Json<Otp>) -> HttpRespo
         cfg.settings.controller.fingerprint =
             CertUtils::cert_fingerprint_sha256(&X509::from_der(&signed_cert.0).unwrap())
                 .expect("fingerprint");
+        cfg.settings.controller.uuid = data.uuid;
     }
     if let Err(e) = GlobalConfig::save_config().await {
         tracing::error!("儲存設定失敗: {:?}", e);

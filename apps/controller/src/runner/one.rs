@@ -15,9 +15,15 @@ struct FirstStart {
     cert_chain:   Option<Vec<Vec<u8>>>,
     inner:        Default_ClientCluster,
     ca_unique_id: Option<Uuid>,
+    self_uuid:    Uuid,
 }
 impl FirstStart {
-    pub fn new(base_url: impl Into<String>, private_key: Vec<u8>, cert: Option<Vec<u8>>) -> Self {
+    pub fn new(
+        base_url: impl Into<String>,
+        private_key: Vec<u8>,
+        cert: Option<Vec<u8>>,
+        self_uuid: Uuid,
+    ) -> Self {
         let base_url: String = base_url.into();
         Self {
             base_url: base_url.clone(),
@@ -32,6 +38,7 @@ impl FirstStart {
                 None::<PathBuf>,
             ),
             ca_unique_id: None,
+            self_uuid,
         }
     }
     pub fn set_cert(&mut self, cert: Vec<u8>) {
@@ -61,6 +68,7 @@ struct Otp {
     code:     String,
     csr_cert: Vec<u8>,
     days:     u32,
+    uuid:     Uuid,
 }
 
 #[async_trait]
@@ -81,7 +89,7 @@ impl ClusterClient for FirstStart {
             "controller.chm.com",
             &["127.0.0.1", "localhost", "controller.chm.com"],
         )?;
-        let data = Otp { code: otp, csr_cert, days: 365 };
+        let data = Otp { code: otp, csr_cert, days: 365, uuid: self.self_uuid };
         let resp = client
             .post(format!("{}/init", self.base_url))
             .json(&data)
@@ -115,8 +123,9 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
     let (pri_key, _) = CertUtils::generate_rsa_keypair(4096).expect("生成 RSA 金鑰對失敗");
     let r = GlobalConfig::read().await;
     let ca_url = r.settings.server.ca_server.clone();
+    let self_uuid = r.settings.server.unique_id;
     drop(r);
-    let mut conn = FirstStart::new(ca_url, pri_key.clone(), None);
+    let mut conn = FirstStart::new(ca_url, pri_key.clone(), None, self_uuid);
     conn.inner = conn.inner.with_root_ca(Some(ProjectConst::certs_path().join("rootCA.pem")));
     conn.init().await?;
     if let Some(cert) = conn.cert {

@@ -24,7 +24,7 @@ pub struct Server {
     pub otp_len:    usize,
     #[serde(default = "Server::default_unique_id")]
     /// 伺服器的唯一識別碼
-    pub unique_id:  String,
+    pub unique_id:  Uuid,
     #[serde(default = "Server::default_dns_server")]
     /// DNS 伺服器地址
     pub dns_server: String,
@@ -53,8 +53,8 @@ impl Server {
         6
     }
     /// 伺服器的唯一識別碼
-    fn default_unique_id() -> String {
-        Uuid::new_v4().to_string()
+    fn default_unique_id() -> Uuid {
+        Uuid::new_v4()
     }
     fn default_dns_server() -> String {
         let dnsip = if !cfg!(debug_assertions) {

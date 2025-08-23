@@ -1,11 +1,11 @@
+use crate::{globals::GlobalConfig, CaResult};
 use chm_config_loader::store_config;
 use serde::{Deserialize, Serialize};
 use std::{
     net::{IpAddr, Ipv4Addr},
     sync::atomic::{AtomicBool, Ordering::Relaxed},
 };
-
-use crate::{globals::GlobalConfig, CaResult};
+use uuid::Uuid;
 
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
 pub static ID: &str = "CA";
@@ -172,6 +172,9 @@ pub struct Controller {
     /// 控制器的序列號，用於唯一標識
     #[serde(default = "Controller::default_serial")]
     pub serial:      String,
+    /// 控制器的UUID
+    #[serde(default = "Controller::default_uuid")]
+    pub uuid:        Uuid,
 }
 
 impl Controller {
@@ -182,6 +185,9 @@ impl Controller {
     /// 取得控制器的預設序列號
     pub fn default_serial() -> String {
         "".into()
+    }
+    pub fn default_uuid() -> Uuid {
+        Uuid::nil()
     }
 }
 
