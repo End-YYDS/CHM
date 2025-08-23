@@ -128,6 +128,7 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
     }
     std::fs::write(marker_path, "done")?;
     reload_globals().await;
+    GlobalConfig::save_config().await?;
     tracing::debug!("mCA UUID: {:?}", conn.ca_unique_id);
     // TODO: 將連線資訊寫入檔案, 並且將mCA的UUID寫入全域設定
     Ok(())
