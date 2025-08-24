@@ -19,6 +19,11 @@ pub async fn entry() -> ConResult<()> {
     std::fs::create_dir_all(&data_dir)?;
     tracing::debug!("資料目錄已檢查");
     tracing::debug!("檢查是否為第一次執行...");
+    {
+        let w = GlobalConfig::write().await;
+        let self_hostname = w.settings.server.hostname.clone();
+        w.settings.services_pool.services_uuid.insert(self_hostname, w.settings.server.unique_id);
+    }
     let marker_path = data_dir.join(".controller_first_run.done");
     let is_first_run = !marker_path.exists();
     if is_first_run {

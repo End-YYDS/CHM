@@ -13,7 +13,7 @@ chm-cluster-utils = { workspace = true, features = ["client", "server"] }
 chm-config_loader = { workspace = true, default-features = true }
 chm-crl_cache = { workspace = true }
 chm-dns_resolver = { workspace = true }
-chm-grpc = { workspace = true, features = ["controller","ca-client"] }
+chm-grpc = { workspace = true, features = ["controller", "ca-client"] }
 chm-project_const = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true }
@@ -21,3 +21,4 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 humantime = { workspace = true }
 humantime-serde = { workspace = true }
+dashmap = { workspace = true }

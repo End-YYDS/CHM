@@ -12,8 +12,10 @@ pub static ID: &str = "CA";
 #[derive(Debug, Deserialize, Serialize)]
 /// 伺服器設定
 pub struct Server {
+    #[serde(default = "Server::default_hostname")]
+    pub hostname:  String,
     #[serde(default = "Server::default_host")]
-    /// 伺服器主機名稱或 IP 地址
+    /// IP 地址
     pub host:      String,
     #[serde(default = "Server::default_port")]
     /// 伺服器埠號
@@ -27,6 +29,9 @@ pub struct Server {
 }
 
 impl Server {
+    fn default_hostname() -> String {
+        "mCA".into()
+    }
     /// 取得伺服器的完整地址
     fn default_host() -> String {
         if !cfg!(debug_assertions) {
@@ -51,10 +56,11 @@ impl Server {
 impl Default for Server {
     fn default() -> Self {
         Server {
-            host:      Server::default_host(),
-            port:      Server::default_port(),
-            otp_len:   Server::default_otp_len(),
-            unique_id: Server::default_unique_id(),
+            hostname:  Self::default_hostname(),
+            host:      Self::default_host(),
+            port:      Self::default_port(),
+            otp_len:   Self::default_otp_len(),
+            unique_id: Self::default_unique_id(),
         }
     }
 }

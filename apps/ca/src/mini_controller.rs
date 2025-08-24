@@ -14,9 +14,10 @@ use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
 #[derive(Serialize)]
 struct SignedCertResponse {
-    cert:      Vec<u8>,
-    chain:     Vec<Vec<u8>>,
-    unique_id: Uuid,
+    cert:        Vec<u8>,
+    chain:       Vec<Vec<u8>>,
+    unique_id:   Uuid,
+    ca_hostname: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -34,6 +35,7 @@ struct AppState {
     marker_path:  PathBuf,
     otp_code:     String,
     unique_id:    Uuid,
+    hostname:     String,
 }
 /// MiniController 用於管理初始化過程的控制器
 pub struct MiniController {
@@ -90,6 +92,13 @@ impl MiniController {
         id: Uuid,
     ) -> CaResult<()> {
         tracing::info!("Init Process Running on {addr} ...");
+        let hostname = {
+            if GlobalConfig::has_active_readers() {
+                tracing::trace!("還有讀鎖沒釋放!");
+            }
+            let cfg = GlobalConfig::read().await;
+            cfg.settings.server.hostname.clone()
+        };
         let otp_len = {
             if GlobalConfig::has_active_readers() {
                 tracing::trace!("還有讀鎖沒釋放!");
@@ -112,10 +121,11 @@ impl MiniController {
             self.build_ssl_builder(&rootca).map_err(|e| format!("SSL 建構失敗: {e}"))?;
         let state = AppState {
             cert_process: self.cert_process.clone(),
-            shutdown_tx:  tx.clone(),
-            marker_path:  marker_path.clone(),
-            otp_code:     otp_code.clone(),
-            unique_id:    id,
+            shutdown_tx: tx.clone(),
+            marker_path: marker_path.clone(),
+            otp_code: otp_code.clone(),
+            unique_id: id,
+            hostname,
         };
         let server = HttpServer::new(move || {
             App::new().app_data(web::Data::new(state.clone())).service(init_api)
@@ -180,7 +190,8 @@ impl MiniController {
 /// # 回傳
 /// * `HttpResponse`: 返回 HTTP 響應，成功時為 Ok，失敗時為 InternalServerError
 async fn init_api(state: web::Data<AppState>, data: web::Json<Otp>) -> HttpResponse {
-    let AppState { cert_process, shutdown_tx, marker_path, otp_code, unique_id } = state.get_ref();
+    let AppState { cert_process, shutdown_tx, marker_path, otp_code, unique_id, hostname } =
+        state.get_ref();
     if data.code.as_str() != otp_code.as_str() {
         tracing::error!("OTP 驗證失敗: {}", data.code);
         return HttpResponse::Unauthorized().body("OTP 驗證失敗");
@@ -227,9 +238,10 @@ async fn init_api(state: web::Data<AppState>, data: web::Json<Otp>) -> HttpRespo
     }
     let _ = shutdown_tx.send(()).await;
     let ret_data = SignedCertResponse {
-        cert:      signed_cert.0,
-        chain:     signed_cert.1,
-        unique_id: *unique_id,
+        cert:        signed_cert.0,
+        chain:       signed_cert.1,
+        unique_id:   *unique_id,
+        ca_hostname: hostname.clone(),
     };
     HttpResponse::Ok().json(ret_data)
 }

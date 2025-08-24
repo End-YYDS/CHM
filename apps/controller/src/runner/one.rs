@@ -9,13 +9,15 @@ use chm_project_const::ProjectConst;
 use serde::{Deserialize, Serialize};
 
 struct FirstStart {
-    base_url:     String,
-    private_key:  Vec<u8>,
-    cert:         Option<Vec<u8>>,
-    cert_chain:   Option<Vec<Vec<u8>>>,
-    inner:        Default_ClientCluster,
-    ca_unique_id: Option<Uuid>,
-    self_uuid:    Uuid,
+    base_url:      String,
+    private_key:   Vec<u8>,
+    cert:          Option<Vec<u8>>,
+    cert_chain:    Option<Vec<Vec<u8>>>,
+    inner:         Default_ClientCluster,
+    ca_unique_id:  Option<Uuid>,
+    self_uuid:     Uuid,
+    ca_hostname:   String,
+    self_hostname: String,
 }
 impl FirstStart {
     pub fn new(
@@ -23,6 +25,7 @@ impl FirstStart {
         private_key: Vec<u8>,
         cert: Option<Vec<u8>>,
         self_uuid: Uuid,
+        self_hostname: String,
     ) -> Self {
         let base_url: String = base_url.into();
         Self {
@@ -39,6 +42,8 @@ impl FirstStart {
             ),
             ca_unique_id: None,
             self_uuid,
+            ca_hostname: "".into(),
+            self_hostname,
         }
     }
     pub fn set_cert(&mut self, cert: Vec<u8>) {
@@ -48,19 +53,19 @@ impl FirstStart {
         self.cert_chain = Some(cert_chain);
     }
     pub fn set_unique_id(&mut self, unique_id: Uuid) {
-        // let unique_id = Uuid::parse_str(&unique_id).unwrap_or_else(|_| {
-        //     tracing::error!("無效的 unique_id，使用預設值");
-        //     Uuid::new_v4()
-        // });
         self.ca_unique_id = Some(unique_id);
+    }
+    pub fn set_ca_hostname(&mut self, hostname: String) {
+        self.ca_hostname = hostname
     }
 }
 
 #[derive(Debug, Deserialize)]
 struct SignedCertResponse {
-    cert:      Vec<u8>,
-    chain:     Vec<Vec<u8>>,
-    unique_id: Uuid,
+    cert:        Vec<u8>,
+    chain:       Vec<Vec<u8>>,
+    unique_id:   Uuid,
+    ca_hostname: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -80,14 +85,15 @@ impl ClusterClient for FirstStart {
             tracing::error!("OTP Error: {}", e);
             e
         })?;
+        let common_name = format!("{}.chm.com", self.self_hostname);
         let (_, csr_cert) = CertUtils::generate_csr(
             self.private_key.clone(),
             "TW",
             "Taipei",
             "Taipei",
             "CHM Organization",
-            "controller.chm.com",
-            &["127.0.0.1", "localhost", "controller.chm.com"],
+            common_name.as_str(),
+            &["127.0.0.1", "localhost", common_name.as_str(), self.self_uuid.to_string().as_str()],
         )?;
         let data = Otp { code: otp, csr_cert, days: 365, uuid: self.self_uuid };
         let resp = client
@@ -100,34 +106,27 @@ impl ClusterClient for FirstStart {
         self.set_cert(signed_cert.cert);
         self.set_cert_chain(signed_cert.chain);
         self.set_unique_id(signed_cert.unique_id); // TODO: 這個unique_id應該從mCA獲取，之後寫入全域設定
+        self.set_ca_hostname(signed_cert.ca_hostname);
         Ok(())
     }
 }
 
 pub async fn first_run(marker_path: &Path) -> ConResult<()> {
     tracing::info!("第一次啟動，正在初始化...");
-    // let mca_path = {
-    //     print!("請輸入mCA位置: ");
-    //     std::io::stdout().flush()?;
-    //     let mut input = String::new();
-    //     std::io::stdin().read_line(&mut input)?;
-    //     Some(input.trim()).filter(|s|
-    // !s.is_empty()).unwrap_or(DEFAULT_CA).to_string() };
-    // let mdns_path = {
-    //     print!("請輸入mDNS位置: ");
-    //     std::io::stdout().flush()?;
-    //     let mut input = String::new();
-    //     std::io::stdin().read_line(&mut input)?;
-    //     Some(input.trim()).filter(|s|
-    // !s.is_empty()).unwrap_or(DEFAULT_DNS).to_string() };
     let (pri_key, _) = CertUtils::generate_rsa_keypair(4096).expect("生成 RSA 金鑰對失敗");
     let r = GlobalConfig::read().await;
     let ca_url = r.settings.server.ca_server.clone();
     let self_uuid = r.settings.server.unique_id;
+    let self_hostname = r.settings.server.hostname.clone();
     drop(r);
-    let mut conn = FirstStart::new(ca_url, pri_key.clone(), None, self_uuid);
+    let mut conn = FirstStart::new(ca_url, pri_key.clone(), None, self_uuid, self_hostname);
     conn.inner = conn.inner.with_root_ca(Some(ProjectConst::certs_path().join("rootCA.pem")));
     conn.init().await?;
+    if let Some(ca_id) = conn.ca_unique_id {
+        let w = GlobalConfig::write().await;
+        w.settings.services_pool.services_uuid.insert(conn.ca_hostname, ca_id);
+        drop(w);
+    }
     if let Some(cert) = conn.cert {
         CertUtils::save_cert("controller", &conn.private_key, &cert).expect("儲存憑證失敗");
         tracing::info!("憑證已生成，請檢查 controller.pem 和 controller.key");

@@ -1,18 +1,20 @@
+use crate::{ConResult, GlobalConfig};
 use chm_config_loader::store_config;
 use chm_dns_resolver::uuid::Uuid;
+use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::{
     net::{IpAddr, Ipv4Addr},
     sync::atomic::{AtomicBool, Ordering::Relaxed},
 };
 
-use crate::{ConResult, GlobalConfig};
-
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
 pub static ID: &str = "CHMcd";
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Server {
+    #[serde(default = "Server::default_hostname")]
+    pub hostname:   String,
     #[serde(default = "Server::default_host")]
     /// 伺服器主機名稱或 IP 地址
     pub host:       String,
@@ -34,6 +36,9 @@ pub struct Server {
 }
 
 impl Server {
+    fn default_hostname() -> String {
+        "CHMcd".into()
+    }
     /// 取得伺服器的完整地址
     fn default_host() -> String {
         if !cfg!(debug_assertions) {
@@ -80,12 +85,13 @@ impl Server {
 impl Default for Server {
     fn default() -> Self {
         Server {
-            host:       Server::default_host(),
-            port:       Server::default_port(),
-            otp_len:    Server::default_otp_len(),
-            unique_id:  Server::default_unique_id(),
-            dns_server: Server::default_dns_server(),
-            ca_server:  Server::default_ca_server(),
+            hostname:   Self::default_hostname(),
+            host:       Self::default_host(),
+            port:       Self::default_port(),
+            otp_len:    Self::default_otp_len(),
+            unique_id:  Self::default_unique_id(),
+            dns_server: Self::default_dns_server(),
+            ca_server:  Self::default_ca_server(),
         }
     }
 }
@@ -145,13 +151,20 @@ impl Default for Certificate {
 }
 
 #[derive(Debug, Deserialize, Serialize, Default)]
+pub struct ServicesPool {
+    pub services_uuid: DashMap<String, Uuid>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Default)]
 pub struct Settings {
     #[serde(default)]
     /// 伺服器設定
-    pub server:      Server,
+    pub server:        Server,
     #[serde(default)]
     /// 憑證設定
-    pub certificate: Certificate,
+    pub certificate:   Certificate,
+    #[serde(default)]
+    pub services_pool: ServicesPool,
 }
 
 impl Settings {
