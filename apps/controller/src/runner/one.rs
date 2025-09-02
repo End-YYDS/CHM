@@ -105,7 +105,7 @@ impl ClusterClient for FirstStart {
         let signed_cert: SignedCertResponse = resp.json().await?;
         self.set_cert(signed_cert.cert);
         self.set_cert_chain(signed_cert.chain);
-        self.set_unique_id(signed_cert.unique_id); // TODO: 這個unique_id應該從mCA獲取，之後寫入全域設定
+        self.set_unique_id(signed_cert.unique_id);
         self.set_ca_hostname(signed_cert.ca_hostname);
         Ok(())
     }
@@ -138,6 +138,5 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
     reload_globals().await;
     GlobalConfig::save_config().await?;
     tracing::debug!("mCA UUID: {:?}", conn.ca_unique_id);
-    // TODO: 將連線資訊寫入檔案, 並且將mCA的UUID寫入全域設定
     Ok(())
 }
