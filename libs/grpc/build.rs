@@ -1,6 +1,9 @@
 use std::{env, fs, path::Path};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let protoc = protoc_bin_vendored::protoc_bin_path()?;
+    env::set_var("PROTOC", protoc);
+    let include_path = protoc_bin_vendored::include_path()?;
     println!("cargo:rerun-if-env-changed=CARGO_FEATURE");
     let crate_root = Path::new(&env::var("CARGO_MANIFEST_DIR")?).to_owned();
     let out_dir = crate_root.join("src/generated");
@@ -14,6 +17,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             continue;
         }
         println!("cargo:rerun-if-changed={}", path.display());
+        // println!("cargo:warning=PROTO_FILES = {:?}", &path); // or 你實際的變數名
+        // println!("cargo:warning=INCLUDE_DIRS = {:?}", &proto_root); // or
+        // 你實際的變數名
         let stem = path.file_stem().and_then(|s| s.to_str()).expect("檔名一定要是 valid UTF-8");
         let feature_client = format!("CARGO_FEATURE_{}_CLIENT", stem.to_uppercase());
         let feature_server = format!("CARGO_FEATURE_{}_SERVER", stem.to_uppercase());
@@ -37,7 +43,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .server_mod_attribute(stem, format!("#[cfg(feature = \"{stem}-server\")]"))
             .build_client(want_client)
             .build_server(want_server)
-            .compile_protos(&[&path], &[&proto_root])?;
+            .compile_protos(&[&path], &[&proto_root, &include_path])?;
+        // .compile_protos(&[&path], &[&proto_root])?;
     }
     let mut mod_rs = String::new();
     for entry in fs::read_dir(&proto_root)? {

@@ -9,3 +9,9 @@ pub mod ca;
 
 #[cfg(any(feature = "controller-client", feature = "controller-server"))]
 pub mod controller;
+
+#[cfg(any(feature = "common-client", feature = "common-server"))]
+pub mod common;
+
+#[cfg(any(feature = "restful-client", feature = "restful-server"))]
+pub mod restful;

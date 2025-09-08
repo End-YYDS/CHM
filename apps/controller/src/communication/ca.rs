@@ -6,6 +6,7 @@ use chm_grpc::{
 use crate::ConResult;
 type SignedCertificate = Vec<u8>;
 type CertificateChain = Vec<Vec<u8>>;
+#[derive(Debug)]
 pub struct ClientCA {
     client: CaClient<Channel>,
 }

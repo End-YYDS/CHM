@@ -16,6 +16,14 @@ controller = ["controller-client", "controller-server"]
 dns-client = []
 dns-server = []
 dns = ["dns-client", "dns-server"]
+restful-server = []
+restful-client = []
+common-server = []
+common-client = []
+restful-common-server = ["restful-server", "common-server"]
+restful-common-client = ["restful-client", "common-client"]
+common = ["common-server", "common-client"]
+restful = ["restful-server", "restful-client", "common"]
 default = ["crl-client", "dns-client"]
 [dependencies]
 prost = { workspace = true }
@@ -24,3 +32,4 @@ tonic = { workspace = true }
 tonic-health = { workspace = true }
 [build-dependencies]
 tonic-build = "0.13.1"
+protoc-bin-vendored = "3.2.0"

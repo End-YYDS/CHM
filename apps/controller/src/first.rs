@@ -19,14 +19,18 @@ struct FirstStart {
     ca_hostname:   String,
     self_hostname: String,
 }
+struct FirstStartParams<T: Into<String>> {
+    base_url:      T,
+    private_key:   Vec<u8>,
+    cert:          Option<Vec<u8>>,
+    root_ca:       Option<PathBuf>,
+    self_uuid:     Uuid,
+    self_hostname: String,
+}
 impl FirstStart {
-    pub fn new(
-        base_url: impl Into<String>,
-        private_key: Vec<u8>,
-        cert: Option<Vec<u8>>,
-        self_uuid: Uuid,
-        self_hostname: String,
-    ) -> Self {
+    pub fn new<T: Into<String>>(parms: FirstStartParams<T>) -> Self {
+        let FirstStartParams { base_url, private_key, cert, root_ca, self_uuid, self_hostname } =
+            parms;
         let base_url: String = base_url.into();
         Self {
             base_url: base_url.clone(),
@@ -38,7 +42,7 @@ impl FirstStart {
                 None::<String>,
                 None::<PathBuf>,
                 None::<PathBuf>,
-                None::<PathBuf>,
+                root_ca,
             ),
             ca_unique_id: None,
             self_uuid,
@@ -119,8 +123,14 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
     let self_uuid = r.settings.server.unique_id;
     let self_hostname = r.settings.server.hostname.clone();
     drop(r);
-    let mut conn = FirstStart::new(ca_url, pri_key.clone(), None, self_uuid, self_hostname);
-    conn.inner = conn.inner.with_root_ca(Some(ProjectConst::certs_path().join("rootCA.pem")));
+    let mut conn = FirstStart::new(FirstStartParams {
+        base_url: ca_url.clone(),
+        private_key: pri_key.clone(),
+        cert: None,
+        root_ca: Some(ProjectConst::certs_path().join("rootCA.pem")),
+        self_uuid,
+        self_hostname: self_hostname.clone(),
+    });
     conn.init().await?;
     if let Some(ca_id) = conn.ca_unique_id {
         let w = GlobalConfig::write().await;

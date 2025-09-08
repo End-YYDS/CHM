@@ -1,0 +1,2349 @@
+syntax = "proto3";
+
+package restful;
+
+import "common.proto";
+
+// ========== Info 專用型別 ==========
+message InfoCounts {
+    int64 safe = 1;
+    int64 warn = 2;
+    int64 dang = 3;
+}
+
+message ClusterSummary {
+    double cpu = 1;
+    double memory = 2;
+    double disk = 3;
+}
+
+message PcMetrics {
+    double cpu = 1;
+    double memory = 2;
+    double disk = 3;
+}
+
+enum Zone {
+    ZONE_UNSPECIFIED = 0;
+    INFO = 1;
+    CLUSTER = 2;
+}
+
+enum Target {
+    TARGET_UNSPECIFIED = 0;
+    SAFE = 1;
+    WARN = 2;
+    DANG = 3;
+    CPU = 4;
+    MEMORY = 5;
+    DISK = 6;
+}
+
+// ========== Backup 專用型別 ==========
+enum BackupLocation {
+    BACKUP_LOCATION_UNSPECIFIED = 0;
+    REMOTE = 1;
+    LOCAL = 2;
+}
+
+// ========== Login ==========
+message LoginRequest {
+    string username = 1;
+    string password = 2;
+}
+
+message LoginResponse {
+    common.ResponseResult result = 1;
+}
+
+// ========== Info ==========
+message GetAllInfoRequest {}
+message GetAllInfoResponse {
+    InfoCounts info = 1;
+    ClusterSummary cluster = 2;
+}
+
+message GetInfoRequest {
+    Zone zone = 1;
+    Target target = 2;
+    optional string uuid = 3;
+}
+message GetInfoResponse {
+    map<string, PcMetrics> pcs = 1;
+    int32 length = 2;
+}
+
+// ========== Config ==========
+message GetConfigRequest {
+    string name = 1;
+}
+message GetConfigResponse {
+    int32 reload_rate = 1;
+}
+
+// ========== Backup ==========
+message BackupNowRequest {
+    BackupLocation type = 1;
+    string name = 2;
+}
+message BackupNowResponse {
+    common.ResponseResult result = 1;
+    optional string id = 2;
+    optional string download_url = 3;
+}
+
+message GetBackupsRequest {
+    uint32 limit = 1;
+}
+message BackupEntry {
+    string name = 1;
+    common.Date date = 2;
+}
+message GetBackupsResponse {
+    repeated BackupEntry backups = 1;
+    uint32 length = 2;
+}
+
+message ReductionRequest {
+    BackupLocation type = 1;
+    oneof source {
+        string name = 2;
+        string file = 3;
+    }
+}
+message ReductionResponse {
+    common.ResponseResult result = 1;
+}
+
+// ========== mCA: 有效憑證列表 ==========
+message GetValidCertsRequest {}
+
+message ValidCert {
+    string name = 1; // 通用名稱
+    string signer = 2;
+    string period = 3; // 有效期間
+}
+
+message GetValidCertsResponse {
+    repeated ValidCert valid = 1; // 有效憑證清單
+    int32 length = 2;             // valid.len
+}
+
+// ========== mCA: 已吊銷憑證列表 ==========
+message GetRevokedCertsRequest {}
+
+message RevokedCert {
+    string number = 1; // 序號
+    string time = 2; // 吊銷時間
+    string reason = 3;
+}
+
+message GetRevokedCertsResponse {
+    repeated RevokedCert revoke = 1; // 已吊銷憑證清單
+    int32 length = 2;                // revoke.len
+}
+
+// ========== mCA: 吊銷憑證 ==========
+message RevokeCertRequest {
+    string name = 1; // 通用名稱
+    string reason = 2; // 吊銷原因
+}
+
+message RevokeCertResponse {
+    common.ResponseResult result = 1; // Type + Message
+}
+
+// =============== PC Management ===============
+
+// 新增管理主機 POST /api/chm/pc/add
+message AddPcRequest {
+    string ip = 1;        // 實體 IP
+    string password = 2;
+}
+message AddPcResponse {
+    common.ResponseResult result = 1; // Type/Message
+}
+
+// 取得所有主機 GET /api/chm/pc/all
+message GetAllPcsRequest {}
+message PcSimple {
+    string hostname = 1;
+    string ip = 2;
+}
+message GetAllPcsResponse {
+    map<string, PcSimple> pcs = 1; // key = uuid
+    int32 length = 2;              // pcs.len()
+}
+
+// 取得特定主機 GET /api/chm/pc/specific
+message GetSpecificPcsRequest {
+    repeated string uuid = 1; // 多個 UUID
+}
+message GetSpecificPcsResponse {
+    map<string, PcSimple> pcs = 1; // key = uuid
+    int32 length = 2;              // pcs.len()
+}
+
+// 刪除管理主機 DELETE /api/chm/pc
+message DeletePcsRequest {
+    repeated string uuids = 1;
+    repeated string passwords = 2;
+}
+message DeletePcsResponse {
+    // 每台主機各自的結果
+    map<string, common.ResponseResult> results = 1; // key = uuid
+}
+
+// Reboot POST /api/chm/pc/reboot
+message RebootPcsRequest {
+    repeated string uuids = 1;
+}
+message RebootPcsResponse {
+    common.ResponseResult result = 1;
+}
+
+// Shutdown POST /api/chm/pc/shutdown
+message ShutdownPcsRequest {
+    repeated string uuids = 1;
+}
+message ShutdownPcsResponse {
+    common.ResponseResult result = 1;
+}
+
+// ================= PC Group =================
+
+// 取得所有 PC 群組資訊 GET /api/chm/pcgroup
+message GetPcGroupsRequest {}
+message PcGroup {
+    string groupname = 1;
+    repeated string pcs = 2; // 以 "uuid.hostname" 字串表示
+}
+message GetPcGroupsResponse {
+    map<int64, PcGroup> groups = 1; // key = vxlanid
+    int32 length = 2;               // groups.len()
+}
+
+// 新增 Group POST /api/chm/pcgroup
+message CreatePcGroupRequest {
+    string groupname = 1;
+    string describe = 2;
+}
+message CreatePcGroupResponse {
+    common.ResponseResult result = 1;
+}
+
+// 更新整筆 Group PUT /api/chm/pcgroup
+message PutPcGroupRequest {
+    int64 vxlanid = 1;
+    PcGroup group = 2;
+}
+message PutPcGroupResponse {
+    common.ResponseResult result = 1;
+}
+
+// 更新 Group 單一內容 PATCH /api/chm/pcgroup
+message PatchPcGroupRequest {
+    int64 vxlanid = 1;
+    // 只更改單一欄位：目前文件僅示範 Groupname
+    string groupname = 2;
+}
+message PatchPcGroupResponse {
+    common.ResponseResult result = 1;
+}
+
+// 刪除 Group DELETE /api/chm/pcgroup
+message DeletePcGroupRequest {
+    int64 vxlanid = 1;
+}
+message DeletePcGroupResponse {
+    common.ResponseResult result = 1;
+}
+
+// 顏色：可為預設色或自訂字串（例如 Hex）
+enum PredefinedColor {
+    PREDEFINED_COLOR_UNSPECIFIED = 0;
+    RED = 1;
+    GREEN = 2;
+    BLUE = 3;
+    YELLOW = 4;
+    PURPLE = 5;
+    ORANGE = 6;
+    BLACK = 7;
+    WHITE = 8;
+    GRAY = 9;
+}
+message Color {
+    oneof kind {
+        PredefinedColor predefined = 1; // 對應前端 enum（0: Blue, 1: Red…等）
+        string custom = 2; // Custom(String)
+    }
+}
+
+// 角色資訊
+message RoleInfo {
+    string role_name = 1;  // RoleName
+    int64 permissions = 2; // bit flags
+    Color color = 3;
+    repeated int64 members = 4; // uid
+    int32 length = 5; // Members.len
+}
+
+// 取得所有角色 GET /api/chm/role
+message GetRolesRequest {}
+message GetRolesResponse {
+    repeated RoleInfo roles = 1;
+    int32 length = 2; // roles.len
+}
+
+// 取得所有使用者資訊 GET /api/chm/role/users
+message GetRoleUsersRequest {}
+message GetRoleUsersResponse {
+    map<int64, string> users = 1; // key: uid, value: name
+    int32 length = 2;            // users.len
+}
+
+// 建立角色（身份組） POST /api/chm/role
+message CreateRoleRequest {
+    string role_name = 1;  // RoleName
+    int64 permissions = 2;
+    Color color = 3;  // 可傳預設或自訂
+    repeated int64 members = 4;
+}
+message CreateRoleResponse {
+    common.ResponseResult result = 1; //{Type, Message}
+}
+
+// 刪除角色 DELETE /api/chm/role
+message DeleteRoleRequest {
+    string role_name = 1; // RoleName
+}
+message DeleteRoleResponse {
+    common.ResponseResult result = 1;
+}
+
+// 角色配置（覆蓋整筆成員） PUT /api/chm/role
+message PutRoleMembersRequest {
+    string role_name = 1;        // RoleName
+    repeated int64 members = 2;     // 新成員清單（覆蓋）
+}
+message PutRoleMembersResponse {
+    common.ResponseResult result = 1;
+}
+
+// 編輯角色權限/顏色（部分欄位） PATCH /api/chm/role
+message PatchRoleRequest {
+    string role_name = 1;              // RoleName
+    optional int64 permissions = 2;    // 若有就更新
+    Color color = 3;                   // 若有就更新（message 有 presence）
+}
+message PatchRoleResponse {
+    common.ResponseResult result = 1;
+}
+// ======================= Module =======================
+
+enum LoadStatus {
+    LOAD_STATUS_UNSPECIFIED = 0;
+    LOAD = 1;   // 已加載
+    NOTLOAD = 2;   // 未加載
+}
+
+enum EnableStatus {
+    ENABLE_STATUS_UNSPECIFIED = 0;
+    ENABLE = 1;
+    DISABLE = 2;
+}
+
+message Module {
+    string name = 1; // Name
+    string version = 2; // Version
+    string description = 3; // Description
+    string author = 4; // Author
+    LoadStatus load_status = 5; // Loadstatus (Load / Notload)
+    EnableStatus enable_status = 6; // Enablestatus (Enable / Disable)
+}
+
+// GET /api/chm/setting/module
+message GetModulesRequest {}
+message GetModulesResponse {
+    map<string, Module> modules = 1; // key = moduleId (e.g., "module01")
+    int32 length = 2;                // modules.len
+}
+
+// POST /api/chm/setting/module  (multipart/form-data -> 以檔案陣列抽象化)
+message ModuleFile {
+    string filename = 1;
+    bytes content = 2; // .zip 內容
+}
+message UploadModulesRequest {
+    repeated ModuleFile modules = 1;
+}
+message ModuleLoadReport {
+    repeated string load = 1;
+    repeated string notload = 2;
+    int32 load_length = 3;
+    int32 notload_length = 4;
+}
+message UploadModulesResponse {
+    ModuleLoadReport module = 1; // { Load, Notload, ... }
+}
+
+// PUT /api/chm/setting/module  (更新整個模組；同樣以檔案陣列抽象化)
+message UpdateModulesRequest {
+    repeated ModuleFile modules = 1;
+}
+message ModuleUpdateReport {
+    repeated string success = 1;
+    repeated string fail = 2;
+    int32 success_length = 3;
+    int32 fail_length = 4;
+}
+message UpdateModulesResponse {
+    ModuleUpdateReport module = 1; // { Success, Fail, ... }
+}
+
+// PATCH /api/chm/setting/module  (各模組自有設定；內容不定，用檔案/blob 抽象化)
+message PatchModuleSettingsRequest {
+    repeated ModuleFile files = 1;
+}
+message PatchModuleSettingsResponse {
+    // 簡單結果：若你的專案已有 common.ResponseResult，改成使用它
+    enum ResultType {
+        RESULT_TYPE_UNSPECIFIED = 0;
+        OK = 1;
+        ERR = 2;
+    }
+    ResultType type = 1;
+    string message = 2;
+}
+
+// DELETE /api/chm/setting/module
+message DeleteModulesRequest {
+    repeated string modules = 1; // 要刪除的模組 ID
+}
+message ModuleDeleteReport {
+    repeated string delete = 1;
+    repeated string notdelete = 2;
+    int32 delete_length = 3;
+    int32 notdelete_length = 4;
+}
+message DeleteModulesResponse {
+    ModuleDeleteReport module = 1; // { Delete, Notdelete, ... }
+}
+
+// POST /api/chm/setting/module/action/enable
+message EnableModulesRequest {
+    repeated string modules = 1;
+}
+message ModuleActionReport {
+    repeated string success = 1;
+    repeated string fail = 2;
+    int32 success_length = 3;
+    int32 fail_length = 4;
+}
+message EnableModulesResponse {
+    ModuleActionReport module = 1;
+}
+
+// POST /api/chm/setting/module/action/disable
+message DisableModulesRequest {
+    repeated string modules = 1;
+}
+message DisableModulesResponse {
+    ModuleActionReport module = 1;
+}
+
+// =================== IP Access Control ===================
+
+message IpAccessTypes {
+    enum IpAclMode {
+        IP_ACL_MODE_UNSPECIFIED = 0;
+        NONE = 1;
+        WHITE = 2;
+        BLACK = 3;
+    }
+}
+
+message IpEntry {
+    string name = 1; // Name
+    string ip = 2; // Ip
+}
+
+// GET /api/chm/setting/ip
+message GetIpAccessRequest {}
+message GetIpAccessResponse {
+    IpAccessTypes.IpAclMode mode = 1;                     // None / White / Black
+    map<string, IpEntry> lists = 2;         // key = did（資料庫 id）；若無清單可回空 map
+}
+
+// POST /api/chm/setting/ip
+message PostIpRequest {
+    IpAccessTypes.IpAclMode mode = 1; // White / Black
+    string name = 2;
+    string ip = 3;
+}
+message PostIpResponse {
+    enum ResultType {
+        RESULT_TYPE_UNSPECIFIED = 0;
+        OK = 1;
+        ERR = 2;
+    }
+    ResultType type = 1;
+    string message = 2;
+}
+
+// DELETE /api/chm/setting/ip
+message DeleteIpRequest {
+    IpAccessTypes.IpAclMode mode = 1; // White / Black
+    string did = 2; // 資料庫 id
+}
+message DeleteIpResponse {
+    enum ResultType {
+        RESULT_TYPE_UNSPECIFIED = 0;
+        OK = 1;
+        ERR = 2;
+    }
+    ResultType type = 1;
+    string message = 2;
+}
+
+// PUT /api/chm/setting/ip  (切換黑/白名單)
+message PutIpModeRequest {
+    IpAccessTypes.IpAclMode mode = 1; // White / Black
+}
+message PutIpModeResponse {
+    enum ResultType {
+        RESULT_TYPE_UNSPECIFIED = 0;
+        OK = 1;
+        ERR = 2;
+    }
+    ResultType type = 1;
+    string message = 2;
+}
+
+// =================== 設定警告數值 ===================
+
+// GET /api/chm/setting/values
+message GetSettingValuesRequest {}
+message Values {
+    double cpu_usage = 1;
+    double disk_usage = 2;
+    double memory = 3;
+    double network = 4;
+}
+message GetSettingValuesResponse {
+    Values values = 1;
+}
+
+// PUT /api/chm/setting/values  (單一或整筆更新 -> 使用 optional 欄位)
+message PutSettingValuesRequest {
+    optional double cpu_usage = 1;
+    optional double disk_usage = 2;
+    optional double memory = 3;
+    optional double network = 4;
+}
+message PutSettingValuesResponse {
+    enum ResultType {
+        RESULT_TYPE_UNSPECIFIED = 0;
+        OK = 1;
+        ERR = 2;
+    }
+    ResultType type = 1;
+    string message = 2;
+}
+// ===================== Users =====================
+
+// 使用者基本資料
+message UserEntry {
+    string username = 1; // Username
+    repeated string group = 2; // Group
+    string home_directory = 3; // Home_directory
+    string shell = 4; // Shell
+}
+
+// 取得所有使用者資訊  GET /api/chm/user
+message GetUsersRequest {}
+message GetUsersResponse {
+    map<string, UserEntry> users = 1; // key = uid
+    int32 length = 2;                 // users.len
+}
+
+// 新增 User  POST /api/chm/user
+message CreateUserRequest {
+    string username = 1;
+    repeated string group = 2;
+    string home_directory = 3;
+    string shell = 4;
+}
+message CreateUserResponse {
+    common.ResponseResult result = 1; // {Type, Message}
+}
+
+// 更新整筆 User  PUT /api/chm/user
+// 請求為「uid -> 完整 UserEntry」的映射
+message PutUsersRequest {
+    map<string, UserEntry> users = 1; // 例如 {"uid01": {...}}
+}
+message PutUsersResponse {
+    common.ResponseResult result = 1;
+}
+
+// 更新 User 單一內容  PATCH /api/chm/user
+message UserPatch {
+    optional string username = 1;
+    repeated string group = 2; // 若只改 Username，其餘欄位可不帶
+    optional string home_directory = 3;
+    optional string shell = 4;
+}
+message PatchUsersRequest {
+    map<string, UserPatch> users = 1; // 例如 {"uid01": {"username": "..."}}
+}
+message PatchUsersResponse {
+    common.ResponseResult result = 1;
+}
+
+// 刪除 User  DELETE /api/chm/user
+message DeleteUserRequest {
+    string uid = 1;
+}
+message DeleteUserResponse {
+    common.ResponseResult result = 1;
+}
+
+// ===================== Groups =====================
+
+// 群組資訊：Users 以 "uid.username" 字串表示
+message GroupInfo {
+    string groupname = 1;            // Groupname
+    repeated string users = 2;       // [ "uid.username", ... ]
+}
+
+// 取得所有群組資訊  GET /api/chm/group
+message GetGroupsRequest {}
+message GetGroupsResponse {
+    map<string, GroupInfo> groups = 1; // key = gid
+  // 規格未要求 Length；若需要可加 int32 length = 2;
+}
+
+// 新增 Group  POST /api/chm/group
+message CreateGroupRequest {
+    string groupname = 1;
+    repeated string users = 2; // [ "uid.username", ... ]
+}
+message CreateGroupResponse {
+    common.ResponseResult result = 1;
+}
+
+// 更新整筆 Group  PUT /api/chm/group
+// 請求為「gid -> GroupInfo」的映射（整筆覆蓋）
+message PutGroupsRequest {
+    map<string, GroupInfo> groups = 1; // 例如 {"gid01": {...}}
+}
+message PutGroupsResponse {
+    common.ResponseResult result = 1;
+}
+
+// 更新 Group 單一內容  PATCH /api/chm/group
+message GroupPatch {
+    optional string groupname = 1; // 目前只示範可改 Groupname
+  // 若未來開放 Users 單獨改，可新增：repeated string users = 2;
+}
+message PatchGroupsRequest {
+    map<string, GroupPatch> groups = 1; // 例如 {"gid01": {"groupname": "..."}}
+}
+message PatchGroupsResponse {
+    common.ResponseResult result = 1;
+}
+
+// 刪除 Group  DELETE /api/chm/group
+message DeleteGroupRequest {
+    string gid = 1;
+}
+message DeleteGroupResponse {
+    common.ResponseResult result = 1;
+}
+
+// ===================== Cron / Crontab =====================
+
+// 時間排程
+message Schedule {
+    int64 minute = 1; // Minute
+    int64 hour = 2; // Hour
+    int64 date = 3; // Date
+    int64 month = 4; // Month
+    int64 week = 5; // Week
+}
+
+// 排程工作
+message CronJobEntry {
+    string name = 1; // Name
+    string command = 2; // Command
+    Schedule schedule = 3; // Schedule
+    string username = 4; // Username
+}
+
+// 取得所有排程表內容  GET /api/cron/all
+message GetCronJobsRequest {}
+message GetCronJobsResponse {
+    map<string, CronJobEntry> jobs = 1; // key = id
+    int32 length = 2;                   // jobs.len
+}
+
+// 新增資料  POST /api/cron
+message CreateCronRequest {
+    CronJobEntry job = 1;
+}
+message CreateCronResponse {
+    common.ResponseResult result = 1; // {Type, Message}
+}
+
+// 刪除  DELETE /api/cron
+message DeleteCronRequest {
+    string id = 1;
+}
+message DeleteCronResponse {
+    common.ResponseResult result = 1;
+}
+
+// 更新（整筆覆蓋，支援多筆） PUT /api/cron
+message PutCronRequest {
+    map<string, CronJobEntry> items = 1; // {"id01": {...}, ...}
+}
+message PutCronResponse {
+    common.ResponseResult result = 1;
+}
+
+// 匯入  POST /api/cron/action/import
+message CronFile {
+    string filename = 1;
+    bytes content = 2; // 檔案內容
+}
+message ImportCronRequest {
+    CronFile file = 1; // 規格為單一檔案；若未來要多檔可改 repeated
+}
+message ImportCronResponse {
+    common.ResponseResult result = 1;
+}
+
+// 匯出  POST /api/cron/action/export
+message ExportCronRequest {}
+message ExportCronResponse {
+    common.ResponseResult result = 1;
+    // 規格中的 "Message": file；為了實用性補充實際檔案欄位
+    string filename = 2; // 例如 "crontab.txt"
+    bytes file = 3; // 匯出檔案內容
+}
+
+// ======================= Physical Directory (pdir) =======================
+
+// 取得所有主機 GET /api/file/pdir/pcs
+message GetPdirPcsRequest {}
+message GetPdirPcsResponse {
+    map<string, string> pcs = 1; // key = uuid, value = hostname
+    int32 length = 2;            // pcs.len
+}
+
+// 取得單一主機資料夾 GET /api/file/pdir/one
+message GetPdirOneRequest {
+    string uuid = 1;       // 目標主機
+    string directory = 2;  // 目錄（預設根目錄，可傳空字串代表 root）
+}
+
+enum FileUnit {
+    FILE_UNIT_UNSPECIFIED = 0;
+    B = 1;
+    KB = 2;
+    MB = 3;
+    GB = 4;
+}
+
+message FileEntry {
+    double size = 1; // Size
+    FileUnit unit = 2; // Unit
+    string owner = 3; // Owner
+    string mode = 4; // Mode
+    string modified = 5; // Modified（文字時間）
+}
+
+message GetPdirOneResponse {
+    map<string, FileEntry> files = 1; // key = filename
+    int32 length = 2;                 // files.len
+}
+
+// 上傳檔案（指定 PC）POST /api/file/pdir/action/upload
+message FileBlob {
+    string filename = 1;
+    bytes content = 2; // 檔案內容
+}
+message UploadPdirFilesRequest {
+    string uuid = 1;             // 目標主機
+    repeated FileBlob file = 2;  // 可多檔
+}
+message UploadPdirFilesResponse {
+    common.ResponseResult result = 1; // {Type, Message}
+}
+
+// 下載檔案 POST /api/file/pdir/action/download
+message DownloadPdirFileRequest {
+    string uuid = 1;
+    string filename = 2;
+}
+message DownloadPdirFileResponse {
+    common.ResponseResult result = 1;
+    string filename = 2;  // 便利起見一併回傳檔名
+    bytes file = 3;  // 檔案內容
+}
+
+// ======================= Virtual Directory (vdir) =======================
+
+// 取得虛擬目錄 GET /api/file/vdir
+message GetVdirPathRequest {}
+message GetVdirPathResponse {
+    string path = 1; // 目前虛擬目錄路徑
+}
+
+// 上傳檔案（for all PC）POST /api/file/vdir/action/upload
+message UploadVdirFilesRequest {
+    repeated FileBlob file = 1; // 可多檔
+}
+message UploadVdirFilesResponse {
+    common.ResponseResult result = 1;
+}
+
+// 下載檔案 POST /api/file/vdir/action/download
+message DownloadVdirFileRequest {
+    string filename = 1;
+}
+message DownloadVdirFileResponse {
+    common.ResponseResult result = 1;
+    string filename = 2;
+    bytes file = 3;
+}
+
+// ======================= CHM System Logs =======================
+
+// 時間物件（系統日誌 /all 回傳使用）
+message SysLogTime {
+    int64 hour = 1; // Hour
+    int64 min = 2; // Min
+}
+
+// 系統日誌條目（/api/logs/sys，用物件時間）
+message SysLogEntry {
+    string month = 1; // Month
+    int64 day = 2; // Day
+    SysLogTime time = 3; // Time.{Hour, Min}
+    string direction = 4; // Direction（A to B）
+    string type = 5; // Type
+    string messages = 6; // Messages
+}
+
+// 系統日誌條目（/api/logs/sys/query，時間為字串）
+message SysLogEntryFlat {
+    string month = 1; // Month
+    int64 day = 2; // Day
+    string time = 3; // Time（字串）
+    string direction = 4; // Direction
+    string type = 5; // Type
+    string messages = 6; // Messages
+}
+
+// 取得所有系統日誌  GET /api/logs/sys
+message GetSysLogsRequest {}
+message GetSysLogsResponse {
+    map<string, SysLogEntry> logs = 1; // key = id
+    int32 length = 2;                  // logs.len
+}
+
+// 查詢條件
+message SysLogsTypes {
+    enum SysLogSearchField {
+        SYS_LOG_SEARCH_FIELD_UNSPECIFIED = 0;
+        MONTH = 1;
+        DAY = 2;
+        TIME = 3;
+        DIRECTION = 4;
+        TYPE = 5;
+    }
+}
+
+// 篩選條件取得系統日誌  GET /api/logs/sys/query
+message QuerySysLogsRequest {
+    SysLogsTypes.SysLogSearchField search = 1; // "Month" | "Day" | "Time" | "Direction" | "Type"
+    string parameter = 2; // 對應的參數值（字串）
+}
+message QuerySysLogsResponse {
+    map<string, SysLogEntryFlat> logs = 1; // key = id
+    int32 length = 2;                      // logs.len
+}
+
+// ======================= PC Logs =======================
+
+// 取得所有主機（供選擇） GET /api/logs/pc/all
+message GetPcLogPcsRequest {}
+message GetPcLogPcsResponse {
+    map<string, string> pcs = 1; // key = uuid, value = hostname
+    int32 length = 2;            // pcs.len
+}
+
+// 個別被控端日誌條目（時間為字串）
+message PcLogEntry {
+    string month = 1; // Month
+    int64 day = 2; // Day
+    string time = 3; // Time（字串）
+    string hostname = 4; // Hostname
+    string type = 5; // Type
+    string messages = 6; // Messages
+}
+
+// 取得個別被控端日誌  GET /api/logs/pc
+message GetPcLogsRequest {
+    string uuid = 1; // 目標主機
+}
+message GetPcLogsResponse {
+    map<string, PcLogEntry> logs = 1; // key = id
+    int32 length = 2;                // logs.len
+}
+
+// 查詢條件
+message PcLogsTypes {
+    enum PcLogSearchField {
+        PC_LOG_SEARCH_FIELD_UNSPECIFIED = 0;
+        MONTH = 1;
+        DAY = 2;
+        TIME = 3;
+        HOSTNAME = 4;
+        TYPE = 5;
+    }
+}
+
+// 篩選條件取得個別被控端日誌  GET /api/logs/pc/query
+message QueryPcLogsRequest {
+    string uuid = 1; // 目標主機
+    PcLogsTypes.PcLogSearchField search = 2; // "Month" | "Day" | "Time" | "Hostname" | "Type"
+    string parameter = 3; // 對應的參數值（字串）
+}
+message QueryPcLogsResponse {
+    map<string, PcLogEntry> logs = 1; // key = id
+    int32 length = 2;                // logs.len
+}
+
+// ======================= Firewall =======================
+
+// 取得所有主機  GET /api/firewall/pcs
+message GetFirewallPcsRequest {}
+message GetFirewallPcsResponse {
+    map<string, string> pcs = 1; // key = uuid, value = hostname
+    int32 length = 2;            // pcs.len
+}
+
+// 共同列舉
+enum FirewallStatus {
+    FIREWALL_STATUS_UNSPECIFIED = 0;
+    ACTIVE = 1;
+    INACTIVE = 2;
+}
+
+enum ChainKind {
+    CHAIN_KIND_UNSPECIFIED = 0;
+    INPUT = 1;
+    FORWARD = 2;
+    OUTPUT = 3;
+}
+
+enum Verdict {
+    VERDICT_UNSPECIFIED = 0;
+    ACCEPT = 1;
+    DROP = 2;
+    REJECT = 3;
+}
+
+// 規則
+message Rule {
+    Verdict target = 1; // Target
+    string protocol = 2; // Protocol
+    string in_if = 3; // In
+    string out_if = 4; // Out
+    string source = 5; // Source
+    string destination = 6; // Destination
+    string options = 7; // Options
+}
+
+// 鏈（含預設策略與規則）
+message Chain {
+    string name = 1;     // INPUT / FORWARD / OUTPUT
+    Verdict policy = 2;    // 預設策略
+    repeated Rule rules = 3;
+    int32 rules_length = 4; // rules.len
+}
+
+// 取得單一防火牆狀態  GET /api/firewall
+message GetFirewallRequest {
+    string uuid = 1; // 主機 ID
+}
+message GetFirewallResponse {
+    FirewallStatus status = 1; // active / inactive
+    repeated Chain chains = 2;
+}
+
+// 新增防火牆規則  POST /api/firewall/rule
+message AddFirewallRuleRequest {
+    string uuid = 1;     // 主機 ID
+    ChainKind chain = 2;     // INPUT | FORWARD | OUTPUT
+    Verdict target = 3;     // ACCEPT | DROP | REJECT
+    string protocol = 4;
+    string in_if = 5;
+    string out_if = 6;
+    string source = 7;
+    string destination = 8;
+    string options = 9;
+}
+message AddFirewallRuleResponse {
+    common.ActionResult result = 1; // {Type, Message}
+}
+
+// 刪除防火牆規則  DELETE /api/firewall/rule
+message DeleteFirewallRuleRequest {
+    string uuid = 1;   // 主機 ID
+    ChainKind chain = 2;   // INPUT | FORWARD | OUTPUT
+    int32 rule_id = 3;   // 規則索引
+}
+message DeleteFirewallRuleResponse {
+    common.ActionResult result = 1;
+}
+
+// 修改防火牆狀態（啟用/停用） PUT /api/firewall/status
+message PutFirewallStatusRequest {
+    string uuid = 1;
+    FirewallStatus status = 2; // active / inactive
+}
+message PutFirewallStatusResponse {
+    common.ActionResult result = 1;
+}
+
+// 修改預設策略（Policy） PUT /api/firewall/policy
+message PutFirewallPolicyRequest {
+    string uuid = 1;
+    ChainKind chain = 2;   // INPUT | FORWARD | OUTPUT
+    Verdict policy = 3;   // ACCEPT | DROP | REJECT
+}
+message PutFirewallPolicyResponse {
+    common.ActionResult result = 1;
+}
+
+// ======================= Network Interface =======================
+
+enum NicType {
+    NIC_TYPE_UNSPECIFIED = 0;
+    VIRTUAL = 1;
+    PHYSICAL = 2;
+}
+
+enum NicStatus {
+    NIC_STATUS_UNSPECIFIED = 0;
+    UP = 1;
+    DOWN = 2;
+}
+
+message NetworkItem {
+    NicType type = 1; // Type (Virtual/Physical)
+    string ipv4 = 2; // Ipv4
+    string netmask = 3; // Netmask
+    string mac = 4; // Mac
+    string broadcast = 5; // Broadcast
+    int64 mtu = 6; // Mtu
+    NicStatus status = 7; // Status (Up/Down)
+}
+
+message PcNetworks {
+    map<string, NetworkItem> networks = 1; // key = nid
+    int32 length = 2;                      // networks.len
+}
+
+// GET /api/network/net
+message GetAllNetRequest {}
+message GetAllNetResponse {
+    map<string, PcNetworks> pcs = 1; // key = uuid
+    int32 length = 2;                // pcs.len
+}
+
+
+
+// POST /api/network/net
+message CreateNetRequest {
+    string nid = 1; // Nid
+    NicType type = 2; // Type
+    string ipv4 = 3; // Ipv4
+    string netmask = 4; // Netmask
+    string mac = 5; // Mac
+    string broadcast = 6; // Broadcast
+    int64 mtu = 7; // Mtu
+    NicStatus status = 8; // Status
+}
+message CreateNetResponse {
+    common.ActionResult result = 1;
+}
+
+// DELETE /api/network/net
+message DeleteNetRequest {
+    string nid = 1;
+}
+message DeleteNetResponse {
+    common.ActionResult result = 1;
+}
+
+// PATCH /api/network/net  (單一欄位更新：僅帶需要的欄位)
+message PatchNetRequest {
+    string nid = 1;
+    // 任一欄位可選，其餘留白
+    string ipv4 = 2;
+    string netmask = 3;
+    string mac = 4;
+    string broadcast = 5;
+    int64 mtu = 6;
+    NicStatus status = 7;
+    NicType type = 8;
+}
+message PatchNetResponse {
+    common.ActionResult result = 1;
+}
+
+// PUT /api/network/net  (整筆覆蓋)
+message PutNetRequest {
+    string nid = 1;
+    NicType type = 2;
+    string ipv4 = 3;
+    string netmask = 4;
+    string mac = 5;
+    string broadcast = 6;
+    int64 mtu = 7;
+    NicStatus status = 8;
+}
+message PutNetResponse {
+    common.ActionResult result = 1;
+}
+
+// POST /api/network/net/action/up
+message NetUpRequest {
+    string nid = 1;
+}
+message NetUpResponse {
+    common.ActionResult result = 1;
+}
+
+// POST /api/network/net/action/down
+message NetDownRequest {
+    string nid = 1;
+}
+message NetDownResponse {
+    common.ActionResult result = 1;
+}
+
+// ======================= Routing and Gateways =======================
+
+message RouteItem {
+    string via = 1; // Via
+    string dev = 2; // Dev
+    string proto = 3; // Proto
+    int64 metric = 4; // Metric
+    string scope = 5; // Scope
+    string src = 6; // Src
+}
+
+message PcRoutes {
+    map<string, RouteItem> routes = 1; // key = destination
+    int32 length = 2;                  // routes.len
+}
+
+// GET /api/network/route
+message GetAllRouteRequest {}
+message GetAllRouteResponse {
+    map<string, PcRoutes> pcs = 1; // key = uuid
+    int32 length = 2;              // pcs.len
+}
+
+// POST /api/network/route
+message CreateRouteRequest {
+    string destination = 1;
+    string via = 2;
+    string dev = 3;
+    string proto = 4;
+    int64 metric = 5;
+    string scope = 6;
+    string src = 7;
+}
+message CreateRouteResponse {
+    common.ActionResult result = 1;
+}
+
+// DELETE /api/network/route
+message DeleteRouteRequest {
+    string destination = 1;
+}
+message DeleteRouteResponse {
+    common.ActionResult result = 1;
+}
+
+// PATCH /api/network/route （單欄更新）
+enum RouteField {
+    ROUTE_FIELD_UNSPECIFIED = 0;
+    VIA = 1;
+    DEV = 2;
+    PROTO = 3;
+    METRIC = 4;
+    SCOPE = 5;
+    SRC = 6;
+}
+message PatchRouteRequest {
+    string destination = 1;
+    RouteField field = 2;      // 要更新的欄位
+  // 值（僅提供對應欄位）
+    string via = 3;
+    string dev = 4;
+    string proto = 5;
+    int64 metric = 6;
+    string scope = 7;
+    string src = 8;
+}
+message PatchRouteResponse {
+    common.ActionResult result = 1;
+}
+
+// PUT /api/network/route （整筆覆蓋）
+message PutRouteRequest {
+    string destination = 1;
+    string via = 2;
+    string dev = 3;
+    string proto = 4;
+    int64 metric = 5;
+    string scope = 6;
+    string src = 7;
+}
+message PutRouteResponse {
+    common.ActionResult result = 1;
+}
+
+// ======================= Hostname and DNS Client =======================
+
+message DnsPair {
+    string primary = 1; // Primary
+    string secondary = 2; // Secondary
+}
+
+message PcDns {
+    string hostname = 1; // Hostname
+    DnsPair dns = 2; // DNS
+}
+
+// GET /api/network/dns
+message GetAllDnsRequest {}
+message GetAllDnsResponse {
+    map<string, PcDns> pcs = 1; // key = uuid
+}
+
+// PATCH /api/network/dns  (更改 Hostname：只提供目標 uuid)
+message PatchHostnameRequest {
+    string uuid = 1; // 目標主機
+}
+message PatchHostnameResponse {
+    common.ActionResult result = 1;
+}
+
+// PUT /api/network/dns  (更改 DNS Server IP)
+message PutDnsRequest {
+    string primary = 1;
+    string secondary = 2; // 若未提供，伺服端可沿用舊值
+}
+message PutDnsResponse {
+    common.ActionResult result = 1;
+}
+
+// ===================== Process =====================
+
+// 進程資訊
+message ProcessEntry {
+    bool status = 1; // 是否運行中
+    bool boot = 2; // 是否開機自動啟動
+}
+
+// /api/process/all ─ 取得所有電腦的 Process
+message GetAllProcessRequest {}
+message PcProcess {
+    string hostname = 1;                           // 該台主機的 Hostname
+    map<string, ProcessEntry> processes = 2;// key = pname
+    int32 length = 3;                              // process.len
+}
+message GetAllProcessResponse {
+    map<string, PcProcess> pcs = 1; // key = uuid
+    int32 length = 2;               // pcs.len
+}
+
+// /api/process/one ─ 取得單一電腦的 Process
+message GetOneProcessRequest {
+    string uuid = 1;
+}
+message GetOneProcessResponse {
+    map<string, ProcessEntry> processes = 1; // key = pname
+    int32 length = 2;                      // process.len
+}
+
+// 動作請求共用
+message ProcessActionRequest {
+    string uuid = 1;
+    string process = 2; // pname
+}
+
+// 動作回應統一使用 common.ActionResult（含 {type, message}）
+message ProcessActionResponse {
+    common.ActionResult result = 1;
+}
+
+// /api/process/action/start
+message StartProcessRequest {ProcessActionRequest inner = 1;}
+message StartProcessResponse {common.ActionResult result = 1;}
+
+// /api/process/action/stop
+message StopProcessRequest {ProcessActionRequest inner = 1;}
+message StopProcessResponse {common.ActionResult result = 1;}
+
+// /api/process/action/restart
+message RestartProcessRequest {ProcessActionRequest inner = 1;}
+message RestartProcessResponse {common.ActionResult result = 1;}
+
+// /api/process/action/enable
+message EnableProcessRequest {ProcessActionRequest inner = 1;}
+message EnableProcessResponse {common.ActionResult result = 1;}
+
+// /api/process/action/disable
+message DisableProcessRequest {ProcessActionRequest inner = 1;}
+message DisableProcessResponse {common.ActionResult result = 1;}
+
+// /api/process/action/start_enable
+message StartEnableProcessRequest {ProcessActionRequest inner = 1;}
+message StartEnableProcessResponse {common.ActionResult result = 1;}
+
+// /api/process/action/stop_disable
+message StopDisableProcessRequest {ProcessActionRequest inner = 1;}
+message StopDisableProcessResponse {common.ActionResult result = 1;}
+
+// =============== Software Inventory ===============
+
+// 單一套件狀態
+enum PackageStatus {
+    PACKAGE_STATUS_UNSPECIFIED = 0;
+    INSTALLED = 1; // Installed
+    NOTINSTALL = 2; // Notinstall
+}
+
+// 套件資訊
+message PackageInfo {
+    string version = 1; // Version
+    PackageStatus status = 2; // Status
+}
+
+// 單一 PC 的套件清單
+message PcPackages {
+    map<string, PackageInfo> packages = 1; // key = package name
+}
+
+// 取得軟體清單 GET /api/software
+message GetSoftwareRequest {}
+message GetSoftwareResponse {
+    map<string, PcPackages> pcs = 1; // key = uuid
+}
+
+// 安裝軟體套件 POST /api/software
+message InstallSoftwareRequest {
+    repeated string uuids = 1; // Uuid
+    repeated string packages = 2; // Packages
+}
+
+// 刪除軟體套件 DELETE /api/software
+message DeleteSoftwareRequest {
+    repeated string uuids = 1; // Uuid
+    repeated string packages = 2; // Package
+}
+
+// 安裝/刪除結果彙總
+message PackageActionResult {
+    repeated string installed = 1; // Installed: [uuid]
+    repeated string notinstalled = 2; // Notinstalled: [uuid]
+}
+
+message PackageActionResponse {
+    map<string, PackageActionResult> packages = 1; // key = package name
+    int32 length = 2;                              // packages.len
+}
+
+// ======================= Apache Webserver =======================
+
+// GET /api/server/apache
+message GetApacheRequest {
+    string uuid = 1; // 目標主機
+}
+
+// Access Log 條目
+message ApacheAccessLog {
+    string ip = 1;            // Ip
+    common.Date date = 2;          // Date（含 Year / Month / Week / Time{Hour,Min}）
+    string method = 3;            // Method（GET/POST...）
+    string url = 4;            // URL
+    string protocol = 5;            // Protocol
+    int64 status = 6;            // HTTP 狀態碼
+    int64 byte = 7;            // 回應大小
+    string referer = 8;            // Referer
+    string user_agent = 9;         // User_Agent
+}
+
+// Logs 區塊
+message ApacheLogs {
+    repeated common.ErrorLog error_log = 1; // Error_log[]
+    int32 errlength = 2;                  // Error_log.len
+    repeated ApacheAccessLog access_log = 3;// Access_log[]
+    int32 acclength = 4;                  // Access_log.len
+}
+
+// 回傳（以 common.CommonInfo 承載 Hostname/Status/Cpu/Memory）
+message GetApacheResponse {
+    common.CommonInfo common_info = 1; // { hostname, status(active|stopped), cpu, memory }
+    int64 connections = 2;             // 目前連線數
+    ApacheLogs logs = 3;             // 錯誤與存取日誌
+}
+
+// 動作請求
+message ApacheActionRequest {
+    string uuid = 1;
+}
+
+// 動作回應（統一使用 common.ActionResult: {type, message}）
+message ApacheActionResponse {
+    common.ActionResult result = 1;
+}
+
+// 具名動作端點（對應 REST 路由）
+message StartApacheRequest {ApacheActionRequest inner = 1;}
+message StartApacheResponse {common.ActionResult result = 1;}
+
+message StopApacheRequest {ApacheActionRequest inner = 1;}
+message StopApacheResponse {common.ActionResult result = 1;}
+
+message RestartApacheRequest {ApacheActionRequest inner = 1;}
+message RestartApacheResponse {common.ActionResult result = 1;}
+
+// ======================= BIND DNS Server =======================
+
+// 伺服器狀態監控 GET /api/server/bind
+message GetBindRequest {
+    string uuid = 1; // 目標主機
+}
+
+// 統計資料（Queries）
+message BindQueries {
+    int64 total = 1; // Total：總查詢次數
+    int64 success = 2; // Success：成功解析次數
+    int64 nxdomain = 3; // NXDOMAIN：無此網域次數
+    int64 refused = 4; // REFUSED：拒絕回應次數
+}
+
+// 查詢日誌枚舉
+enum DnsQueryType {
+    DNS_QUERY_TYPE_UNSPECIFIED = 0;
+    A = 1;
+    AAAA = 2;
+    CNAME = 3;
+    MX = 4;
+    NS = 5;
+    PTR = 6;
+    SOA = 7;
+    TXT = 8;
+    SRV = 9;
+    DNSKEY = 10;
+}
+
+enum DnsQueryStatus {
+    DNS_QUERY_STATUS_UNSPECIFIED = 0;
+    NOERROR = 1;
+    NXDOMAIN = 2;
+    SERVFAIL = 3;
+    REFUSED = 4;
+}
+
+// 單筆 Query_log
+message BindQueryLog {
+    string client = 1; // Client（IP:Port）
+    common.Date date = 2; // Date
+    string query = 3; // 查詢網域
+    DnsQueryType type = 4; // 查詢類型
+    string response = 5; // 回應（IP/紀錄）
+    DnsQueryStatus status = 6; // 回應狀態
+    double duration = 7; // 查詢時間（毫秒）
+}
+
+// Logs 區塊（含 Error_log 與 Query_log）
+message BindLogs {
+    repeated common.ErrorLog error_log = 1; // Error_log[]
+    int32 errlength = 2;                  // Error_log.len
+    repeated BindQueryLog query_log = 3;    // Query_log[]
+    int32 qrylength = 4;                  // Query_log.len
+}
+
+// 狀態回應（flatten 共用資訊）
+message GetBindResponse {
+    common.CommonInfo common_info = 1; // {Hostname, Status(active|stopped), Cpu, Memory}
+    int64 connections = 2;             // 目前處理的請求數量
+    BindQueries queries = 3;           // 統計
+    BindLogs logs = 4;                 // 日誌
+}
+
+// ======================= Actions =======================
+
+// 動作請求
+message BindActionRequest {
+    string uuid = 1;
+}
+
+// 動作回應（統一使用 common.ActionResult: {type, message}）
+message BindActionResponse {
+    common.ActionResult result = 1;
+}
+
+// /api/server/bind/action/start
+message StartBindRequest {BindActionRequest inner = 1;}
+message StartBindResponse {common.ActionResult result = 1;}
+
+// /api/server/bind/action/stop
+message StopBindRequest {BindActionRequest inner = 1;}
+message StopBindResponse {common.ActionResult result = 1;}
+
+// /api/server/bind/action/restart
+message RestartBindRequest {BindActionRequest inner = 1;}
+message RestartBindResponse {common.ActionResult result = 1;}
+
+// ======================= LDAP Server =======================
+
+// 伺服器狀態監控 GET /api/server/ldap
+message GetLdapRequest {
+    string uuid = 1; // 目標主機
+}
+
+// Access_log 枚舉
+enum LdapMethod {
+    LDAP_METHOD_UNSPECIFIED = 0;
+    BIND = 1;
+    SEARCH = 2;
+    ADD = 3;
+    DELETE = 4;
+    MODIFY = 5;
+    MODDN = 6;
+    COMPARE = 7;
+    UNBIND = 8;
+    EXTENDED = 9;
+}
+
+enum LdapProtocol {
+    LDAP_PROTOCOL_UNSPECIFIED = 0;
+    LDAPv2 = 1;
+    LDAPv3 = 2;
+}
+
+enum LdapOpStatus {
+    LDAP_OP_STATUS_UNSPECIFIED = 0;
+    SUCCESS = 1;
+    AUTHFAILED = 2;
+    NOTFOUND = 3;
+    ERROR = 4;
+}
+
+// 單筆 Access_log
+message LdapAccessLog {
+    string ip = 1; // Ip
+    common.Date date = 2; // Date
+    LdapMethod method = 3; // BIND/SEARCH/...
+    string base_dn = 4; // Base_DN
+    string filter = 5; // Filter（SEARCH 相關）
+    LdapProtocol protocol = 6; // LDAPv2/LDAPv3
+    LdapOpStatus status = 7; // Success/AuthFailed/NotFound/Error
+    int64 response_time_ms = 8; // 操作耗時（毫秒）
+}
+
+// Logs 區塊
+message LdapLogs {
+    repeated common.ErrorLog error_log = 1; // Error_log[]
+    int32 errlength = 2;                  // Error_log.len
+    repeated LdapAccessLog access_log = 3;  // Access_log[]
+    int32 acclength = 4;                  // Access_log.len
+}
+
+// 狀態回應（flatten 共用資訊）
+message GetLdapResponse {
+    common.CommonInfo common_info = 1; // {Hostname, Status(active|stopped), Cpu, Memory}
+    int64 connections = 2;             // 目前連線數
+    int64 entries = 3;                 // 目前 LDAP 內條目數
+    LdapLogs logs = 4;                 // 日誌
+}
+
+// ======================= Actions =======================
+
+// 動作請求
+message LdapActionRequest {
+    string uuid = 1;
+}
+
+// 動作回應（統一使用 common.ActionResult: {type, message}）
+message LdapActionResponse {
+    common.ActionResult result = 1;
+}
+
+// /api/server/ldap/action/start
+message StartLdapRequest {LdapActionRequest inner = 1;}
+message StartLdapResponse {common.ActionResult result = 1;}
+
+// /api/server/ldap/action/stop
+message StopLdapRequest {LdapActionRequest inner = 1;}
+message StopLdapResponse {common.ActionResult result = 1;}
+
+// /api/server/ldap/action/restart
+message RestartLdapRequest {LdapActionRequest inner = 1;}
+message RestartLdapResponse {common.ActionResult result = 1;}
+
+// ======================= MySQL Server =======================
+
+// 伺服器狀態監控 GET /api/server/mysql
+message GetMySqlRequest {
+    string uuid = 1; // 目標主機
+}
+
+// 查詢類型與結果枚舉
+message MySqlTypes {
+    enum MySqlQueryType {
+        MYSQL_QUERY_TYPE_UNSPECIFIED = 0;
+        SELECT = 1;
+        INSERT = 2;
+        UPDATE = 3;
+        DELETE = 4;
+        CREATE = 5;
+        DROP = 6;
+        ALTER = 7;
+    }
+
+    enum MySqlQueryStatus {
+        MYSQL_QUERY_STATUS_UNSPECIFIED = 0;
+        SUCCESS = 1;
+        ERROR = 2;
+        TIMEOUT = 3;
+    }
+}
+
+// 單筆 Query_log
+message MySqlQueryLog {
+    string ip = 1; // Ip
+    common.Date date = 2; // Date（含 Week/Month/Day/Time{Hour,Min}）
+    string user = 3; // 執行查詢的使用者
+    string database = 4; // 資料庫名稱
+    string query = 5; // SQL
+    MySqlTypes.MySqlQueryType query_type = 6; // SELECT/INSERT/...
+    int64 duration_ms = 7; // 毫秒
+    MySqlTypes.MySqlQueryStatus status = 8; // Success/Error/Timeout
+    int64 affected_rows = 9; // 影響列數
+}
+
+// Logs 區塊
+message MySqlLogs {
+    repeated common.ErrorLog error_log = 1; // Error_log[]
+    int32 errlength = 2; // Error_log.len
+    repeated MySqlQueryLog query_log = 3; // Query_log[]
+    int32 querylength = 4; // Query_log.len
+}
+
+// 狀態回應（flatten 共用資訊）
+message GetMySqlResponse {
+    common.CommonInfo common_info = 1; // {Hostname, Status(active|stopped), Cpu, Memory}
+    int64 connections = 2; // 活躍連線數
+    int64 databases = 3; // 資料庫數量
+    double queries_per_sec = 4; // QPS
+    MySqlLogs logs = 5; // 日誌
+}
+
+// ======================= Actions =======================
+
+// 動作請求
+message MySqlActionRequest {
+    string uuid = 1;
+}
+
+// 動作回應（統一使用 common.ActionResult: {type, message}）
+message MySqlActionResponse {
+    common.ActionResult result = 1;
+}
+
+// /api/server/mysql/action/start
+message StartMySqlRequest {MySqlActionRequest inner = 1;}
+message StartMySqlResponse {common.ActionResult result = 1;}
+
+// /api/server/mysql/action/stop
+message StopMySqlRequest {MySqlActionRequest inner = 1;}
+message StopMySqlResponse {common.ActionResult result = 1;}
+
+// /api/server/mysql/action/restart
+message RestartMySqlRequest {MySqlActionRequest inner = 1;}
+message RestartMySqlResponse {common.ActionResult result = 1;}
+
+// ======================= Nginx Server =======================
+
+// 伺服器狀態監控 GET /api/server/nginx
+message GetNginxRequest {
+    string uuid = 1; // 目標主機
+}
+
+// 連線統計
+message NginxConnections {
+    int64 active = 1; // Active：當前活動連線數
+    int64 accepted = 2; // Accepted：累計接受連線數
+    int64 handled = 3; // Handled：實際處理連線數
+    int64 requests = 4; // Requests：總請求數
+}
+
+// Nginx Error Log（擴充：包含 Worker_Id）
+// 備註：為了保留通用欄位定義，這裡以巢狀承載 common.ErrorLog；若要與前端 JSON 扁平鍵一一對應，實作端可在序列化時展開。
+message NginxErrorLog {
+    int64 worker_id = 1;        // Worker_Id
+    common.ErrorLog base = 2;   // 原本的 {Date, Module, Level, Pid, Client, Message}
+}
+
+// Access_log 條目
+message NginxAccessLog {
+    string ip = 1; // Ip
+    common.Date date = 2; // Date（含 Week/Month/Day/Time{Hour,Min}）
+    string method = 3; // 請求方法（GET/POST…）
+    string url = 4; // 請求 URL
+    string protocol = 5; // 協議版本
+    int64 status = 6; // HTTP 狀態碼
+    int64 byte = 7; // 回應大小
+    string referer = 8; // 來源網站
+    string user_agent = 9; // 使用者代理
+    string upstream = 10; // 反向代理後端位址
+    double request_time = 11; // 處理請求時間（秒）
+    double upstream_response_time = 12; // 後端回應時間（秒）
+}
+
+// Logs 區塊
+message NginxLogs {
+    repeated NginxErrorLog error_log = 1; // Error_log[]
+    int32 errlength = 2; // Error_log.len
+    repeated NginxAccessLog access_log = 3; // Access_log[]
+    int32 acclength = 4; // Access_log.len
+}
+
+// 狀態回應（flatten 共用資訊）
+message GetNginxResponse {
+    common.CommonInfo common_info = 1;  // {Hostname, Status(active|stopped), Cpu, Memory}
+    NginxConnections connections = 2;  // 連線統計
+    NginxLogs logs = 3;  // 日誌
+}
+
+// ======================= Actions =======================
+
+// 動作請求
+message NginxActionRequest {
+    string uuid = 1;
+}
+
+// 動作回應（統一使用 common.ActionResult: {type, message}）
+message NginxActionResponse {
+    common.ActionResult result = 1;
+}
+
+// /api/server/nginx/action/start
+message StartNginxRequest {NginxActionRequest inner = 1;}
+message StartNginxResponse {common.ActionResult result = 1;}
+
+// /api/server/nginx/action/stop
+message StopNginxRequest {NginxActionRequest inner = 1;}
+message StopNginxResponse {common.ActionResult result = 1;}
+
+// /api/server/nginx/action/restart
+message RestartNginxRequest {NginxActionRequest inner = 1;}
+message RestartNginxResponse {common.ActionResult result = 1;}
+
+// ======================= FTP Server =======================
+
+// 伺服器狀態監控 GET /api/server/ftp
+message GetFtpRequest {
+    string uuid = 1; // 目標主機
+}
+
+// Session 狀態
+message FtpTypes {
+    enum FtpSessionStatus {
+        FTP_SESSION_STATUS_UNSPECIFIED = 0;
+        IDLE = 1;
+        UPLOADING = 2;
+        DOWNLOADING = 3;
+        DISCONNECTED = 4;
+    }
+
+    enum FtpTransferType {
+        FTP_TRANSFER_TYPE_UNSPECIFIED = 0;
+        UPLOAD = 1;
+        DOWNLOAD = 2;
+    }
+
+    enum FtpAccessAction {
+        FTP_ACCESS_ACTION_UNSPECIFIED = 0;
+        LOGIN = 1;
+        LOGOUT = 2;
+        UPLOAD_ACTION = 3;
+        DOWNLOAD_ACTION = 4;
+        DELETE = 5;
+        RENAME = 6;
+    }
+
+    enum FtpAccessStatus {
+        FTP_ACCESS_STATUS_UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILED = 2;
+    }
+}
+
+
+// Session 登入時間
+message FtpLoginTime {
+    int64 year = 1; // Year
+  // Month / Day / Hour / Min 與前端 JSON 對應
+    enum Month {
+        MONTH_UNSPECIFIED = 0;
+        JAN = 1; FEB = 2; MAR = 3; APR = 4; MAY = 5; JUN = 6;
+        JUL = 7; AUG = 8; SEP = 9; OCT = 10; NOV = 11; DEC = 12;
+    }
+    Month month = 2; // Month
+    int64 day = 3; // Day
+    int64 hour = 4; // Hour
+    int64 min = 5; // Min
+}
+
+// 進行中的傳輸資訊
+message FtpTransfer {
+    FtpTypes.FtpTransferType type = 1; // Type
+    string file = 2; // File（檔名）
+    int64 size = 3; // Size (Bytes)
+    int64 speed = 4; // Speed (Bytes/s)
+}
+
+// 單一 Session 條目
+message FtpSession {
+    string ip = 1; // 連線客戶端 IP
+    string username = 2; // 已認證使用者
+    FtpLoginTime login_time = 3; // 登入時間
+    string current_dir = 4; // 當前工作目錄
+    FtpTypes.FtpSessionStatus status = 5; // 狀態
+    FtpTransfer transfer = 6; // 進行中的傳輸
+}
+
+
+
+// Access_log 條目
+message FtpAccessLog {
+    string ip = 1; // Ip
+    common.Date date = 2; // Date（含 Week/Month/Day/Time{Hour,Min}）
+    string username = 3; // 使用者
+    FtpTypes.FtpAccessAction action = 4; // 行為
+    string file = 5; // 檔名（若適用）
+    int64 size = 6; // 檔案大小（Bytes；若適用）
+    FtpTypes.FtpAccessStatus status = 7; // 成功/失敗
+}
+
+// Logs 區塊
+message FtpLogs {
+    repeated common.ErrorLog error_log = 1; // Error_log[]
+    int32 errlength = 2; // Error_log.len
+    repeated FtpAccessLog access_log = 3; // Access_log[]
+    int32 acclength = 4; // Access_log.len
+}
+
+// 狀態回應（flatten 共用資訊）
+message GetFtpResponse {
+    common.CommonInfo common_info = 1;     // {Hostname, Status(active|stopped), Cpu, Memory}
+    int64 connections = 2;     // 當前 FTP 活躍連線數
+    repeated FtpSession sessions = 3;     // 目前 Session 列表
+    FtpLogs logs = 4;     // 日誌
+}
+
+// ======================= Actions =======================
+
+// 動作請求
+message FtpActionRequest {
+    string uuid = 1;
+}
+
+// 動作回應（統一使用 common.ActionResult: {type, message}）
+message FtpActionResponse {
+    common.ActionResult result = 1;
+}
+
+// /api/server/ftp/action/start
+message StartFtpRequest {FtpActionRequest inner = 1;}
+message StartFtpResponse {common.ActionResult result = 1;}
+
+// /api/server/ftp/action/stop
+message StopFtpRequest {FtpActionRequest inner = 1;}
+message StopFtpResponse {common.ActionResult result = 1;}
+
+// /api/server/ftp/action/restart
+message RestartFtpRequest {FtpActionRequest inner = 1;}
+message RestartFtpResponse {common.ActionResult result = 1;}
+
+// ======================= Samba Server =======================
+
+// 伺服器狀態監控  GET /api/server/samba
+message GetSambaRequest {
+    string uuid = 1; // 目標主機
+}
+
+// Share 狀態
+message SambaTypes {
+    enum ShareStatus {
+        SHARE_STATUS_UNSPECIFIED = 0;
+        ACTIVE = 1;
+        INACTIVE = 2;
+    }
+    enum SambaLogLevel {
+        SAMBA_LOG_LEVEL_UNSPECIFIED = 0;
+        INFO = 1;
+        WARN = 2;
+        ERROR = 3;
+    }
+}
+
+// 單一 Share 條目
+message SambaShare {
+    string name = 1; // Name
+    string path = 2; // Path
+    int64 users = 3; // Users（目前訪問人數）
+    string permissions = 4; // Permissions（如 "read", "write"...）
+    SambaTypes.ShareStatus status = 5; // Status
+}
+
+
+
+// Samba 單筆日誌
+message SambaLog {
+    common.Date date = 1; // Date
+    string client = 2; // 客戶端 IP:Port
+    string event = 3; // 事件描述
+    SambaTypes.SambaLogLevel level = 4; // 記錄等級
+    string message = 5; // 訊息
+}
+
+// Logs 區塊
+message SambaLogs {
+    repeated SambaLog samba_log = 1; // Samba_log[]
+    int32 samba_log_length = 2; // Samba_log_Length
+}
+
+// 狀態回應（flatten 共用資訊）
+message GetSambaResponse {
+    common.CommonInfo common_info = 1; // {Hostname, Status(active|stopped), Cpu, Memory}
+    int64 connections = 2; // 當前連線到 Samba 的客戶端數量
+    repeated SambaShare shares = 3; // Shares[]
+    SambaLogs logs = 4; // Logs
+}
+
+// ======================= Actions =======================
+
+// 動作請求
+message SambaActionRequest {
+    string uuid = 1;
+}
+
+// 動作回應（統一使用 common.ActionResult: {type, message}）
+message SambaActionResponse {
+    common.ActionResult result = 1;
+}
+
+// /api/server/samba/action/start
+message StartSambaRequest {SambaActionRequest inner = 1;}
+message StartSambaResponse {common.ActionResult result = 1;}
+
+// /api/server/samba/action/stop
+message StopSambaRequest {SambaActionRequest inner = 1;}
+message StopSambaResponse {common.ActionResult result = 1;}
+
+// /api/server/samba/action/restart
+message RestartSambaRequest {SambaActionRequest inner = 1;}
+message RestartSambaResponse {common.ActionResult result = 1;}
+
+// ============ Server Installed/Not Installed Lists ============
+
+// GET /api/server/installed
+message GetServerInstalledPcsRequest {
+    string server = 1; // Server name, e.g., "apache", "nginx"
+}
+message GetServerInstalledPcsResponse {
+    // key = uuid, value = { Hostname, Status(active|stopped), Cpu, Memory }
+    map<string, common.CommonInfo> pcs = 1;
+    int32 length = 2; // pcs.len
+}
+
+// GET /api/server/noinstall
+message GetServerNotInstalledPcsRequest {
+    string server = 1; // Server name
+}
+message GetServerNotInstalledPcsResponse {
+    map<string, common.CommonInfo> pcs = 1; // key = uuid
+    int32 length = 2; // pcs.len
+}
+
+// POST /api/server/install
+message InstallServerRequest {
+    string server = 1;
+    repeated string uuids = 2; // target machines
+}
+message InstallServerResponse {
+    common.ActionResult result = 1; // {Type, Message}
+}
+
+
+// ===================== Squid =====================
+
+// GET /api/server/squid
+message GetSquidRequest {
+    string uuid = 1; // 目標主機
+}
+
+message SquidAccessLog {
+    string ip = 1;                 // Ip
+    common.Date date = 2;          // Date {Year, Week, Month, Day, Time{Hour, Min}}
+    string method = 3;             // Method
+    string url = 4;                // URL
+    int64 status = 5;              // Status
+    int64 bytes_served = 6;        // Bytes_Served
+    string referer = 7;            // Referer
+    string user_agent = 8;         // User_Agent
+}
+
+message SquidLogs {
+    repeated SquidAccessLog access_log = 1; // Access_log
+    int32 access_log_length = 2;            // Access_log_Length
+}
+
+message GetSquidResponse {
+    common.CommonInfo common = 1;     // {Hostname, Status(active|stopped), Cpu, Memory}
+    int64 connections = 2;            // 當前活躍代理連線數
+    int64 cache_hits = 3;             // 緩存命中數
+    int64 cache_misses = 4;           // 緩存未命中數
+    int64 requests_processed = 5;     // 總請求數量
+    SquidLogs logs = 6;               // 存取日誌
+}
+
+// POST /api/server/squid/action/start
+message StartSquidRequest {
+    string uuid = 1;
+}
+message StartSquidResponse {
+    common.ActionResult result = 1; // {Type, Message}
+}
+
+// POST /api/server/squid/action/stop
+message StopSquidRequest {
+    string uuid = 1;
+}
+message StopSquidResponse {
+    common.ActionResult result = 1;
+}
+
+// POST /api/server/squid/action/restart
+message RestartSquidRequest {
+    string uuid = 1;
+}
+message RestartSquidResponse {
+    common.ActionResult result = 1;
+}
+
+// ===================== SSH =====================
+
+// GET /api/server/ssh
+message GetSshRequest {
+    string uuid = 1; // 目標主機
+}
+
+// Last_Login
+message LastLogin {
+    string user = 1;    // User
+    common.Date date = 2; // Date
+    string ip = 3;      // Ip
+}
+
+// Auth log enums
+message SshTypes {
+    enum SshAction {
+        SSH_ACTION_UNSPECIFIED = 0;
+        LOGIN = 1;
+        LOGOUT = 2;
+        FAILED_LOGIN = 3;
+    }
+    enum SshResult {
+        SSH_RESULT_UNSPECIFIED = 0;
+        SUCCESS = 1;
+        FAILURE = 2;
+    }
+}
+
+// 單筆 Auth 日誌
+message SshAuthLog {
+    common.Date date = 1; // Date
+    string user = 2;      // User
+    SshTypes.SshAction action = 3; // Action
+    SshTypes.SshResult result = 4; // Result
+    string ip = 5;        // Ip
+    string message = 6;   // Message
+}
+
+// Auth 日誌集合
+message SshLogs {
+    repeated SshAuthLog auth_log = 1; // Auth_log
+    int32 auth_log_length = 2;        // Auth_log_Length
+}
+
+// 伺服器狀態監控回應
+message GetSshResponse {
+    common.CommonInfo common = 1; // {Hostname, Status(active|stopped), Cpu, Memory}
+    int64 connections = 2;        // 當前活躍的 SSH 連線數
+    LastLogin last_login = 3;     // 最後登入資訊
+    SshLogs logs = 4;             // 認證日誌
+}
+
+// POST /api/server/ssh/action/start
+message StartSshRequest {
+    string uuid = 1;
+}
+message StartSshResponse {
+    common.ActionResult result = 1; // {Type, Message}
+}
+
+// POST /api/server/ssh/action/stop
+message StopSshRequest {
+    string uuid = 1;
+}
+message StopSshResponse {
+    common.ActionResult result = 1;
+}
+
+// POST /api/server/ssh/action/restart
+message RestartSshRequest {
+    string uuid = 1;
+}
+message RestartSshResponse {
+    common.ActionResult result = 1;
+}
+
+
+// ========== Service ==========
+service RestfulService {
+    // Login
+    rpc Login (LoginRequest) returns (LoginResponse);
+
+    // Dashboard
+    rpc GetAllInfo (GetAllInfoRequest) returns (GetAllInfoResponse);
+    rpc GetInfo (GetInfoRequest) returns (GetInfoResponse);
+    rpc GetConfig (GetConfigRequest) returns (GetConfigResponse);
+
+    // Backup
+    rpc BackupNow (BackupNowRequest) returns (BackupNowResponse);
+    rpc GetBackups (GetBackupsRequest) returns (GetBackupsResponse);
+    rpc ReduceBackup (ReductionRequest) returns (ReductionResponse);
+
+    //Mca
+    rpc GetValidCerts (GetValidCertsRequest) returns (GetValidCertsResponse);
+    rpc GetRevokedCerts (GetRevokedCertsRequest) returns (GetRevokedCertsResponse);
+    rpc RevokeCert (RevokeCertRequest) returns (RevokeCertResponse);
+
+    // PC
+    rpc AddPc (AddPcRequest) returns (AddPcResponse);
+    rpc GetAllPcs (GetAllPcsRequest) returns (GetAllPcsResponse);
+    rpc GetSpecificPcs (GetSpecificPcsRequest) returns (GetSpecificPcsResponse);
+    rpc DeletePcs (DeletePcsRequest) returns (DeletePcsResponse);
+    rpc RebootPcs (RebootPcsRequest) returns (RebootPcsResponse);
+    rpc ShutdownPcs (ShutdownPcsRequest) returns (ShutdownPcsResponse);
+
+    // PC Group
+    rpc GetPcGroups (GetPcGroupsRequest) returns (GetPcGroupsResponse);
+    rpc CreatePcGroup (CreatePcGroupRequest) returns (CreatePcGroupResponse);
+    rpc PutPcGroup (PutPcGroupRequest) returns (PutPcGroupResponse);
+    rpc PatchPcGroup (PatchPcGroupRequest) returns (PatchPcGroupResponse);
+    rpc DeletePcGroup (DeletePcGroupRequest) returns (DeletePcGroupResponse);
+
+    // Role
+    rpc GetRoles (GetRolesRequest) returns (GetRolesResponse);
+    rpc GetRoleUsers (GetRoleUsersRequest) returns (GetRoleUsersResponse);
+    rpc CreateRole (CreateRoleRequest) returns (CreateRoleResponse);
+    rpc DeleteRole (DeleteRoleRequest) returns (DeleteRoleResponse);
+    rpc PutRoleMembers (PutRoleMembersRequest) returns (PutRoleMembersResponse);
+    rpc PatchRole (PatchRoleRequest) returns (PatchRoleResponse);
+
+    // Module
+    rpc GetModules (GetModulesRequest) returns (GetModulesResponse);
+    rpc UploadModules (UploadModulesRequest) returns (UploadModulesResponse);
+    rpc UpdateModules (UpdateModulesRequest) returns (UpdateModulesResponse);
+    rpc PatchModuleSettings (PatchModuleSettingsRequest) returns (PatchModuleSettingsResponse);
+    rpc DeleteModules (DeleteModulesRequest) returns (DeleteModulesResponse);
+    rpc EnableModules (EnableModulesRequest) returns (EnableModulesResponse);
+    rpc DisableModules (DisableModulesRequest) returns (DisableModulesResponse);
+
+    // IP Access Control
+    rpc GetIpAccess (GetIpAccessRequest) returns (GetIpAccessResponse);
+    rpc PostIp (PostIpRequest) returns (PostIpResponse);
+    rpc DeleteIp (DeleteIpRequest) returns (DeleteIpResponse);
+    rpc PutIpMode (PutIpModeRequest) returns (PutIpModeResponse);
+
+    // Setting Values
+    rpc GetSettingValues (GetSettingValuesRequest) returns (GetSettingValuesResponse);
+    rpc PutSettingValues (PutSettingValuesRequest) returns (PutSettingValuesResponse);
+
+    // Users
+    rpc GetUsers (GetUsersRequest) returns (GetUsersResponse);
+    rpc CreateUser (CreateUserRequest) returns (CreateUserResponse);
+    rpc PutUsers (PutUsersRequest) returns (PutUsersResponse);
+    rpc PatchUsers (PatchUsersRequest) returns (PatchUsersResponse);
+    rpc DeleteUser (DeleteUserRequest) returns (DeleteUserResponse);
+
+    // Groups
+    rpc GetGroups (GetGroupsRequest) returns (GetGroupsResponse);
+    rpc CreateGroup (CreateGroupRequest) returns (CreateGroupResponse);
+    rpc PutGroups (PutGroupsRequest) returns (PutGroupsResponse);
+    rpc PatchGroups (PatchGroupsRequest) returns (PatchGroupsResponse);
+    rpc DeleteGroup (DeleteGroupRequest) returns (DeleteGroupResponse);
+
+    // Cron
+    rpc GetCronJobs (GetCronJobsRequest) returns (GetCronJobsResponse);
+    rpc CreateCron (CreateCronRequest) returns (CreateCronResponse);
+    rpc DeleteCron (DeleteCronRequest) returns (DeleteCronResponse);
+    rpc PutCron (PutCronRequest) returns (PutCronResponse);
+    rpc ImportCron (ImportCronRequest) returns (ImportCronResponse);
+    rpc ExportCron (ExportCronRequest) returns (ExportCronResponse);
+
+    // pdir
+    rpc GetPdirPcs (GetPdirPcsRequest) returns (GetPdirPcsResponse);
+    rpc GetPdirOne (GetPdirOneRequest) returns (GetPdirOneResponse);
+    rpc UploadPdirFiles (UploadPdirFilesRequest) returns (UploadPdirFilesResponse);
+    rpc DownloadPdirFile (DownloadPdirFileRequest) returns (DownloadPdirFileResponse);
+
+    // vdir
+    rpc GetVdirPath (GetVdirPathRequest) returns (GetVdirPathResponse);
+    rpc UploadVdirFiles (UploadVdirFilesRequest) returns (UploadVdirFilesResponse);
+    rpc DownloadVdirFile (DownloadVdirFileRequest) returns (DownloadVdirFileResponse);
+
+    // System logs
+    rpc GetSysLogs (GetSysLogsRequest) returns (GetSysLogsResponse);
+    rpc QuerySysLogs (QuerySysLogsRequest) returns (QuerySysLogsResponse);
+
+    // PC logs
+    rpc GetPcLogPcs (GetPcLogPcsRequest) returns (GetPcLogPcsResponse);
+    rpc GetPcLogs (GetPcLogsRequest) returns (GetPcLogsResponse);
+    rpc QueryPcLogs (QueryPcLogsRequest) returns (QueryPcLogsResponse);
+
+    // Firewall
+    rpc GetFirewallPcs (GetFirewallPcsRequest) returns (GetFirewallPcsResponse);
+    rpc GetFirewall (GetFirewallRequest) returns (GetFirewallResponse);
+    rpc AddFirewallRule (AddFirewallRuleRequest) returns (AddFirewallRuleResponse);
+    rpc DeleteFirewallRule (DeleteFirewallRuleRequest) returns (DeleteFirewallRuleResponse);
+    rpc PutFirewallStatus (PutFirewallStatusRequest) returns (PutFirewallStatusResponse);
+    rpc PutFirewallPolicy (PutFirewallPolicyRequest) returns (PutFirewallPolicyResponse);
+
+    // Network Interface
+    rpc GetAllNet (GetAllNetRequest) returns (GetAllNetResponse);
+    rpc CreateNet (CreateNetRequest) returns (CreateNetResponse);
+    rpc DeleteNet (DeleteNetRequest) returns (DeleteNetResponse);
+    rpc PatchNet (PatchNetRequest) returns (PatchNetResponse);
+    rpc PutNet (PutNetRequest) returns (PutNetResponse);
+    rpc NetUp (NetUpRequest) returns (NetUpResponse);
+    rpc NetDown (NetDownRequest) returns (NetDownResponse);
+
+    // Routing
+    rpc GetAllRoute (GetAllRouteRequest) returns (GetAllRouteResponse);
+    rpc CreateRoute (CreateRouteRequest) returns (CreateRouteResponse);
+    rpc DeleteRoute (DeleteRouteRequest) returns (DeleteRouteResponse);
+    rpc PatchRoute (PatchRouteRequest) returns (PatchRouteResponse);
+    rpc PutRoute (PutRouteRequest) returns (PutRouteResponse);
+
+    // DNS / Hostname
+    rpc GetAllDns (GetAllDnsRequest) returns (GetAllDnsResponse);
+    rpc PatchHostname (PatchHostnameRequest) returns (PatchHostnameResponse);
+    rpc PutDns (PutDnsRequest) returns (PutDnsResponse);
+
+    // Process
+    rpc GetAllProcess (GetAllProcessRequest) returns (GetAllProcessResponse);
+    rpc GetOneProcess (GetOneProcessRequest) returns (GetOneProcessResponse);
+
+    //Process
+    rpc StartProcess (StartProcessRequest) returns (StartProcessResponse);
+    rpc StopProcess (StopProcessRequest) returns (StopProcessResponse);
+    rpc RestartProcess (RestartProcessRequest) returns (RestartProcessResponse);
+    rpc EnableProcess (EnableProcessRequest) returns (EnableProcessResponse);
+    rpc DisableProcess (DisableProcessRequest) returns (DisableProcessResponse);
+    rpc StartEnableProcess (StartEnableProcessRequest) returns (StartEnableProcessResponse);
+    rpc StopDisableProcess (StopDisableProcessRequest) returns (StopDisableProcessResponse);
+
+    // Software Inventory
+    rpc GetSoftware (GetSoftwareRequest) returns (GetSoftwareResponse);
+    rpc InstallSoftware (InstallSoftwareRequest) returns (PackageActionResponse);
+    rpc DeleteSoftware (DeleteSoftwareRequest) returns (PackageActionResponse);
+
+    // Apache Webserver
+    rpc GetApacheStatus (GetApacheRequest) returns (GetApacheResponse);
+
+    rpc StartApache (StartApacheRequest) returns (StartApacheResponse);
+    rpc StopApache (StopApacheRequest) returns (StopApacheResponse);
+    rpc RestartApache (RestartApacheRequest) returns (RestartApacheResponse);
+
+    // BIND DNS Server
+    rpc GetBindStatus (GetBindRequest) returns (GetBindResponse);
+    rpc StartBind (StartBindRequest) returns (StartBindResponse);
+    rpc StopBind (StopBindRequest) returns (StopBindResponse);
+    rpc RestartBind (RestartBindRequest) returns (RestartBindResponse);
+
+    // LDAP Server
+    rpc GetLdapStatus (GetLdapRequest) returns (GetLdapResponse);
+    rpc StartLdap (StartLdapRequest) returns (StartLdapResponse);
+    rpc StopLdap (StopLdapRequest) returns (StopLdapResponse);
+    rpc RestartLdap (RestartLdapRequest) returns (RestartLdapResponse);
+
+    // MySQL Server
+    rpc GetMySqlStatus (GetMySqlRequest) returns (GetMySqlResponse);
+    rpc StartMySql (StartMySqlRequest) returns (StartMySqlResponse);
+    rpc StopMySql (StopMySqlRequest) returns (StopMySqlResponse);
+    rpc RestartMySql (RestartMySqlRequest) returns (RestartMySqlResponse);
+
+    // Nginx Server
+    rpc GetNginxStatus (GetNginxRequest) returns (GetNginxResponse);
+    rpc StartNginx (StartNginxRequest) returns (StartNginxResponse);
+    rpc StopNginx (StopNginxRequest) returns (StopNginxResponse);
+    rpc RestartNginx (RestartNginxRequest) returns (RestartNginxResponse);
+
+    // FTP Server
+    rpc GetFtpStatus (GetFtpRequest) returns (GetFtpResponse);
+    rpc StartFtp (StartFtpRequest) returns (StartFtpResponse);
+    rpc StopFtp (StopFtpRequest) returns (StopFtpResponse);
+    rpc RestartFtp (RestartFtpRequest) returns (RestartFtpResponse);
+
+    // Samba Server
+    rpc GetSambaStatus (GetSambaRequest) returns (GetSambaResponse);
+    rpc StartSamba (StartSambaRequest) returns (StartSambaResponse);
+    rpc StopSamba (StopSambaRequest) returns (StopSambaResponse);
+    rpc RestartSamba (RestartSambaRequest) returns (RestartSambaResponse);
+
+    // Server Installed/Not Installed Lists & Install
+    rpc GetServerInstalledPcs (GetServerInstalledPcsRequest) returns (GetServerInstalledPcsResponse);
+    rpc GetServerNotInstalledPcs (GetServerNotInstalledPcsRequest) returns (GetServerNotInstalledPcsResponse);
+    rpc InstallServer (InstallServerRequest) returns (InstallServerResponse);
+
+    // Squid
+    rpc GetSquid (GetSquidRequest) returns (GetSquidResponse);
+    rpc StartSquid (StartSquidRequest) returns (StartSquidResponse);
+    rpc StopSquid (StopSquidRequest) returns (StopSquidResponse);
+    rpc RestartSquid (RestartSquidRequest) returns (RestartSquidResponse);
+
+    // SSH
+    rpc GetSsh (GetSshRequest) returns (GetSshResponse);
+    rpc StartSsh (StartSshRequest) returns (StartSshResponse);
+    rpc StopSsh (StopSshRequest) returns (StopSshResponse);
+    rpc RestartSsh (RestartSshRequest) returns (RestartSshResponse);
+}

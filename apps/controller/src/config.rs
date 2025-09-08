@@ -152,6 +152,7 @@ impl Default for Certificate {
 
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct ServicesPool {
+    #[serde(flatten)]
     pub services_uuid: DashMap<String, Uuid>,
 }
 
