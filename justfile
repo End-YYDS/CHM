@@ -50,16 +50,17 @@ migrate-all: migrate-ca migrate-dns
 run-ca args="":
     @[[ ! -f "{{ DB_FOLDER }}/cert_store.db" ]] && just create-ca-db || true
     @[[ ! -f "{{ CERT_FOLDER }}/rootCA.pem" ]] && just create-ca-root || true
-    DATABASE_URL={{ CA_DATABASE_URL }} RUST_LOG=ca=debug,CHM_CA=debug  cargo run -p ca --bin CHM_CA -- {{ args }}
+    @DATABASE_URL={{ CA_DATABASE_URL }} RUST_LOG=ca=debug,CHM_CA=debug  cargo run -p ca --bin CHM_CA -- {{ args }}
 
 run-dns args="":
-    DATABASE_URL={{ DNS_DATABASE_URL }} RUST_LOG=dns=debug,CHM_mDNSd=debug cargo run -p dns --bin CHM_mDNSd -- {{ args }}
+    @podman start CHM-DNS || true
+    @DATABASE_URL={{ DNS_DATABASE_URL }} RUST_LOG=dns=debug,CHM_mDNSd=debug cargo run -p dns --bin CHM_mDNSd -- {{ args }}
 
 run-controller args="":
-    RUST_LOG=controller=debug,CHMcd=debug cargo run -p controller --bin CHMcd -- {{ args }}
+    @RUST_LOG=controller=debug,CHMcd=debug cargo run -p controller --bin CHMcd -- {{ args }}
 
 run-api args="":
-    RUST_LOG=api_server=debug,CHM_API=debug cargo run -p api_server --bin CHM_API -- {{ args }}
+    @RUST_LOG=api_server=debug,CHM_API=debug cargo run -p api_server --bin CHM_API -- {{ args }}
 
 clean-certs:
     @find {{ CERT_FOLDER }} -mindepth 1 -not -name ".gitkeep" -print0 | xargs -0 rm -rf
@@ -74,6 +75,6 @@ clean-config:
     @find {{ CONFIG_FOLDER }} -mindepth 1 -not -name ".gitkeep" -print0 | xargs -0 rm -rf
 
 # clean-run-all: clean reset-all run-ca run-dns run-controller
-clean-all: clean clean-certs clean-config clean-data clean-db
+clean-all: reset-all clean-certs clean-config clean-data clean-db
 
 #Todo: 添加release編譯

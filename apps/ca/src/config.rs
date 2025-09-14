@@ -1,5 +1,6 @@
 use crate::{globals::GlobalConfig, CaResult};
 use chm_config_loader::store_config;
+use chm_project_const::ProjectConst;
 use serde::{Deserialize, Serialize};
 use std::{
     net::{IpAddr, Ipv4Addr},
@@ -8,7 +9,13 @@ use std::{
 use uuid::Uuid;
 
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
-pub static ID: &str = "CA";
+pub static ID: &str = "mCA";
+static DEFAULT_PORT: u16 = 50052;
+static DEFAULT_OTP_LEN: usize = 6;
+static DEFAULT_MAX_CONNECTIONS: u32 = 5;
+static DEFAULT_TIMEOUT: u64 = 10;
+static DEFAULT_BITS: i32 = 256;
+static DEFAULT_CRL_UPDATE_INTERVAL: u64 = 3600; // 1 小時
 #[derive(Debug, Deserialize, Serialize)]
 /// 伺服器設定
 pub struct Server {
@@ -30,7 +37,7 @@ pub struct Server {
 
 impl Server {
     fn default_hostname() -> String {
-        "mCA".into()
+        ID.into()
     }
     /// 取得伺服器的完整地址
     fn default_host() -> String {
@@ -44,13 +51,13 @@ impl Server {
     }
     /// 取得伺服器的預設埠號
     fn default_port() -> u16 {
-        50052
+        DEFAULT_PORT
     }
     fn default_otp_len() -> usize {
-        6
+        DEFAULT_OTP_LEN
     }
     fn default_unique_id() -> String {
-        uuid::Uuid::new_v4().to_string()
+        Uuid::new_v4().to_string()
     }
 }
 impl Default for Server {
@@ -92,17 +99,13 @@ impl Default for BackendConfig {
 struct SqliteSettings;
 impl SqliteSettings {
     fn default_store_path() -> String {
-        if cfg!(debug_assertions) {
-            "db/cert_store.db".into()
-        } else {
-            "/etc/CHM/db/cert_store.db".into()
-        }
+        ProjectConst::db_path().join("cert_store.db").display().to_string()
     }
     fn default_max_connections() -> u32 {
-        5
+        DEFAULT_MAX_CONNECTIONS
     }
     fn default_timeout() -> u64 {
-        10
+        DEFAULT_TIMEOUT
     }
 }
 
@@ -130,29 +133,21 @@ pub struct Certificate {
 impl Certificate {
     /// 生成憑證簽署請求（CSR）和私鑰
     fn default_rootca() -> String {
-        if cfg!(debug_assertions) {
-            "certs/rootCA.pem".into()
-        } else {
-            "/etc/CHM/certs/rootCA.pem".into() // 預設在系統目錄下
-        }
+        ProjectConst::certs_path().join("rootCA.pem").display().to_string()
     }
     /// 取得根憑證的私鑰路徑
     fn default_rootca_key() -> String {
-        if cfg!(debug_assertions) {
-            "certs/rootCA.key".into()
-        } else {
-            "/etc/CHM/certs/rootCA.key".into() // 預設在系統目錄下
-        }
+        ProjectConst::certs_path().join("rootCA.key").display().to_string()
     }
     /// 取得預設的密碼短語
     fn default_passphrase() -> String {
         "".into()
     }
     fn default_bits() -> i32 {
-        256
+        DEFAULT_BITS
     }
     fn default_crl_update_interval() -> std::time::Duration {
-        std::time::Duration::from_secs(3600) // 預設為 1 小時
+        std::time::Duration::from_secs(DEFAULT_CRL_UPDATE_INTERVAL)
     }
 }
 

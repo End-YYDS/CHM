@@ -90,6 +90,11 @@ async fn main() -> CaResult<()> {
             tracing::info!("正在啟動 MiniController...");
         }
         mini_c.start(addr, marker_path.clone(), unique_id).await?;
+        tracing::debug!("工作轉交完成，即將刪除MiniController Certificate");
+        let cert_path = ProjectConst::certs_path().join("mini_controller.pem");
+        let key_path = ProjectConst::certs_path().join("mini_controller.key");
+        tokio::fs::remove_file(cert_path).await?;
+        tokio::fs::remove_file(key_path).await?;
     }
     if marker_path.exists() {
         tracing::info!("mCA 伺服器已經初始化過，開始啟動 gRPC 服務...");

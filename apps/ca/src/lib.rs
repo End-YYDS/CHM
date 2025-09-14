@@ -125,7 +125,7 @@ pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>)
     loop {
         let mut rx = cert_update_rx.clone();
         // 設定 TLS
-        let (key, cert) = CertUtils::cert_from_path("ca_grpc", None)?;
+        let (key, cert) = CertUtils::cert_from_name("ca_grpc", None)?;
         let identity = Identity::from_pem(cert, key);
         let tls = ServerTlsConfig::new().identity(identity).client_ca_root(
             tonic::transport::Certificate::from_pem(cert_handler.get_ca_cert().to_pem()?),

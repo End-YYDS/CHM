@@ -14,3 +14,8 @@ serde_json = { workspace = true }
 uuid = { workspace = true }
 actix-multipart = { workspace = true }
 tracing-subscriber = { workspace = true }
+chm-grpc = { workspace = true, features = ["restful-common-client"] }
+chm-config_loader = { workspace = true, default-features = true }
+chm-dns_resolver = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }

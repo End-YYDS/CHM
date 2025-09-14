@@ -2,11 +2,12 @@ mod communication;
 mod config;
 pub mod first;
 mod globals;
+mod server;
 use crate::communication::GrpcClients;
 use chm_project_const::ProjectConst;
 pub use config::{config, ID, NEED_EXAMPLE};
 use first::first_run;
-pub use globals::{reload_globals, GlobalConfig};
+pub use globals::GlobalConfig;
 
 pub type ConResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 

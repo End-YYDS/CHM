@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::{reload_globals, ConResult, GlobalConfig};
+use crate::{ConResult, GlobalConfig};
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{ClusterClient, Default_ClientCluster};
 use chm_dns_resolver::uuid::Uuid;
@@ -138,14 +138,14 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
         drop(w);
     }
     if let Some(cert) = conn.cert {
-        CertUtils::save_cert("controller", &conn.private_key, &cert).expect("儲存憑證失敗");
-        tracing::info!("憑證已生成，請檢查 controller.pem 和 controller.key");
+        CertUtils::save_cert(&self_hostname, &conn.private_key, &cert).expect("儲存憑證失敗");
+        tracing::info!("憑證已儲存至 {self_hostname}.pem 及 {self_hostname}.key");
     } else {
         tracing::error!("未包含有效憑證，請檢查伺服器設定");
         return Err("未收到憑證".into());
     }
     std::fs::write(marker_path, "done")?;
-    reload_globals().await;
+    // reload_globals().await;
     GlobalConfig::save_config().await?;
     tracing::debug!("mCA UUID: {:?}", conn.ca_unique_id);
     Ok(())

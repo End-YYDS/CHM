@@ -1,6 +1,7 @@
 use crate::{ConResult, GlobalConfig};
 use chm_config_loader::store_config;
 use chm_dns_resolver::uuid::Uuid;
+use chm_project_const::ProjectConst;
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -10,6 +11,8 @@ use std::{
 
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
 pub static ID: &str = "CHMcd";
+static DEFAULT_PORT: u16 = 50051;
+static DEFAULT_OTP_LEN: usize = 6;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Server {
@@ -37,7 +40,7 @@ pub struct Server {
 
 impl Server {
     fn default_hostname() -> String {
-        "CHMcd".into()
+        ID.into()
     }
     /// 取得伺服器的完整地址
     fn default_host() -> String {
@@ -51,11 +54,11 @@ impl Server {
     }
     /// 取得伺服器的預設埠號
     fn default_port() -> u16 {
-        50051
+        DEFAULT_PORT
     }
     /// 一次性密碼的預設長度
     fn default_otp_len() -> usize {
-        6
+        DEFAULT_OTP_LEN
     }
     /// 伺服器的唯一識別碼
     fn default_unique_id() -> Uuid {
@@ -114,25 +117,13 @@ pub struct Certificate {
 
 impl Certificate {
     fn default_rootca() -> String {
-        if cfg!(debug_assertions) {
-            "certs/rootCA.pem".into()
-        } else {
-            "/etc/CHM/certs/rootCA.pem".into() // 預設在系統目錄下
-        }
+        ProjectConst::certs_path().join("rootCA.pem").display().to_string()
     }
     fn default_client_cert() -> String {
-        if cfg!(debug_assertions) {
-            "certs/controller.pem".to_string()
-        } else {
-            "/etc/CHM/certs/controller.pem".to_string() // 預設在系統目錄下
-        }
+        ProjectConst::certs_path().join(format!("{ID}.pem")).display().to_string()
     }
     fn default_client_key() -> String {
-        if cfg!(debug_assertions) {
-            "certs/controller.key".to_string()
-        } else {
-            "/etc/CHM/certs/controller.key".to_string() // 預設在系統目錄下
-        }
+        ProjectConst::certs_path().join(format!("{ID}.key")).display().to_string()
     }
     fn default_passphrase() -> String {
         "".to_string()

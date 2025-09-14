@@ -1,4 +1,5 @@
 use crate::{ConResult, GlobalConfig};
+use backoff::{future::retry, ExponentialBackoff};
 use chm_grpc::{
     tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint, Identity},
     tonic_health::pb::{health_client::HealthClient, HealthCheckRequest},
@@ -7,7 +8,6 @@ pub(crate) mod ca;
 pub(crate) mod dhcp;
 pub(crate) mod dns;
 pub(crate) mod ldap;
-pub(crate) mod server;
 
 #[derive(Debug)]
 pub(crate) struct GrpcClients {
@@ -31,7 +31,26 @@ impl AsRef<str> for ServiceName {
 }
 async fn ca_grpc_connection_init(mca_info: String, tls: ClientTlsConfig) -> ConResult<Channel> {
     tracing::debug!("初始化 CA gRPC 連線...");
-    let channel = Endpoint::from_shared(mca_info)?.tls_config(tls)?.connect().await?;
+    // let channel =
+    // Endpoint::from_shared(mca_info)?.tls_config(tls)?.connect().await?;
+    let endpoint = Endpoint::from_shared(mca_info)?.tls_config(tls)?;
+    let backoff = ExponentialBackoff {
+        max_elapsed_time: Some(std::time::Duration::from_secs(30)),
+        ..Default::default()
+    };
+    let channel = retry(backoff, || async {
+        match endpoint.connect().await {
+            Ok(ch) => {
+                tracing::info!("CA gRPC Channel 已建立");
+                Ok(ch)
+            }
+            Err(e) => {
+                tracing::warn!("連線失敗: {e}，等待後重試...");
+                Err(backoff::Error::transient(e))
+            }
+        }
+    })
+    .await?;
     tracing::debug!("CA gRPC Channel已建立");
     Ok(channel)
 }

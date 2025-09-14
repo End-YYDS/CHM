@@ -1,17 +1,17 @@
 [workspace]
 members = [
-    "apps/ca",
-    "apps/controller",
-    "apps/dns",
-    "apps/api",
-    "libs/cert-utils",
-    "libs/cluster-utils",
-    "libs/config_loader",
-    "libs/crl_cache",
-    "libs/dns_resolver",
-    "libs/grpc",
-    "libs/password",
-    "libs/project_const",
+  "apps/ca",
+  "apps/controller",
+  "apps/dns",
+  "apps/api",
+  "libs/cert-utils",
+  "libs/cluster-utils",
+  "libs/config_loader",
+  "libs/crl_cache",
+  "libs/dns_resolver",
+  "libs/grpc",
+  "libs/password",
+  "libs/project_const",
 ]
 resolver = "2"
 [workspace.package]
@@ -60,6 +60,7 @@ uuid = { version = "1.17.0", features = ["v4", "serde"] }
 cached = { version = "0.56.0", features = ["async", "proc_macro"] }
 dashmap = { version = "6.1.0", features = ["serde"] }
 actix-multipart = "0.7.2"
+backoff = { version = "0.4.0", features = ["tokio"] }
 [profile.release]
 opt-level = "s"
 strip = true

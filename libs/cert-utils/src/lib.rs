@@ -250,8 +250,8 @@ impl CertUtils {
     /// # 回傳
     /// * `CaResult<(PrivateKey, SignedCert)>`：返回私鑰和簽署的憑證
     /// * `Err(e)`：若任何步驟失敗，回傳錯誤
-    pub fn cert_from_path(cert_name: &str, passphrase: Option<&str>) -> Result<(Vec<u8>, Vec<u8>)> {
-        let cert_path = Path::new("certs").join(format!("{cert_name}.pem"));
+    pub fn cert_from_name(cert_name: &str, passphrase: Option<&str>) -> Result<(Vec<u8>, Vec<u8>)> {
+        let cert_path = ProjectConst::certs_path().join(format!("{cert_name}.pem"));
         if !cert_path.exists() {
             return Err(format!("憑證檔案 {} 不存在", cert_path.display()).into());
         }
