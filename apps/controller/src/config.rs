@@ -14,7 +14,7 @@ pub static ID: &str = "CHMcd";
 static DEFAULT_PORT: u16 = 50051;
 static DEFAULT_OTP_LEN: usize = 6;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Server {
     #[serde(default = "Server::default_hostname")]
     pub hostname:   String,
@@ -99,7 +99,7 @@ impl Default for Server {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Certificate {
     #[serde(default = "Certificate::default_rootca")]
     /// 根憑證
@@ -141,13 +141,13 @@ impl Default for Certificate {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct ServicesPool {
     #[serde(flatten)]
     pub services_uuid: DashMap<String, Uuid>,
 }
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct Settings {
     #[serde(default)]
     /// 伺服器設定
@@ -176,6 +176,6 @@ pub async fn config() -> ConResult<()> {
         return Ok(());
     }
     let settings = Settings::new()?;
-    GlobalConfig::init_global_config(settings).await;
+    GlobalConfig::init(settings);
     Ok(())
 }

@@ -34,7 +34,7 @@ pub struct CrlList {
 }
 impl CrlList {
     pub async fn next_update_time(&self) -> CaResult<DateTime<Utc>> {
-        let interval_std = GlobalConfig::read().await.settings.certificate.crl_update_interval;
+        let interval_std = GlobalConfig::with(|cfg| cfg.certificate.crl_update_interval);
         let interval =
             Duration::from_std(interval_std).map_err(|e| format!("Invalid interval: {e}"))?;
         Ok(Utc::now() + interval)

@@ -92,31 +92,12 @@ impl MiniController {
         id: Uuid,
     ) -> CaResult<()> {
         tracing::info!("Init Process Running on {addr} ...");
-        let hostname = {
-            if GlobalConfig::has_active_readers() {
-                tracing::trace!("還有讀鎖沒釋放!");
-            }
-            let cfg = GlobalConfig::read().await;
-            cfg.settings.server.hostname.clone()
-        };
-        let otp_len = {
-            if GlobalConfig::has_active_readers() {
-                tracing::trace!("還有讀鎖沒釋放!");
-            }
-            let cfg = GlobalConfig::read().await;
-            cfg.settings.server.otp_len
-        };
+        let (hostname, otp_len, rootca) = GlobalConfig::with(|cfg| {
+            (cfg.server.hostname.clone(), cfg.server.otp_len, cfg.certificate.rootca.clone())
+        });
         let otp_code = chm_password::generate_otp(otp_len);
         tracing::info!("OTP code: {otp_code}");
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
-        let rootca = {
-            if GlobalConfig::has_active_readers() {
-                tracing::trace!("還有讀鎖未釋放");
-                return Err("還有讀鎖未釋放".into());
-            }
-            let cfg = GlobalConfig::read().await;
-            cfg.settings.certificate.rootca.clone()
-        };
         let ssl_acceptor =
             self.build_ssl_builder(&rootca).map_err(|e| format!("SSL 建構失敗: {e}"))?;
         let state = AppState {
@@ -211,19 +192,15 @@ async fn init_api(state: web::Data<AppState>, data: web::Json<Otp>) -> HttpRespo
             return HttpResponse::InternalServerError().body("簽發憑證失敗");
         }
     };
-    if GlobalConfig::has_active_readers() {
-        return HttpResponse::Locked().body("系統忙碌中，請稍後再試");
-    }
-    {
-        let mut cfg = GlobalConfig::write().await;
-        cfg.settings.controller.serial =
+    GlobalConfig::update_with(|cfg| {
+        cfg.controller.serial =
             CertUtils::cert_serial_sha256(&X509::from_der(&signed_cert.0).unwrap())
                 .expect("serial");
-        cfg.settings.controller.fingerprint =
+        cfg.controller.fingerprint =
             CertUtils::cert_fingerprint_sha256(&X509::from_der(&signed_cert.0).unwrap())
                 .expect("fingerprint");
-        cfg.settings.controller.uuid = data.uuid;
-    }
+        cfg.controller.uuid = data.uuid;
+    });
     if let Err(e) = GlobalConfig::save_config().await {
         tracing::error!("儲存設定失敗: {:?}", e);
         return HttpResponse::InternalServerError().body("儲存設定失敗");

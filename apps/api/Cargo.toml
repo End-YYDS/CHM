@@ -8,14 +8,15 @@ name = "CHM_API"
 path = "src/bin/app.rs"
 
 [dependencies]
-actix-web = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-uuid = { workspace = true }
 actix-multipart = { workspace = true }
-tracing-subscriber = { workspace = true }
-chm-grpc = { workspace = true, features = ["restful-common-client"] }
+actix-web = { workspace = true }
+chm-config_bus = { workspace = true }
 chm-config_loader = { workspace = true, default-features = true }
 chm-dns_resolver = { workspace = true }
-tokio = { workspace = true }
+chm-grpc = { workspace = true, features = ["restful-common-client"] }
+chm-project_const = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }

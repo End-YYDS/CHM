@@ -49,7 +49,7 @@ pub struct StoreFactory;
 /// 創建憑證存儲的工廠類
 impl StoreFactory {
     pub async fn create_store() -> CaResult<Box<dyn CertificateStore>> {
-        let cfg = &GlobalConfig::read().await.settings;
+        let cfg = GlobalConfig::get();
 
         match &cfg.certificate.backend {
             BackendConfig::Sqlite { store_path, max_connections, timeout } => {

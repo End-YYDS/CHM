@@ -1,7 +1,7 @@
 pub mod cert;
 pub mod config;
 pub mod connection;
-pub mod globals;
+// pub mod globals;
 pub mod mini_controller;
 use chm_cert_utils::CertUtils;
 use chm_grpc::{
@@ -18,19 +18,20 @@ use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use uuid::Uuid;
 
-use std::{net::SocketAddr, sync::Arc};
-use tonic::{
-    transport::{Identity, ServerTlsConfig},
-    Request, Status,
-};
-use tonic_health::server::health_reporter;
-
 use crate::{
     cert::{crl::CrlList, process::CertificateProcess},
     connection::MyCa,
     globals::GlobalConfig,
     mini_controller::MiniController,
 };
+use chm_config_bus::declare_config_bus;
+pub use config::{config, ID, NEED_EXAMPLE};
+use std::{net::SocketAddr, sync::Arc};
+use tonic::{
+    transport::{Identity, ServerTlsConfig},
+    Request, Status,
+};
+use tonic_health::server::health_reporter;
 /// 定義一個簡化的結果類型，用於返回結果或錯誤
 pub type CaResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 /// 定義已經簽署的憑證類型
@@ -42,6 +43,15 @@ pub type PrivateKey = Vec<u8>;
 /// 定義 CSR 憑證類型
 pub type CsrCert = Vec<u8>;
 type CheckFuture = BoxFuture<'static, Result<Request<()>, Status>>;
+
+declare_config_bus! {
+    pub mod globals {
+        type Settings = crate::config::Settings;
+        const ID: &str = crate::ID;
+        save = chm_config_loader::store_config;
+        load = chm_config_loader::load_config;
+    }
+}
 
 fn get_ssl_info(req: &Request<()>) -> CaResult<(X509, String)> {
     let peer_der_vec =
@@ -149,11 +159,9 @@ pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>)
                 health_reporter.set_not_serving::<ca_server::CaServer<MyCa>>().await;
             }
         };
-
-        let controller_args = {
-            let lock = GlobalConfig::read().await;
-            (lock.settings.controller.serial.clone(), lock.settings.controller.fingerprint.clone())
-        };
+        let controller_args = GlobalConfig::with(|cfg| {
+            (cfg.controller.serial.clone(), cfg.controller.fingerprint.clone())
+        });
         let ca_layer =
             async_interceptor(make_ca_middleware(cert_handler.clone(), controller_args.clone()));
         let ca_svc = ServiceBuilder::new().layer(ca_layer).service(

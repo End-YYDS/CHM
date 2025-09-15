@@ -2,14 +2,23 @@
 #![allow(dead_code)]
 use crate::handles::handles_scope;
 use actix_web::web::{scope, ServiceConfig};
+use chm_config_bus::declare_config_bus;
+pub use config::{config, ID, NEED_EXAMPLE};
+pub use globals::GlobalConfig;
 use serde::Deserialize;
-
 mod commons;
 mod config;
-mod globals;
 mod handles;
 
 pub type ApiResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
+declare_config_bus! {
+    pub mod globals {
+        type Settings = crate::config::Settings;
+        const ID: &str = crate::ID;
+        save = chm_config_loader::store_config;
+        load = chm_config_loader::load_config;
+    }
+}
 
 pub fn configure_app(cfg: &mut ServiceConfig) {
     cfg.service(scope("/api").configure(handles_scope));

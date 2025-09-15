@@ -1,8 +1,9 @@
-use crate::ApiResult;
+use crate::{ApiResult, GlobalConfig};
+use chm_project_const::ProjectConst;
 use serde::{Deserialize, Serialize};
 use std::{
     net::{IpAddr, Ipv4Addr},
-    sync::atomic::AtomicBool,
+    sync::atomic::{AtomicBool, Ordering::Relaxed},
 };
 use uuid::Uuid;
 
@@ -11,7 +12,7 @@ pub static ID: &str = "CHM_API";
 static DEFAULT_PORT: u16 = 50050;
 static DEFAULT_OTP_LEN: usize = 6;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Server {
     #[serde(default = "Server::default_hostname")]
     pub hostname:  String,
@@ -61,10 +62,81 @@ impl Default for Server {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Services {
+    #[serde(default = "Services::default_controller")]
+    pub controller: String,
+}
+
+impl Services {
+    fn default_controller() -> String {
+        let controller_ip = if !cfg!(debug_assertions) {
+            chm_dns_resolver::DnsResolver::get_local_ip()
+                .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
+                .to_string()
+        } else {
+            IpAddr::V4(Ipv4Addr::LOCALHOST).to_string()
+        };
+        "https://".to_string() + &controller_ip + ":50051"
+    }
+}
+impl Default for Services {
+    fn default() -> Self {
+        Self { controller: Self::default_controller() }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct Certificate {
+    #[serde(default = "Certificate::default_rootca")]
+    /// 根憑證
+    pub root_ca:     String,
+    #[serde(default = "Certificate::default_client_cert")]
+    /// 客戶端憑證
+    pub client_cert: String,
+    #[serde(default = "Certificate::default_client_key")]
+    /// 客戶端私鑰
+    pub client_key:  String,
+    #[serde(default = "Certificate::default_passphrase")]
+    /// 根憑證的密碼短語
+    pub passphrase:  String,
+}
+
+impl Certificate {
+    fn default_rootca() -> String {
+        ProjectConst::certs_path().join("rootCA.pem").display().to_string()
+    }
+    fn default_client_cert() -> String {
+        ProjectConst::certs_path().join(format!("{ID}.pem")).display().to_string()
+    }
+    fn default_client_key() -> String {
+        ProjectConst::certs_path().join(format!("{ID}.key")).display().to_string()
+    }
+    fn default_passphrase() -> String {
+        "".to_string()
+    }
+}
+
+impl Default for Certificate {
+    fn default() -> Self {
+        Certificate {
+            root_ca:     Certificate::default_rootca(),
+            client_cert: Certificate::default_client_cert(),
+            client_key:  Certificate::default_client_key(),
+            passphrase:  Certificate::default_passphrase(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct Settings {
     #[serde(default)]
-    pub server: Server,
+    pub server:      Server,
+    #[serde(default)]
+    /// 憑證設定
+    pub certificate: Certificate,
+    #[serde(rename = "Services", default)]
+    pub services:    Services,
 }
 
 impl Settings {
@@ -76,4 +148,13 @@ impl Settings {
         println!("Generated default config at {path}");
         Ok(())
     }
+}
+pub async fn config() -> ApiResult<()> {
+    if NEED_EXAMPLE.load(Relaxed) {
+        Settings::init(format!("{ID}_config.toml.example").as_str()).await?;
+        return Ok(());
+    }
+    let settings = Settings::new()?;
+    GlobalConfig::init(settings);
+    Ok(())
 }

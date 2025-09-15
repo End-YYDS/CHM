@@ -1,17 +1,18 @@
 [workspace]
 members = [
-  "apps/ca",
-  "apps/controller",
-  "apps/dns",
-  "apps/api",
-  "libs/cert-utils",
-  "libs/cluster-utils",
-  "libs/config_loader",
-  "libs/crl_cache",
-  "libs/dns_resolver",
-  "libs/grpc",
-  "libs/password",
-  "libs/project_const",
+    "apps/api",
+    "apps/ca",
+    "apps/controller",
+    "apps/dns",
+    "libs/cert-utils",
+    "libs/cluster-utils",
+    "libs/config-bus",
+    "libs/config_loader",
+    "libs/crl_cache",
+    "libs/dns_resolver",
+    "libs/grpc",
+    "libs/password",
+    "libs/project_const",
 ]
 resolver = "2"
 [workspace.package]
@@ -19,12 +20,17 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
+actix-multipart = "0.7.2"
 actix-tls = { version = "3.4.0", features = ["openssl"] }
 actix-web = { version = "4.11.0", features = ["openssl"] }
+arc-swap = "1.7.1"
 argon2 = { version = "0.5.3", features = ["std"] }
+backoff = { version = "0.4.0", features = ["tokio"] }
 base64 = "0.22.1"
+cached = { version = "0.56.0", features = ["async", "proc_macro"] }
 chm-cert-utils = { version = "0.1.0", path = "./libs/cert-utils" }
 chm-cluster-utils = { version = "0.1.0", path = "./libs/cluster-utils" }
+chm-config_bus = { version = "0.1.0", path = "./libs/config-bus" }
 chm-config_loader = { version = "0.1.0", path = "./libs/config_loader", default-features = false }
 chm-crl_cache = { version = "0.1.0", path = "./libs/crl_cache" }
 chm-dns_resolver = { version = "0.1.0", path = "./libs/dns_resolver" }
@@ -32,6 +38,7 @@ chm-grpc = { version = "0.1.0", path = "./libs/grpc" }
 chm-password = { version = "0.1.0", path = "./libs/password" }
 chm-project_const = { version = "0.1.0", path = "./libs/project_const" }
 chrono = { version = "0.4.41", features = ["serde"] }
+dashmap = { version = "6.1.0", features = ["serde"] }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
 humantime = "2.2.0"
 humantime-serde = "1.1.1"
@@ -47,6 +54,7 @@ serde_json = "1.0.142"
 sqlx = { version = "0.8.6", features = ["sqlite", "postgres", "uuid", "ipnetwork", "macros", "chrono", "runtime-tokio", "migrate"] }
 thiserror = "2.0.12"
 tokio = { version = "1.43.0", features = ["rt", "macros", "rt-multi-thread", "fs"] }
+tokio-util = "0.7.16"
 toml = "0.8.22"
 tonic = { version = "0.13.1", features = ["tls-ring", "zstd"] }
 tonic-async-interceptor = "0.13.0"
@@ -57,10 +65,6 @@ tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
 url = "2.5.4"
 uuid = { version = "1.17.0", features = ["v4", "serde"] }
-cached = { version = "0.56.0", features = ["async", "proc_macro"] }
-dashmap = { version = "6.1.0", features = ["serde"] }
-actix-multipart = "0.7.2"
-backoff = { version = "0.4.0", features = ["tokio"] }
 [profile.release]
 opt-level = "s"
 strip = true

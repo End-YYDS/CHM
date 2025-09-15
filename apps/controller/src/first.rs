@@ -118,11 +118,9 @@ impl ClusterClient for FirstStart {
 pub async fn first_run(marker_path: &Path) -> ConResult<()> {
     tracing::info!("第一次啟動，正在初始化...");
     let (pri_key, _) = CertUtils::generate_rsa_keypair(4096).expect("生成 RSA 金鑰對失敗");
-    let r = GlobalConfig::read().await;
-    let ca_url = r.settings.server.ca_server.clone();
-    let self_uuid = r.settings.server.unique_id;
-    let self_hostname = r.settings.server.hostname.clone();
-    drop(r);
+    let (ca_url, self_uuid, self_hostname) = GlobalConfig::with(|cfg| {
+        (cfg.server.ca_server.clone(), cfg.server.unique_id, cfg.server.hostname.clone())
+    });
     let mut conn = FirstStart::new(FirstStartParams {
         base_url: ca_url.clone(),
         private_key: pri_key.clone(),
@@ -133,9 +131,9 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
     });
     conn.init().await?;
     if let Some(ca_id) = conn.ca_unique_id {
-        let w = GlobalConfig::write().await;
-        w.settings.services_pool.services_uuid.insert(conn.ca_hostname, ca_id);
-        drop(w);
+        GlobalConfig::update_with(|cfg| {
+            cfg.services_pool.services_uuid.insert(conn.ca_hostname.clone(), ca_id);
+        });
     }
     if let Some(cert) = conn.cert {
         CertUtils::save_cert(&self_hostname, &conn.private_key, &cert).expect("儲存憑證失敗");

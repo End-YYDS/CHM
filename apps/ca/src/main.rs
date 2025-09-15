@@ -38,12 +38,8 @@ async fn main() -> CaResult<()> {
     tracing::info!("正在載入配置...");
     config().await?;
     tracing::info!("配置載入完成，開始啟動 mCA...");
-    if GlobalConfig::has_active_readers() {
-        tracing::warn!("⚠️ 還有讀鎖沒釋放!");
-    }
     tracing::trace!("進入GlobalConfig讀取鎖定區域");
-    let cfg = GlobalConfig::read().await;
-    let cmg = &cfg.settings;
+    let cmg = GlobalConfig::get();
     let unique_id = cmg.server.unique_id.clone().parse().unwrap_or_else(|_| {
         tracing::error!("無效的 unique_id，使用預設值");
         uuid::Uuid::new_v4()
@@ -70,7 +66,6 @@ async fn main() -> CaResult<()> {
         .await?,
     );
     tracing::trace!("憑證處理器載入完成，開始啟動 mCA 伺服器...");
-    drop(cfg);
     tracing::trace!("GlobalConfig讀取鎖定區域已釋放");
     tracing::info!("mCA 伺服器將在 {addr} 上運行");
     tracing::debug!("mCA 伺服器的唯一識別碼: {}", unique_id);

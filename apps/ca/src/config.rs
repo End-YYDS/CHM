@@ -16,7 +16,7 @@ static DEFAULT_MAX_CONNECTIONS: u32 = 5;
 static DEFAULT_TIMEOUT: u64 = 10;
 static DEFAULT_BITS: i32 = 256;
 static DEFAULT_CRL_UPDATE_INTERVAL: u64 = 3600; // 1 小時
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 /// 伺服器設定
 pub struct Server {
     #[serde(default = "Server::default_hostname")]
@@ -71,7 +71,7 @@ impl Default for Server {
         }
     }
 }
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(tag = "backend", rename_all = "lowercase")]
 pub enum BackendConfig {
     /// SQLite 資料庫後端專屬設定
@@ -109,7 +109,7 @@ impl SqliteSettings {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 /// 憑證設定
 pub struct Certificate {
     #[serde(default = "Certificate::default_rootca")]
@@ -164,7 +164,7 @@ impl Default for Certificate {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize, Default)]
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
 /// 控制器設定
 pub struct Controller {
     /// 控制器的指紋，用於識別和驗證
@@ -192,7 +192,7 @@ impl Controller {
     }
 }
 
-#[derive(Debug, Deserialize, Default, Serialize)]
+#[derive(Debug, Deserialize, Default, Serialize, Clone)]
 /// 應用程式設定
 pub struct Settings {
     #[serde(default)]
@@ -236,6 +236,6 @@ pub async fn config() -> CaResult<()> {
         return Ok(());
     }
     let settings = Settings::new()?;
-    GlobalConfig::init_global_config(settings);
+    GlobalConfig::init(settings);
     Ok(())
 }

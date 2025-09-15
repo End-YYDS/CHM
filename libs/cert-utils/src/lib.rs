@@ -228,6 +228,20 @@ impl CertUtils {
             .or_else(|_| X509::from_der(cert_pem))
             .map_err(|e| format!("無法解析憑證: {e}").into())
     }
+    /// 從憑證名稱載入憑證
+    /// # 參數
+    /// * `cert_name`: 憑證名稱 (不含副檔名)
+    /// # 回傳
+    /// * `CaResult<X509>`：返回憑證或錯誤
+    /// # 注意
+    /// 此函式會在預設的憑證目錄中尋找名為 `{cert_name}.pem` 的檔案。
+    pub fn load_cert_by_name(cert_name: &str) -> Result<X509> {
+        let cert_path = ProjectConst::certs_path().join(format!("{cert_name}.pem"));
+        if !cert_path.exists() {
+            return Err(format!("憑證檔案 {} 不存在", cert_path.display()).into());
+        }
+        Self::load_cert(cert_path)
+    }
     /// 從指定的路徑載入私鑰
     /// # 參數
     /// * `path`: 私鑰檔案的路徑
@@ -242,6 +256,21 @@ impl CertUtils {
         } else {
             PKey::private_key_from_pem(&key_pem).map_err(|e| format!("無法解析私鑰: {e}").into())
         }
+    }
+    /// 從憑證名稱載入私鑰
+    /// # 參數
+    /// * `cert_name`: 憑證名稱 (不含副檔名)
+    /// * `passphrase`: 私鑰的密碼短語 (如果有的話)
+    /// # 回傳
+    /// * `CaResult<PKey<Private>>`：返回私鑰或錯誤
+    /// # 注意
+    /// 此函式會在預設的憑證目錄中尋找名為 `{cert_name}.key` 的檔案。
+    pub fn load_key_by_name(cert_name: &str, passphrase: Option<&str>) -> Result<PKey<Private>> {
+        let key_path = ProjectConst::certs_path().join(format!("{cert_name}.key"));
+        if !key_path.exists() {
+            return Err(format!("金鑰檔案 {} 不存在", key_path.display()).into());
+        }
+        Self::load_key(key_path, passphrase)
     }
     /// 從憑證名稱載入憑證和私鑰
     /// # 參數

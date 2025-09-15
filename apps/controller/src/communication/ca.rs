@@ -99,7 +99,7 @@ impl ClientCA {
     pub async fn get_cert_status_by_serial(
         &mut self,
         serial: impl Into<String>,
-    ) -> ConResult<chm_grpc::ca::CertStatus> {
+    ) -> ConResult<CertStatus> {
         let serial: String = serial.into();
         let resp = self
             .client

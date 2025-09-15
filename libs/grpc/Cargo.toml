@@ -31,5 +31,5 @@ prost-types = { workspace = true }
 tonic = { workspace = true }
 tonic-health = { workspace = true }
 [build-dependencies]
-tonic-build = "0.13.1"
 protoc-bin-vendored = "3.2.0"
+tonic-build = "0.13.1"

@@ -328,16 +328,23 @@ version = "0.1.0"
 dependencies = [
  "actix-multipart",
  "actix-web",
+ "chm-config_bus",
  "chm-config_loader",
  "chm-dns_resolver",
  "chm-grpc",
+ "chm-project_const",
  "serde",
  "serde_json",
- "tokio",
  "tracing",
  "tracing-subscriber",
  "uuid",
 ]
+
+[[package]]
+name = "arc-swap"
+version = "1.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69f7f8c3906b62b754cd5326047894316021dcfe5a194c8ea52bdd94934a3457"
 
 [[package]]
 name = "argon2"
@@ -548,9 +555,9 @@ dependencies = [
 name = "ca"
 version = "0.1.0"
 dependencies = [
- "actix-tls",
  "actix-web",
  "chm-cert-utils",
+ "chm-config_bus",
  "chm-config_loader",
  "chm-crl_cache",
  "chm-dns_resolver",
@@ -559,11 +566,8 @@ dependencies = [
  "chm-project_const",
  "chrono",
  "futures",
- "humantime",
  "humantime-serde",
- "once_cell",
  "openssl",
- "openssl-sys",
  "reqwest",
  "serde",
  "sqlx",
@@ -664,6 +668,14 @@ dependencies = [
  "serde",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "chm-config_bus"
+version = "0.1.0"
+dependencies = [
+ "arc-swap",
+ "tokio",
 ]
 
 [[package]]
@@ -772,16 +784,16 @@ dependencies = [
  "backoff",
  "chm-cert-utils",
  "chm-cluster-utils",
+ "chm-config_bus",
  "chm-config_loader",
- "chm-crl_cache",
  "chm-dns_resolver",
  "chm-grpc",
  "chm-project_const",
  "dashmap",
- "humantime",
- "humantime-serde",
  "serde",
  "tokio",
+ "tokio-util",
+ "tower-http",
  "tracing",
  "tracing-subscriber",
 ]
@@ -3370,9 +3382,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.15"
+version = "0.7.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "66a539a9ad6d5d281510d5bd368c973d636c02dbf8a67300bfb6b950696ad7df"
+checksum = "14307c986784f72ef81c89db7d9e28d6ac26d16213b109ea501696195e6e3ce5"
 dependencies = [
  "bytes",
  "futures-core",

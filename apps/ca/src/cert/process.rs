@@ -133,7 +133,7 @@ impl CertificateProcess {
             builder.append_extension(ext)?;
         }
         let mut bn = BigNum::new()?;
-        let bits = GlobalConfig::read().await.settings.certificate.bits;
+        let bits = GlobalConfig::with(|cfg| cfg.certificate.bits);
         bn.rand(bits, MsbOption::ONE, false)?;
         let serial = Asn1Integer::from_bn(&bn)?;
         builder.set_serial_number(&serial)?;

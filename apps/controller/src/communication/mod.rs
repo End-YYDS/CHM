@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::{ConResult, GlobalConfig};
 use backoff::{future::retry, ExponentialBackoff};
 use chm_grpc::{
@@ -9,6 +10,7 @@ pub(crate) mod dhcp;
 pub(crate) mod dns;
 pub(crate) mod ldap;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) struct GrpcClients {
     pub ca: ca::ClientCA,
@@ -29,6 +31,7 @@ impl AsRef<str> for ServiceName {
         }
     }
 }
+
 async fn ca_grpc_connection_init(mca_info: String, tls: ClientTlsConfig) -> ConResult<Channel> {
     tracing::debug!("初始化 CA gRPC 連線...");
     // let channel =
@@ -56,25 +59,20 @@ async fn ca_grpc_connection_init(mca_info: String, tls: ClientTlsConfig) -> ConR
 }
 pub(crate) async fn init_channel() -> ConResult<GrpcClients> {
     tracing::info!("初始化gRPC通道...");
-    let (root_cert, client_cert, client_key, mca_info) = {
-        let r = GlobalConfig::read().await;
-        let (root, cert, key, ca) = (
-            &r.settings.certificate.root_ca,
-            &r.settings.certificate.client_cert,
-            &r.settings.certificate.client_key,
-            &r.settings.server.ca_server,
-        );
-
-        if root.is_empty() || cert.is_empty() || key.is_empty() || ca.is_empty() {
-            tracing::error!("GlobalsVar 中的憑證未正確初始化");
-            return Err("憑證取得或設定失敗".into());
-        }
-        let root = std::fs::read(root).expect("無法讀取 CA 根憑證");
-        let cert = std::fs::read(cert).expect("無法讀取客戶端憑證");
-        let key = std::fs::read(key).expect("無法讀取客戶端金鑰");
-
-        (root, cert, key, ca.clone())
-    };
+    let (root_cert, client_cert, client_key, mca_info) =
+        GlobalConfig::with(|cfg| -> ConResult<_> {
+            let root = &cfg.certificate.root_ca;
+            let cert = &cfg.certificate.client_cert;
+            let key = &cfg.certificate.client_key;
+            let ca = &cfg.server.ca_server;
+            if root.is_empty() || cert.is_empty() || key.is_empty() || ca.is_empty() {
+                return Err("GlobalsVar 中的憑證未正確初始化".into());
+            }
+            let root_bytes = std::fs::read(root).map_err(|_| "無法讀取 CA 根憑證")?;
+            let cert_bytes = std::fs::read(cert).map_err(|_| "無法讀取客戶端憑證")?;
+            let key_bytes = std::fs::read(key).map_err(|_| "無法讀取客戶端金鑰")?;
+            Ok((root_bytes, cert_bytes, key_bytes, ca.clone()))
+        })?;
     tracing::debug!("讀取憑證及金鑰成功");
     let ca_certificate = Certificate::from_pem(root_cert);
     let client_identity = Identity::from_pem(client_cert, client_key);
@@ -96,8 +94,8 @@ pub(crate) async fn init_channel() -> ConResult<GrpcClients> {
     tracing::info!("gRPC 通道初始化完成");
     Ok(clients)
 }
-async fn health_check(channel: Channel, service_name: impl AsRef<str>) -> crate::ConResult<()> {
-    let svc = service_name.as_ref(); // &str
+async fn health_check(channel: Channel, service_name: impl AsRef<str>) -> ConResult<()> {
+    let svc = service_name.as_ref();
     tracing::info!("執行{svc}健康檢查...");
     let mut health = HealthClient::new(channel.clone());
     let resp = health.check(HealthCheckRequest { service: svc.into() }).await?.into_inner();
