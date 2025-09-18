@@ -328,6 +328,8 @@ version = "0.1.0"
 dependencies = [
  "actix-multipart",
  "actix-web",
+ "chm-cert-utils",
+ "chm-cluster-utils",
  "chm-config_bus",
  "chm-config_loader",
  "chm-dns_resolver",
@@ -335,6 +337,7 @@ dependencies = [
  "chm-project_const",
  "serde",
  "serde_json",
+ "tokio",
  "tracing",
  "tracing-subscriber",
  "uuid",
@@ -643,11 +646,10 @@ checksum = "613afe47fcd5fac7ccf1db93babcb082c5994d996f20b8b159f2ad1658eb5724"
 name = "chm-cert-utils"
 version = "0.1.0"
 dependencies = [
- "chm-config_loader",
  "chm-grpc",
  "chm-project_const",
+ "chrono",
  "openssl",
- "openssl-sys",
 ]
 
 [[package]]
@@ -661,6 +663,7 @@ dependencies = [
  "chm-dns_resolver",
  "chm-grpc",
  "chm-password",
+ "chm-project_const",
  "futures",
  "openssl",
  "openssl-sys",
@@ -705,7 +708,9 @@ dependencies = [
 name = "chm-dns_resolver"
 version = "0.1.0"
 dependencies = [
+ "backoff",
  "chm-grpc",
+ "tracing",
  "url",
  "uuid",
 ]
@@ -790,6 +795,7 @@ dependencies = [
  "chm-grpc",
  "chm-project_const",
  "dashmap",
+ "futures",
  "serde",
  "tokio",
  "tokio-util",

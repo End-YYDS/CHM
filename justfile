@@ -47,6 +47,7 @@ migrate-dns: (migrate DNS_DATABASE_URL DNS_FOLDER_MIGRATE)
 
 migrate-all: migrate-ca migrate-dns
 
+# 開發環境
 run-ca args="":
     @[[ ! -f "{{ DB_FOLDER }}/cert_store.db" ]] && just create-ca-db || true
     @[[ ! -f "{{ CERT_FOLDER }}/rootCA.pem" ]] && just create-ca-root || true
@@ -57,10 +58,10 @@ run-dns args="":
     @DATABASE_URL={{ DNS_DATABASE_URL }} RUST_LOG=dns=debug,CHM_mDNSd=debug cargo run -p dns --bin CHM_mDNSd -- {{ args }}
 
 run-controller args="":
-    @RUST_LOG=trace,controller=debug,controller.server=trace,CHMcd=debug cargo run -p controller --bin CHMcd -- {{ args }}
+    @RUST_LOG=trace,controller=debug,CHMcd=debug cargo run -p controller --bin CHMcd -- {{ args }}
 
 run-api args="":
-    @RUST_LOG=api_server=debug,CHM_API=debug cargo run -p api_server --bin CHM_API -- {{ args }}
+    @RUST_LOG=CHM_API=debug,api_server=debug,chm_cluster_utils=debug cargo run -p api_server --bin CHM_API -- {{ args }}
 
 clean-certs:
     @find {{ CERT_FOLDER }} -mindepth 1 -not -name ".gitkeep" -print0 | xargs -0 rm -rf
@@ -77,4 +78,20 @@ clean-config:
 # clean-run-all: clean reset-all run-ca run-dns run-controller
 clean-all: reset-all clean-certs clean-config clean-data clean-db
 
-#Todo: 添加release編譯
+# Todo: 添加release執行
+run-r-ca args="":
+    @[[ ! -f "{{ DB_FOLDER }}/cert_store.db" ]] && just create-ca-db || true
+    @[[ ! -f "{{ CERT_FOLDER }}/rootCA.pem" ]] && just create-ca-root || true
+    @DATABASE_URL={{ CA_DATABASE_URL }} RUST_LOG=ca=info,CHM_CA=info  cargo run -p ca --bin CHM_CA -r -- {{ args }}
+
+run-r-dns args="":
+    @podman start CHM-DNS || true
+    @DATABASE_URL={{ DNS_DATABASE_URL }} RUST_LOG=dns=info,CHM_mDNSd=info cargo run -p dns --bin CHM_mDNSd -r -- {{ args }}
+
+run-r-controller args="":
+    @RUST_LOG=trace,controller=info,CHMcd=info,chm_dns_resolver=info cargo run -p controller --bin CHMcd -r -- {{ args }}
+
+run-r-api args="":
+    @RUST_LOG=CHM_API=info cargo run -p api_server --bin CHM_API -r -- {{ args }}
+
+# Todo: 添加release編譯

@@ -1,84 +1,18 @@
 #![allow(dead_code, unused_variables)]
+
+use crate::communication::GrpcClients;
+use chm_cert_utils::CertUtils;
 use chm_grpc::{
-    restful::{
-        restful_service_server::RestfulService, AddFirewallRuleRequest, AddFirewallRuleResponse,
-        AddPcRequest, AddPcResponse, BackupNowRequest, BackupNowResponse, CreateCronRequest,
-        CreateCronResponse, CreateGroupRequest, CreateGroupResponse, CreateNetRequest,
-        CreateNetResponse, CreatePcGroupRequest, CreatePcGroupResponse, CreateRoleRequest,
-        CreateRoleResponse, CreateRouteRequest, CreateRouteResponse, CreateUserRequest,
-        CreateUserResponse, DeleteCronRequest, DeleteCronResponse, DeleteFirewallRuleRequest,
-        DeleteFirewallRuleResponse, DeleteGroupRequest, DeleteGroupResponse, DeleteIpRequest,
-        DeleteIpResponse, DeleteModulesRequest, DeleteModulesResponse, DeleteNetRequest,
-        DeleteNetResponse, DeletePcGroupRequest, DeletePcGroupResponse, DeletePcsRequest,
-        DeletePcsResponse, DeleteRoleRequest, DeleteRoleResponse, DeleteRouteRequest,
-        DeleteRouteResponse, DeleteSoftwareRequest, DeleteUserRequest, DeleteUserResponse,
-        DisableModulesRequest, DisableModulesResponse, DisableProcessRequest,
-        DisableProcessResponse, DownloadPdirFileRequest, DownloadPdirFileResponse,
-        DownloadVdirFileRequest, DownloadVdirFileResponse, EnableModulesRequest,
-        EnableModulesResponse, EnableProcessRequest, EnableProcessResponse, ExportCronRequest,
-        ExportCronResponse, GetAllDnsRequest, GetAllDnsResponse, GetAllInfoRequest,
-        GetAllInfoResponse, GetAllNetRequest, GetAllNetResponse, GetAllPcsRequest,
-        GetAllPcsResponse, GetAllProcessRequest, GetAllProcessResponse, GetAllRouteRequest,
-        GetAllRouteResponse, GetApacheRequest, GetApacheResponse, GetBackupsRequest,
-        GetBackupsResponse, GetBindRequest, GetBindResponse, GetConfigRequest, GetConfigResponse,
-        GetCronJobsRequest, GetCronJobsResponse, GetFirewallPcsRequest, GetFirewallPcsResponse,
-        GetFirewallRequest, GetFirewallResponse, GetFtpRequest, GetFtpResponse, GetGroupsRequest,
-        GetGroupsResponse, GetInfoRequest, GetInfoResponse, GetIpAccessRequest,
-        GetIpAccessResponse, GetLdapRequest, GetLdapResponse, GetModulesRequest,
-        GetModulesResponse, GetMySqlRequest, GetMySqlResponse, GetNginxRequest, GetNginxResponse,
-        GetOneProcessRequest, GetOneProcessResponse, GetPcGroupsRequest, GetPcGroupsResponse,
-        GetPcLogPcsRequest, GetPcLogPcsResponse, GetPcLogsRequest, GetPcLogsResponse,
-        GetPdirOneRequest, GetPdirOneResponse, GetPdirPcsRequest, GetPdirPcsResponse,
-        GetRevokedCertsRequest, GetRevokedCertsResponse, GetRoleUsersRequest, GetRoleUsersResponse,
-        GetRolesRequest, GetRolesResponse, GetSambaRequest, GetSambaResponse,
-        GetServerInstalledPcsRequest, GetServerInstalledPcsResponse,
-        GetServerNotInstalledPcsRequest, GetServerNotInstalledPcsResponse, GetSettingValuesRequest,
-        GetSettingValuesResponse, GetSoftwareRequest, GetSoftwareResponse, GetSpecificPcsRequest,
-        GetSpecificPcsResponse, GetSquidRequest, GetSquidResponse, GetSshRequest, GetSshResponse,
-        GetSysLogsRequest, GetSysLogsResponse, GetUsersRequest, GetUsersResponse,
-        GetValidCertsRequest, GetValidCertsResponse, GetVdirPathRequest, GetVdirPathResponse,
-        ImportCronRequest, ImportCronResponse, InstallServerRequest, InstallServerResponse,
-        InstallSoftwareRequest, LoginRequest, LoginResponse, NetDownRequest, NetDownResponse,
-        NetUpRequest, NetUpResponse, PackageActionResponse, PatchGroupsRequest,
-        PatchGroupsResponse, PatchHostnameRequest, PatchHostnameResponse,
-        PatchModuleSettingsRequest, PatchModuleSettingsResponse, PatchNetRequest, PatchNetResponse,
-        PatchPcGroupRequest, PatchPcGroupResponse, PatchRoleRequest, PatchRoleResponse,
-        PatchRouteRequest, PatchRouteResponse, PatchUsersRequest, PatchUsersResponse,
-        PostIpRequest, PostIpResponse, PutCronRequest, PutCronResponse, PutDnsRequest,
-        PutDnsResponse, PutFirewallPolicyRequest, PutFirewallPolicyResponse,
-        PutFirewallStatusRequest, PutFirewallStatusResponse, PutGroupsRequest, PutGroupsResponse,
-        PutIpModeRequest, PutIpModeResponse, PutNetRequest, PutNetResponse, PutPcGroupRequest,
-        PutPcGroupResponse, PutRoleMembersRequest, PutRoleMembersResponse, PutRouteRequest,
-        PutRouteResponse, PutSettingValuesRequest, PutSettingValuesResponse, PutUsersRequest,
-        PutUsersResponse, QueryPcLogsRequest, QueryPcLogsResponse, QuerySysLogsRequest,
-        QuerySysLogsResponse, RebootPcsRequest, RebootPcsResponse, ReductionRequest,
-        ReductionResponse, RestartApacheRequest, RestartApacheResponse, RestartBindRequest,
-        RestartBindResponse, RestartFtpRequest, RestartFtpResponse, RestartLdapRequest,
-        RestartLdapResponse, RestartMySqlRequest, RestartMySqlResponse, RestartNginxRequest,
-        RestartNginxResponse, RestartProcessRequest, RestartProcessResponse, RestartSambaRequest,
-        RestartSambaResponse, RestartSquidRequest, RestartSquidResponse, RestartSshRequest,
-        RestartSshResponse, RevokeCertRequest, RevokeCertResponse, ShutdownPcsRequest,
-        ShutdownPcsResponse, StartApacheRequest, StartApacheResponse, StartBindRequest,
-        StartBindResponse, StartEnableProcessRequest, StartEnableProcessResponse, StartFtpRequest,
-        StartFtpResponse, StartLdapRequest, StartLdapResponse, StartMySqlRequest,
-        StartMySqlResponse, StartNginxRequest, StartNginxResponse, StartProcessRequest,
-        StartProcessResponse, StartSambaRequest, StartSambaResponse, StartSquidRequest,
-        StartSquidResponse, StartSshRequest, StartSshResponse, StopApacheRequest,
-        StopApacheResponse, StopBindRequest, StopBindResponse, StopDisableProcessRequest,
-        StopDisableProcessResponse, StopFtpRequest, StopFtpResponse, StopLdapRequest,
-        StopLdapResponse, StopMySqlRequest, StopMySqlResponse, StopNginxRequest, StopNginxResponse,
-        StopProcessRequest, StopProcessResponse, StopSambaRequest, StopSambaResponse,
-        StopSquidRequest, StopSquidResponse, StopSshRequest, StopSshResponse, UpdateModulesRequest,
-        UpdateModulesResponse, UploadModulesRequest, UploadModulesResponse, UploadPdirFilesRequest,
-        UploadPdirFilesResponse, UploadVdirFilesRequest, UploadVdirFilesResponse,
-    },
+    restful::{restful_service_server::RestfulService, *},
     tonic,
     tonic::{Request, Response, Status},
 };
 
 // TODO: 由RestFul Server 為Client 調用Controller RestFul gRPC介面
-#[derive(Debug, Default)]
-pub struct ControllerRestfulServer {}
+#[derive(Debug)]
+pub struct ControllerRestfulServer {
+    pub grpc_clients: GrpcClients,
+}
 
 #[tonic::async_trait]
 impl RestfulService for ControllerRestfulServer {
@@ -135,21 +69,72 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetValidCertsRequest>,
     ) -> Result<Response<GetValidCertsResponse>, Status> {
-        todo!()
+        let r = &self
+            .grpc_clients
+            .ca
+            .get_all_certificates()
+            .await
+            .map_err(|e| Status::internal(format!("Failed to get valid certificates: {e}")))?;
+        let vaild_certs: Vec<ValidCert> = r
+            .iter()
+            .map(|cert| ValidCert {
+                name:   cert.subject_cn.clone(),
+                signer: cert.issuer.clone(),
+                period: cert.expiration.as_ref().map(CertUtils::ts_to_string).unwrap_or_default(),
+            })
+            .collect();
+        let length = vaild_certs.len() as u64;
+        let ret = GetValidCertsResponse { valid: vaild_certs, length };
+        Ok(Response::new(ret))
     }
 
     async fn get_revoked_certs(
         &self,
         request: Request<GetRevokedCertsRequest>,
     ) -> Result<Response<GetRevokedCertsResponse>, Status> {
-        todo!()
+        let r =
+            &self.grpc_clients.ca.get_all_revoked_certificates().await.map_err(|e| {
+                Status::internal(format!("Failed to get revoked certificates: {e}"))
+            })?;
+        let revoked_certs: Vec<RevokedCert> = r
+            .iter()
+            .map(|entry| RevokedCert {
+                number: entry.cert_serial.clone(),
+                time:   entry.revoked_at.as_ref().map(CertUtils::ts_to_string).unwrap_or_default(),
+                reason: entry.reason.clone(),
+            })
+            .collect();
+        let length = revoked_certs.len() as u64;
+        let ret = GetRevokedCertsResponse { revoke: revoked_certs, length };
+        Ok(Response::new(ret))
     }
 
     async fn revoke_cert(
         &self,
         request: Request<RevokeCertRequest>,
     ) -> Result<Response<RevokeCertResponse>, Status> {
-        todo!()
+        let RevokeCertRequest { name, reason } = request.into_inner();
+        let cert = self
+            .grpc_clients
+            .ca
+            .get_certificate_by_common_name(&name)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to get serail {name}")))?;
+        let cert = match cert {
+            Some(c) => c,
+            None => return Err(Status::not_found(format!("Certificate {name} not found"))),
+        };
+        self.grpc_clients
+            .ca
+            .mark_certificate_as_revoked(cert.serial, Some(reason))
+            .await
+            .map_err(|e| Status::internal(format!("Failed to revoke certificate {name}: {e}")))?;
+        let result = chm_grpc::common::ResponseResult {
+            r#type:  chm_grpc::common::ResponseType::Ok as i32,
+            message: format!("憑證 {name} 已成功註銷"),
+        };
+        let resp = RevokeCertResponse { result: Some(result) };
+        Ok(Response::new(resp))
     }
 
     async fn add_pc(

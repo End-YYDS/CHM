@@ -3,9 +3,11 @@
 use crate::handles::handles_scope;
 use actix_web::web::{scope, ServiceConfig};
 use chm_config_bus::declare_config_bus;
+use chm_grpc::{restful::restful_service_client::RestfulServiceClient, tonic::transport::Channel};
 pub use config::{config, ID, NEED_EXAMPLE};
 pub use globals::GlobalConfig;
 use serde::Deserialize;
+
 mod commons;
 mod config;
 mod handles;
@@ -18,6 +20,12 @@ declare_config_bus! {
         save = chm_config_loader::store_config;
         load = chm_config_loader::load_config;
     }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct AppState {
+    pub gclient: RestfulServiceClient<Channel>,
 }
 
 pub fn configure_app(cfg: &mut ServiceConfig) {

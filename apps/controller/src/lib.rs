@@ -3,13 +3,12 @@ mod config;
 pub mod first;
 mod server;
 mod supervisor;
-use crate::{communication::GrpcClients, server::start_grpc};
+use crate::communication::GrpcClients;
 use chm_config_bus::declare_config_bus;
 use chm_project_const::ProjectConst;
 pub use config::{config, ID, NEED_EXAMPLE};
 use first::first_run;
 pub use globals::GlobalConfig;
-use tokio_util::sync::CancellationToken;
 pub type ConResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 declare_config_bus! {
     pub mod globals {
@@ -37,11 +36,6 @@ pub async fn entry() -> ConResult<()> {
     std::fs::create_dir_all(&data_dir)?;
     tracing::debug!("資料目錄已檢查");
     tracing::debug!("寫入Controller UUID到服務池...");
-    // {
-    //     let w = GlobalConfig::write().await;
-    //     let self_hostname = w.settings.server.hostname.clone();
-    //     w.settings.services_pool.services_uuid.insert(self_hostname,
-    // w.settings.server.unique_id); }
     GlobalConfig::update_with(|cfg| {
         let self_hostname = cfg.server.hostname.clone();
         cfg.services_pool.services_uuid.insert(self_hostname, cfg.server.unique_id);
@@ -61,38 +55,9 @@ pub async fn entry() -> ConResult<()> {
 }
 
 async fn run() -> ConResult<()> {
-    let cancel = CancellationToken::new();
-    let mut server_task = tokio::spawn(start_grpc(cancel.child_token()));
-    tracing::info!("Server running… (Ctrl+C 可關閉)");
-    tokio::select! {
-        res = &mut server_task => {
-            match res {
-                Err(e)        => tracing::error!("server task panic: {e}"),
-                Ok(Err(e))    => tracing::error!("server task error: {e}"),
-                Ok(Ok(()))    => tracing::info!("server 已關閉"),
-            }
-        }
-        _ = tokio::signal::ctrl_c() => {
-            tracing::info!("收到 Ctrl+C，發出取消…");
-            cancel.cancel();
-            match server_task.await {
-                Err(e)     => tracing::error!("server task panic: {e}"),
-                Ok(Err(e)) => tracing::error!("server task error: {e}"),
-                Ok(Ok(())) => tracing::info!("server 已關閉"),
-            }
-        }
-    }
-
-    Ok(())
-}
-
-#[allow(dead_code)]
-async fn clients() -> ConResult<()> {
     tracing::info!("創建gRPC客戶端");
-    let mut clients = communication::init_channel().await?;
+    let clients = communication::init_channels_all().await?;
     tracing::info!("gRPC客戶端創建完成");
-    // Todo: 可以後面所需插入邏輯
-    let ret = clients.ca.get_all_certificates().await?;
-    tracing::debug!("已獲取 {} 張憑證", ret.len());
+    supervisor::run_supervised(clients).await?;
     Ok(())
 }

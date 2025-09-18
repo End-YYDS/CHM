@@ -1,11 +1,10 @@
 pub mod cert;
 pub mod config;
 pub mod connection;
-// pub mod globals;
 pub mod mini_controller;
 use chm_cert_utils::CertUtils;
 use chm_grpc::{
-    ca::{ca_server::CaServer, *},
+    ca::ca_server::CaServer,
     crl::crl_server,
     tonic::{self, codec::CompressionEncoding},
     tonic_health,
@@ -140,11 +139,9 @@ pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>)
         let tls = ServerTlsConfig::new().identity(identity).client_ca_root(
             tonic::transport::Certificate::from_pem(cert_handler.get_ca_cert().to_pem()?),
         );
-        // ----------
         // 啟動健康檢查服務
         let (health_reporter, health_service) = health_reporter();
-        health_reporter.set_serving::<ca_server::CaServer<MyCa>>().await;
-        // ----------
+        health_reporter.set_serving::<CaServer<MyCa>>().await;
         let shutdown_signal = {
             let health_reporter = health_reporter.clone();
             async move {
@@ -156,7 +153,7 @@ pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>)
                         tracing::info!("[gRPC] 憑證更新，開始重新啟動 gRPC...");
                     }
                 }
-                health_reporter.set_not_serving::<ca_server::CaServer<MyCa>>().await;
+                health_reporter.set_not_serving::<CaServer<MyCa>>().await;
             }
         };
         let controller_args = GlobalConfig::with(|cfg| {
@@ -225,11 +222,7 @@ pub async fn mini_controller_cert(
     let mini_csr = X509Req::from_pem(&mini_cert.1)?;
     let mini_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&mini_csr, 365).await?;
     CertUtils::save_cert("mini_controller", &mini_cert.0, &mini_sign.0)?;
-    let mini_c = mini_controller::MiniController::new(
-        Some(mini_sign.0),
-        Some(mini_cert.0),
-        cert_handler.clone(),
-    );
+    let mini_c = MiniController::new(Some(mini_sign.0), Some(mini_cert.0), cert_handler.clone());
     Ok(mini_c)
 }
 

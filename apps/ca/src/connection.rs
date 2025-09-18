@@ -1,20 +1,16 @@
 use std::sync::Arc;
 
-use openssl::x509::X509Req;
-use tonic::{Request, Response, Status};
-
+use crate::cert::process::CertificateProcess;
+use chm_cert_utils::CertUtils;
 use chm_grpc::{
     ca::{ca_server::Ca, *},
     tonic,
 };
+use openssl::x509::X509Req;
+use tonic::{Request, Response, Status};
 
-use crate::cert::process::CertificateProcess;
-
-use crate::cert::store::{Cert as StoreCert, CertStatus as StoreStatus};
-use chm_grpc::{
-    ca::{Cert as GrpcCert, CertStatus as GrpcStatus},
-    prost_types::Timestamp,
-};
+use crate::cert::store::{Cert as StoreCert, CertStatus as StoreStatus, CrlEntry as StoreCrlEntry};
+use chm_grpc::ca::{Cert as GrpcCert, CertStatus as GrpcStatus, CrlEntry as GrpcCrlEntry};
 
 impl From<StoreCert> for GrpcCert {
     fn from(c: StoreCert) -> Self {
@@ -23,19 +19,23 @@ impl From<StoreCert> for GrpcCert {
             subject_cn:  c.subject_cn.unwrap_or_default(),
             subject_dn:  c.subject_dn.unwrap_or_default(),
             issuer:      c.issuer.unwrap_or_default(),
-            issued_date: Some(Timestamp {
-                seconds: c.issued_date.timestamp(),
-                nanos:   c.issued_date.timestamp_subsec_nanos() as i32,
-            }),
-            expiration:  Some(Timestamp {
-                seconds: c.expiration.timestamp(),
-                nanos:   c.expiration.timestamp_subsec_nanos() as i32,
-            }),
+            issued_date: Some(CertUtils::to_prost_timestamp(&c.issued_date)),
+            expiration:  Some(CertUtils::to_prost_timestamp(&c.expiration)),
             thumbprint:  c.thumbprint.unwrap_or_default(),
             status:      match c.status {
                 StoreStatus::Valid => GrpcStatus::Valid as i32,
                 StoreStatus::Revoked => GrpcStatus::Revoked as i32,
             },
+        }
+    }
+}
+
+impl From<StoreCrlEntry> for GrpcCrlEntry {
+    fn from(c: StoreCrlEntry) -> Self {
+        GrpcCrlEntry {
+            cert_serial: c.cert_serial.unwrap_or_default(),
+            revoked_at:  Some(CertUtils::to_prost_timestamp(&c.revoked_at)),
+            reason:      c.reason.unwrap_or_default(),
         }
     }
 }
@@ -79,10 +79,7 @@ impl Ca for MyCa {
     /// * `_req`: 空請求
     /// # 回傳
     /// * `Result<Response<ReloadResponse>, Status>`: 返回是否成功重新加載
-    async fn reload_grpc(
-        &self,
-        _req: Request<chm_grpc::ca::Empty>,
-    ) -> Result<Response<ReloadResponse>, Status> {
+    async fn reload_grpc(&self, _req: Request<Empty>) -> Result<Response<ReloadResponse>, Status> {
         if let Err(e) = self.reloader.send(()) {
             return Err(Status::internal(format!("Reloader error: {e}")));
         }
@@ -103,9 +100,24 @@ impl Ca for MyCa {
             .list_all()
             .await
             .map_err(|e| Status::internal(format!("Failed to list all certs: {e}")))?;
-        let grpc_certs: Vec<chm_grpc::ca::Cert> = certs.into_iter().map(Into::into).collect();
+        let grpc_certs: Vec<Cert> = certs.into_iter().map(Into::into).collect();
         Ok(Response::new(ListAllCertsResponse { certs: grpc_certs }))
     }
+
+    async fn list_crl(
+        &self,
+        _request: Request<Empty>,
+    ) -> Result<Response<ListAllCrlResponse>, Status> {
+        let certs = self
+            .cert
+            .get_store()
+            .list_crl()
+            .await
+            .map_err(|e| Status::internal(format!("Failed to list all revoked certs: {e}")))?;
+        let grpc_certs: Vec<CrlEntry> = certs.into_iter().map(Into::into).collect();
+        Ok(Response::new(ListAllCrlResponse { certs: grpc_certs }))
+    }
+
     async fn get(&self, req: Request<GetCertRequest>) -> Result<Response<GetCertResponse>, Status> {
         let serial = req.into_inner().serial;
         let cert = self

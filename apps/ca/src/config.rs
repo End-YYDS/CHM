@@ -193,6 +193,7 @@ impl Controller {
 }
 
 #[derive(Debug, Deserialize, Default, Serialize, Clone)]
+#[serde(rename_all = "PascalCase")]
 /// 應用程式設定
 pub struct Settings {
     #[serde(default)]

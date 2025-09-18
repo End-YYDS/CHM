@@ -1,4 +1,6 @@
-use crate::{server::restful::ControllerRestfulServer, ConResult, GlobalConfig};
+use crate::{
+    communication::GrpcClients, server::restful::ControllerRestfulServer, ConResult, GlobalConfig,
+};
 use chm_cert_utils::CertUtils;
 use chm_grpc::{
     restful::restful_service_server::RestfulServiceServer,
@@ -8,12 +10,15 @@ use chm_grpc::{
     },
     tonic_health::server::health_reporter,
 };
-use std::net::{IpAddr, SocketAddr};
+use std::{
+    net::{IpAddr, SocketAddr},
+    time::Duration,
+};
 use tokio_util::sync::CancellationToken;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 
 pub mod restful;
-pub async fn start_grpc(cancel: CancellationToken) -> ConResult<()> {
+pub async fn start_grpc(cancel: CancellationToken, grpc_clients: GrpcClients) -> ConResult<()> {
     let (ca_path, host, port, hostname) = GlobalConfig::with(|cfg| {
         (
             cfg.certificate.root_ca.clone(),
@@ -29,11 +34,16 @@ pub async fn start_grpc(cancel: CancellationToken) -> ConResult<()> {
     let (key, cert) = CertUtils::cert_from_name(&hostname, None)?;
     let ident = Identity::from_pem(cert, key);
     let ca_cert = CertUtils::load_cert(ca_path)?.to_pem()?;
-    let tls = ServerTlsConfig::new().identity(ident).client_ca_root(Certificate::from_pem(ca_cert));
+    let tls = ServerTlsConfig::new()
+        .identity(ident)
+        .client_ca_root(Certificate::from_pem(ca_cert))
+        .client_auth_optional(true);
     let (health_reporter, health_service) = health_reporter();
     health_reporter.set_serving::<RestfulServiceServer<ControllerRestfulServer>>().await;
     // TODO: 添加CRL 攔截器
-    let rest_svc = RestfulServiceServer::new(ControllerRestfulServer::default());
+    let rest_svc = RestfulServiceServer::new(ControllerRestfulServer { grpc_clients })
+        .send_compressed(CompressionEncoding::Zstd)
+        .accept_compressed(CompressionEncoding::Zstd);
     let shutdown_signal = {
         let health_reporter = health_reporter.clone();
         async move {
@@ -51,6 +61,9 @@ pub async fn start_grpc(cancel: CancellationToken) -> ConResult<()> {
                 .on_response(DefaultOnResponse::new().include_headers(true)),
         )
         .tls_config(tls)?
+        .http2_keepalive_interval(Some(Duration::from_secs(15))) // 每 15s 送 PING
+        .http2_keepalive_timeout(Some(Duration::from_secs(5))) // 5s 未回應視為斷線
+        .tcp_keepalive(Some(Duration::from_secs(30)))
         .add_service(health_service)
         .add_service(
             rest_svc

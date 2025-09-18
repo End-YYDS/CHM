@@ -5,21 +5,22 @@ use tokio::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::{server::start_grpc, ConResult, GlobalConfig};
+use crate::{communication::GrpcClients, server::start_grpc, ConResult, GlobalConfig};
 
 pub struct GrpcSupervisor {
-    handle: Option<JoinHandle<ConResult<()>>>,
-    cancel: CancellationToken,
+    handle:   Option<JoinHandle<ConResult<()>>>,
+    cancel:   CancellationToken,
+    gclients: GrpcClients,
 }
 
 impl GrpcSupervisor {
-    pub fn new() -> Self {
-        Self { handle: None, cancel: CancellationToken::new() }
+    pub fn new(gclients: GrpcClients) -> Self {
+        Self { handle: None, cancel: CancellationToken::new(), gclients }
     }
 
     pub async fn start(&mut self) {
         let token = self.cancel.child_token();
-        self.handle = Some(tokio::spawn(start_grpc(token)));
+        self.handle = Some(tokio::spawn(start_grpc(token, self.gclients.clone())));
         tracing::info!("gRPC server 已啟動");
     }
 
@@ -32,7 +33,7 @@ impl GrpcSupervisor {
                 Err(e) => tracing::error!("gRPC server panic: {e}"),
             }
         }
-        self.cancel = CancellationToken::new(); // 下一輪新的 token
+        self.cancel = CancellationToken::new();
     }
 
     pub async fn restart(&mut self, reason: &str) {
@@ -42,9 +43,8 @@ impl GrpcSupervisor {
     }
 }
 
-/// 主管理回圈：接重載事件 → 重啟；Ctrl+C → 關閉
-pub async fn run_supervised() -> ConResult<()> {
-    let mut sup = GrpcSupervisor::new();
+pub async fn run_supervised(grpc_clients: GrpcClients) -> ConResult<()> {
+    let mut sup = GrpcSupervisor::new(grpc_clients);
     sup.start().await;
     let mut rx = GlobalConfig::subscribe_reload();
     tracing::info!("Server running… (Ctrl+C 可關閉)");

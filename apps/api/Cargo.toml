@@ -11,6 +11,8 @@ path = "src/bin/app.rs"
 actix-multipart = { workspace = true }
 actix-web = { workspace = true }
 chm-config_bus = { workspace = true }
+chm-cluster-utils = { workspace = true, features = ["server"], default-features = true }
+chm-cert-utils = { workspace = true }
 chm-config_loader = { workspace = true, default-features = true }
 chm-dns_resolver = { workspace = true }
 chm-grpc = { workspace = true, features = ["restful-common-client"] }
@@ -20,3 +22,4 @@ serde_json = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
+tokio = { workspace = true } 

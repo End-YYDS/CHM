@@ -52,8 +52,8 @@ struct Info {
 async fn main() -> Result<()> {
     let info: Info = Info {
         root_ca: "certs/rootCA.pem",
-        private: "certs/grpc_test.key",
-        cert:    "certs/grpc_test.pem",
+        private: "certs/CHMcd.key",
+        cert:    "certs/CHMcd.pem",
         url:     "https://127.0.0.1:50052",
     };
     let info1 = Info { private: "certs/one_test.key", cert: "certs/one_test.pem", ..info };
@@ -97,12 +97,12 @@ async fn main() -> Result<()> {
         // .await?;
         // get_cert_by_common_name(grpc_client.clone(), "one.example.com").await?;
 
-        // mark_cert_revoked(
-        //     grpc_client.clone(),
-        //     "6efa012bdf10f10b7bba8329b7b7c604c0201236cef251a6149d9fdad8b3a640",
-        //     Some("測試撤銷".to_string()),
-        // )
-        // .await?;
+        mark_cert_revoked(
+            grpc_client.clone(),
+            "7e6eeaa164b26dc7c8963679fddfeaaf347aefaf3d5c7339e54d34cc0aba5f25",
+            Some("測試撤銷".to_string()),
+        )
+        .await?;
 
         // CRL 測試
         // let crl_client = CrlClient::new(channel.clone());

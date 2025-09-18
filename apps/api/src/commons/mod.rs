@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 pub mod error_logs;
+mod translate;
 
 #[derive(Debug, Deserialize)]
 pub struct UuidRequest {
@@ -14,6 +15,8 @@ pub enum ResponseType {
     Ok,
     #[serde(rename = "Err")]
     Err,
+    #[serde(rename = "Unspecified")]
+    Unspecified,
 }
 
 #[derive(Debug, Serialize)]

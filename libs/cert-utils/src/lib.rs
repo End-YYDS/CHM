@@ -1,7 +1,6 @@
-use std::{fs, io::Write, net::IpAddr, path::Path};
-
-use chm_grpc::{crl::ListCrlEntriesResponse, prost::Message};
+use chm_grpc::{crl::ListCrlEntriesResponse, prost::Message, prost_types::Timestamp};
 use chm_project_const::ProjectConst;
+use chrono::{DateTime, Local, Utc};
 use openssl::{
     bn::BigNum,
     hash::{hash, MessageDigest},
@@ -13,6 +12,7 @@ use openssl::{
         X509Builder, X509NameBuilder, X509ReqBuilder, X509,
     },
 };
+use std::{fs, io::Write, net::IpAddr, path::Path};
 
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 #[derive(Debug)]
@@ -131,16 +131,21 @@ impl CertUtils {
     /// 產生自簽名憑證
     /// # 參數
     /// * `csr`: CSR 的 PEM Bytes
-    pub fn generate_self_signed_cert(
+    pub fn generate_self_signed_cert<I, S>(
         bits: u32,
         country: &str,
         state: &str,
         locality: &str,
         org: &str,
         cn: &str,
-        san: &[&str],
+        san: I,
         days: u32,
-    ) -> Result<(Vec<u8>, Vec<u8>)> {
+    ) -> Result<(Vec<u8>, Vec<u8>)>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let san: Vec<String> = san.into_iter().map(|s| s.as_ref().to_string()).collect();
         let (key_pem, _) = Self::generate_rsa_keypair(bits)?;
         let key = PKey::private_key_from_pem(&key_pem)?;
         let mut builder = X509Builder::new()?;
@@ -166,7 +171,7 @@ impl CertUtils {
             .append_extension(KeyUsage::new().digital_signature().key_encipherment().build()?)?;
         if !san.is_empty() {
             let mut san_b = SubjectAlternativeName::new();
-            for &entry in san {
+            for entry in &san {
                 if entry.parse::<IpAddr>().is_ok() {
                     san_b.ip(entry);
                 } else {
@@ -322,5 +327,32 @@ impl CertUtils {
         } else {
             Err("簽名驗證失敗：簽章不符".into())
         }
+    }
+    /// prost_types::Timestamp → chrono::DateTime<Utc>
+    pub fn from_timestamp(ts: &Timestamp) -> Option<DateTime<Utc>> {
+        DateTime::<Utc>::from_timestamp(ts.seconds, ts.nanos as u32)
+    }
+
+    /// prost_types::Timestamp → chrono::DateTime<Local>
+    pub fn to_local(ts: &Timestamp) -> Option<DateTime<Local>> {
+        Self::from_timestamp(ts).map(|dt| dt.with_timezone(&Local))
+    }
+
+    /// chrono::DateTime<Utc> → prost_types::Timestamp
+    pub fn to_prost_timestamp(dt: &DateTime<Utc>) -> Timestamp {
+        Timestamp { seconds: dt.timestamp(), nanos: dt.timestamp_subsec_nanos() as i32 }
+    }
+
+    /// prost_types::Timestamp → String (RFC3339 格式)
+    pub fn ts_to_string(ts: &Timestamp) -> String {
+        Self::from_timestamp(ts).map(|dt| dt.to_rfc3339()).unwrap_or_default()
+    }
+
+    /// String (RFC3339) → prost_types::Timestamp
+    pub fn string_to_ts(s: &str) -> Option<Timestamp> {
+        DateTime::parse_from_rfc3339(s)
+            .ok()
+            .map(|dt| dt.with_timezone(&Utc))
+            .map(|utc| Self::to_prost_timestamp(&utc))
     }
 }

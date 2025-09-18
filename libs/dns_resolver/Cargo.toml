@@ -8,3 +8,5 @@ publish = false
 chm-grpc = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
+backoff = { workspace = true }
+tracing = { workspace = true }

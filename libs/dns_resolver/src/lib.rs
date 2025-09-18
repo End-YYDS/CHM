@@ -1,6 +1,6 @@
-use std::net::{IpAddr, Ipv4Addr};
-
+use backoff::{future::retry, ExponentialBackoff};
 use chm_grpc::{dns::dns_service_client::DnsServiceClient, tonic::transport::Channel};
+use std::net::{IpAddr, Ipv4Addr};
 use url::{Host, Url};
 use uuid::Uuid;
 pub extern crate uuid;
@@ -40,9 +40,32 @@ impl From<Uuid> for DnsQuery {
 impl DnsResolver {
     pub async fn new(dns_address: impl Into<String>) -> Self {
         let dns_address = dns_address.into();
-        let client = DnsServiceClient::connect(dns_address.clone())
-            .await
-            .expect("Failed to connect to DNS service");
+        // let client = DnsServiceClient::connect(dns_address.clone())
+        //     .await
+        //     .expect("Failed to connect to DNS service");
+        let backoff = ExponentialBackoff {
+            max_elapsed_time: Some(std::time::Duration::from_secs(60)), // 最長重試 60 秒
+            ..Default::default()
+        };
+
+        let client = retry(backoff, || {
+            let dns_address = dns_address.clone();
+            async move {
+                tracing::info!("嘗試連線到 DNS service: {}", dns_address);
+                match DnsServiceClient::connect(dns_address.clone()).await {
+                    Ok(c) => {
+                        tracing::info!("成功連上 DNS service: {}", dns_address);
+                        Ok(c)
+                    }
+                    Err(e) => {
+                        tracing::warn!("連線失敗: {}，將重試...", e);
+                        Err(backoff::Error::transient(e))
+                    }
+                }
+            }
+        })
+        .await
+        .expect("Failed to connect to DNS service after retries");
         Self { dns_address, client }
     }
     pub async fn resolve_ip<Q>(&mut self, query: Q) -> Result<String>
@@ -95,7 +118,7 @@ impl DnsResolver {
         let response = client.get_ip_by_hostname(request).await?.into_inner();
         Ok(response.ip)
     }
-    pub async fn get_ip_by_uuid(&self, uid: uuid::Uuid) -> Result<String> {
+    pub async fn get_ip_by_uuid(&self, uid: Uuid) -> Result<String> {
         let mut client = self.client.clone();
         let request = chm_grpc::dns::GetIpByUuidRequest { id: uid.to_string() };
         let response = client.get_ip_by_uuid(request).await?.into_inner();
@@ -107,23 +130,23 @@ impl DnsResolver {
         let response = client.get_hostname_by_ip(request).await?.into_inner();
         Ok(response.hostname)
     }
-    pub async fn get_hostname_by_uuid(&self, uid: uuid::Uuid) -> Result<String> {
+    pub async fn get_hostname_by_uuid(&self, uid: Uuid) -> Result<String> {
         let mut client = self.client.clone();
         let request = chm_grpc::dns::GetHostnameByUuidRequest { id: uid.to_string() };
         let response = client.get_hostname_by_uuid(request).await?.into_inner();
         Ok(response.hostname)
     }
-    pub async fn get_uuid_by_ip(&self, ip: &str) -> Result<uuid::Uuid> {
+    pub async fn get_uuid_by_ip(&self, ip: &str) -> Result<Uuid> {
         let mut client = self.client.clone();
         let request = chm_grpc::dns::GetUuidByIpRequest { ip: ip.to_string() };
         let response = client.get_uuid_by_ip(request).await?.into_inner();
-        Ok(uuid::Uuid::parse_str(&response.id)?)
+        Ok(Uuid::parse_str(&response.id)?)
     }
-    pub async fn get_uuid_by_hostname(&self, hostname: &str) -> Result<uuid::Uuid> {
+    pub async fn get_uuid_by_hostname(&self, hostname: &str) -> Result<Uuid> {
         let mut client = self.client.clone();
         let request = chm_grpc::dns::GetUuidByHostnameRequest { hostname: hostname.to_string() };
         let response = client.get_uuid_by_hostname(request).await?.into_inner();
-        Ok(uuid::Uuid::parse_str(&response.id)?)
+        Ok(Uuid::parse_str(&response.id)?)
     }
     pub fn is_ipv4(s: &str) -> bool {
         s.parse::<Ipv4Addr>().is_ok()

@@ -4,11 +4,15 @@ use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> ConResult<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env().add_directive("info".parse().unwrap()))
-        .init();
+    let filter = if cfg!(debug_assertions) {
+        EnvFilter::from_default_env().add_directive("info".parse().unwrap())
+    } else {
+        EnvFilter::from_default_env()
+    };
+    tracing_subscriber::fmt().with_env_filter(filter).init();
     let args: Vec<String> = std::env::args().collect();
     tracing::debug!("啟動 Controller，參數: {:?}", args);
+    // TODO: 添加Argh解析CLI參數
     if args.iter().any(|a| a == "--init-config") {
         NEED_EXAMPLE.store(true, Relaxed);
         tracing::info!("初始化配置檔案...");

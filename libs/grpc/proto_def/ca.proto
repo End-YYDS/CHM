@@ -1,18 +1,20 @@
 syntax = "proto3";
+
 package ca;
+
 import "google/protobuf/timestamp.proto";
 
 message CsrRequest {
-    bytes csr = 1;
-    uint32 days = 2;
+  bytes csr = 1;
+  uint32 days = 2;
 }
 message CsrResponse {
-    bytes cert = 1;
-    repeated bytes chain = 2;
+  bytes cert = 1;
+  repeated bytes chain = 2;
 }
-message Empty{}
+message Empty {}
 message ReloadResponse {
-    bool success = 1;
+  bool success = 1;
 }
 
 
@@ -38,6 +40,9 @@ message CrlEntry {
 
 message ListAllCertsResponse {
   repeated Cert certs = 1;
+}
+message ListAllCrlResponse {
+  repeated CrlEntry certs = 1;
 }
 
 message GetCertRequest {
@@ -76,12 +81,13 @@ message MarkCertRevokedResponse {
 }
 
 service CA {
-    rpc SignCsr(CsrRequest) returns (CsrResponse);
-    rpc ReloadGrpc(Empty) returns (ReloadResponse);
-    rpc ListAll(Empty) returns (ListAllCertsResponse);
-    rpc Get(GetCertRequest) returns (GetCertResponse);
-    rpc GetByThumbprint(GetByThumprintRequest) returns (GetByThumprintResponse);
-    rpc GetByCommonName(GetByCommonNameRequest) returns (GetByCommonNameResponse);
-    rpc QueryCertStatus(QueryCertStatusRequest) returns (QueryCertStatusResponse);
-    rpc MarkCertRevoked(MarkCertRevokedRequest) returns (MarkCertRevokedResponse);
+  rpc SignCsr (CsrRequest) returns (CsrResponse);
+  rpc ReloadGrpc (Empty) returns (ReloadResponse);
+  rpc ListAll (Empty) returns (ListAllCertsResponse);
+  rpc ListCrl (Empty) returns (ListAllCrlResponse);
+  rpc Get (GetCertRequest) returns (GetCertResponse);
+  rpc GetByThumbprint (GetByThumprintRequest) returns (GetByThumprintResponse);
+  rpc GetByCommonName (GetByCommonNameRequest) returns (GetByCommonNameResponse);
+  rpc QueryCertStatus (QueryCertStatusRequest) returns (QueryCertStatusResponse);
+  rpc MarkCertRevoked (MarkCertRevokedRequest) returns (MarkCertRevokedResponse);
 }

@@ -25,6 +25,7 @@ restful-common-client = ["restful-client", "common-client"]
 common = ["common-server", "common-client"]
 restful = ["restful-server", "restful-client", "common"]
 default = ["crl-client", "dns-client"]
+all = ["ca", "crl", "controller", "dns", "restful", "common"]
 [dependencies]
 prost = { workspace = true }
 prost-types = { workspace = true }

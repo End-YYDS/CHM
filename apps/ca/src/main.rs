@@ -16,9 +16,12 @@ use std::{
 use tracing_subscriber::EnvFilter;
 #[actix_web::main]
 async fn main() -> CaResult<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env().add_directive("info".parse().unwrap()))
-        .init();
+    let filter = if cfg!(debug_assertions) {
+        EnvFilter::from_default_env().add_directive("info".parse().unwrap())
+    } else {
+        EnvFilter::from_default_env()
+    };
+    tracing_subscriber::fmt().with_env_filter(filter).init();
     let args: Vec<String> = env::args().collect();
     tracing::debug!("啟動 mCA 伺服器，參數: {:?}", args);
     if args.iter().any(|a| a == "--init-config") {

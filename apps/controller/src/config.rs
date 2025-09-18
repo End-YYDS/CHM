@@ -148,6 +148,7 @@ pub struct ServicesPool {
 }
 
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
+#[serde(rename_all = "PascalCase")]
 pub struct Settings {
     #[serde(default)]
     /// 伺服器設定

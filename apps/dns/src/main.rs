@@ -366,9 +366,12 @@ impl DnsService for MyDnsService {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::from_default_env().add_directive("info".parse().unwrap()))
-        .init();
+    let filter = if cfg!(debug_assertions) {
+        EnvFilter::from_default_env().add_directive("info".parse().unwrap())
+    } else {
+        EnvFilter::from_default_env()
+    };
+    tracing_subscriber::fmt().with_env_filter(filter).init();
     tracing::info!("正在啟動DNS...");
     let local_ip = if cfg!(debug_assertions) {
         IpAddr::V4(Ipv4Addr::LOCALHOST)

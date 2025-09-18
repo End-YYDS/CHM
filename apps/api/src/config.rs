@@ -100,6 +100,35 @@ pub struct Certificate {
     #[serde(default = "Certificate::default_passphrase")]
     /// 根憑證的密碼短語
     pub passphrase:  String,
+    #[serde(default, rename = "CertInfo")]
+    pub cert_info:   CertInfo,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct CertInfo {
+    pub bits:     u32,
+    pub country:  String,
+    pub state:    String,
+    pub locality: String,
+    pub org:      String,
+    pub cn:       String,
+    pub san:      Vec<String>,
+    pub days:     u32,
+}
+
+impl Default for CertInfo {
+    fn default() -> Self {
+        Self {
+            bits:     2048,
+            country:  "TW".into(),
+            state:    "Taiwan".into(),
+            locality: "Taipei".into(),
+            org:      "CHM-INIT".into(),
+            cn:       ID.into(),
+            san:      vec![],
+            days:     1,
+        }
+    }
 }
 
 impl Certificate {
@@ -124,18 +153,20 @@ impl Default for Certificate {
             client_cert: Certificate::default_client_cert(),
             client_key:  Certificate::default_client_key(),
             passphrase:  Certificate::default_passphrase(),
+            cert_info:   CertInfo::default(),
         }
     }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "PascalCase")]
 pub struct Settings {
     #[serde(default)]
     pub server:      Server,
     #[serde(default)]
     /// 憑證設定
     pub certificate: Certificate,
-    #[serde(rename = "Services", default)]
+    #[serde(default)]
     pub services:    Services,
 }
 

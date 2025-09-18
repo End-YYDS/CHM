@@ -1,48 +1,51 @@
-use std::{fmt::Debug, path::PathBuf, sync::Arc};
-
 use actix_tls::accept::openssl::TlsStream;
 use actix_web::{
-    post,
-    web::{self},
-    App, HttpRequest, HttpResponse, HttpServer, Responder,
+    web::{self, ServiceConfig},
+    App, HttpServer,
 };
-use chm_cert_utils::CertUtils;
 use chm_grpc::tonic::async_trait;
+use chm_project_const::ProjectConst;
 use openssl::{
     error::ErrorStack,
+    pkey::PKey,
     ssl::{SslAcceptorBuilder, SslFiletype, SslMethod, SslVerifyMode},
-    x509::X509,
+    x509::{store::X509StoreBuilder, X509},
 };
-use serde::Deserialize;
+use std::{
+    fmt::Debug,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use tokio::net::TcpStream;
 
-use crate::ApiResponse;
-
-type ServerCert = PathBuf;
-type ServerKey = PathBuf;
 pub type ValidCertHandler = Arc<dyn Fn(&str, &str) -> bool + Send + Sync>;
+pub enum InitResult {
+    Completed,
+    Aborted,
+}
+#[allow(unused)]
 #[derive(Debug, Clone)]
 pub struct PeerCerts(Vec<X509>);
-#[derive(Debug, Clone, Deserialize)]
-struct Otp {
-    code: String,
-}
+pub type Configurer = Vec<Arc<dyn Fn(&mut ServiceConfig) + Send + Sync>>;
 pub struct ServerCluster {
     bind_address:       String,
-    cert_chain:         Option<(ServerCert, ServerKey)>,
-    root_ca:            Option<PathBuf>,
+    cert:               Option<PemOrPath>,
+    key:                Option<PemOrPath>,
+    root_ca:            Option<PemOrPath>,
     otp:                Option<String>,
     otp_len:            usize,
-    ssl_acceptor:       Option<openssl::ssl::SslAcceptorBuilder>,
+    ssl_acceptor:       Option<SslAcceptorBuilder>,
     custom_otp:         bool,
-    marker_path:        Option<PathBuf>,
+    marker_path:        Option<String>,
     valid_cert_handler: Option<ValidCertHandler>,
+    configurers:        Configurer,
 }
 impl Debug for ServerCluster {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ServerCluster")
             .field("bind_address", &self.bind_address)
-            .field("cert_chain", &self.cert_chain)
+            .field("cert", &self.cert)
+            .field("key", &self.key)
             .field("root_ca", &self.root_ca)
             .field("otp", &self.otp)
             .field("otp_len", &self.otp_len)
@@ -56,7 +59,8 @@ impl Default for ServerCluster {
     fn default() -> Self {
         Self {
             bind_address:       "0.0.0.0:50051".into(),
-            cert_chain:         None,
+            cert:               None,
+            key:                None,
             root_ca:            None,
             otp:                None,
             otp_len:            6,
@@ -64,18 +68,55 @@ impl Default for ServerCluster {
             custom_otp:         false,
             marker_path:        None,
             valid_cert_handler: None,
+            configurers:        Vec::new(),
         }
+    }
+}
+#[derive(Debug, Clone)]
+pub enum PemOrPath {
+    Path(PathBuf),
+    Pem(Vec<u8>),
+}
+
+impl From<String> for PemOrPath {
+    fn from(s: String) -> Self {
+        Self::Path(PathBuf::from(s))
+    }
+}
+impl From<&str> for PemOrPath {
+    fn from(s: &str) -> Self {
+        Self::Path(PathBuf::from(s))
+    }
+}
+impl From<PathBuf> for PemOrPath {
+    fn from(p: PathBuf) -> Self {
+        Self::Path(p)
+    }
+}
+impl From<&Path> for PemOrPath {
+    fn from(p: &Path) -> Self {
+        Self::Path(p.to_path_buf())
+    }
+}
+impl From<Vec<u8>> for PemOrPath {
+    fn from(b: Vec<u8>) -> Self {
+        Self::Pem(b)
+    }
+}
+impl From<&[u8]> for PemOrPath {
+    fn from(b: &[u8]) -> Self {
+        Self::Pem(b.to_vec())
     }
 }
 
 impl ServerCluster {
     pub fn new(
         addr: impl Into<String>,
-        cert_path: impl Into<PathBuf>,
-        cert_key: impl Into<PathBuf>,
-        root_ca: impl Into<PathBuf>,
+        cert_path: impl Into<PemOrPath>,
+        cert_key: impl Into<PemOrPath>,
+        root_ca: Option<impl Into<PemOrPath>>,
         otp_len: usize,
-        marker_path: impl Into<PathBuf>,
+        marker_path: impl Into<String>,
     ) -> Self {
         Self::default()
             .with_bind_addr(addr)
@@ -100,14 +141,15 @@ impl ServerCluster {
     }
     pub fn with_cert_chain(
         mut self,
-        cert_path: impl Into<PathBuf>,
-        key_path: impl Into<PathBuf>,
+        cert: impl Into<PemOrPath>,
+        key: impl Into<PemOrPath>,
     ) -> Self {
-        self.cert_chain = Some((cert_path.into(), key_path.into()));
+        self.cert = Some(cert.into());
+        self.key = Some(key.into());
         self
     }
-    pub fn with_root_ca(mut self, ca_path: impl Into<PathBuf>) -> Self {
-        self.root_ca = Some(ca_path.into());
+    pub fn with_root_ca(mut self, ca: Option<impl Into<PemOrPath>>) -> Self {
+        self.root_ca = ca.map(Into::into);
         self
     }
     pub fn with_otp_len(mut self, len: usize) -> Self {
@@ -118,11 +160,11 @@ impl ServerCluster {
         self.otp = Some(chm_password::generate_otp(self.otp_len));
         self
     }
-    pub fn with_marker_path(mut self, path: impl Into<PathBuf>) -> Self {
+    pub fn with_marker_path(mut self, path: impl Into<String>) -> Self {
         self.marker_path = Some(path.into());
         self
     }
-    pub fn with_ssl_acceptor(mut self, acceptor: openssl::ssl::SslAcceptorBuilder) -> Self {
+    pub fn with_ssl_acceptor(mut self, acceptor: SslAcceptorBuilder) -> Self {
         self.ssl_acceptor = Some(acceptor);
         self
     }
@@ -137,21 +179,61 @@ impl ServerCluster {
         }
         self
     }
+    pub fn add_configurer<F>(mut self, f: F) -> Self
+    where
+        F: Fn(&mut ServiceConfig) + Send + Sync + 'static,
+    {
+        self.configurers.push(Arc::new(f));
+        self
+    }
     pub fn make_ssl_acceptor_builder(&self) -> Result<SslAcceptorBuilder, ErrorStack> {
         let mut builder = openssl::ssl::SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
-        if let Some((ref cert_path, ref key_path)) = self.cert_chain {
-            builder.set_private_key_file(key_path, SslFiletype::PEM)?;
-            builder.set_certificate_chain_file(cert_path)?;
+        if let Some(ref key_src) = self.key {
+            match key_src {
+                PemOrPath::Path(p) => {
+                    let p = ProjectConst::certs_path().join(p);
+                    builder.set_private_key_file(p, SslFiletype::PEM)?;
+                }
+                PemOrPath::Pem(bytes) => {
+                    let pkey = PKey::private_key_from_pem(bytes)?;
+                    builder.set_private_key(&pkey)?;
+                }
+            }
         }
-        if let Some(ref ca_path) = self.root_ca {
-            builder.set_ca_file(ca_path)?;
+        if let Some(ref cert_src) = self.cert {
+            match cert_src {
+                PemOrPath::Path(p) => {
+                    let p = ProjectConst::certs_path().join(p);
+                    builder.set_certificate_file(p, SslFiletype::PEM)?;
+                }
+                PemOrPath::Pem(bytes) => {
+                    let cert = X509::from_pem(bytes)?;
+                    builder.set_certificate(&cert)?;
+                }
+            }
         }
-        builder.check_private_key()?;
-        builder.set_verify(SslVerifyMode::PEER | SslVerifyMode::FAIL_IF_NO_PEER_CERT);
+        if let Some(ref ca_src) = self.root_ca {
+            match ca_src {
+                PemOrPath::Path(p) => {
+                    let p = ProjectConst::certs_path().join(p);
+                    builder.set_ca_file(p)?;
+                }
+                PemOrPath::Pem(bytes) => {
+                    let cas = X509::stack_from_pem(bytes)?;
+                    let mut store_builder = X509StoreBuilder::new()?;
+                    for ca in cas {
+                        store_builder.add_cert(ca)?;
+                    }
+                    builder.set_verify_cert_store(store_builder.build())?;
+                }
+            }
+        }
 
+        builder.check_private_key()?;
+        builder.set_verify(SslVerifyMode::NONE);
         Ok(builder)
     }
-    fn build_ssl_acceptor(mut self) -> Result<Self, openssl::error::ErrorStack> {
+    fn build_ssl_acceptor(mut self) -> Result<Self, ErrorStack> {
         let builder = self.make_ssl_acceptor_builder()?;
         self.ssl_acceptor = Some(builder);
         Ok(self)
@@ -159,23 +241,38 @@ impl ServerCluster {
 }
 #[async_trait]
 impl super::ClusterServer for ServerCluster {
-    async fn init(&self) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        tracing::info!("Starting server on {}", self.bind_address);
-        tracing::info!("Using OTP: {:?}", self.otp);
+    async fn init(&self) -> Result<InitResult, Box<dyn std::error::Error + Send + Sync>> {
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
         let tx_clone = tx.clone();
         let bind_addr = self.bind_address.clone();
         let otp_code = self.otp.clone().expect("otp should have been set by new()");
-        let marker_path = self.marker_path.clone().expect("marker_path should have been set");
+        let marker = self.marker_path.clone().expect("marker_path should have been set");
+        let marker_path = ProjectConst::data_path().join(format!(".{marker}.done"));
+        if marker_path.exists() {
+            tracing::info!("已完成初始化，跳過初始化伺服器啟動");
+            return Ok(InitResult::Completed);
+        }
         let ssl_builder = self.make_ssl_acceptor_builder()?;
-        let valid_cb = self.valid_cert_handler.clone().expect("請先呼叫 with_valid_cert_handler");
+        let valid_cb = self.valid_cert_handler.clone();
+        let configurers = self.configurers.clone();
+        tracing::info!("Starting server on {bind_addr}");
+        tracing::info!("Using OTP: {otp_code}");
         let server = HttpServer::new(move || {
-            App::new()
+            let configurers = configurers.clone();
+            let mut app = App::new()
                 .app_data(web::Data::new(marker_path.clone()))
                 .app_data(web::Data::new(otp_code.clone()))
-                .app_data(web::Data::new(valid_cb.clone()))
-                .app_data(tx_clone.clone())
-                .service(init_api)
+                .app_data(web::Data::new(tx_clone.clone()));
+            if let Some(ref cb) = valid_cb {
+                app = app.app_data(web::Data::new(cb.clone()));
+            }
+            let cfgs = configurers.clone();
+            app = app.configure(move |cfg| {
+                for c in &cfgs {
+                    c(cfg);
+                }
+            });
+            app
         })
         .on_connect(|conn, ext| {
             if let Some(stream) = conn.downcast_ref::<TlsStream<TcpStream>>() {
@@ -196,72 +293,78 @@ impl super::ClusterServer for ServerCluster {
             }
         });
         let h2 = handle.clone();
+        let (abort_tx, mut abort_rx) = tokio::sync::oneshot::channel();
         tokio::spawn(async move {
             tokio::signal::ctrl_c().await.expect("CtrlC Error");
+            let _ = abort_tx.send(());
             h2.stop(false).await;
         });
         server.await?;
-        Ok(())
-    }
-}
-
-#[post("init")]
-/// 初始化 API，寫入 marker 檔案並關閉伺服器
-/// # 參數
-/// * `req`: HTTP 請求
-/// * `shutdown_tx`: 用於關閉伺服器的通道
-/// * `marker_path`: 用於標記初始化完成的檔案路徑
-/// * `otp_code`: 用於驗證的 OTP 代碼
-/// * `valid_cb`: 用於驗證憑證的回調函數
-/// * `data`: 包含 OTP 代碼的 JSON 請求體
-/// # 回傳
-/// * `HttpResponse`: 返回 HTTP 響應，成功時為 Ok，失敗時為 InternalServerError
-async fn init_api(
-    req: HttpRequest,
-    shutdown_tx: web::Data<tokio::sync::mpsc::Sender<()>>,
-    marker_path: web::Data<PathBuf>,
-    otp_code: web::Data<String>,
-    valid_cb: web::Data<ValidCertHandler>,
-    data: web::Json<Otp>,
-) -> impl Responder {
-    if data.code.as_str() != otp_code.as_str() {
-        tracing::error!("OTP 驗證失敗: {}", data.code);
-        return HttpResponse::Unauthorized()
-            .json(ApiResponse { message: "OTP 驗證失敗".to_string(), ok: false });
-    }
-    if let Some(peer) = req.conn_data::<PeerCerts>() {
-        let serial = peer.0.first().and_then(|cert| CertUtils::cert_serial_sha256(cert).ok());
-        let fingerprint =
-            peer.0.first().and_then(|cert| CertUtils::cert_fingerprint_sha256(cert).ok());
-        if let (Some(s), Some(f)) = (serial, fingerprint) {
-            {
-                if !(valid_cb.as_ref())(&s, &f) {
-                    return HttpResponse::Forbidden()
-                        .json(ApiResponse {
-                            message: "憑證驗證失敗".to_string(), ok: false
-                        });
-                }
-            }
+        match abort_rx.try_recv() {
+            Ok(_) => Ok(InitResult::Aborted),
+            Err(_) => Ok(InitResult::Completed),
         }
-    } else {
-        tracing::warn!("沒有找到 PeerCerts，請確保使用正確的憑證連接");
-        return HttpResponse::PreconditionFailed().json(ApiResponse {
-            message: "沒有找到 PeerCerts，請確保使用正確的憑證連接".to_string(),
-            ok:      false,
-        });
     }
-
-    if let Err(e) = tokio::fs::write(marker_path.get_ref(), b"done").await {
-        eprint!("寫入marker檔案失敗: {e}");
-        return HttpResponse::InternalServerError()
-            .json(ApiResponse { message: format!("寫入marker檔案失敗: {e}"), ok: false });
-    }
-    if cfg!(debug_assertions) {
-        tracing::info!("初始化完成，關閉伺服器");
-    }
-    let _ = shutdown_tx.send(()).await;
-    HttpResponse::Ok()
-        .json(ApiResponse {
-            message: "初始化完成，web服務器將關閉".to_string(), ok: true
-        })
 }
+
+// #[post("init")]
+// /// 初始化 API，寫入 marker 檔案並關閉伺服器
+// /// # 參數
+// /// * `req`: HTTP 請求
+// /// * `shutdown_tx`: 用於關閉伺服器的通道
+// /// * `marker_path`: 用於標記初始化完成的檔案路徑
+// /// * `otp_code`: 用於驗證的 OTP 代碼
+// /// * `valid_cb`: 用於驗證憑證的回調函數
+// /// * `data`: 包含 OTP 代碼的 JSON 請求體
+// /// # 回傳
+// /// * `HttpResponse`: 返回 HTTP 響應，成功時為 Ok，失敗時為
+// InternalServerError async fn init_api(
+//     req: HttpRequest,
+//     shutdown_tx: web::Data<tokio::sync::mpsc::Sender<()>>,
+//     marker_path: web::Data<PathBuf>,
+//     otp_code: web::Data<String>,
+//     valid_cb: web::Data<ValidCertHandler>,
+//     data: web::Json<Otp>,
+// ) -> impl Responder {
+//     if data.code.as_str() != otp_code.as_str() {
+//         tracing::error!("OTP 驗證失敗: {}", data.code);
+//         return HttpResponse::Unauthorized()
+//             .json(ApiResponse { message: "OTP 驗證失敗".to_string(), ok:
+// false });     }
+//      ==========雙向憑證檢查===========
+//     if let Some(peer) = req.conn_data::<PeerCerts>() {
+//         let serial = peer.0.first().and_then(|cert|
+// CertUtils::cert_serial_sha256(cert).ok());         let fingerprint =
+//             peer.0.first().and_then(|cert|
+// CertUtils::cert_fingerprint_sha256(cert).ok());         if let (Some(s),
+// Some(f)) = (serial, fingerprint) {             {
+//                 if !(valid_cb.as_ref())(&s, &f) {
+//                     return HttpResponse::Forbidden()
+//                         .json(ApiResponse {
+//                             message: "憑證驗證失敗".to_string(), ok: false
+//                         });
+//                 }
+//             }
+//         }
+//     } else {
+//         tracing::warn!("沒有找到 PeerCerts，請確保使用正確的憑證連接");
+//         return HttpResponse::PreconditionFailed().json(ApiResponse {
+//             message: "沒有找到
+// PeerCerts，請確保使用正確的憑證連接".to_string(),             ok:      false,
+//         });
+//     }
+//     ==========雙向憑證檢查===========
+//     if let Err(e) = tokio::fs::write(marker_path.get_ref(), b"done").await {
+//         eprint!("寫入marker檔案失敗: {e}");
+//         return HttpResponse::InternalServerError()
+//             .json(ApiResponse { message: format!("寫入marker檔案失敗: {e}"),
+// ok: false });     }
+//     if cfg!(debug_assertions) {
+//         tracing::info!("初始化完成，關閉伺服器");
+//     }
+//     let _ = shutdown_tx.send(()).await;
+//     HttpResponse::Ok()
+//         .json(ApiResponse {
+//             message: "初始化完成，web服務器將關閉".to_string(), ok: true
+//         })
+// }

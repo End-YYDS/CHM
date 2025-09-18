@@ -19,9 +19,9 @@ pub struct Valid {
 }
 
 #[derive(Debug, Serialize)]
-pub struct get_valid {
+pub struct get_valids {
     #[serde(rename = "Valid")]
-    pub valid:  Valid,
+    pub valid:  Vec<Valid>,
     #[serde(rename = "Length")]
     pub length: usize,
 }
@@ -37,19 +37,9 @@ pub struct Revoked {
 }
 
 #[derive(Debug, Serialize)]
-pub struct get_revoked {
+pub struct get_revokeds {
     #[serde(rename = "Revoke")]
-    pub revoke: Revoked,
+    pub revoke: Vec<Revoked>,
     #[serde(rename = "Length")]
     pub length: usize,
 }
-
-// {
-// {
-// "Revoke": {
-// "Number": String, //序號
-// "Time": String, //吊銷當下的時間
-// "Reason": String,
-// },
-// "Length": Revoke.len,
-// },

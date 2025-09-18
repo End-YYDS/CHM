@@ -5,9 +5,8 @@ edition.workspace = true
 publish = false
 
 [dependencies]
-chm-config_loader = { workspace = true }
 chm-grpc = { workspace = true, features = ["crl-client"] }
 chm-project_const = { workspace = true }
 openssl = { workspace = true }
-openssl-sys = { workspace = true }
+chrono = { workspace = true }
 

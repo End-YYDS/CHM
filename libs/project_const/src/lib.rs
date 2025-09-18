@@ -9,7 +9,7 @@ impl ProjectConst {
     pub const DATA_DIR: &'static str = "data";
     pub const DB_DIR: &'static str = "db";
 
-    fn is_debug() -> bool {
+    pub fn is_debug() -> bool {
         cfg!(debug_assertions)
     }
     pub fn release_save_dir() -> PathBuf {

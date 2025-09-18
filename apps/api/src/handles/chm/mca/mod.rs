@@ -1,10 +1,15 @@
-use actix_web::{get, post, web, Scope};
-
 use crate::{
     commons::{ResponseResult, ResponseType},
-    handles::chm::mca::types::{get_revoked, get_valid, RevokeRequest, Revoked, Valid},
+    handles::chm::mca::types::{get_revokeds, get_valids, RevokeRequest},
+    AppState,
+};
+use actix_web::{get, post, web, Scope};
+use chm_grpc::{
+    restful::{GetValidCertsRequest, RevokeCertRequest},
+    tonic,
 };
 
+mod translate;
 pub mod types;
 
 pub fn mca_scope() -> Scope {
@@ -12,34 +17,61 @@ pub fn mca_scope() -> Scope {
 }
 
 #[get("/valid")]
-async fn valid() -> web::Json<get_valid> {
-    web::Json(get_valid {
-        valid:  Valid {
-            name:   "Example Name".into(),
-            signer: "Example Signer".into(),
-            period: "2023-01-01T00:00:00Z/2024-01-01T00:00:00Z".into(),
-        },
-        length: 1,
-    })
+async fn valid(app_state: web::Data<AppState>) -> actix_web::Result<web::Json<get_valids>> {
+    let mut client = app_state.gclient.clone();
+    let resp = client
+        .get_valid_certs(GetValidCertsRequest {})
+        .await
+        .map_err(|status| match status.code() {
+            tonic::Code::Cancelled | tonic::Code::Unavailable => {
+                actix_web::error::ErrorBadGateway(format!("gRPC 連線中斷: {status}"))
+            }
+            _ => actix_web::error::ErrorInternalServerError(format!("gRPC 失敗: {status}")),
+        })?
+        .into_inner();
+    Ok(web::Json(resp.into()))
 }
 
 #[get("/revoked")]
-async fn revoked() -> web::Json<get_revoked> {
-    web::Json(get_revoked {
-        revoke: Revoked {
-            number: "123".into(),
-            time:   "2023-01-01T00:00:00Z".into(),
-            reason: "No longer needed".into(),
-        },
-        length: 1,
-    })
+async fn revoked(app_state: web::Data<AppState>) -> actix_web::Result<web::Json<get_revokeds>> {
+    let mut client = app_state.gclient.clone();
+    let resp = client
+        .get_revoked_certs(chm_grpc::restful::GetRevokedCertsRequest {})
+        .await
+        .map_err(|status| match status.code() {
+            tonic::Code::Cancelled | tonic::Code::Unavailable => {
+                actix_web::error::ErrorBadGateway(format!("gRPC 連線中斷: {status}"))
+            }
+            _ => actix_web::error::ErrorInternalServerError(format!("gRPC 失敗: {status}")),
+        })?
+        .into_inner();
+    Ok(web::Json(resp.into()))
 }
 
 #[post("/revoke")]
-async fn revoke(data: web::Json<RevokeRequest>) -> web::Json<ResponseResult> {
-    println!("{data:#?}");
-    web::Json(ResponseResult {
-        r#type:  ResponseType::Ok,
-        message: "Revoke endpoint hit".to_string(),
-    })
+async fn revoke(
+    app_state: web::Data<AppState>,
+    data: web::Json<RevokeRequest>,
+) -> actix_web::Result<web::Json<ResponseResult>> {
+    let data = data.into_inner();
+    let mut client = app_state.gclient.clone();
+    let resp = client.revoke_cert(RevokeCertRequest { name: data.name, reason: data.reason }).await;
+
+    match resp {
+        Ok(ok_resp) => {
+            let inner = ok_resp.into_inner();
+            let r: ResponseResult = inner.into();
+            Ok(web::Json(r))
+        }
+        Err(status) => {
+            let message = match status.code() {
+                tonic::Code::Cancelled | tonic::Code::Unavailable => {
+                    format!("gRPC 連線中斷: {status}")
+                }
+                _ => format!("gRPC 執行失敗: {status}"),
+            };
+            let r = ResponseResult { r#type: ResponseType::Err, message };
+            Ok(web::Json(r))
+        }
+    }
 }

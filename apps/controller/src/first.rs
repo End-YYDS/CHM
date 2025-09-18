@@ -143,7 +143,6 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
         return Err("未收到憑證".into());
     }
     std::fs::write(marker_path, "done")?;
-    // reload_globals().await;
     GlobalConfig::save_config().await?;
     tracing::debug!("mCA UUID: {:?}", conn.ca_unique_id);
     Ok(())

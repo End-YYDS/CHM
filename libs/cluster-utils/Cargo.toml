@@ -23,5 +23,6 @@ openssl = { workspace = true, optional = true }
 openssl-sys = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 serde = { workspace = true }
-tokio = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["sync", "fs"] }
 tracing = { workspace = true }
+chm-project_const = { workspace = true }

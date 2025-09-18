@@ -14,7 +14,7 @@ chm-cluster-utils = { workspace = true, features = ["client", "server"] }
 chm-config_bus = { workspace = true }
 chm-config_loader = { workspace = true, default-features = true }
 chm-dns_resolver = { workspace = true }
-chm-grpc = { workspace = true, features = ["controller", "ca-client", "restful-common-server"] }
+chm-grpc = { workspace = true, features = ["controller", "ca-client", "restful"] }
 chm-project_const = { workspace = true }
 dashmap = { workspace = true }
 serde = { workspace = true }
@@ -23,3 +23,4 @@ tokio-util = { workspace = true }
 tower-http = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+futures = { workspace = true }
