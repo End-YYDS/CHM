@@ -1,5 +1,4 @@
 use std::{
-    collections::HashMap,
     error::Error as StdError,
     fs,
     io::Write,
@@ -9,15 +8,15 @@ use std::{
     time::Duration,
 };
 
-use crate::{ApiResponse, ClusterClient};
 use cached::{proc_macro::cached, TimedSizedCache};
 use chm_dns_resolver::{uuid::Uuid, DnsResolver};
-use chm_grpc::tonic::async_trait;
+use chm_project_const::ProjectConst;
 use futures::FutureExt;
 use reqwest::{
     dns::{Name, Resolve, Resolving},
     Certificate, Client, Identity,
 };
+
 type ClientCert = PathBuf;
 type ClientKey = PathBuf;
 
@@ -25,8 +24,8 @@ type ClientKey = PathBuf;
 pub struct ClientCluster {
     base_url:   String,
     timeout:    Duration,
-    mdns_addr:  String,
-    cert_chain: Option<(ClientCert, ClientKey)>,
+    mdns_url:   String,
+    cert_chain: Option<(ClientKey, ClientCert)>,
     root_ca:    Option<PathBuf>,
 }
 
@@ -35,7 +34,7 @@ impl Default for ClientCluster {
         Self {
             base_url:   "localhost:50051".into(),
             timeout:    Duration::from_secs(5),
-            mdns_addr:  "http://127.0.0.1:50053".into(),
+            mdns_url:   "http://127.0.0.1:50053".into(),
             cert_chain: None,
             root_ca:    None,
         }
@@ -67,7 +66,7 @@ fn load_client_identity(
 )]
 fn load_ca_identity(ca_p: PathBuf) -> Result<Certificate, Box<dyn StdError + Send + Sync>> {
     let ca = fs::read(ca_p)?;
-    reqwest::Certificate::from_pem(&ca).map_err(|e| Box::new(e) as Box<dyn StdError + Send + Sync>)
+    Certificate::from_pem(&ca).map_err(|e| Box::new(e) as Box<dyn StdError + Send + Sync>)
 }
 
 impl ClientCluster {
@@ -92,7 +91,7 @@ impl ClientCluster {
     pub fn with_mdns(mut self, mdns_addr: Option<impl Into<String>>) -> Self {
         if let Some(addr) = mdns_addr {
             let addr: String = addr.into();
-            self.mdns_addr = addr.clone();
+            self.mdns_url = addr.clone();
         }
         self
     }
@@ -107,7 +106,6 @@ impl ClientCluster {
         };
         self
     }
-
     pub fn with_root_ca(mut self, ca_path: Option<impl Into<PathBuf>>) -> Self {
         self.root_ca = ca_path.map(Into::into);
         self
@@ -119,11 +117,13 @@ impl ClientCluster {
     }
 
     pub async fn build(&self) -> Result<Client, Box<dyn StdError + Send + Sync>> {
-        let raw = Arc::new(DnsResolver::new(&self.mdns_addr).await);
+        let raw = Arc::new(DnsResolver::new(&self.mdns_url).await);
         let my_resolver = Arc::new(MyResolver(raw));
         let mut builder =
             Client::builder().dns_resolver(my_resolver).timeout(self.timeout).use_rustls_tls();
-        if let Some((ref cert_p, ref key_p)) = self.cert_chain {
+        if let Some((ref key_p, ref cert_p)) = self.cert_chain {
+            let key_p = ProjectConst::certs_path().join(key_p);
+            let cert_p = ProjectConst::certs_path().join(cert_p);
             let id = load_client_identity(cert_p.clone(), key_p.clone())?;
             builder = builder.identity(id);
         }
@@ -145,34 +145,38 @@ impl ClientCluster {
         }
         Ok(otp.to_string())
     }
-}
-
-#[async_trait]
-impl ClusterClient for ClientCluster {
-    async fn init(&mut self) -> Result<(), Box<dyn StdError + Send + Sync>> {
-        let client = self.build().await?;
-        tracing::info!("開始與 {} 進行通信", self.base_url);
-        let otp = self.get_otp().map_err(|e| {
-            tracing::error!("OTP Error: {}", e);
-            e
-        })?;
-        let mut map = HashMap::new();
-        map.insert("code", otp);
-        let url = format!("{}/init", self.base_url);
-        tracing::debug!("初始化請求 URL: {}", url);
-        // TODO: 檢查是否為UUID是就解析成hostname之後
-        let resp = client.post(url).json(&map).send().await?;
-        let api_resp: ApiResponse = resp.json().await?;
-        if !api_resp.ok {
-            let err_msg = api_resp.message.clone();
-            tracing::error!("初始化失敗: {}", err_msg);
-            return Err(err_msg.into());
-        }
-
-        println!("{api_resp:#?}");
-        Ok(())
+    #[inline]
+    pub fn base_url(&self) -> &str {
+        &self.base_url
     }
 }
+
+// #[async_trait]
+// impl ClusterClient for ClientCluster {
+//     async fn init(&mut self) -> Result<(), Box<dyn StdError + Send + Sync>> {
+//         let client = self.build().await?;
+//         tracing::info!("開始與 {} 進行通信", self.base_url);
+//         let otp = self.get_otp().map_err(|e| {
+//             tracing::error!("OTP Error: {}", e);
+//             e
+//         })?;
+//         let mut map = HashMap::new();
+//         map.insert("code", otp);
+//         let url = format!("{}/init", self.base_url);
+//         tracing::debug!("初始化請求 URL: {}", url);
+//         // TODO: 檢查是否為UUID是就解析成hostname之後
+//         let resp = client.post(url).json(&map).send().await?;
+//         let api_resp: ApiResponse = resp.json().await?;
+//         if !api_resp.ok {
+//             let err_msg = api_resp.message.clone();
+//             tracing::error!("初始化失敗: {}", err_msg);
+//             return Err(err_msg.into());
+//         }
+//
+//         println!("{api_resp:#?}");
+//         Ok(())
+//     }
+// }
 
 pub struct MyResolver(pub Arc<DnsResolver>);
 async fn lookup_host_or_custom_uncached(

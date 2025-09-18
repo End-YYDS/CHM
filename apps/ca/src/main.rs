@@ -11,6 +11,7 @@ use chm_project_const::ProjectConst;
 use std::{
     env, fs,
     net::SocketAddr,
+    ops::ControlFlow,
     sync::{atomic::Ordering::Relaxed, Arc},
 };
 use tracing_subscriber::EnvFilter;
@@ -52,8 +53,6 @@ async fn main() -> CaResult<()> {
         fs::create_dir_all(parent)?;
     }
     let first_run = !marker_path.exists();
-    //[ ]: 這個密碼應該從環境變數或安全存儲中讀取,從systemd注入或是直接讀config檔案
-
     let store = StoreFactory::create_store().await?;
     let store: Arc<dyn CertificateStore> = Arc::from(store);
     let addr = SocketAddr::new(cmg.server.host.parse()?, cmg.server.port);
@@ -87,7 +86,10 @@ async fn main() -> CaResult<()> {
             tracing::debug!("憑證創建完成");
             tracing::info!("正在啟動 MiniController...");
         }
-        mini_c.start(addr, marker_path.clone(), unique_id).await?;
+        if let ControlFlow::Break(e) = mini_c.start(addr, marker_path.clone(), unique_id).await {
+            tracing::error!("MiniController 初始化失敗: {}", e);
+            return Ok(());
+        }
         tracing::debug!("工作轉交完成，即將刪除MiniController Certificate");
         let cert_path = ProjectConst::certs_path().join("mini_controller.pem");
         let key_path = ProjectConst::certs_path().join("mini_controller.key");

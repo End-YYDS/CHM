@@ -3,7 +3,6 @@ use actix_web::{
     web::{self, ServiceConfig},
     App, HttpServer,
 };
-use chm_grpc::tonic::async_trait;
 use chm_project_const::ProjectConst;
 use openssl::{
     error::ErrorStack,
@@ -13,16 +12,13 @@ use openssl::{
 };
 use std::{
     fmt::Debug,
+    ops::ControlFlow,
     path::{Path, PathBuf},
     sync::Arc,
 };
 use tokio::net::TcpStream;
 
 pub type ValidCertHandler = Arc<dyn Fn(&str, &str) -> bool + Send + Sync>;
-pub enum InitResult {
-    Completed,
-    Aborted,
-}
 #[allow(unused)]
 #[derive(Debug, Clone)]
 pub struct PeerCerts(Vec<X509>);
@@ -238,10 +234,7 @@ impl ServerCluster {
         self.ssl_acceptor = Some(builder);
         Ok(self)
     }
-}
-#[async_trait]
-impl super::ClusterServer for ServerCluster {
-    async fn init(&self) -> Result<InitResult, Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn init(&self) -> ControlFlow<Box<dyn std::error::Error + Send + Sync>, ()> {
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
         let tx_clone = tx.clone();
         let bind_addr = self.bind_address.clone();
@@ -250,14 +243,17 @@ impl super::ClusterServer for ServerCluster {
         let marker_path = ProjectConst::data_path().join(format!(".{marker}.done"));
         if marker_path.exists() {
             tracing::info!("已完成初始化，跳過初始化伺服器啟動");
-            return Ok(InitResult::Completed);
+            return ControlFlow::Continue(());
         }
-        let ssl_builder = self.make_ssl_acceptor_builder()?;
+        let ssl_builder = match self.make_ssl_acceptor_builder() {
+            Ok(b) => b,
+            Err(e) => return ControlFlow::Break(e.into()),
+        };
         let valid_cb = self.valid_cert_handler.clone();
         let configurers = self.configurers.clone();
         tracing::info!("Starting server on {bind_addr}");
         tracing::info!("Using OTP: {otp_code}");
-        let server = HttpServer::new(move || {
+        let server = match HttpServer::new(move || {
             let configurers = configurers.clone();
             let mut app = App::new()
                 .app_data(web::Data::new(marker_path.clone()))
@@ -282,89 +278,38 @@ impl super::ClusterServer for ServerCluster {
                 }
             }
         })
-        .bind_openssl(bind_addr, ssl_builder)?
-        .disable_signals()
-        .run();
+        .bind_openssl(bind_addr, ssl_builder)
+        {
+            Ok(b) => b.disable_signals().run(),
+            Err(e) => return ControlFlow::Break(e.into()),
+        };
         let handle = server.handle();
-        let h = handle.clone();
+        let h_for_rx = handle.clone();
         tokio::spawn(async move {
             if rx.recv().await.is_some() {
-                h.stop(false).await;
+                h_for_rx.stop(false).await;
             }
         });
-        let h2 = handle.clone();
-        let (abort_tx, mut abort_rx) = tokio::sync::oneshot::channel();
+        let (abort_tx, mut abort_rx) = tokio::sync::oneshot::channel::<()>();
+        let h_for_abort = handle.clone();
         tokio::spawn(async move {
-            tokio::signal::ctrl_c().await.expect("CtrlC Error");
+            if let Err(e) = tokio::signal::ctrl_c().await {
+                tracing::error!("CtrlC Error: {e}");
+            }
             let _ = abort_tx.send(());
-            h2.stop(false).await;
         });
-        server.await?;
-        match abort_rx.try_recv() {
-            Ok(_) => Ok(InitResult::Aborted),
-            Err(_) => Ok(InitResult::Completed),
-        }
+        let flow = tokio::select! {
+            res = server => {
+                match res {
+                    Ok(()) => ControlFlow::Continue(()),
+                    Err(e)  => ControlFlow::Break(e.into()),
+                }
+            }
+            _ = &mut abort_rx => {
+                h_for_abort.stop(false).await;
+                ControlFlow::Break("aborted by Ctrl-C".into())
+            }
+        };
+        flow
     }
 }
-
-// #[post("init")]
-// /// 初始化 API，寫入 marker 檔案並關閉伺服器
-// /// # 參數
-// /// * `req`: HTTP 請求
-// /// * `shutdown_tx`: 用於關閉伺服器的通道
-// /// * `marker_path`: 用於標記初始化完成的檔案路徑
-// /// * `otp_code`: 用於驗證的 OTP 代碼
-// /// * `valid_cb`: 用於驗證憑證的回調函數
-// /// * `data`: 包含 OTP 代碼的 JSON 請求體
-// /// # 回傳
-// /// * `HttpResponse`: 返回 HTTP 響應，成功時為 Ok，失敗時為
-// InternalServerError async fn init_api(
-//     req: HttpRequest,
-//     shutdown_tx: web::Data<tokio::sync::mpsc::Sender<()>>,
-//     marker_path: web::Data<PathBuf>,
-//     otp_code: web::Data<String>,
-//     valid_cb: web::Data<ValidCertHandler>,
-//     data: web::Json<Otp>,
-// ) -> impl Responder {
-//     if data.code.as_str() != otp_code.as_str() {
-//         tracing::error!("OTP 驗證失敗: {}", data.code);
-//         return HttpResponse::Unauthorized()
-//             .json(ApiResponse { message: "OTP 驗證失敗".to_string(), ok:
-// false });     }
-//      ==========雙向憑證檢查===========
-//     if let Some(peer) = req.conn_data::<PeerCerts>() {
-//         let serial = peer.0.first().and_then(|cert|
-// CertUtils::cert_serial_sha256(cert).ok());         let fingerprint =
-//             peer.0.first().and_then(|cert|
-// CertUtils::cert_fingerprint_sha256(cert).ok());         if let (Some(s),
-// Some(f)) = (serial, fingerprint) {             {
-//                 if !(valid_cb.as_ref())(&s, &f) {
-//                     return HttpResponse::Forbidden()
-//                         .json(ApiResponse {
-//                             message: "憑證驗證失敗".to_string(), ok: false
-//                         });
-//                 }
-//             }
-//         }
-//     } else {
-//         tracing::warn!("沒有找到 PeerCerts，請確保使用正確的憑證連接");
-//         return HttpResponse::PreconditionFailed().json(ApiResponse {
-//             message: "沒有找到
-// PeerCerts，請確保使用正確的憑證連接".to_string(),             ok:      false,
-//         });
-//     }
-//     ==========雙向憑證檢查===========
-//     if let Err(e) = tokio::fs::write(marker_path.get_ref(), b"done").await {
-//         eprint!("寫入marker檔案失敗: {e}");
-//         return HttpResponse::InternalServerError()
-//             .json(ApiResponse { message: format!("寫入marker檔案失敗: {e}"),
-// ok: false });     }
-//     if cfg!(debug_assertions) {
-//         tracing::info!("初始化完成，關閉伺服器");
-//     }
-//     let _ = shutdown_tx.send(()).await;
-//     HttpResponse::Ok()
-//         .json(ApiResponse {
-//             message: "初始化完成，web服務器將關閉".to_string(), ok: true
-//         })
-// }

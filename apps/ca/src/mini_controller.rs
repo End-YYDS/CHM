@@ -9,7 +9,12 @@ use openssl::{
     x509::{X509Req, X509},
 };
 use serde::{Deserialize, Serialize};
-use std::{net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{
+    net::SocketAddr,
+    ops::ControlFlow,
+    path::{Path, PathBuf},
+    sync::Arc,
+};
 use tokio::sync::mpsc::Sender;
 use uuid::Uuid;
 #[derive(Serialize)]
@@ -90,7 +95,7 @@ impl MiniController {
         addr: SocketAddr,
         marker_path: PathBuf,
         id: Uuid,
-    ) -> CaResult<()> {
+    ) -> ControlFlow<Box<dyn std::error::Error + Send + Sync>, ()> {
         tracing::info!("Init Process Running on {addr} ...");
         let (hostname, otp_len, rootca) = GlobalConfig::with(|cfg| {
             (cfg.server.hostname.clone(), cfg.server.otp_len, cfg.certificate.rootca.clone())
@@ -98,8 +103,10 @@ impl MiniController {
         let otp_code = chm_password::generate_otp(otp_len);
         tracing::info!("OTP code: {otp_code}");
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
-        let ssl_acceptor =
-            self.build_ssl_builder(&rootca).map_err(|e| format!("SSL 建構失敗: {e}"))?;
+        let ssl_acceptor = match self.build_ssl_builder(&rootca) {
+            Ok(b) => b,
+            Err(e) => return ControlFlow::Break(format!("SSL 建構失敗: {e}").into()),
+        };
         let state = AppState {
             cert_process: self.cert_process.clone(),
             shutdown_tx: tx.clone(),
@@ -108,28 +115,44 @@ impl MiniController {
             unique_id: id,
             hostname,
         };
-        let server = HttpServer::new(move || {
+        let server = match HttpServer::new(move || {
             App::new().app_data(web::Data::new(state.clone())).service(init_api)
         })
-        .bind_openssl(addr, ssl_acceptor)?
-        .disable_signals()
-        .run();
+        .bind_openssl(addr, ssl_acceptor)
+        {
+            Ok(b) => b.disable_signals().run(),
+            Err(e) => {
+                return ControlFlow::Break(e.into());
+            }
+        };
         let handle = server.handle();
         self.server_handle = Some(handle.clone());
         self.shutdown_tx = Some(tx);
-        let h = handle.clone();
+        let h_for_rx = handle.clone();
         tokio::spawn(async move {
             if rx.recv().await.is_some() {
-                h.stop(false).await;
+                h_for_rx.stop(false).await;
             }
         });
-        let h2 = handle.clone();
+        let (abort_tx, mut abort_rx) = tokio::sync::oneshot::channel::<()>();
         tokio::spawn(async move {
-            tokio::signal::ctrl_c().await.expect("CtrlC Error");
-            h2.stop(false).await;
+            if let Err(e) = tokio::signal::ctrl_c().await {
+                tracing::error!("CtrlC Error: {e}");
+            }
+            let _ = abort_tx.send(());
         });
-        server.await?;
-        Ok(())
+        tokio::select! {
+            res = server => {
+                match res {
+                    Ok(())  => ControlFlow::Continue(()),
+                    Err(e)  => ControlFlow::Break(e.into()),
+                }
+            }
+            _ = &mut abort_rx => {
+                handle.stop(false).await;
+                ControlFlow::Break("aborted by Ctrl-C".into())
+            }
+        }
     }
     /// 停止伺服器
     /// # 回傳
@@ -144,7 +167,7 @@ impl MiniController {
     /// 建立 SSL 接受器建構器
     /// # 回傳
     /// * `CaResult<SslAcceptorBuilder>`: 返回 SSL 接受器建構器或錯誤
-    fn build_ssl_builder(&self, rootca: &str) -> CaResult<SslAcceptorBuilder> {
+    fn build_ssl_builder(&self, rootca: &Path) -> CaResult<SslAcceptorBuilder> {
         let cert_bytes = self.sign_cert.as_ref().ok_or("missing certificate PEM")?;
         let key_bytes = self.private_key.as_ref().ok_or("missing private key PEM")?;
         let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls())?;

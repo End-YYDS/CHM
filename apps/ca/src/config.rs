@@ -4,6 +4,7 @@ use chm_project_const::ProjectConst;
 use serde::{Deserialize, Serialize};
 use std::{
     net::{IpAddr, Ipv4Addr},
+    path::PathBuf,
     sync::atomic::{AtomicBool, Ordering::Relaxed},
 };
 use uuid::Uuid;
@@ -114,10 +115,10 @@ impl SqliteSettings {
 pub struct Certificate {
     #[serde(default = "Certificate::default_rootca")]
     /// 根憑證的路徑
-    pub rootca:              String,
+    pub rootca:              PathBuf,
     #[serde(default = "Certificate::default_rootca_key")]
     /// 根憑證的私鑰路徑
-    pub rootca_key:          String,
+    pub rootca_key:          PathBuf,
     #[serde(default = "Certificate::default_passphrase")]
     /// 根憑證的密碼短語
     pub passphrase:          String,
@@ -132,12 +133,12 @@ pub struct Certificate {
 
 impl Certificate {
     /// 生成憑證簽署請求（CSR）和私鑰
-    fn default_rootca() -> String {
-        ProjectConst::certs_path().join("rootCA.pem").display().to_string()
+    fn default_rootca() -> PathBuf {
+        ProjectConst::certs_path().join("rootCA.pem")
     }
     /// 取得根憑證的私鑰路徑
-    fn default_rootca_key() -> String {
-        ProjectConst::certs_path().join("rootCA.key").display().to_string()
+    fn default_rootca_key() -> PathBuf {
+        ProjectConst::certs_path().join("rootCA.key")
     }
     /// 取得預設的密碼短語
     fn default_passphrase() -> String {

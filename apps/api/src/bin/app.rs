@@ -1,9 +1,7 @@
 use actix_web::{middleware, middleware::Logger, App, HttpRequest, HttpServer};
 use api_server::{config, configure_app, ApiResult, AppState, GlobalConfig, ID, NEED_EXAMPLE};
 use chm_cert_utils::CertUtils;
-use chm_cluster_utils::{
-    declare_init_route, ApiResponse, ClusterServer, Default_ServerCluster, InitResult,
-};
+use chm_cluster_utils::{declare_init_route, ApiResponse, Default_ServerCluster};
 use chm_grpc::{
     restful::restful_service_client::RestfulServiceClient,
     tonic::{
@@ -76,11 +74,11 @@ async fn main() -> ApiResult<()> {
         Default_ServerCluster::new(addr.to_string(), x509_cert, key, None::<String>, otp_len, ID)
             .add_configurer(init_route());
     tracing::info!("啟動初始化 Server，等待 Controller 的初始化請求...");
-    match init_server.init().await? {
-        InitResult::Completed => {
+    match init_server.init().await {
+        ControlFlow::Continue(()) => {
             tracing::info!("初始化完成，啟動正式服務...");
         }
-        InitResult::Aborted => {
+        ControlFlow::Break(_) => {
             tracing::warn!("初始化未完成 (Ctrl+C)，程式結束");
             return Ok(());
         }
@@ -105,7 +103,7 @@ async fn main() -> ApiResult<()> {
     GlobalConfig::save_config().await?;
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(AppState { gclient: grpc_client.clone() }))
+            .app_data(Data::new(AppState { gclient: grpc_client.clone() }))
             .wrap(middleware::NormalizePath::trim())
             .wrap(Logger::default())
             .configure(configure_app)

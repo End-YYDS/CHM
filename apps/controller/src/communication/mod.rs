@@ -214,7 +214,11 @@ pub async fn init_channels_all() -> ConResult<GrpcClients> {
             let cert = &cfg.certificate.client_cert;
             let key = &cfg.certificate.client_key;
             let mca = &cfg.server.ca_server;
-            if root.is_empty() || cert.is_empty() || key.is_empty() || mca.is_empty() {
+            if root.as_os_str().is_empty()
+                || cert.as_os_str().is_empty()
+                || key.as_os_str().is_empty()
+                || mca.is_empty()
+            {
                 return Err("GlobalsVar 中的憑證或 URI 未正確初始化".into());
             }
             let root_bytes = std::fs::read(root).map_err(|_| "無法讀取 CA 根憑證")?;

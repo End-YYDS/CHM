@@ -6,6 +6,7 @@ use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::{
     net::{IpAddr, Ipv4Addr},
+    path::PathBuf,
     sync::atomic::{AtomicBool, Ordering::Relaxed},
 };
 
@@ -103,27 +104,27 @@ impl Default for Server {
 pub struct Certificate {
     #[serde(default = "Certificate::default_rootca")]
     /// 根憑證
-    pub root_ca:     String,
+    pub root_ca:     PathBuf,
     #[serde(default = "Certificate::default_client_cert")]
     /// 客戶端憑證
-    pub client_cert: String,
+    pub client_cert: PathBuf,
     #[serde(default = "Certificate::default_client_key")]
     /// 客戶端私鑰
-    pub client_key:  String,
+    pub client_key:  PathBuf,
     #[serde(default = "Certificate::default_passphrase")]
     /// 根憑證的密碼短語
     pub passphrase:  String,
 }
 
 impl Certificate {
-    fn default_rootca() -> String {
-        ProjectConst::certs_path().join("rootCA.pem").display().to_string()
+    fn default_rootca() -> PathBuf {
+        ProjectConst::certs_path().join("rootCA.pem")
     }
-    fn default_client_cert() -> String {
-        ProjectConst::certs_path().join(format!("{ID}.pem")).display().to_string()
+    fn default_client_cert() -> PathBuf {
+        ProjectConst::certs_path().join(format!("{ID}.pem"))
     }
-    fn default_client_key() -> String {
-        ProjectConst::certs_path().join(format!("{ID}.key")).display().to_string()
+    fn default_client_key() -> PathBuf {
+        ProjectConst::certs_path().join(format!("{ID}.key"))
     }
     fn default_passphrase() -> String {
         "".to_string()
