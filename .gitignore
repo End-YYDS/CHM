@@ -29,6 +29,6 @@ dist-ssr
 /data/*
 !/data/.gitkeep
 /db
-!ddb/.gitkeep
+!/db/.gitkeep
 /config
 !/config/.gitkeep
