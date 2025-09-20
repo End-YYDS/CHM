@@ -1,7 +1,7 @@
-use actix_web::{middleware, middleware::Logger, App, HttpRequest, HttpServer};
+use actix_web::{middleware, middleware::Logger, App, HttpServer};
 use api_server::{config, configure_app, ApiResult, AppState, GlobalConfig, ID, NEED_EXAMPLE};
 use chm_cert_utils::CertUtils;
-use chm_cluster_utils::{declare_init_route, ApiResponse, Default_ServerCluster};
+use chm_cluster_utils::{declare_init_route, Default_ServerCluster};
 use chm_grpc::{
     restful::restful_service_client::RestfulServiceClient,
     tonic::{

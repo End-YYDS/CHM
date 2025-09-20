@@ -1,6 +1,6 @@
 use actix_tls::accept::openssl::TlsStream;
 use actix_web::{
-    web::{self, ServiceConfig},
+    web::{Data, ServiceConfig},
     App, HttpServer,
 };
 use chm_project_const::ProjectConst;
@@ -123,6 +123,16 @@ impl ServerCluster {
             .with_marker_path(marker_path)
             .build_ssl_acceptor()
             .expect("Failed to build SSL acceptor")
+    }
+    pub fn with_app_data<T>(mut self, data: T) -> Self
+    where
+        T: Clone + Send + Sync + 'static,
+    {
+        let data = Arc::new(data);
+        self.configurers.push(Arc::new(move |cfg: &mut ServiceConfig| {
+            cfg.app_data(Data::new(data.clone()));
+        }));
+        self
     }
     pub fn with_valid_cert_handler<F>(mut self, f: F) -> Self
     where
@@ -256,11 +266,11 @@ impl ServerCluster {
         let server = match HttpServer::new(move || {
             let configurers = configurers.clone();
             let mut app = App::new()
-                .app_data(web::Data::new(marker_path.clone()))
-                .app_data(web::Data::new(otp_code.clone()))
-                .app_data(web::Data::new(tx_clone.clone()));
+                .app_data(Data::new(marker_path.clone()))
+                .app_data(Data::new(otp_code.clone()))
+                .app_data(Data::new(tx_clone.clone()));
             if let Some(ref cb) = valid_cb {
-                app = app.app_data(web::Data::new(cb.clone()));
+                app = app.app_data(Data::new(cb.clone()));
             }
             let cfgs = configurers.clone();
             app = app.configure(move |cfg| {

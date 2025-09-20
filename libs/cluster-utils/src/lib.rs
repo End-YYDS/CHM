@@ -26,7 +26,7 @@ pub use server::ServerCluster as Default_ServerCluster;
 pub mod _reexports {
     pub use actix_web::{
         web::{post, resource, Data, Json, ServiceConfig},
-        HttpResponse, Responder,
+        HttpRequest, HttpResponse, Responder,
     };
     pub use tokio::{fs, sync::mpsc::Sender};
 }
