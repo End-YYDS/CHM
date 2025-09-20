@@ -335,9 +335,9 @@ pub async fn mini_controller_cert(
         &["127.0.0.1", "miniC.chm.com", "mca.chm.com", uid.to_string().as_str()],
     )?;
     let mini_csr = X509Req::from_pem(&mini_cert.1)?;
-    let mini_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&mini_csr, 365).await?;
-    CertUtils::save_cert("mini_controller", &mini_cert.0, &mini_sign.0)?;
-    let mini_c = MiniController::new(Some(mini_sign.0), Some(mini_cert.0), cert_handler.clone());
+    let mini_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&mini_csr, 1).await?;
+    // CertUtils::save_cert("mini_controller", &mini_cert.0, &mini_sign.0)?;
+    let mini_c = MiniController::new(Some(mini_cert.0), Some(mini_sign.0), cert_handler.clone());
     Ok(mini_c)
 }
 

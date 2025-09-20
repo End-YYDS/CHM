@@ -1,8 +1,26 @@
 use serde::{Deserialize, Serialize};
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ApiResponse {
+pub use serde_json::Value;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiResponse<T = Value> {
     pub message: String,
     pub ok:      bool,
+    #[serde(flatten)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub data:    Option<T>,
+}
+impl<T> ApiResponse<T> {
+    #[inline]
+    pub fn ok_msg(message: impl Into<String>) -> Self {
+        Self { message: message.into(), ok: true, data: None }
+    }
+    #[inline]
+    pub fn ok_with(message: impl Into<String>, data: T) -> Self {
+        Self { message: message.into(), ok: true, data: Some(data) }
+    }
+    #[inline]
+    pub fn err(message: impl Into<String>) -> Self {
+        Self { message: message.into(), ok: false, data: None }
+    }
 }
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InitEnvelope<T> {

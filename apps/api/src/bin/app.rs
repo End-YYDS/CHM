@@ -11,7 +11,6 @@ use chm_grpc::{
 };
 use std::{
     net::{IpAddr, SocketAddr},
-    ops::ControlFlow,
     sync::atomic::Ordering::Relaxed,
 };
 use tracing_subscriber::EnvFilter;

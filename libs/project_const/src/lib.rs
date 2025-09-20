@@ -16,31 +16,55 @@ impl ProjectConst {
         PathBuf::from(Self::SAVE_DIR).join(Self::PROJECT_NAME)
     }
     pub fn certs_path() -> PathBuf {
-        if Self::is_debug() {
+        let dir = if Self::is_debug() {
             PathBuf::from(Self::CERTS_DIR)
         } else {
             Self::release_save_dir().join(Self::CERTS_DIR)
+        };
+        if dir.exists() {
+            dir
+        } else {
+            std::fs::create_dir_all(&dir).expect("無法創建憑證目錄");
+            dir
         }
     }
     pub fn config_path() -> PathBuf {
-        if Self::is_debug() {
+        let dir = if Self::is_debug() {
             PathBuf::from(Self::CONFIG_DIR)
         } else {
             Self::release_save_dir().join(Self::CONFIG_DIR)
+        };
+        if dir.exists() {
+            dir
+        } else {
+            std::fs::create_dir_all(&dir).expect("無法創建配置目錄");
+            dir
         }
     }
     pub fn data_path() -> PathBuf {
-        if Self::is_debug() {
+        let dir = if Self::is_debug() {
             PathBuf::from(Self::DATA_DIR)
         } else {
             Self::release_save_dir().join(Self::DATA_DIR)
+        };
+        if dir.exists() {
+            dir
+        } else {
+            std::fs::create_dir_all(&dir).expect("無法創建數據目錄");
+            dir
         }
     }
     pub fn db_path() -> PathBuf {
-        if Self::is_debug() {
+        let dir = if Self::is_debug() {
             PathBuf::from(Self::DB_DIR)
         } else {
             Self::release_save_dir().join(Self::DB_DIR)
+        };
+        if dir.exists() {
+            dir
+        } else {
+            std::fs::create_dir_all(&dir).expect("無法創建數據庫目錄");
+            dir
         }
     }
 }

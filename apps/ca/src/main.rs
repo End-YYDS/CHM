@@ -7,7 +7,7 @@ use ca::{
 };
 use chm_project_const::ProjectConst;
 use std::{
-    env, fs,
+    env,
     net::SocketAddr,
     ops::ControlFlow,
     sync::{atomic::Ordering::Relaxed, Arc},
@@ -43,10 +43,10 @@ async fn main() -> CaResult<()> {
     tracing::trace!("進入GlobalConfig讀取鎖定區域");
     let cmg = GlobalConfig::get();
     let unique_id = cmg.server.unique_id;
-    let marker_path = ProjectConst::data_path().join(".ca_first_run.done");
-    if let Some(parent) = marker_path.parent() {
-        fs::create_dir_all(parent)?;
-    }
+    let marker_path = ProjectConst::data_path().join(format!(".{ID}.done"));
+    // if let Some(parent) = marker_path.parent() {
+    //     fs::create_dir_all(parent)?;
+    // }
     let first_run = !marker_path.exists();
     let store = StoreFactory::create_store().await?;
     let store: Arc<dyn CertificateStore> = Arc::from(store);
@@ -69,7 +69,7 @@ async fn main() -> CaResult<()> {
 
     if first_run {
         tracing::info!("第一次啟動，正在初始化 MiniController...");
-        let mut mini_c = mini_controller_cert(&cert_handler, unique_id).await?;
+        let mini_c = mini_controller_cert(&cert_handler, unique_id).await?;
         tracing::info!("MiniController 初始化完成，開始創建憑證...");
         tracing::debug!("創建 ca_grpc 憑證...");
         ca_grpc_cert(&cert_handler, unique_id).await?;
@@ -81,15 +81,17 @@ async fn main() -> CaResult<()> {
             tracing::debug!("憑證創建完成");
             tracing::info!("正在啟動 MiniController...");
         }
-        if let ControlFlow::Break(e) = mini_c.start(addr, marker_path.clone(), unique_id).await {
+        if let ControlFlow::Break(e) = mini_c.start(addr, unique_id).await {
             tracing::error!("MiniController 初始化失敗: {}", e);
             return Ok(());
         }
         tracing::debug!("工作轉交完成，即將刪除MiniController Certificate");
-        let cert_path = ProjectConst::certs_path().join("mini_controller.pem");
-        let key_path = ProjectConst::certs_path().join("mini_controller.key");
-        tokio::fs::remove_file(cert_path).await?;
-        tokio::fs::remove_file(key_path).await?;
+        // let cert_path =
+        // ProjectConst::certs_path().join("mini_controller.pem");
+        // let key_path =
+        // ProjectConst::certs_path().join("mini_controller.key");
+        // tokio::fs::remove_file(cert_path).await?;
+        // tokio::fs::remove_file(key_path).await?;
     }
     if marker_path.exists() {
         tracing::info!("mCA 伺服器已經初始化過，開始啟動 gRPC 服務...");

@@ -1,22 +1,11 @@
-use crate::{
-    cert::process::CertificateProcess, globals::GlobalConfig, CaResult, PrivateKey, SignedCert,
-};
-use actix_web::{dev::ServerHandle, post, web, App, HttpResponse, HttpServer};
+use crate::{cert::process::CertificateProcess, globals::GlobalConfig, PrivateKey, SignedCert, ID};
 use chm_cert_utils::CertUtils;
-use openssl::{
-    pkey::PKey,
-    ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod, SslVerifyMode},
-    x509::{X509Req, X509},
-};
+use chm_cluster_utils::{api_resp, declare_init_route, Default_ServerCluster};
+use openssl::x509::{X509Req, X509};
 use serde::{Deserialize, Serialize};
-use std::{
-    net::SocketAddr,
-    ops::ControlFlow,
-    path::{Path, PathBuf},
-    sync::Arc,
-};
-use tokio::sync::mpsc::Sender;
+use std::{net::SocketAddr, sync::Arc};
 use uuid::Uuid;
+
 #[derive(Serialize)]
 struct SignedCertResponse {
     cert:        Vec<u8>,
@@ -26,8 +15,7 @@ struct SignedCertResponse {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-struct Otp {
-    code:     String,
+struct InitRequest {
     csr_cert: Vec<u8>,
     days:     u32,
     uuid:     Uuid,
@@ -36,212 +24,97 @@ struct Otp {
 #[derive(Clone)]
 struct AppState {
     cert_process: Arc<CertificateProcess>,
-    shutdown_tx:  Sender<()>,
-    marker_path:  PathBuf,
-    otp_code:     String,
     unique_id:    Uuid,
     hostname:     String,
 }
-/// MiniController 用於管理初始化過程的控制器
-pub struct MiniController {
-    /// 伺服器自己的已簽署憑證
-    sign_cert:     Option<SignedCert>,
-    /// 伺服器自己的私鑰
-    private_key:   Option<PrivateKey>,
-    /// 伺服器的 handle
-    server_handle: Option<ServerHandle>,
-    /// 用於關閉伺服器的通道
-    shutdown_tx:   Option<Sender<()>>,
-    cert_process:  Arc<CertificateProcess>,
-}
-impl MiniController {
-    /// 建立一個新的 MiniController
-    /// # 參數
-    /// * `sign_cert`: 可選的已簽署憑證
-    /// * `private_key`: 可選的私鑰
-    /// # 回傳
-    /// * 一個新的 `MiniController` 實例
-    pub fn new(
-        sign_cert: Option<SignedCert>,
-        private_key: Option<PrivateKey>,
-        cert_process: Arc<CertificateProcess>,
-    ) -> Self {
-        Self { sign_cert, private_key, server_handle: None, shutdown_tx: None, cert_process }
-    }
-    /// 回傳伺服器X509憑證
-    /// # 回傳
-    /// * X509憑證
-    pub fn get_cert(&self) -> Option<SignedCert> {
-        self.sign_cert.clone()
-    }
-
-    /// 顯示伺服器憑證的內容
-    /// # 回傳
-    /// * `CaResult<String>`: 返回憑證的 PEM 格式字符串或錯誤
-    pub fn show_cert(&self) -> CaResult<String> {
-        let r = X509::from_der(self.sign_cert.as_ref().unwrap())?;
-        let r = r.to_pem()?;
-        let ret = String::from_utf8(r)?;
-        Ok(ret)
-    }
-    /// 啟動MiniController伺服器
-    /// # 參數
-    /// * `addr`: 伺服器的 Socket 地址
-    /// * `marker_path`: 用於標記初始化完成的檔案路徑
-    /// # 回傳
-    /// * `CaResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
-    pub async fn start(
-        &mut self,
-        addr: SocketAddr,
-        marker_path: PathBuf,
-        id: Uuid,
-    ) -> ControlFlow<Box<dyn std::error::Error + Send + Sync>, ()> {
-        tracing::info!("Init Process Running on {addr} ...");
-        let (hostname, otp_len, rootca) = GlobalConfig::with(|cfg| {
-            (cfg.server.hostname.clone(), cfg.server.otp_len, cfg.certificate.root_ca.clone())
-        });
-        let otp_code = chm_password::generate_otp(otp_len);
-        tracing::info!("OTP code: {otp_code}");
-        let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
-        let ssl_acceptor = match self.build_ssl_builder(&rootca) {
-            Ok(b) => b,
-            Err(e) => return ControlFlow::Break(format!("SSL 建構失敗: {e}").into()),
-        };
-        let state = AppState {
-            cert_process: self.cert_process.clone(),
-            shutdown_tx: tx.clone(),
-            marker_path: marker_path.clone(),
-            otp_code: otp_code.clone(),
-            unique_id: id,
-            hostname,
-        };
-        let server = match HttpServer::new(move || {
-            App::new().app_data(web::Data::new(state.clone())).service(init_api)
-        })
-        .bind_openssl(addr, ssl_acceptor)
-        {
-            Ok(b) => b.disable_signals().run(),
-            Err(e) => {
-                return ControlFlow::Break(e.into());
-            }
-        };
-        let handle = server.handle();
-        self.server_handle = Some(handle.clone());
-        self.shutdown_tx = Some(tx);
-        let h_for_rx = handle.clone();
-        tokio::spawn(async move {
-            if rx.recv().await.is_some() {
-                h_for_rx.stop(false).await;
-            }
-        });
-        let (abort_tx, mut abort_rx) = tokio::sync::oneshot::channel::<()>();
-        tokio::spawn(async move {
-            if let Err(e) = tokio::signal::ctrl_c().await {
-                tracing::error!("CtrlC Error: {e}");
-            }
-            let _ = abort_tx.send(());
-        });
-        tokio::select! {
-            res = server => {
-                match res {
-                    Ok(())  => ControlFlow::Continue(()),
-                    Err(e)  => ControlFlow::Break(e.into()),
-                }
-            }
-            _ = &mut abort_rx => {
-                handle.stop(false).await;
-                ControlFlow::Break("aborted by Ctrl-C".into())
-            }
-        }
-    }
-    /// 停止伺服器
-    /// # 回傳
-    /// * `CaResult<()>`: 返回結果，成功時為 Ok，失敗時為 Err
-    pub fn stop(&self) -> CaResult<()> {
-        if let Some(tx) = &self.shutdown_tx {
-            tx.try_send(()).map_err(|e| e.into())
-        } else {
-            Ok(())
-        }
-    }
-    /// 建立 SSL 接受器建構器
-    /// # 回傳
-    /// * `CaResult<SslAcceptorBuilder>`: 返回 SSL 接受器建構器或錯誤
-    fn build_ssl_builder(&self, rootca: &Path) -> CaResult<SslAcceptorBuilder> {
-        let cert_bytes = self.sign_cert.as_ref().ok_or("missing certificate PEM")?;
-        let key_bytes = self.private_key.as_ref().ok_or("missing private key PEM")?;
-        let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
-        let cert = X509::from_pem(cert_bytes)
-            .or_else(|_| X509::from_der(cert_bytes))
-            .map_err(|e| format!("解析Leaf失敗: {e}"))?;
-        builder.set_certificate(&cert)?;
-        builder.set_ca_file(rootca).map_err(|e| format!("設置CA檔案失敗: {e}"))?;
-        let pkey = PKey::private_key_from_pem(key_bytes)
-            .or_else(|_| PKey::private_key_from_der(key_bytes))
-            .map_err(|e| format!("解析PrivateKey失敗: {e}"))?;
-        builder.set_private_key(&pkey)?;
-        builder.check_private_key()?;
-        builder.set_verify(SslVerifyMode::NONE);
-        Ok(builder)
-    }
-}
-
-#[post("/init")]
-/// 初始化 API，寫入 marker 檔案並關閉伺服器
-/// # 參數
-/// * `shutdown_tx`: 用於關閉伺服器的通道
-/// * `marker_path`: 用於標記初始化完成的檔案路徑
-/// # 回傳
-/// * `HttpResponse`: 返回 HTTP 響應，成功時為 Ok，失敗時為 InternalServerError
-async fn init_api(state: web::Data<AppState>, data: web::Json<Otp>) -> HttpResponse {
-    let AppState { cert_process, shutdown_tx, marker_path, otp_code, unique_id, hostname } =
-        state.get_ref();
-    if data.code.as_str() != otp_code.as_str() {
-        tracing::error!("OTP 驗證失敗: {}", data.code);
-        return HttpResponse::Unauthorized().body("OTP 驗證失敗");
-    }
+async fn init_data_handler(
+    _req: &HttpRequest,
+    data: Json<InitRequest>,
+    state: Data<Arc<AppState>>,
+) -> ControlFlow<HttpResponse, SignedCertResponse> {
     let csr_x509 =
         match X509Req::from_pem(&data.csr_cert).or_else(|_| X509Req::from_der(&data.csr_cert)) {
             Ok(cert) => cert,
             Err(e) => {
                 tracing::error!("解析 CSR 憑證失敗: {:?}", e);
-                return HttpResponse::BadRequest().body("無效的 CSR 憑證");
+                return ControlFlow::Break(api_resp!(BadRequest "無效的 CSR 憑證"));
             }
         };
-    let signed_cert = match cert_process.sign_csr(&csr_x509, data.days).await {
+    let signed_cert = match state.cert_process.sign_csr(&csr_x509, data.days).await {
         Ok(c) => c,
         Err(e) => {
             tracing::error!("簽發 CSR 失敗: {:?}", e);
-            return HttpResponse::InternalServerError().body("簽發憑證失敗");
+            return ControlFlow::Break(api_resp!(InternalServerError "簽發憑證失敗"));
         }
     };
     GlobalConfig::update_with(|cfg| {
         cfg.extend.controller.serial =
-            CertUtils::cert_serial_sha256(&X509::from_der(&signed_cert.0).unwrap())
-                .expect("serial");
+            CertUtils::cert_serial_sha256(&X509::from_pem(&signed_cert.0).unwrap())
+                .expect("無法計算Serial");
         cfg.extend.controller.fingerprint =
-            CertUtils::cert_fingerprint_sha256(&X509::from_der(&signed_cert.0).unwrap())
-                .expect("fingerprint");
+            CertUtils::cert_fingerprint_sha256(&X509::from_pem(&signed_cert.0).unwrap())
+                .expect("無法計算fingerprint");
         cfg.extend.controller.uuid = data.uuid;
     });
     if let Err(e) = GlobalConfig::save_config().await {
         tracing::error!("儲存設定失敗: {:?}", e);
-        return HttpResponse::InternalServerError().body("儲存設定失敗");
+        return ControlFlow::Break(api_resp!(InternalServerError "儲存設定失敗"));
     }
-
-    if let Err(e) = tokio::fs::write(marker_path, b"done").await {
-        eprint!("寫入marker檔案失敗: {e}");
-        return HttpResponse::InternalServerError().body("寫入marker檔案失敗");
-    }
-    if cfg!(debug_assertions) {
-        tracing::info!("初始化完成，關閉伺服器");
-    }
-    let _ = shutdown_tx.send(()).await;
-    let ret_data = SignedCertResponse {
+    ControlFlow::Continue(SignedCertResponse {
         cert:        signed_cert.0,
         chain:       signed_cert.1,
-        unique_id:   *unique_id,
-        ca_hostname: hostname.clone(),
-    };
-    HttpResponse::Ok().json(ret_data)
+        unique_id:   state.unique_id,
+        ca_hostname: state.hostname.clone(),
+    })
+}
+declare_init_route!(init_data_handler, data = InitRequest, extras = (state: Arc<AppState>), ret = SignedCertResponse);
+pub struct MiniController {
+    sign_cert:    Option<SignedCert>,
+    private_key:  Option<PrivateKey>,
+    cert_process: Arc<CertificateProcess>,
+}
+impl MiniController {
+    pub fn new(
+        private_key: Option<PrivateKey>,
+        sign_cert: Option<SignedCert>,
+        cert_process: Arc<CertificateProcess>,
+    ) -> Self {
+        Self { sign_cert, private_key, cert_process }
+    }
+    pub async fn start(
+        &self,
+        addr: SocketAddr,
+        id: Uuid,
+    ) -> ControlFlow<Box<dyn std::error::Error + Send + Sync>, ()> {
+        let (otp_len, root_ca, hostname) = GlobalConfig::with(|cfg| {
+            (cfg.server.otp_len, cfg.certificate.root_ca.clone(), cfg.server.hostname.clone())
+        });
+        let x509_cert = self.sign_cert.clone().expect("MiniController 憑證獲取失敗");
+        let key = self.private_key.clone().expect("MiniController 私鑰獲取失敗");
+        tracing::info!("在 {addr} 啟動MiniController，等待 Controller 的初始化請求...");
+        let init_server = Default_ServerCluster::new(
+            addr.to_string(),
+            x509_cert,
+            key,
+            Some(root_ca),
+            otp_len,
+            ID,
+        )
+        .add_configurer(init_route())
+        .with_app_data(AppState {
+            cert_process: self.cert_process.clone(),
+            unique_id:    id,
+            hostname:     hostname.clone(),
+        });
+        match init_server.init().await {
+            ControlFlow::Continue(()) => {
+                tracing::info!("初始化完成，啟動正式服務...");
+                ControlFlow::Continue(())
+            }
+            ControlFlow::Break(_) => {
+                tracing::warn!("初始化未完成 (Ctrl+C)，程式結束");
+                ControlFlow::Break("初始化未完成".into())
+            }
+        }
+    }
 }

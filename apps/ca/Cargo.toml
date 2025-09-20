@@ -11,11 +11,9 @@ path = "src/main.rs"
 actix-web = { workspace = true }
 chm-cert-utils = { workspace = true }
 chm-config_bus = { workspace = true }
-chm-config_loader = { workspace = true, default-features = true }
+chm-cluster-utils = { workspace = true, features = ["server"], default-features = true }
 chm-crl_cache = { workspace = true }
-chm-dns_resolver = { workspace = true }
 chm-grpc = { workspace = true, features = ["ca", "crl-server"] }
-chm-password = { workspace = true }
 chm-project_const = { workspace = true }
 chrono = { workspace = true }
 futures = { workspace = true }

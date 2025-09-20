@@ -138,10 +138,10 @@ impl CertificateProcess {
         builder.set_serial_number(&serial)?;
         builder.sign(&self.ca_key, MessageDigest::sha256())?;
         let leaf = builder.build();
-        let cert_der = leaf.to_der()?;
-        let chain_der = vec![self.ca_cert.to_der()?];
+        let cert_pem = leaf.to_pem()?;
+        let chain_pem = vec![self.ca_cert.to_pem()?];
         self.store.insert(leaf).await?;
-        Ok((cert_der, chain_der))
+        Ok((cert_pem, chain_pem))
     }
     /// 產生 Root CA 憑證和對應的私鑰
     /// # 參數

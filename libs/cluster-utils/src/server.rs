@@ -124,11 +124,11 @@ impl ServerCluster {
             .build_ssl_acceptor()
             .expect("Failed to build SSL acceptor")
     }
-    pub fn with_app_data<T>(mut self, data: T) -> Self
+    pub fn with_app_data<T>(mut self, data: impl Into<Arc<T>>) -> Self
     where
-        T: Clone + Send + Sync + 'static,
+        T: Send + Sync + 'static,
     {
-        let data = Arc::new(data);
+        let data: Arc<T> = data.into();
         self.configurers.push(Arc::new(move |cfg: &mut ServiceConfig| {
             cfg.app_data(Data::new(data.clone()));
         }));
@@ -221,7 +221,6 @@ impl ServerCluster {
         if let Some(ref ca_src) = self.root_ca {
             match ca_src {
                 PemOrPath::Path(p) => {
-                    let p = ProjectConst::certs_path().join(p);
                     builder.set_ca_file(p)?;
                 }
                 PemOrPath::Pem(bytes) => {
