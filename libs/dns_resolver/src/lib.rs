@@ -3,7 +3,6 @@ use chm_grpc::{dns::dns_service_client::DnsServiceClient, tonic::transport::Chan
 use std::net::{IpAddr, Ipv4Addr};
 use url::{Host, Url};
 use uuid::Uuid;
-pub extern crate uuid;
 type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
 #[derive(Debug)]
 pub struct DnsResolver {

@@ -1,18 +1,18 @@
 [workspace]
 members = [
-    "apps/api",
-    "apps/ca",
-    "apps/controller",
-    "apps/dns",
-    "libs/cert-utils",
-    "libs/cluster-utils",
-    "libs/config-bus",
-    "libs/config_loader",
-    "libs/crl_cache",
-    "libs/dns_resolver",
-    "libs/grpc",
-    "libs/password",
-    "libs/project_const",
+  "apps/api",
+  "apps/ca",
+  "apps/controller",
+  "apps/dns",
+  "libs/cert-utils",
+  "libs/cluster-utils",
+  "libs/config-bus",
+  "libs/config_loader",
+  "libs/crl_cache",
+  "libs/dns_resolver",
+  "libs/grpc",
+  "libs/password",
+  "libs/project_const",
 ]
 resolver = "2"
 [workspace.package]
@@ -27,6 +27,7 @@ arc-swap = "1.7.1"
 argon2 = { version = "0.5.3", features = ["std"] }
 backoff = { version = "0.4.0", features = ["tokio"] }
 base64 = "0.22.1"
+config = { version = "0.15.11", default-features = false, features = ["toml"] }
 cached = { version = "0.56.0", features = ["async", "proc_macro"] }
 chm-cert-utils = { version = "0.1.0", path = "./libs/cert-utils" }
 chm-cluster-utils = { version = "0.1.0", path = "./libs/cluster-utils" }

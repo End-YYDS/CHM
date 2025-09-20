@@ -340,7 +340,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]
@@ -678,6 +677,10 @@ name = "chm-config_bus"
 version = "0.1.0"
 dependencies = [
  "arc-swap",
+ "chm-config_loader",
+ "chm-dns_resolver",
+ "chm-project_const",
+ "serde",
  "tokio",
 ]
 
@@ -688,7 +691,6 @@ dependencies = [
  "chm-project_const",
  "config",
  "serde",
- "tempfile",
  "tokio",
  "toml",
 ]
@@ -739,6 +741,9 @@ dependencies = [
 [[package]]
 name = "chm-project_const"
 version = "0.1.0"
+dependencies = [
+ "uuid",
+]
 
 [[package]]
 name = "chrono"

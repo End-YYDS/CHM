@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-
+pub extern crate uuid;
 pub struct ProjectConst;
 impl ProjectConst {
     pub const SAVE_DIR: &'static str = "/etc";

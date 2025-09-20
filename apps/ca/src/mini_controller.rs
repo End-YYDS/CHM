@@ -98,7 +98,7 @@ impl MiniController {
     ) -> ControlFlow<Box<dyn std::error::Error + Send + Sync>, ()> {
         tracing::info!("Init Process Running on {addr} ...");
         let (hostname, otp_len, rootca) = GlobalConfig::with(|cfg| {
-            (cfg.server.hostname.clone(), cfg.server.otp_len, cfg.certificate.rootca.clone())
+            (cfg.server.hostname.clone(), cfg.server.otp_len, cfg.certificate.root_ca.clone())
         });
         let otp_code = chm_password::generate_otp(otp_len);
         tracing::info!("OTP code: {otp_code}");
@@ -216,13 +216,13 @@ async fn init_api(state: web::Data<AppState>, data: web::Json<Otp>) -> HttpRespo
         }
     };
     GlobalConfig::update_with(|cfg| {
-        cfg.controller.serial =
+        cfg.extend.controller.serial =
             CertUtils::cert_serial_sha256(&X509::from_der(&signed_cert.0).unwrap())
                 .expect("serial");
-        cfg.controller.fingerprint =
+        cfg.extend.controller.fingerprint =
             CertUtils::cert_fingerprint_sha256(&X509::from_der(&signed_cert.0).unwrap())
                 .expect("fingerprint");
-        cfg.controller.uuid = data.uuid;
+        cfg.extend.controller.uuid = data.uuid;
     });
     if let Err(e) = GlobalConfig::save_config().await {
         tracing::error!("儲存設定失敗: {:?}", e);

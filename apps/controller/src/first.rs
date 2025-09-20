@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::{ConResult, GlobalConfig};
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{init_with, Default_ClientCluster};
-use chm_dns_resolver::uuid::Uuid;
+use chm_project_const::uuid::Uuid;
 use serde::{Deserialize, Serialize};
 
 struct FirstStart {
@@ -88,7 +88,7 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
     tracing::info!("第一次啟動，正在初始化...");
     let (ca_url, self_uuid, self_hostname, root_ca) = GlobalConfig::with(|cfg| {
         (
-            cfg.server.ca_server.clone(),
+            cfg.extend.server_ext.ca_server.clone(),
             cfg.server.unique_id,
             cfg.server.hostname.clone(),
             cfg.certificate.root_ca.clone(),
@@ -105,7 +105,7 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
     conn.init().await?;
     if let Some(ca_id) = conn.ca_unique_id {
         GlobalConfig::update_with(|cfg| {
-            cfg.services_pool.services_uuid.insert(conn.ca_hostname.clone(), ca_id);
+            cfg.extend.services_pool.services_uuid.insert(conn.ca_hostname.clone(), ca_id);
         });
     }
     if let Some(cert) = conn.cert {

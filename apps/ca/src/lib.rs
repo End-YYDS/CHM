@@ -1,36 +1,41 @@
 pub mod cert;
-pub mod config;
+// pub mod config;
 pub mod connection;
 pub mod mini_controller;
+use crate::{
+    cert::{crl::CrlList, process::CertificateProcess},
+    connection::MyCa,
+    mini_controller::MiniController,
+};
+pub use crate::{config::config, globals::GlobalConfig};
 use chm_cert_utils::CertUtils;
+use chm_config_bus::{declare_config, declare_config_bus};
 use chm_grpc::{
     ca::ca_server::CaServer,
     crl::crl_server,
     tonic::{self, codec::CompressionEncoding},
     tonic_health,
 };
+use chm_project_const::ProjectConst;
 use futures::{future::BoxFuture, FutureExt};
 use openssl::x509::{X509Req, X509};
-use tokio::sync::watch;
-use tonic_async_interceptor::async_interceptor;
-use tower::ServiceBuilder;
-use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
-use uuid::Uuid;
-
-use crate::{
-    cert::{crl::CrlList, process::CertificateProcess},
-    connection::MyCa,
-    globals::GlobalConfig,
-    mini_controller::MiniController,
+use serde::{Deserialize, Serialize};
+use std::{
+    net::SocketAddr,
+    path::PathBuf,
+    sync::{atomic::AtomicBool, Arc},
 };
-use chm_config_bus::declare_config_bus;
-pub use config::{config, ID, NEED_EXAMPLE};
-use std::{net::SocketAddr, sync::Arc};
+use tokio::sync::watch;
 use tonic::{
     transport::{Identity, ServerTlsConfig},
     Request, Status,
 };
+use tonic_async_interceptor::async_interceptor;
 use tonic_health::server::health_reporter;
+use tower::ServiceBuilder;
+use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+use uuid::Uuid;
+
 /// 定義一個簡化的結果類型，用於返回結果或錯誤
 pub type CaResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 /// 定義已經簽署的憑證類型
@@ -42,15 +47,125 @@ pub type PrivateKey = Vec<u8>;
 /// 定義 CSR 憑證類型
 pub type CsrCert = Vec<u8>;
 type CheckFuture = BoxFuture<'static, Result<Request<()>, Status>>;
+pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
+pub const ID: &str = "mCA";
+pub const DEFAULT_PORT: u16 = 50052;
+pub const DEFAULT_OTP_LEN: usize = 6;
+pub const DEFAULT_MAX_CONNECTIONS: u32 = 5;
+pub const DEFAULT_TIMEOUT: u64 = 10;
+pub const DEFAULT_BITS: i32 = 256;
+pub const DEFAULT_CRL_UPDATE_INTERVAL: u64 = 3600; // 1 小時
 
-declare_config_bus! {
-    pub mod globals {
-        type Settings = crate::config::Settings;
-        const ID: &str = crate::ID;
-        save = chm_config_loader::store_config;
-        load = chm_config_loader::load_config;
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct CaExtension {
+    #[serde(default)]
+    pub cert_ext:   CertificateExt,
+    #[serde(default)]
+    pub controller: Controller,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CertificateExt {
+    #[serde(default = "CertificateExt::default_rootca_key")]
+    /// 根憑證的私鑰路徑
+    pub rootca_key:          PathBuf,
+    #[serde(default = "CertificateExt::default_bits")]
+    pub rand_bits:           i32,
+    #[serde(with = "humantime_serde", default = "CertificateExt::default_crl_update_interval")]
+    pub crl_update_interval: std::time::Duration,
+    #[serde(flatten)]
+    #[serde(default)]
+    pub backend:             BackendConfig,
+}
+impl Default for CertificateExt {
+    fn default() -> Self {
+        CertificateExt {
+            rootca_key:          CertificateExt::default_rootca_key(),
+            backend:             BackendConfig::default(),
+            rand_bits:           CertificateExt::default_bits(),
+            crl_update_interval: CertificateExt::default_crl_update_interval(),
+        }
     }
 }
+impl CertificateExt {
+    fn default_bits() -> i32 {
+        DEFAULT_BITS
+    }
+    fn default_crl_update_interval() -> std::time::Duration {
+        std::time::Duration::from_secs(DEFAULT_CRL_UPDATE_INTERVAL)
+    }
+    fn default_rootca_key() -> PathBuf {
+        ProjectConst::certs_path().join("rootCA.key")
+    }
+}
+#[derive(Debug, Deserialize, Serialize, Clone)]
+#[serde(tag = "backend", rename_all = "lowercase")]
+pub enum BackendConfig {
+    /// SQLite 資料庫後端專屬設定
+    /// 預設使用 `certs/cert_store.db` 作為資料庫檔案
+    /// 最大連線數量預設為 5，逾時時間預設為 10 秒
+    Sqlite {
+        #[serde(default = "SqliteSettings::default_store_path")]
+        store_path:      String,
+        #[serde(default = "SqliteSettings::default_max_connections")]
+        max_connections: u32,
+        #[serde(default = "SqliteSettings::default_timeout")]
+        timeout:         u64,
+    },
+}
+impl Default for BackendConfig {
+    fn default() -> Self {
+        BackendConfig::Sqlite {
+            store_path:      SqliteSettings::default_store_path(),
+            max_connections: SqliteSettings::default_max_connections(),
+            timeout:         SqliteSettings::default_timeout(),
+        }
+    }
+}
+
+struct SqliteSettings;
+impl SqliteSettings {
+    fn default_store_path() -> String {
+        ProjectConst::db_path().join("cert_store.db").display().to_string()
+    }
+    fn default_max_connections() -> u32 {
+        DEFAULT_MAX_CONNECTIONS
+    }
+    fn default_timeout() -> u64 {
+        DEFAULT_TIMEOUT
+    }
+}
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
+/// 控制器設定
+pub struct Controller {
+    /// 控制器的指紋，用於識別和驗證
+    #[serde(default = "Controller::default_fingerprint")]
+    pub fingerprint: String,
+    /// 控制器的序列號，用於唯一標識
+    #[serde(default = "Controller::default_serial")]
+    pub serial:      String,
+    /// 控制器的UUID
+    #[serde(default = "Controller::default_uuid")]
+    pub uuid:        Uuid,
+}
+
+impl Controller {
+    /// 取得控制器的預設指紋
+    pub fn default_fingerprint() -> String {
+        "".into()
+    }
+    /// 取得控制器的預設序列號
+    pub fn default_serial() -> String {
+        "".into()
+    }
+    pub fn default_uuid() -> Uuid {
+        Uuid::nil()
+    }
+}
+
+declare_config!(extend = crate::CaExtension);
+declare_config_bus!();
 
 fn get_ssl_info(req: &Request<()>) -> CaResult<(X509, String)> {
     let peer_der_vec =
@@ -157,7 +272,7 @@ pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>)
             }
         };
         let controller_args = GlobalConfig::with(|cfg| {
-            (cfg.controller.serial.clone(), cfg.controller.fingerprint.clone())
+            (cfg.extend.controller.serial.clone(), cfg.extend.controller.fingerprint.clone())
         });
         let ca_layer =
             async_interceptor(make_ca_middleware(cert_handler.clone(), controller_args.clone()));

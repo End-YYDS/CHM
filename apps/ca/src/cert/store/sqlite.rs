@@ -10,8 +10,7 @@ use std::time::Duration;
 
 use crate::{
     cert::store::{Cert, CertDer, CertStatus, CertificateStore, CrlEntry},
-    config::BackendConfig,
-    CaResult,
+    BackendConfig, CaResult,
 };
 #[derive(Debug)]
 pub struct SqlConnection {
@@ -56,14 +55,14 @@ impl std::str::FromStr for CertStatus {
         }
     }
 }
-impl std::convert::TryFrom<String> for CertStatus {
+impl TryFrom<String> for CertStatus {
     type Error = String;
     fn try_from(s: String) -> Result<Self, Self::Error> {
         s.parse()
     }
 }
 
-impl std::convert::TryFrom<&str> for CertStatus {
+impl TryFrom<&str> for CertStatus {
     type Error = String;
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         s.parse()
@@ -265,11 +264,11 @@ impl CertificateStore for SqlConnection {
         let issued_date = issued_date.replace("GMT", "+0000");
         let issued_date = chrono::DateTime::parse_from_str(&issued_date, "%b %e %H:%M:%S %Y %z")
             .map_err(|e| format!("Failed to parse fixed-offset: {e}"))?;
-        let issued_date: chrono::DateTime<chrono::Utc> = issued_date.with_timezone(&chrono::Utc);
+        let issued_date: DateTime<Utc> = issued_date.with_timezone(&Utc);
         let expiration = cert.not_after().to_string();
         let expiration = expiration.replace("GMT", "+0000");
         let expiration = chrono::DateTime::parse_from_str(&expiration, "%b %e %H:%M:%S %Y %z")?;
-        let expiration = expiration.with_timezone(&chrono::Utc);
+        let expiration = expiration.with_timezone(&Utc);
         let cert_der = cert.to_der()?;
         let thumbprint = CertUtils::cert_fingerprint_sha256(&cert)?;
         let result = sqlx::query!(
@@ -308,6 +307,18 @@ impl CertificateStore for SqlConnection {
         Ok(true)
     }
 
+    async fn query_cert_status(&self, serial: &str) -> CaResult<Option<CertStatus>> {
+        let mut tx = self.pool.begin().await?;
+        let result = sqlx::query!("SELECT status FROM certs WHERE serial = ?", serial)
+            .fetch_optional(&mut *tx)
+            .await?;
+        tx.commit().await?;
+
+        match result {
+            Some(row) => Ok(Some(row.status.try_into()?)),
+            None => Ok(None),
+        }
+    }
     // 撤銷憑證操作相關的異步方法
     /// 列出所有撤銷憑證
     async fn list_crl(&self) -> CaResult<Vec<CrlEntry>> {
@@ -327,59 +338,6 @@ impl CertificateStore for SqlConnection {
         .await?;
         tx.commit().await?;
         Ok(rows.into_iter().map(Into::into).collect())
-    }
-    /// 將指定憑證標記為撤銷
-    async fn mark_cert_revoked(&self, serial: &str, reason: Option<String>) -> CaResult<bool> {
-        let mut tx = self.pool.begin().await?;
-        let is_revoked = self.query_cert_status(serial).await?;
-        if is_revoked.is_some() && is_revoked.unwrap() == CertStatus::Revoked {
-            return Err("憑證已經被標記為註銷".into());
-        }
-        let now = chrono::Utc::now();
-        let result = sqlx::query!(
-            r#"
-            INSERT INTO crl_entries (cert_serial, revoked_at, reason)
-            VALUES (?, ?, ?)
-            "#,
-            serial,
-            now,
-            reason
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        if result.rows_affected() == 0 {
-            return Err("Failed to insert CRL entry".into());
-        }
-
-        let update_result = sqlx::query!(
-            r#"
-                UPDATE certs SET status = 'revoked'
-                WHERE serial = ?
-                "#,
-            serial
-        )
-        .execute(&mut *tx)
-        .await?;
-
-        if update_result.rows_affected() == 0 {
-            return Err("No cert found with the given serial to update".into());
-        }
-        tx.commit().await?;
-        tracing::debug!("憑證已成功標記為註銷,序號: {serial}");
-        Ok(true)
-    }
-    async fn query_cert_status(&self, serial: &str) -> CaResult<Option<CertStatus>> {
-        let mut tx = self.pool.begin().await?;
-        let result = sqlx::query!("SELECT status FROM certs WHERE serial = ?", serial)
-            .fetch_optional(&mut *tx)
-            .await?;
-        tx.commit().await?;
-
-        match result {
-            Some(row) => Ok(Some(row.status.try_into()?)),
-            None => Ok(None),
-        }
     }
     async fn list_crl_entries(
         &self,
@@ -433,5 +391,46 @@ impl CertificateStore for SqlConnection {
 
         tx.commit().await?;
         Ok(rows.into_iter().map(Into::into).collect())
+    }
+    /// 將指定憑證標記為撤銷
+    async fn mark_cert_revoked(&self, serial: &str, reason: Option<String>) -> CaResult<bool> {
+        let mut tx = self.pool.begin().await?;
+        let is_revoked = self.query_cert_status(serial).await?;
+        if is_revoked.is_some() && is_revoked.unwrap() == CertStatus::Revoked {
+            return Err("憑證已經被標記為註銷".into());
+        }
+        let now = Utc::now();
+        let result = sqlx::query!(
+            r#"
+            INSERT INTO crl_entries (cert_serial, revoked_at, reason)
+            VALUES (?, ?, ?)
+            "#,
+            serial,
+            now,
+            reason
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        if result.rows_affected() == 0 {
+            return Err("Failed to insert CRL entry".into());
+        }
+
+        let update_result = sqlx::query!(
+            r#"
+                UPDATE certs SET status = 'revoked'
+                WHERE serial = ?
+                "#,
+            serial
+        )
+        .execute(&mut *tx)
+        .await?;
+
+        if update_result.rows_affected() == 0 {
+            return Err("No cert found with the given serial to update".into());
+        }
+        tx.commit().await?;
+        tracing::debug!("憑證已成功標記為註銷,序號: {serial}");
+        Ok(true)
     }
 }

@@ -9,8 +9,8 @@ use std::{
 };
 
 use cached::{proc_macro::cached, TimedSizedCache};
-use chm_dns_resolver::{uuid::Uuid, DnsResolver};
-use chm_project_const::ProjectConst;
+use chm_dns_resolver::DnsResolver;
+use chm_project_const::{uuid::Uuid, ProjectConst};
 use futures::FutureExt;
 use reqwest::{
     dns::{Name, Resolve, Resolving},

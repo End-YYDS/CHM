@@ -3,6 +3,10 @@ name = "ca"
 version.workspace = true
 edition.workspace = true
 
+[[bin]]
+name = "CHM_CA"
+path = "src/main.rs"
+
 [dependencies]
 actix-web = { workspace = true }
 chm-cert-utils = { workspace = true }
@@ -27,6 +31,4 @@ tower-http = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
-[[bin]]
-name = "CHM_CA"
-path = "src/main.rs"
+

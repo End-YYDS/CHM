@@ -52,7 +52,7 @@ async fn main() -> ApiResult<()> {
         let host: IpAddr =
             cfg.server.host.clone().parse().unwrap_or(IpAddr::V4(std::net::Ipv4Addr::LOCALHOST));
         let port = cfg.server.port;
-        let controller_addr = cfg.services.controller.clone();
+        let controller_addr = cfg.extend.controller.clone();
         let rootca = cfg.certificate.root_ca.clone();
         let cert_info = cfg.certificate.cert_info.clone();
         let otp_len = cfg.server.otp_len;

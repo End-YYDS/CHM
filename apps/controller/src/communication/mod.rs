@@ -213,7 +213,7 @@ pub async fn init_channels_all() -> ConResult<GrpcClients> {
             let root = &cfg.certificate.root_ca;
             let cert = &cfg.certificate.client_cert;
             let key = &cfg.certificate.client_key;
-            let mca = &cfg.server.ca_server;
+            let mca = &cfg.extend.server_ext.ca_server;
             if root.as_os_str().is_empty()
                 || cert.as_os_str().is_empty()
                 || key.as_os_str().is_empty()

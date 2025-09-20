@@ -1,26 +1,47 @@
 #![allow(non_camel_case_types)]
 #![allow(dead_code)]
 use crate::handles::handles_scope;
+pub use crate::{config::config, globals::GlobalConfig};
 use actix_web::web::{scope, ServiceConfig};
-use chm_config_bus::declare_config_bus;
+use chm_config_bus::{declare_config, declare_config_bus};
 use chm_grpc::{restful::restful_service_client::RestfulServiceClient, tonic::transport::Channel};
-pub use config::{config, ID, NEED_EXAMPLE};
-pub use globals::GlobalConfig;
-use serde::Deserialize;
-
+use serde::{Deserialize, Serialize};
+use std::sync::atomic::AtomicBool;
 mod commons;
-mod config;
+// mod config;
 mod handles;
 
+pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
+pub const ID: &str = "CHM_API";
+pub(crate) const DEFAULT_PORT: u16 = 50050;
+pub(crate) const DEFAULT_OTP_LEN: usize = 6;
 pub type ApiResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
-declare_config_bus! {
-    pub mod globals {
-        type Settings = crate::config::Settings;
-        const ID: &str = crate::ID;
-        save = chm_config_loader::store_config;
-        load = chm_config_loader::load_config;
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct Services {
+    #[serde(default = "Services::default_controller")]
+    pub controller: String,
+}
+impl Services {
+    fn default_controller() -> String {
+        let controller_ip = if !cfg!(debug_assertions) {
+            chm_dns_resolver::DnsResolver::get_local_ip()
+                .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST))
+                .to_string()
+        } else {
+            std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST).to_string()
+        };
+        "https://".to_string() + &controller_ip + ":50051"
     }
 }
+impl Default for Services {
+    fn default() -> Self {
+        Self { controller: Self::default_controller() }
+    }
+}
+
+declare_config!(extend = crate::Services);
+declare_config_bus!();
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]

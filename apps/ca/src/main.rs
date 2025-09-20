@@ -3,9 +3,7 @@ use ca::{
         process::CertificateProcess,
         store::{CertificateStore, StoreFactory},
     },
-    config::{config, NEED_EXAMPLE},
-    globals::GlobalConfig,
-    *,
+    config, GlobalConfig, NEED_EXAMPLE, *,
 };
 use chm_project_const::ProjectConst;
 use std::{
@@ -44,10 +42,7 @@ async fn main() -> CaResult<()> {
     tracing::info!("配置載入完成，開始啟動 mCA...");
     tracing::trace!("進入GlobalConfig讀取鎖定區域");
     let cmg = GlobalConfig::get();
-    let unique_id = cmg.server.unique_id.clone().parse().unwrap_or_else(|_| {
-        tracing::error!("無效的 unique_id，使用預設值");
-        uuid::Uuid::new_v4()
-    });
+    let unique_id = cmg.server.unique_id;
     let marker_path = ProjectConst::data_path().join(".ca_first_run.done");
     if let Some(parent) = marker_path.parent() {
         fs::create_dir_all(parent)?;
@@ -59,10 +54,10 @@ async fn main() -> CaResult<()> {
     tracing::trace!("讀取配置完成，開始載入憑證處理器...");
     let cert_handler = Arc::new(
         CertificateProcess::load(
-            &cmg.certificate.rootca,
-            &cmg.certificate.rootca_key,
+            &cmg.certificate.root_ca,
+            &cmg.extend.cert_ext.rootca_key,
             &cmg.certificate.passphrase,
-            cmg.certificate.crl_update_interval,
+            cmg.extend.cert_ext.crl_update_interval,
             store,
         )
         .await?,

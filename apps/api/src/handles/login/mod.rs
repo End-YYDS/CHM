@@ -1,10 +1,17 @@
 #![allow(unused)]
 use crate::commons::{ResponseResult, ResponseType};
-use actix_web::{get, web};
+use actix_web::{get, post, web};
 use serde::Deserialize;
 
+#[post("")]
 async fn login(data: web::Json<LoginRequest>) -> web::Json<ResponseResult> {
     println!("{data:#?}");
+    if data.username != "admin" || data.password != "password" {
+        return web::Json(ResponseResult {
+            r#type:  ResponseType::Err,
+            message: "Invalid credentials".to_string(),
+        });
+    }
     web::Json(ResponseResult { r#type: ResponseType::Ok, message: "Login successful".to_string() })
 }
 
@@ -14,10 +21,7 @@ async fn test_login() -> impl actix_web::Responder {
 }
 
 pub fn login_scope() -> actix_web::Scope {
-    actix_web::web::scope("/login")
-        .route("", web::post().to(login))
-        .route("/", web::post().to(login))
-        .service(test_login)
+    web::scope("/login").service(login).service(test_login)
 }
 
 #[derive(Debug, Deserialize)]

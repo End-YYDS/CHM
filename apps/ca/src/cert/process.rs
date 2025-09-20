@@ -15,9 +15,8 @@ use openssl::{
 use std::{fs, path::Path, sync::Arc};
 
 use crate::{
-    cert::crl::{self, CrlVerifier},
-    globals::GlobalConfig,
-    CaResult, ChainCerts, CsrCert, PrivateKey, SignedCert,
+    cert::crl::CrlVerifier, globals::GlobalConfig, CaResult, ChainCerts, CsrCert, PrivateKey,
+    SignedCert,
 };
 #[allow(unused)]
 /// 憑證處理器，負責載入 CA 憑證和金鑰，簽署 CSR，並提供 CRL 驗證功能
@@ -27,7 +26,7 @@ pub struct CertificateProcess {
     /// CA 私鑰
     ca_key:  PKey<Private>,
     /// CRL 驗證器
-    crl:     Arc<crl::CrlVerifier>,
+    crl:     Arc<CrlVerifier>,
     store:   Arc<dyn crate::cert::store::CertificateStore>,
 }
 // #[allow(unused)]
@@ -88,7 +87,7 @@ impl CertificateProcess {
     /// 獲取CRL驗證器
     /// # 回傳
     /// * `Arc<crl::CrlVerifier>`: 返回 CRL 驗證器的引用
-    pub fn get_crl(&self) -> Arc<crl::CrlVerifier> {
+    pub fn get_crl(&self) -> Arc<CrlVerifier> {
         self.crl.clone()
     }
     /// 設定CRL驗證器
@@ -96,7 +95,7 @@ impl CertificateProcess {
     /// * `crl`: 要設定的 CRL 驗證器
     /// # 回傳
     /// * `()`: 無返回值
-    pub fn set_crl(&mut self, crl: Arc<crl::CrlVerifier>) {
+    pub fn set_crl(&mut self, crl: Arc<CrlVerifier>) {
         self.crl = crl;
     }
 
@@ -133,7 +132,7 @@ impl CertificateProcess {
             builder.append_extension(ext)?;
         }
         let mut bn = BigNum::new()?;
-        let bits = GlobalConfig::with(|cfg| cfg.certificate.bits);
+        let bits = GlobalConfig::with(|cfg| cfg.extend.cert_ext.rand_bits);
         bn.rand(bits, MsbOption::ONE, false)?;
         let serial = Asn1Integer::from_bn(&bn)?;
         builder.set_serial_number(&serial)?;

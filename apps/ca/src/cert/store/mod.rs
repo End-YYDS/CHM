@@ -1,4 +1,4 @@
-use crate::{config::BackendConfig, globals::GlobalConfig, CaResult};
+use crate::{globals::GlobalConfig, BackendConfig, CaResult};
 use chm_grpc::tonic::async_trait;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -51,7 +51,7 @@ impl StoreFactory {
     pub async fn create_store() -> CaResult<Box<dyn CertificateStore>> {
         let cfg = GlobalConfig::get();
 
-        match &cfg.certificate.backend {
+        match &cfg.extend.cert_ext.backend {
             BackendConfig::Sqlite { store_path, max_connections, timeout } => {
                 let sqlite_cfg = BackendConfig::Sqlite {
                     store_path:      store_path.clone(),

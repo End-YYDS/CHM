@@ -1,23 +1,76 @@
 mod communication;
-mod config;
 pub mod first;
 mod server;
 mod supervisor;
+
 use crate::communication::GrpcClients;
-use chm_config_bus::declare_config_bus;
-use chm_project_const::ProjectConst;
-pub use config::{config, ID, NEED_EXAMPLE};
+pub use crate::{config::config, globals::GlobalConfig};
+use chm_config_bus::{declare_config, declare_config_bus};
+use chm_project_const::{uuid::Uuid, ProjectConst};
+use dashmap::DashMap;
 use first::first_run;
-pub use globals::GlobalConfig;
+use serde::{Deserialize, Serialize};
+use std::{
+    net::{IpAddr, Ipv4Addr},
+    sync::atomic::AtomicBool,
+};
+
 pub type ConResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
-declare_config_bus! {
-    pub mod globals {
-        type Settings = crate::config::Settings;
-        const ID: &str = crate::ID;
-        save = chm_config_loader::store_config;
-        load = chm_config_loader::load_config;
+pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
+pub const ID: &str = "CHMcd";
+const DEFAULT_PORT: u16 = 50051;
+const DEFAULT_OTP_LEN: usize = 6;
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ControllerExtension {
+    #[serde(default)]
+    pub server_ext:    ServerExtension,
+    #[serde(default)]
+    pub services_pool: ServicesPool,
+}
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
+pub struct ServicesPool {
+    #[serde(flatten)]
+    pub services_uuid: DashMap<String, Uuid>,
+}
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ServerExtension {
+    #[serde(default = "ServerExtension::default_dns_server")]
+    /// DNS 伺服器地址
+    pub dns_server: String,
+    #[serde(default = "ServerExtension::default_ca_server")]
+    /// mCA 伺服器地址
+    pub ca_server:  String,
+}
+impl Default for ServerExtension {
+    fn default() -> Self {
+        Self { dns_server: Self::default_dns_server(), ca_server: Self::default_ca_server() }
     }
 }
+impl ServerExtension {
+    fn default_dns_server() -> String {
+        let dnsip = if !cfg!(debug_assertions) {
+            chm_dns_resolver::DnsResolver::get_local_ip()
+                .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
+                .to_string()
+        } else {
+            IpAddr::V4(Ipv4Addr::LOCALHOST).to_string()
+        };
+        "http://".to_string() + &dnsip + ":50053"
+    }
+    fn default_ca_server() -> String {
+        let caip = if !cfg!(debug_assertions) {
+            chm_dns_resolver::DnsResolver::get_local_ip()
+                .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
+                .to_string()
+        } else {
+            IpAddr::V4(Ipv4Addr::LOCALHOST).to_string()
+        };
+        "https://".to_string() + &caip + ":50052"
+    }
+}
+declare_config!(extend = crate::ControllerExtension);
+declare_config_bus!();
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -38,7 +91,7 @@ pub async fn entry() -> ConResult<()> {
     tracing::debug!("寫入Controller UUID到服務池...");
     GlobalConfig::update_with(|cfg| {
         let self_hostname = cfg.server.hostname.clone();
-        cfg.services_pool.services_uuid.insert(self_hostname, cfg.server.unique_id);
+        cfg.extend.services_pool.services_uuid.insert(self_hostname, cfg.server.unique_id);
     });
     tracing::debug!("Controller UUID 已寫入服務池");
     tracing::debug!("檢查是否為第一次執行...");
