@@ -58,7 +58,6 @@ async fn main() -> ApiResult<()> {
         let otp_len = cfg.server.otp_len;
         (SocketAddr::new(host, port), controller_addr, rootca, cert_info, otp_len)
     });
-    dbg!(&addr, &controller_addr, &rootca, &cert_info);
     let (key, x509_cert) = CertUtils::generate_self_signed_cert(
         cert_info.bits,
         &cert_info.country,
@@ -84,23 +83,25 @@ async fn main() -> ApiResult<()> {
         }
     }
     tracing::info!("初始化 Server 已結束，繼續啟動正式服務...");
-    let tls = ClientTlsConfig::new()
-        .ca_certificate(Certificate::from_pem(std::fs::read(rootca)?))
-        .domain_name("CHMcd.chm.com");
+    let tls = ClientTlsConfig::new().ca_certificate(Certificate::from_pem(
+        std::fs::read(rootca).expect("讀取 RootCA 憑證失敗"),
+    ));
     let endpoint = Endpoint::from_shared(controller_addr.clone())
-        .map_err(|e| format!("無效的 Controller 地址: {e}"))?
+        .map_err(|e| format!("無效的 Controller 地址: {e}"))
+        .expect("建立 gRPC Endpoint 失敗")
         .timeout(std::time::Duration::from_secs(5))
         .connect_timeout(std::time::Duration::from_secs(3))
         .tcp_keepalive(Some(std::time::Duration::from_secs(30)))
         .keep_alive_while_idle(true)
         .http2_keep_alive_interval(std::time::Duration::from_secs(15))
         .keep_alive_timeout(std::time::Duration::from_secs(5))
-        .tls_config(tls)?;
+        .tls_config(tls)
+        .expect("設定 TLS 失敗");
     let channel = endpoint.connect_lazy();
     let grpc_client = RestfulServiceClient::new(channel)
         .accept_compressed(CompressionEncoding::Zstd)
         .send_compressed(CompressionEncoding::Zstd);
-    GlobalConfig::save_config().await?;
+    GlobalConfig::save_config().await.expect("保存配置檔案失敗");
     HttpServer::new(move || {
         App::new()
             .app_data(Data::new(AppState { gclient: grpc_client.clone() }))
