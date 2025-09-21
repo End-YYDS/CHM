@@ -18,6 +18,22 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>
 #[derive(Debug)]
 pub struct CertUtils;
 impl CertUtils {
+    fn san_adder(subject_alt_names: &[&str], csr_builder: &mut X509ReqBuilder) -> Result<()> {
+        if !subject_alt_names.is_empty() {
+            let mut san_builder = SubjectAlternativeName::new();
+            for &name in subject_alt_names {
+                match name.parse::<IpAddr>() {
+                    Ok(_) => san_builder.ip(name),   // IP SAN
+                    Err(_) => san_builder.dns(name), // DNS SAN
+                };
+            }
+            let san_ext = san_builder.build(&csr_builder.x509v3_context(None))?;
+            let mut extensions = openssl::stack::Stack::new()?;
+            extensions.push(san_ext)?;
+            csr_builder.add_extensions(&extensions)?;
+        }
+        Ok(())
+    }
     pub fn generate_rsa_keypair(key_bits: u32) -> Result<(Vec<u8>, Vec<u8>)> {
         let rsa = Rsa::generate(key_bits)?;
         let private_key_pem = rsa.private_key_to_pem()?;
@@ -56,25 +72,11 @@ impl CertUtils {
         let name = name_builder.build();
         csr_builder.set_subject_name(&name)?;
         csr_builder.set_pubkey(&private_key)?;
-        if !subject_alt_names.is_empty() {
-            let mut san_builder = SubjectAlternativeName::new();
-            for &name in subject_alt_names {
-                match name.parse::<IpAddr>() {
-                    Ok(_) => san_builder.ip(name),   // IP SAN
-                    Err(_) => san_builder.dns(name), // DNS SAN
-                };
-            }
-            let san_ext = san_builder.build(&csr_builder.x509v3_context(None))?;
-            let mut extensions = openssl::stack::Stack::new()?;
-            extensions.push(san_ext)?;
-            csr_builder.add_extensions(&extensions)?;
-        }
+        Self::san_adder(subject_alt_names, &mut csr_builder)?;
         csr_builder.sign(&private_key, MessageDigest::sha256())?;
         let csr = csr_builder.build();
-
         let key_pem = private_key.private_key_to_pem_pkcs8()?;
         let csr_pem = csr.to_pem()?;
-
         Ok((key_pem, csr_pem))
     }
     /// 使用指定金鑰產生 CSR
@@ -106,25 +108,11 @@ impl CertUtils {
         let name = name_builder.build();
         csr_builder.set_subject_name(&name)?;
         csr_builder.set_pubkey(&private_key)?;
-        if !subject_alt_names.is_empty() {
-            let mut san_builder = SubjectAlternativeName::new();
-            for &name in subject_alt_names {
-                match name.parse::<IpAddr>() {
-                    Ok(_) => san_builder.ip(name),   // IP SAN
-                    Err(_) => san_builder.dns(name), // DNS SAN
-                };
-            }
-            let san_ext = san_builder.build(&csr_builder.x509v3_context(None))?;
-            let mut extensions = openssl::stack::Stack::new()?;
-            extensions.push(san_ext)?;
-            csr_builder.add_extensions(&extensions)?;
-        }
+        Self::san_adder(subject_alt_names, &mut csr_builder)?;
         csr_builder.sign(&private_key, MessageDigest::sha256())?;
         let csr = csr_builder.build();
-
         let key_pem = private_key.private_key_to_pem_pkcs8()?;
         let csr_pem = csr.to_pem()?;
-
         Ok((key_pem, csr_pem))
     }
     #[allow(clippy::too_many_arguments)]
