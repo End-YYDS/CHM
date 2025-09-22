@@ -19,8 +19,9 @@ macro_rules! declare_init_route {
     // ── 有 ret、有 extras（總成版，實作都在這支）────────────────────────────
     ($handler:expr, data = $data:ty, extras = ($($extra_pat:ident : $extra_ty:ty),* $(,)?), ret = $ret:ty) => {
         use std::path::PathBuf;
+        use std::sync::Arc;
         use std::ops::ControlFlow;
-        use $crate::_reexports::{post, resource, Data, HttpResponse, Json, Responder, Sender, ServiceConfig, HttpRequest};
+        use $crate::_reexports::{post, resource, Data, HttpResponse, Json, Responder, Sender, ServiceConfig, HttpRequest,RwLock};
         use $crate::Value;
 
         pub fn init_route() -> impl Fn(&mut ServiceConfig) + Clone {
@@ -31,10 +32,12 @@ macro_rules! declare_init_route {
                     move |req: HttpRequest,
                           shutdown_tx: Data<Sender<()>>,
                           marker_path: Data<PathBuf>,
-                          otp_code: Data<String>,
+                          otp_code: Data<Arc<RwLock<String>>>,
                           $($extra_pat : Data<$extra_ty>,)*
-                          Json(envelope): Json<$crate::InitEnvelope<$data>>| async move {
-                        if envelope.code.as_str() != otp_code.as_str() {
+                          Json(envelope): Json<$crate::InitEnvelope<$data>>|
+                    async move {
+                        let current_otp = otp_code.read().await.clone();
+                        if envelope.code.as_str() != current_otp {
                             return $crate::api_resp!(Unauthorized "OTP 驗證失敗");
                         }
                         let data_json = Json(envelope.data);

@@ -6,7 +6,7 @@ mod supervisor;
 use crate::communication::GrpcClients;
 pub use crate::{config::config, globals::GlobalConfig};
 use chm_config_bus::{declare_config, declare_config_bus};
-use chm_project_const::{uuid::Uuid, ProjectConst};
+use chm_project_const::ProjectConst;
 use dashmap::DashMap;
 use first::first_run;
 use serde::{Deserialize, Serialize};
@@ -30,6 +30,10 @@ pub struct ControllerExtension {
 }
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct ServicesPool {
+    #[cfg(debug_assertions)]
+    #[serde(flatten)]
+    pub services_uuid: DashMap<String, String>,
+    #[cfg(not(debug_assertions))]
     #[serde(flatten)]
     pub services_uuid: DashMap<String, Uuid>,
 }
@@ -91,6 +95,10 @@ pub async fn entry() -> ConResult<()> {
     tracing::debug!("寫入Controller UUID到服務池...");
     GlobalConfig::update_with(|cfg| {
         let self_hostname = cfg.server.hostname.clone();
+        let self_uuid_port = format!("{}:{}", cfg.server.unique_id, cfg.server.port);
+        #[cfg(debug_assertions)]
+        cfg.extend.services_pool.services_uuid.insert(self_hostname, self_uuid_port);
+        #[cfg(not(debug_assertions))]
         cfg.extend.services_pool.services_uuid.insert(self_hostname, cfg.server.unique_id);
     });
     tracing::debug!("Controller UUID 已寫入服務池");

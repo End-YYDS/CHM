@@ -15,6 +15,7 @@ struct FirstStart {
     self_uuid:     Uuid,
     ca_hostname:   String,
     self_hostname: String,
+    ca_port:       u16,
 }
 struct FirstStartParams {
     base_url:      String,
@@ -30,6 +31,7 @@ struct SignedCertResponse {
     chain:       Vec<Vec<u8>>,
     unique_id:   Uuid,
     ca_hostname: String,
+    port:        u16,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -57,6 +59,7 @@ impl FirstStart {
             self_uuid,
             ca_hostname: "".into(),
             self_hostname,
+            ca_port: 50052,
         }
     }
     pub async fn init(&mut self) -> ConResult<()> {
@@ -80,6 +83,7 @@ impl FirstStart {
         self.cert_chain = Some(resp.chain);
         self.ca_unique_id = Some(resp.unique_id);
         self.ca_hostname = resp.ca_hostname;
+        self.ca_port = resp.port;
         Ok(())
     }
 }
@@ -105,6 +109,12 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
     conn.init().await?;
     if let Some(ca_id) = conn.ca_unique_id {
         GlobalConfig::update_with(|cfg| {
+            #[cfg(debug_assertions)]
+            cfg.extend
+                .services_pool
+                .services_uuid
+                .insert(conn.ca_hostname.clone(), format!("{ca_id}:{}", conn.ca_port));
+            #[cfg(not(debug_assertions))]
             cfg.extend.services_pool.services_uuid.insert(conn.ca_hostname.clone(), ca_id);
         });
     }

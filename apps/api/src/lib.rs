@@ -1,5 +1,6 @@
 #![allow(non_camel_case_types)]
 #![allow(dead_code)]
+
 use crate::handles::handles_scope;
 pub use crate::{config::config, globals::GlobalConfig};
 use actix_web::web::{scope, ServiceConfig};
@@ -10,6 +11,7 @@ use std::sync::atomic::AtomicBool;
 mod commons;
 // mod config;
 mod handles;
+pub use config::CertInfo;
 
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
 pub const ID: &str = "CHM_API";

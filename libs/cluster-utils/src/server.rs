@@ -15,8 +15,9 @@ use std::{
     ops::ControlFlow,
     path::{Path, PathBuf},
     sync::Arc,
+    time::Duration,
 };
-use tokio::net::TcpStream;
+use tokio::{net::TcpStream, sync::RwLock, time, time::Instant};
 
 pub type ValidCertHandler = Arc<dyn Fn(&str, &str) -> bool + Send + Sync>;
 #[allow(unused)]
@@ -28,13 +29,14 @@ pub struct ServerCluster {
     cert:               Option<PemOrPath>,
     key:                Option<PemOrPath>,
     root_ca:            Option<PemOrPath>,
-    otp:                Option<String>,
+    otp:                Arc<RwLock<String>>,
     otp_len:            usize,
     ssl_acceptor:       Option<SslAcceptorBuilder>,
     custom_otp:         bool,
     marker_path:        Option<String>,
     valid_cert_handler: Option<ValidCertHandler>,
     configurers:        Configurer,
+    otp_rotate_every:   Option<Duration>,
 }
 impl Debug for ServerCluster {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -47,6 +49,7 @@ impl Debug for ServerCluster {
             .field("otp_len", &self.otp_len)
             .field("custom_otp", &self.custom_otp)
             .field("marker_path", &self.marker_path)
+            .field("otp_rotate_every", &self.otp_rotate_every)
             .finish()
     }
 }
@@ -58,13 +61,14 @@ impl Default for ServerCluster {
             cert:               None,
             key:                None,
             root_ca:            None,
-            otp:                None,
+            otp:                Arc::new(RwLock::new(String::new())),
             otp_len:            6,
             ssl_acceptor:       None,
             custom_otp:         false,
             marker_path:        None,
             valid_cert_handler: None,
             configurers:        Vec::new(),
+            otp_rotate_every:   None,
         }
     }
 }
@@ -163,7 +167,7 @@ impl ServerCluster {
         self
     }
     pub fn with_otp(mut self) -> Self {
-        self.otp = Some(chm_password::generate_otp(self.otp_len));
+        self.otp = Arc::new(RwLock::new(chm_password::generate_otp(self.otp_len)));
         self
     }
     pub fn with_marker_path(mut self, path: impl Into<String>) -> Self {
@@ -176,13 +180,12 @@ impl ServerCluster {
     }
     pub fn with_custom_otp(mut self, custom: bool, passwd: Option<impl Into<String>>) -> Self {
         self.custom_otp = custom;
-        if custom {
-            if let Some(passwd) = passwd {
-                self.otp = Some(passwd.into());
-            } else {
-                self.otp = Some(chm_password::generate_otp(self.otp_len));
-            }
-        }
+        let first = if custom {
+            passwd.map(Into::into).unwrap_or_else(|| chm_password::generate_otp(self.otp_len))
+        } else {
+            chm_password::generate_otp(self.otp_len)
+        };
+        self.otp = Arc::new(RwLock::new(first));
         self
     }
     pub fn add_configurer<F>(mut self, f: F) -> Self
@@ -190,6 +193,10 @@ impl ServerCluster {
         F: Fn(&mut ServiceConfig) + Send + Sync + 'static,
     {
         self.configurers.push(Arc::new(f));
+        self
+    }
+    pub fn with_otp_rotate_every(mut self, every: Duration) -> Self {
+        self.otp_rotate_every = Some(every);
         self
     }
     pub fn make_ssl_acceptor_builder(&self) -> Result<SslAcceptorBuilder, ErrorStack> {
@@ -243,11 +250,13 @@ impl ServerCluster {
         self.ssl_acceptor = Some(builder);
         Ok(self)
     }
+    pub async fn current_otp(&self) -> String {
+        self.otp.read().await.clone()
+    }
     pub async fn init(&self) -> ControlFlow<Box<dyn std::error::Error + Send + Sync>, ()> {
         let (tx, mut rx) = tokio::sync::mpsc::channel::<()>(1);
         let tx_clone = tx.clone();
         let bind_addr = self.bind_address.clone();
-        let otp_code = self.otp.clone().expect("otp should have been set by new()");
         let marker = self.marker_path.clone().expect("marker_path should have been set");
         let marker_path = ProjectConst::data_path().join(format!(".{marker}.done"));
         if marker_path.exists() {
@@ -260,13 +269,15 @@ impl ServerCluster {
         };
         let valid_cb = self.valid_cert_handler.clone();
         let configurers = self.configurers.clone();
+        let otp_store = self.otp.clone();
+        let rotate_cfg = self.otp_rotate_every;
         tracing::info!("Starting server on {bind_addr}");
-        tracing::info!("Using OTP: {otp_code}");
+        tracing::info!("Using OTP: {}", self.current_otp().await);
         let server = match HttpServer::new(move || {
             let configurers = configurers.clone();
             let mut app = App::new()
                 .app_data(Data::new(marker_path.clone()))
-                .app_data(Data::new(otp_code.clone()))
+                .app_data(Data::new(otp_store.clone()))
                 .app_data(Data::new(tx_clone.clone()));
             if let Some(ref cb) = valid_cb {
                 app = app.app_data(Data::new(cb.clone()));
@@ -292,10 +303,13 @@ impl ServerCluster {
             Ok(b) => b.disable_signals().run(),
             Err(e) => return ControlFlow::Break(e.into()),
         };
+
         let handle = server.handle();
         let h_for_rx = handle.clone();
+        let (otp_tx, mut otp_rx) = tokio::sync::oneshot::channel::<()>();
         tokio::spawn(async move {
             if rx.recv().await.is_some() {
+                let _ = otp_tx.send(());
                 h_for_rx.stop(false).await;
             }
         });
@@ -307,6 +321,27 @@ impl ServerCluster {
             }
             let _ = abort_tx.send(());
         });
+        if let Some(every) = rotate_cfg {
+            let otp_store = self.otp.clone();
+            let otp_len = self.otp_len;
+            tokio::spawn(async move {
+                let start = Instant::now() + every;
+                let mut ticker = time::interval_at(start, every);
+                loop {
+                    tokio::select! {
+                        _ = ticker.tick() => {
+                            let new = chm_password::generate_otp(otp_len);
+                            *otp_store.write().await = new.clone();
+                            tracing::info!("(rotated) New OTP: {}", new);
+                        }
+                        _ = &mut otp_rx => {
+                            tracing::info!("OTP rotation stopped");
+                            break;
+                        }
+                    }
+                }
+            });
+        }
         let flow = tokio::select! {
             res = server => {
                 match res {

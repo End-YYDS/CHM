@@ -3,7 +3,7 @@ use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{api_resp, declare_init_route, Default_ServerCluster};
 use openssl::x509::{X509Req, X509};
 use serde::{Deserialize, Serialize};
-use std::{net::SocketAddr, sync::Arc};
+use std::{net::SocketAddr, time::Duration};
 use uuid::Uuid;
 
 #[derive(Serialize)]
@@ -12,6 +12,7 @@ struct SignedCertResponse {
     chain:       Vec<Vec<u8>>,
     unique_id:   Uuid,
     ca_hostname: String,
+    port:        u16,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -26,6 +27,7 @@ struct AppState {
     cert_process: Arc<CertificateProcess>,
     unique_id:    Uuid,
     hostname:     String,
+    port:         u16,
 }
 async fn init_data_handler(
     _req: &HttpRequest,
@@ -65,6 +67,7 @@ async fn init_data_handler(
         chain:       signed_cert.1,
         unique_id:   state.unique_id,
         ca_hostname: state.hostname.clone(),
+        port:        state.port,
     })
 }
 declare_init_route!(init_data_handler, data = InitRequest, extras = (state: Arc<AppState>), ret = SignedCertResponse);
@@ -86,8 +89,13 @@ impl MiniController {
         addr: SocketAddr,
         id: Uuid,
     ) -> ControlFlow<Box<dyn std::error::Error + Send + Sync>, ()> {
-        let (otp_len, root_ca, hostname) = GlobalConfig::with(|cfg| {
-            (cfg.server.otp_len, cfg.certificate.root_ca.clone(), cfg.server.hostname.clone())
+        let (otp_len, root_ca, hostname, self_port) = GlobalConfig::with(|cfg| {
+            (
+                cfg.server.otp_len,
+                cfg.certificate.root_ca.clone(),
+                cfg.server.hostname.clone(),
+                cfg.server.port,
+            )
         });
         let x509_cert = self.sign_cert.clone().expect("MiniController 憑證獲取失敗");
         let key = self.private_key.clone().expect("MiniController 私鑰獲取失敗");
@@ -100,11 +108,13 @@ impl MiniController {
             otp_len,
             ID,
         )
+        .with_otp_rotate_every(Duration::from_secs(30))
         .add_configurer(init_route())
         .with_app_data(AppState {
             cert_process: self.cert_process.clone(),
             unique_id:    id,
             hostname:     hostname.clone(),
+            port:         self_port,
         });
         match init_server.init().await {
             ControlFlow::Continue(()) => {

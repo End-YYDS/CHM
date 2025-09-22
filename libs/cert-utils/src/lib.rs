@@ -18,20 +18,29 @@ type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>
 #[derive(Debug)]
 pub struct CertUtils;
 impl CertUtils {
-    fn san_adder(subject_alt_names: &[&str], csr_builder: &mut X509ReqBuilder) -> Result<()> {
-        if !subject_alt_names.is_empty() {
-            let mut san_builder = SubjectAlternativeName::new();
-            for &name in subject_alt_names {
-                match name.parse::<IpAddr>() {
-                    Ok(_) => san_builder.ip(name),   // IP SAN
-                    Err(_) => san_builder.dns(name), // DNS SAN
-                };
-            }
-            let san_ext = san_builder.build(&csr_builder.x509v3_context(None))?;
-            let mut extensions = openssl::stack::Stack::new()?;
-            extensions.push(san_ext)?;
-            csr_builder.add_extensions(&extensions)?;
+    fn san_adder<I, S>(subject_alt_names: I, csr_builder: &mut X509ReqBuilder) -> Result<()>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
+        let names: Vec<String> =
+            subject_alt_names.into_iter().map(|s| s.as_ref().to_string()).collect();
+
+        if names.is_empty() {
+            return Ok(());
         }
+
+        let mut san_builder = SubjectAlternativeName::new();
+        for name in &names {
+            match name.parse::<IpAddr>() {
+                Ok(_) => san_builder.ip(name),   // IP SAN
+                Err(_) => san_builder.dns(name), // DNS SAN
+            };
+        }
+        let san_ext = san_builder.build(&csr_builder.x509v3_context(None))?;
+        let mut extensions = openssl::stack::Stack::new()?;
+        extensions.push(san_ext)?;
+        csr_builder.add_extensions(&extensions)?;
         Ok(())
     }
     pub fn generate_rsa_keypair(key_bits: u32) -> Result<(Vec<u8>, Vec<u8>)> {
@@ -86,17 +95,21 @@ impl CertUtils {
     /// * Subject 欄位
     /// * `subject_alt_names`: 要加入的 SAN DNS 名稱列表
     /// # 回傳
-    /// * `Ok((private_key_pem, csr_pem))`：分別是私鑰和 CSR 的 PEM Bytes
+    /// * `Ok(csr_pem)`：CSR 的 PEM Bytes
     /// * `Err(e)`：若任何步驟失敗，回傳錯誤
-    pub fn generate_csr(
+    pub fn generate_csr<I, S>(
         key_pem: Vec<u8>,
         country: &str,
         state: &str,
         locality: &str,
         organization: &str,
         common_name: &str,
-        subject_alt_names: &[&str],
-    ) -> Result<(Vec<u8>, Vec<u8>)> {
+        subject_alt_names: I,
+    ) -> Result<Vec<u8>>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
         let private_key = PKey::private_key_from_pem(&key_pem)?;
         let mut csr_builder = X509ReqBuilder::new()?;
         let mut name_builder = X509NameBuilder::new()?;
@@ -108,12 +121,13 @@ impl CertUtils {
         let name = name_builder.build();
         csr_builder.set_subject_name(&name)?;
         csr_builder.set_pubkey(&private_key)?;
-        Self::san_adder(subject_alt_names, &mut csr_builder)?;
+        let san: Vec<String> =
+            subject_alt_names.into_iter().map(|s| s.as_ref().to_string()).collect();
+        Self::san_adder(san, &mut csr_builder)?;
         csr_builder.sign(&private_key, MessageDigest::sha256())?;
         let csr = csr_builder.build();
-        let key_pem = private_key.private_key_to_pem_pkcs8()?;
         let csr_pem = csr.to_pem()?;
-        Ok((key_pem, csr_pem))
+        Ok(csr_pem)
     }
     #[allow(clippy::too_many_arguments)]
     /// 產生自簽名憑證

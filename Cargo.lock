@@ -335,6 +335,7 @@ dependencies = [
  "chm-dns_resolver",
  "chm-grpc",
  "chm-project_const",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",
@@ -665,6 +666,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "time",
  "tokio",
  "tracing",
 ]
