@@ -2,6 +2,12 @@ use std::path::PathBuf;
 pub extern crate uuid;
 pub struct ProjectConst;
 impl ProjectConst {
+    pub const SOFTWARE_NAME: &'static str = "CHM";
+    pub const SOFTWARE_VERSION: &'static str = env!("CARGO_PKG_VERSION");
+    pub const SOFTWARE_DESCRIPTION: &'static str = env!("CARGO_PKG_DESCRIPTION");
+    pub const SOFTWARE_PORT: u16 = 11209;
+    pub const SOFTWARE_AUTHORS: &'static str = env!("CARGO_PKG_AUTHORS");
+    pub const SOFTWARE_GIT_COMMIT: &'static str = env!("CARGO_PKG_HOMEPAGE");
     pub const SAVE_DIR: &'static str = "/etc";
     pub const PROJECT_NAME: &'static str = "CHM";
     pub const CONFIG_DIR: &'static str = "config";
