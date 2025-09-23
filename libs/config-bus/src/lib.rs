@@ -49,7 +49,13 @@ macro_rules! declare_config {
                         IpAddr::V4(Ipv4Addr::LOCALHOST).to_string()
                     }
                 }
-                fn default_port() -> u16 { crate::DEFAULT_PORT }
+                fn default_port() -> u16 {
+                    if cfg!(debug_assertions) {
+                        crate::DEFAULT_PORT
+                    }else {
+                       ProjectConst::SOFTWARE_PORT
+                    }
+                }
                 fn default_otp_len() -> usize { crate::DEFAULT_OTP_LEN }
                 fn default_unique_id() -> Uuid { Uuid::new_v4() }
             }
@@ -193,8 +199,12 @@ macro_rules! declare_config {
                         IpAddr::V4(Ipv4Addr::LOCALHOST).to_string()
                     }
                 }
-                fn default_port() -> u16 {
-                    crate::DEFAULT_PORT
+                 fn default_port() -> u16 {
+                    if cfg!(debug_assertions) {
+                        crate::DEFAULT_PORT
+                    }else {
+                       ProjectConst::SOFTWARE_PORT
+                    }
                 }
                 fn default_otp_len() -> usize {
                     crate::DEFAULT_OTP_LEN

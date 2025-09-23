@@ -1,4 +1,4 @@
-use controller::{ConResult, ID, NEED_EXAMPLE};
+use controller::{config, Args, ConResult, ID, NEED_EXAMPLE};
 use std::sync::atomic::Ordering::Relaxed;
 use tracing_subscriber::EnvFilter;
 
@@ -10,17 +10,20 @@ async fn main() -> ConResult<()> {
         EnvFilter::from_default_env()
     };
     tracing_subscriber::fmt().with_env_filter(filter).init();
-    let args: Vec<String> = std::env::args().collect();
+    let args: Args = argh::from_env();
     tracing::debug!("啟動 Controller，參數: {:?}", args);
-    // TODO: 添加Argh解析CLI參數
-    if args.iter().any(|a| a == "--init-config") {
+    if args.init_config {
         NEED_EXAMPLE.store(true, Relaxed);
         tracing::info!("初始化配置檔案...");
         controller::config().await?;
         tracing::info!("配置檔案已生成，請檢查 {ID}_config.toml.example");
         return Ok(());
     }
+    tracing::info!("Controller 啟動中...");
+    tracing::debug!("初始化全域設定...");
+    config().await?;
+    tracing::debug!("全域設定已初始化");
     tracing::info!("正在啟動Controller...");
-    controller::entry().await?;
+    controller::entry(args).await?;
     Ok(())
 }

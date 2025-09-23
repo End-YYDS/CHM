@@ -7,6 +7,7 @@ use chm_project_const::uuid::Uuid;
 use serde::{Deserialize, Serialize};
 
 struct FirstStart {
+    root_ca:       Option<Vec<u8>>,
     private_key:   Option<Vec<u8>>,
     cert:          Option<Vec<u8>>,
     cert_chain:    Option<Vec<Vec<u8>>>,
@@ -21,12 +22,12 @@ struct FirstStartParams {
     base_url:      String,
     private_key:   Option<Vec<u8>>,
     cert:          Option<Vec<u8>>,
-    root_ca:       Option<PathBuf>,
     self_uuid:     Uuid,
     self_hostname: String,
 }
 #[derive(Debug, Deserialize)]
 struct SignedCertResponse {
+    root_ca:     Vec<u8>,
     cert:        Vec<u8>,
     chain:       Vec<Vec<u8>>,
     unique_id:   Uuid,
@@ -42,8 +43,7 @@ struct InitData {
 }
 impl FirstStart {
     pub fn new(parms: FirstStartParams) -> Self {
-        let FirstStartParams { base_url, private_key, cert, root_ca, self_uuid, self_hostname } =
-            parms;
+        let FirstStartParams { base_url, private_key, cert, self_uuid, self_hostname } = parms;
         Self {
             private_key,
             cert,
@@ -51,15 +51,17 @@ impl FirstStart {
             inner: Default_ClientCluster::new(
                 base_url,
                 None::<String>,
+                None::<PathBuf>,
+                None::<PathBuf>,
+                None::<PathBuf>,
                 None::<String>,
-                None::<String>,
-                root_ca,
             ),
             ca_unique_id: None,
             self_uuid,
             ca_hostname: "".into(),
             self_hostname,
             ca_port: 50052,
+            root_ca: None,
         }
     }
     pub async fn init(&mut self) -> ConResult<()> {
@@ -78,6 +80,7 @@ impl FirstStart {
         )?;
         let payload = InitData { csr_cert, days: 365, uuid: self.self_uuid };
         let resp: SignedCertResponse = init_with!(self.inner, payload, as SignedCertResponse)?;
+        self.root_ca = Some(resp.root_ca);
         self.private_key = Some(pri_key);
         self.cert = Some(resp.cert);
         self.cert_chain = Some(resp.chain);
@@ -102,7 +105,6 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
         base_url: ca_url,
         private_key: None,
         cert: None,
-        root_ca: Some(root_ca),
         self_uuid,
         self_hostname: self_hostname.clone(),
     });
@@ -117,6 +119,10 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
             #[cfg(not(debug_assertions))]
             cfg.extend.services_pool.services_uuid.insert(conn.ca_hostname.clone(), ca_id);
         });
+    }
+    if let Some(ca_cert) = conn.root_ca {
+        tokio::fs::write(&root_ca, &ca_cert).await?;
+        tracing::info!("從 mCA 取得的 RootCA 憑證已儲存至 {}", root_ca.display());
     }
     if let Some(cert) = conn.cert {
         let private_key = conn.private_key.expect("缺少私鑰");

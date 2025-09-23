@@ -1,5 +1,7 @@
+use chm_project_const::uuid::Uuid;
 use serde::{Deserialize, Serialize};
 pub use serde_json::Value;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiResponse<T = Value> {
     pub message: String,
@@ -22,6 +24,24 @@ impl<T> ApiResponse<T> {
         Self { message: message.into(), ok: false, data: None }
     }
 }
+
+#[allow(dead_code)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "op", rename_all = "snake_case")]
+pub enum InitData {
+    Bootstrap { root_ca_pem: Vec<u8> }, /* Controller 連線過來之後先傳送root_ca_pem,並且取得API
+                                         * uuid 與 csr_pem 與Hostname 及 服務本身的Port */
+    Finalize { id: Uuid, cert_pem: Vec<u8>, chain_pem: Vec<Vec<u8>> }, /* 檢查 Controller收到的UUID與自身是否相同，相同才接收憑證 */
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BootstrapResp {
+    pub uuid:            Uuid,
+    pub csr_pem:         Vec<u8>,
+    pub server_hostname: String,
+    pub server_port:     u16,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InitEnvelope<T> {
     pub code: String,

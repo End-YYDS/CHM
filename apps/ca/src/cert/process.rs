@@ -140,6 +140,7 @@ impl CertificateProcess {
         let leaf = builder.build();
         let cert_pem = leaf.to_pem()?;
         let chain_pem = vec![self.ca_cert.to_pem()?];
+        // TODO: 以後很多層中介層憑證才有用
         self.store.insert(leaf).await?;
         Ok((cert_pem, chain_pem))
     }

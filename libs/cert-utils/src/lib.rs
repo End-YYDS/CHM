@@ -299,6 +299,21 @@ impl CertUtils {
         let ca_key = Self::load_key(key_path, passphrase)?;
         Ok((ca_key.private_key_to_pem_pkcs8()?, ca_cert.to_pem()?))
     }
+    pub fn cert_from_path(
+        cert_path: &Path,
+        key_path: &Path,
+        passphrase: Option<&str>,
+    ) -> Result<(Vec<u8>, Vec<u8>)> {
+        if !cert_path.exists() {
+            return Err(format!("憑證檔案 {} 不存在", cert_path.display()).into());
+        }
+        if !key_path.exists() {
+            return Err(format!("金鑰檔案 {} 不存在", key_path.display()).into());
+        }
+        let ca_cert = Self::load_cert(cert_path)?;
+        let ca_key = Self::load_key(key_path, passphrase)?;
+        Ok((ca_key.private_key_to_pem_pkcs8()?, ca_cert.to_pem()?))
+    }
     pub fn cert_fingerprint_sha256(cert: &X509) -> Result<String> {
         let der = cert.to_der()?;
         let digest = hash(MessageDigest::sha256(), &der)?;

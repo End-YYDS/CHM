@@ -10,7 +10,7 @@ use std::{
 
 use cached::{proc_macro::cached, TimedSizedCache};
 use chm_dns_resolver::DnsResolver;
-use chm_project_const::{uuid::Uuid, ProjectConst};
+use chm_project_const::uuid::Uuid;
 use futures::FutureExt;
 use reqwest::{
     dns::{Name, Resolve, Resolving},
@@ -27,6 +27,7 @@ pub struct ClientCluster {
     mdns_url:   String,
     cert_chain: Option<(ClientKey, ClientCert)>,
     root_ca:    Option<PathBuf>,
+    otp_code:   Option<String>,
 }
 
 impl Default for ClientCluster {
@@ -37,6 +38,7 @@ impl Default for ClientCluster {
             mdns_url:   "http://127.0.0.1:50053".into(),
             cert_chain: None,
             root_ca:    None,
+            otp_code:   None,
         }
     }
 }
@@ -76,12 +78,14 @@ impl ClientCluster {
         cert_path: Option<impl Into<PathBuf>>,
         key_path: Option<impl Into<PathBuf>>,
         root_ca: Option<impl Into<PathBuf>>,
+        otp_code: impl Into<Option<String>>,
     ) -> Self {
         Self::default()
             .with_mdns(mdns_addr)
             .with_base_url(base_url)
             .with_cert_chain(cert_path, key_path)
             .with_root_ca(root_ca)
+            .with_otp_code(otp_code)
     }
     pub fn with_base_url(mut self, url: impl Into<String>) -> Self {
         self.base_url = url.into();
@@ -115,15 +119,22 @@ impl ClientCluster {
         self.timeout = timeout;
         self
     }
+    pub fn with_otp_code(mut self, otp: impl Into<Option<String>>) -> Self {
+        self.otp_code = otp.into();
+        self
+    }
 
     pub async fn build(&self) -> Result<Client, Box<dyn StdError + Send + Sync>> {
         let raw = Arc::new(DnsResolver::new(&self.mdns_url).await);
         let my_resolver = Arc::new(MyResolver(raw));
-        let mut builder =
-            Client::builder().dns_resolver(my_resolver).timeout(self.timeout).use_rustls_tls();
+        let mut builder = Client::builder()
+            .dns_resolver(my_resolver)
+            .timeout(self.timeout)
+            .use_rustls_tls()
+            .danger_accept_invalid_certs(true);
         if let Some((ref key_p, ref cert_p)) = self.cert_chain {
-            let key_p = ProjectConst::certs_path().join(key_p);
-            let cert_p = ProjectConst::certs_path().join(cert_p);
+            // let key_p = ProjectConst::certs_path().join(key_p);
+            // let cert_p = ProjectConst::certs_path().join(cert_p);
             let id = load_client_identity(cert_p.clone(), key_p.clone())?;
             builder = builder.identity(id);
         }
@@ -135,14 +146,19 @@ impl ClientCluster {
         Ok(builder.build()?)
     }
     pub fn get_otp(&self) -> Result<String, Box<dyn StdError + Send + Sync>> {
-        let mut input = String::new();
-        print!("請輸入OTP code：");
-        std::io::stdout().flush()?;
-        let byte_read = std::io::stdin().read_line(&mut input)?;
-        let otp = input.trim().trim_end_matches(['\r', '\n']);
-        if byte_read == 0 || otp.is_empty() {
-            return Err("未輸入OTP，請重新啟動並輸入OTP".into());
-        }
+        let otp = self.otp_code.clone().unwrap_or_else(|| loop {
+            let mut input = String::new();
+            print!("請輸入OTP code：");
+            std::io::stdout().flush().expect("Can't flush stdout");
+            let byte_read = std::io::stdin().read_line(&mut input).expect("Can't read from stdin");
+            let otp = input.trim().trim_end_matches(['\r', '\n']);
+            if byte_read == 0 || otp.is_empty() {
+                println!("OTP code 不可為空，請重新輸入。");
+                continue;
+            } else {
+                break otp.to_string();
+            }
+        });
         Ok(otp.to_string())
     }
     #[inline]
@@ -150,33 +166,6 @@ impl ClientCluster {
         &self.base_url
     }
 }
-
-// #[async_trait]
-// impl ClusterClient for ClientCluster {
-//     async fn init(&mut self) -> Result<(), Box<dyn StdError + Send + Sync>> {
-//         let client = self.build().await?;
-//         tracing::info!("開始與 {} 進行通信", self.base_url);
-//         let otp = self.get_otp().map_err(|e| {
-//             tracing::error!("OTP Error: {}", e);
-//             e
-//         })?;
-//         let mut map = HashMap::new();
-//         map.insert("code", otp);
-//         let url = format!("{}/init", self.base_url);
-//         tracing::debug!("初始化請求 URL: {}", url);
-//         // TODO: 檢查是否為UUID是就解析成hostname之後
-//         let resp = client.post(url).json(&map).send().await?;
-//         let api_resp: ApiResponse = resp.json().await?;
-//         if !api_resp.ok {
-//             let err_msg = api_resp.message.clone();
-//             tracing::error!("初始化失敗: {}", err_msg);
-//             return Err(err_msg.into());
-//         }
-//
-//         println!("{api_resp:#?}");
-//         Ok(())
-//     }
-// }
 
 pub struct MyResolver(pub Arc<DnsResolver>);
 async fn lookup_host_or_custom_uncached(

@@ -26,14 +26,18 @@ pub struct Services {
 }
 impl Services {
     fn default_controller() -> String {
-        let controller_ip = if !cfg!(debug_assertions) {
-            chm_dns_resolver::DnsResolver::get_local_ip()
+        let mut cip = String::from("https://");
+        if !cfg!(debug_assertions) {
+            let c = chm_dns_resolver::DnsResolver::get_local_ip()
                 .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST))
-                .to_string()
+                .to_string();
+            cip.push_str(&c);
         } else {
-            std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST).to_string()
-        };
-        "https://".to_string() + &controller_ip + ":50051"
+            let c = std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST).to_string();
+            cip.push_str(&c);
+            cip.push_str(":50051");
+        }
+        cip
     }
 }
 impl Default for Services {

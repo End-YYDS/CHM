@@ -48,7 +48,7 @@ pub type PrivateKey = Vec<u8>;
 pub type CsrCert = Vec<u8>;
 type CheckFuture = BoxFuture<'static, Result<Request<()>, Status>>;
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
-pub const ID: &str = "mCA";
+pub const ID: &str = "CHMmCA";
 pub const DEFAULT_PORT: u16 = 50052;
 pub const DEFAULT_OTP_LEN: usize = 6;
 pub const DEFAULT_MAX_CONNECTIONS: u32 = 5;
@@ -249,7 +249,11 @@ pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>)
     loop {
         let mut rx = cert_update_rx.clone();
         // 設定 TLS
-        let (key, cert) = CertUtils::cert_from_name("ca_grpc", None)?;
+        let (key, cert) = GlobalConfig::with(|cfg| {
+            (cfg.certificate.client_key.clone(), cfg.certificate.client_cert.clone())
+        });
+
+        let (key, cert) = CertUtils::cert_from_path(&cert, &key, None)?;
         let identity = Identity::from_pem(cert, key);
         let tls = ServerTlsConfig::new().identity(identity).client_ca_root(
             tonic::transport::Certificate::from_pem(cert_handler.get_ca_cert().to_pem()?),
@@ -358,7 +362,7 @@ pub async fn ca_grpc_cert(cert_handler: &CertificateProcess, uid: Uuid) -> CaRes
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
-    CertUtils::save_cert("ca_grpc", &ca_grpc.0, &ca_grpc_sign.0)?;
+    CertUtils::save_cert(ID, &ca_grpc.0, &ca_grpc_sign.0)?;
     Ok(())
 }
 

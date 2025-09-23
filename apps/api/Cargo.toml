@@ -13,7 +13,6 @@ actix-web = { workspace = true }
 chm-config_bus = { workspace = true }
 chm-cluster-utils = { workspace = true, features = ["server"], default-features = true }
 chm-cert-utils = { workspace = true }
-chm-config_loader = { workspace = true, default-features = true }
 chm-dns_resolver = { workspace = true }
 chm-grpc = { workspace = true, features = ["restful-common-client"] }
 chm-project_const = { workspace = true }
@@ -23,3 +22,5 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tokio = { workspace = true }
 reqwest = { workspace = true }
+argh = { workspace = true }
+openssl = { workspace = true }

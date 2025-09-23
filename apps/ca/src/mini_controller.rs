@@ -8,6 +8,7 @@ use uuid::Uuid;
 
 #[derive(Serialize)]
 struct SignedCertResponse {
+    root_ca:     Vec<u8>,
     cert:        Vec<u8>,
     chain:       Vec<Vec<u8>>,
     unique_id:   Uuid,
@@ -28,6 +29,7 @@ struct AppState {
     unique_id:    Uuid,
     hostname:     String,
     port:         u16,
+    root_ca:      Vec<u8>,
 }
 async fn init_data_handler(
     _req: &HttpRequest,
@@ -63,6 +65,7 @@ async fn init_data_handler(
         return ControlFlow::Break(api_resp!(InternalServerError "儲存設定失敗"));
     }
     ControlFlow::Continue(SignedCertResponse {
+        root_ca:     state.root_ca.clone(),
         cert:        signed_cert.0,
         chain:       signed_cert.1,
         unique_id:   state.unique_id,
@@ -100,6 +103,13 @@ impl MiniController {
         let x509_cert = self.sign_cert.clone().expect("MiniController 憑證獲取失敗");
         let key = self.private_key.clone().expect("MiniController 私鑰獲取失敗");
         tracing::info!("在 {addr} 啟動MiniController，等待 Controller 的初始化請求...");
+        let root_ca_bytes = match tokio::fs::read(&root_ca).await {
+            Ok(ca) => ca,
+            Err(e) => {
+                tracing::error!("讀取 RootCA 憑證失敗: {:?}", e);
+                return ControlFlow::Break("讀取 RootCA 憑證失敗".into());
+            }
+        };
         let init_server = Default_ServerCluster::new(
             addr.to_string(),
             x509_cert,
@@ -111,6 +121,7 @@ impl MiniController {
         .with_otp_rotate_every(Duration::from_secs(30))
         .add_configurer(init_route())
         .with_app_data(AppState {
+            root_ca:      root_ca_bytes,
             cert_process: self.cert_process.clone(),
             unique_id:    id,
             hostname:     hostname.clone(),

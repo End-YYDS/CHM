@@ -8,11 +8,11 @@ name = "CHMcd"
 path = "src/main.rs"
 
 [dependencies]
+argh = { workspace = true }
 backoff = { workspace = true }
 chm-cert-utils = { workspace = true }
 chm-cluster-utils = { workspace = true, features = ["client", "server"] }
 chm-config_bus = { workspace = true }
-chm-config_loader = { workspace = true, default-features = true }
 chm-dns_resolver = { workspace = true }
 chm-grpc = { workspace = true, features = ["controller", "ca-client", "restful"] }
 chm-project_const = { workspace = true }

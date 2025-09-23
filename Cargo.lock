@@ -328,13 +328,14 @@ version = "0.1.0"
 dependencies = [
  "actix-multipart",
  "actix-web",
+ "argh",
  "chm-cert-utils",
  "chm-cluster-utils",
  "chm-config_bus",
- "chm-config_loader",
  "chm-dns_resolver",
  "chm-grpc",
  "chm-project_const",
+ "openssl",
  "reqwest",
  "serde",
  "serde_json",
@@ -348,6 +349,38 @@ name = "arc-swap"
 version = "1.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69f7f8c3906b62b754cd5326047894316021dcfe5a194c8ea52bdd94934a3457"
+
+[[package]]
+name = "argh"
+version = "0.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34ff18325c8a36b82f992e533ece1ec9f9a9db446bd1c14d4f936bac88fcd240"
+dependencies = [
+ "argh_derive",
+ "argh_shared",
+ "rust-fuzzy-search",
+]
+
+[[package]]
+name = "argh_derive"
+version = "0.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "adb7b2b83a50d329d5d8ccc620f5c7064028828538bdf5646acd60dc1f767803"
+dependencies = [
+ "argh_shared",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "argh_shared"
+version = "0.1.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a464143cc82dedcdc3928737445362466b7674b5db4e2eb8e869846d6d84f4f6"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "argon2"
@@ -790,11 +823,11 @@ checksum = "c2459377285ad874054d797f3ccebf984978aa39129f6eafde5cdc8315b612f8"
 name = "controller"
 version = "0.1.0"
 dependencies = [
+ "argh",
  "backoff",
  "chm-cert-utils",
  "chm-cluster-utils",
  "chm-config_bus",
- "chm-config_loader",
  "chm-dns_resolver",
  "chm-grpc",
  "chm-project_const",
@@ -2652,6 +2685,12 @@ dependencies = [
  "subtle",
  "zeroize",
 ]
+
+[[package]]
+name = "rust-fuzzy-search"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a157657054ffe556d8858504af8a672a054a6e0bd9e8ee531059100c0fa11bb2"
 
 [[package]]
 name = "rustc-demangle"
