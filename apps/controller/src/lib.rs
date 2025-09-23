@@ -138,6 +138,7 @@ pub async fn entry(args: Args) -> ConResult<()> {
     let data_dir = ProjectConst::data_path();
     std::fs::create_dir_all(&data_dir)?;
     tracing::debug!("資料目錄已檢查");
+
     tracing::debug!("寫入Controller UUID到服務池...");
     GlobalConfig::update_with(|cfg| {
         let self_hostname = cfg.server.hostname.clone();
@@ -176,8 +177,9 @@ pub async fn entry(args: Args) -> ConResult<()> {
             tracing::info!("服務刪除完成");
             return Ok(());
         }
-        _ => supervisor::run_supervised(clients).await?,
+        _ => {}
     }
+    supervisor::run_supervised(clients).await?;
     tracing::debug!("二階段Controller 執行完成");
     Ok(())
 }

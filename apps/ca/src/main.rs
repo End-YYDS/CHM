@@ -23,7 +23,7 @@ async fn main() -> CaResult<()> {
     tracing_subscriber::fmt().with_env_filter(filter).init();
     let args: Vec<String> = env::args().collect();
     tracing::debug!("啟動 mCA 伺服器，參數: {:?}", args);
-    if args.iter().any(|a| a == "--init-config") {
+    if args.iter().any(|a| a == "--init-config" || a == "-i") {
         NEED_EXAMPLE.store(true, Relaxed);
         tracing::info!("初始化配置檔案...");
         config().await?;
