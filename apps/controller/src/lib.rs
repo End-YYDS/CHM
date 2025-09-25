@@ -107,26 +107,28 @@ impl Default for ServerExtension {
 impl ServerExtension {
     fn default_dns_server() -> String {
         let mut dns_server = String::from("http://");
-        if !cfg!(debug_assertions) {
+        #[cfg(debug_assertions)]
+        {
+            let s = IpAddr::V4(Ipv4Addr::LOCALHOST).to_string();
+            dns_server.push_str(&s);
+            dns_server.push_str(":50053");
+        }
+        #[cfg(not(debug_assertions))]
+        {
             let s = chm_dns_resolver::DnsResolver::get_local_ip()
                 .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
                 .to_string();
             dns_server.push_str(&s);
-        } else {
-            let s = IpAddr::V4(Ipv4Addr::LOCALHOST).to_string();
-            dns_server.push_str(&s);
-            dns_server.push_str(":50053");
-        };
+        }
         dns_server
     }
     fn default_ca_server() -> String {
-        let caip = if !cfg!(debug_assertions) {
-            chm_dns_resolver::DnsResolver::get_local_ip()
-                .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
-                .to_string()
-        } else {
-            IpAddr::V4(Ipv4Addr::LOCALHOST).to_string()
-        };
+        #[cfg(debug_assertions)]
+        let caip = IpAddr::V4(Ipv4Addr::LOCALHOST).to_string();
+        #[cfg(not(debug_assertions))]
+        let caip = chm_dns_resolver::DnsResolver::get_local_ip()
+            .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
+            .to_string();
         "https://".to_string() + &caip + ":50052"
     }
 }

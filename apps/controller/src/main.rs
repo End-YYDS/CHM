@@ -4,11 +4,10 @@ use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() -> ConResult<()> {
-    let filter = if cfg!(debug_assertions) {
-        EnvFilter::from_default_env().add_directive("info".parse().unwrap())
-    } else {
-        EnvFilter::from_default_env()
-    };
+    #[cfg(debug_assertions)]
+    let filter = EnvFilter::from_default_env().add_directive("info".parse().unwrap());
+    #[cfg(not(debug_assertions))]
+    let filter = EnvFilter::from_default_env();
     tracing_subscriber::fmt().with_env_filter(filter).init();
     let args: Args = argh::from_env();
     tracing::debug!("啟動 Controller，參數: {:?}", args);

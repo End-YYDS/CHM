@@ -41,20 +41,22 @@ macro_rules! declare_config {
             impl Server {
                 fn default_hostname() -> String { crate::ID.into() }
                 fn default_host() -> String {
-                    if !cfg!(debug_assertions) {
+                    #[cfg(debug_assertions)]
+                    {
+                        IpAddr::V4(Ipv4Addr::LOCALHOST).to_string()
+                    }
+                    #[cfg(not(debug_assertions))]
+                    {
                         DnsResolver::get_local_ip()
                             .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
                             .to_string()
-                    } else {
-                        IpAddr::V4(Ipv4Addr::LOCALHOST).to_string()
                     }
                 }
                 fn default_port() -> u16 {
-                    if cfg!(debug_assertions) {
-                        crate::DEFAULT_PORT
-                    }else {
-                       ProjectConst::SOFTWARE_PORT
-                    }
+                    #[cfg(debug_assertions)]
+                    crate::DEFAULT_PORT
+                    #[cfg(not(debug_assertions))]
+                    ProjectConst::SOFTWARE_PORT
                 }
                 fn default_otp_len() -> usize { crate::DEFAULT_OTP_LEN }
                 fn default_unique_id() -> Uuid { Uuid::new_v4() }
@@ -191,19 +193,23 @@ macro_rules! declare_config {
                     crate::ID.into()
                 }
                 fn default_host() -> String {
-                    if !cfg!(debug_assertions) {
-                        DnsResolver::get_local_ip()
-                            .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
-                            .to_string()
-                    } else {
+                    #[cfg(debug_assertions)]
+                    {
                         IpAddr::V4(Ipv4Addr::LOCALHOST).to_string()
                     }
+                    #[cfg(not(debug_assertions))]
+                    {
+                        DnsResolver::get_local_ip().unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST)).to_string()
+                    }
                 }
-                 fn default_port() -> u16 {
-                    if cfg!(debug_assertions) {
+                fn default_port() -> u16 {
+                    #[cfg(debug_assertions)]
+                    {
                         crate::DEFAULT_PORT
-                    }else {
-                       ProjectConst::SOFTWARE_PORT
+                    }
+                    #[cfg(not(debug_assertions))]
+                    {
+                        ProjectConst::SOFTWARE_PORT
                     }
                 }
                 fn default_otp_len() -> usize {

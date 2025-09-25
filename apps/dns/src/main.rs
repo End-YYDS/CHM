@@ -366,18 +366,16 @@ impl DnsService for MyDnsService {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let filter = if cfg!(debug_assertions) {
-        EnvFilter::from_default_env().add_directive("info".parse().unwrap())
-    } else {
-        EnvFilter::from_default_env()
-    };
+    #[cfg(debug_assertions)]
+    let filter = EnvFilter::from_default_env().add_directive("info".parse().unwrap());
+    #[cfg(not(debug_assertions))]
+    let filter = EnvFilter::from_default_env();
     tracing_subscriber::fmt().with_env_filter(filter).init();
     tracing::info!("正在啟動DNS...");
-    let local_ip = if cfg!(debug_assertions) {
-        IpAddr::V4(Ipv4Addr::LOCALHOST)
-    } else {
-        chm_dns_resolver::DnsResolver::get_local_ip()?
-    };
+    #[cfg(debug_assertions)]
+    let local_ip = IpAddr::V4(Ipv4Addr::LOCALHOST);
+    #[cfg(not(debug_assertions))]
+    let local_ip = chm_dns_resolver::DnsResolver::get_local_ip()?;
     let addr: SocketAddr = format!("{local_ip}:50053").parse()?;
     let solver = DnsSolver::new().await?;
     // 手動添加默認mCA主機

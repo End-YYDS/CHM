@@ -22,11 +22,10 @@ impl ProjectConst {
         PathBuf::from(Self::SAVE_DIR).join(Self::PROJECT_NAME)
     }
     pub fn certs_path() -> PathBuf {
-        let dir = if Self::is_debug() {
-            PathBuf::from(Self::CERTS_DIR)
-        } else {
-            Self::release_save_dir().join(Self::CERTS_DIR)
-        };
+        #[cfg(debug_assertions)]
+        let dir = PathBuf::from(Self::CERTS_DIR);
+        #[cfg(not(debug_assertions))]
+        let dir = Self::release_save_dir().join(Self::CERTS_DIR);
         if dir.exists() {
             dir
         } else {
@@ -35,11 +34,10 @@ impl ProjectConst {
         }
     }
     pub fn config_path() -> PathBuf {
-        let dir = if Self::is_debug() {
-            PathBuf::from(Self::CONFIG_DIR)
-        } else {
-            Self::release_save_dir().join(Self::CONFIG_DIR)
-        };
+        #[cfg(debug_assertions)]
+        let dir = PathBuf::from(Self::CONFIG_DIR);
+        #[cfg(not(debug_assertions))]
+        let dir = Self::release_save_dir().join(Self::CONFIG_DIR);
         if dir.exists() {
             dir
         } else {
@@ -48,11 +46,10 @@ impl ProjectConst {
         }
     }
     pub fn data_path() -> PathBuf {
-        let dir = if Self::is_debug() {
-            PathBuf::from(Self::DATA_DIR)
-        } else {
-            Self::release_save_dir().join(Self::DATA_DIR)
-        };
+        #[cfg(debug_assertions)]
+        let dir = PathBuf::from(Self::DATA_DIR);
+        #[cfg(not(debug_assertions))]
+        let dir = Self::release_save_dir().join(Self::DATA_DIR);
         if dir.exists() {
             dir
         } else {
@@ -61,11 +58,10 @@ impl ProjectConst {
         }
     }
     pub fn db_path() -> PathBuf {
-        let dir = if Self::is_debug() {
-            PathBuf::from(Self::DB_DIR)
-        } else {
-            Self::release_save_dir().join(Self::DB_DIR)
-        };
+        #[cfg(debug_assertions)]
+        let dir = PathBuf::from(Self::DB_DIR);
+        #[cfg(not(debug_assertions))]
+        let dir = Self::release_save_dir().join(Self::DB_DIR);
         if dir.exists() {
             dir
         } else {

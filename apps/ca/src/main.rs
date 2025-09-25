@@ -15,11 +15,10 @@ use std::{
 use tracing_subscriber::EnvFilter;
 #[actix_web::main]
 async fn main() -> CaResult<()> {
-    let filter = if cfg!(debug_assertions) {
-        EnvFilter::from_default_env().add_directive("info".parse().unwrap())
-    } else {
-        EnvFilter::from_default_env()
-    };
+    #[cfg(debug_assertions)]
+    let filter = EnvFilter::from_default_env().add_directive("info".parse().unwrap());
+    #[cfg(not(debug_assertions))]
+    let filter = EnvFilter::from_default_env();
     tracing_subscriber::fmt().with_env_filter(filter).init();
     let args: Vec<String> = env::args().collect();
     tracing::debug!("啟動 mCA 伺服器，參數: {:?}", args);
@@ -70,7 +69,8 @@ async fn main() -> CaResult<()> {
         tracing::info!("MiniController 初始化完成，開始創建憑證...");
         tracing::debug!("創建 ca_grpc 憑證...");
         ca_grpc_cert(&cert_handler, unique_id).await?;
-        if cfg!(debug_assertions) {
+        #[cfg(debug_assertions)]
+        {
             tracing::debug!("創建 grpc_test 憑證...");
             grpc_test_cert(&cert_handler).await?;
             tracing::debug!("創建 one_test 憑證...");

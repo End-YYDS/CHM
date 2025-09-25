@@ -57,19 +57,15 @@ impl Ca for MyCa {
     ///   返回簽署的憑證和鏈，或錯誤狀態
     async fn sign_csr(&self, req: Request<CsrRequest>) -> Result<Response<CsrResponse>, Status> {
         let temp = req.into_parts();
-        let debug = cfg!(debug_assertions);
-        if debug {
-            dbg!(&temp);
-        }
-
+        #[cfg(debug_assertions)]
+        dbg!(&temp);
         let CsrRequest { csr, days } = temp.2;
         let csr = X509Req::from_der(&csr)
             .or_else(|_| X509Req::from_pem(&csr))
             .map_err(|e| Status::invalid_argument(format!("Invalid CSR: {e}")))?;
         let (leaf, chain) = self.cert.sign_csr(&csr, days).await.map_err(|e| {
-            if debug {
-                tracing::error!("Sign error: {e}");
-            }
+            #[cfg(debug_assertions)]
+            tracing::error!("Sign error: {e}");
             Status::internal(format!("Sign error: {e}"))
         })?;
         Ok(Response::new(CsrResponse { cert: leaf, chain }))

@@ -127,11 +127,10 @@ declare_init_route!(init_data_handler, data = InitData,extras = (carry: Arc<Init
 #[actix_web::main]
 async fn main() -> ApiResult<()> {
     let args: Cli = argh::from_env();
-    let filter = if cfg!(debug_assertions) {
-        EnvFilter::from_default_env().add_directive("info".parse().unwrap())
-    } else {
-        EnvFilter::from_default_env()
-    };
+    #[cfg(debug_assertions)]
+    let filter = EnvFilter::from_default_env().add_directive("info".parse().unwrap());
+    #[cfg(not(debug_assertions))]
+    let filter = EnvFilter::from_default_env();
     tracing_subscriber::fmt().with_env_filter(filter).init();
     if args.init_config {
         NEED_EXAMPLE.store(true, Relaxed);
