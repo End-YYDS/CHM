@@ -9,7 +9,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let otp = input.trim();
     let client = ClientBuilder::new().danger_accept_invalid_certs(true).build()?;
     let base_url = "https://127.0.0.1:50050/init";
-    let root_pem = include_bytes!("../../../../certs/rootCA.pem").to_vec();
+    let root_pem = std::fs::read("../../../../certs/rootCA.pem")?.to_vec();
     let resp = client
         .post(base_url)
         .json(&serde_json::json!({ "code": otp, "op": "bootstrap","root_ca_pem": root_pem}))

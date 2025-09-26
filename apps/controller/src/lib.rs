@@ -271,6 +271,8 @@ impl Node {
                 .services_uuid
                 .insert(first_step.server_hostname.clone(), first_step.uuid);
         });
+        GlobalConfig::save_config().await?;
+        GlobalConfig::reload_config().await?;
         Ok(())
     }
     pub async fn remove(&self) -> ConResult<()> {

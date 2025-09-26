@@ -16,6 +16,7 @@ chm-cert-utils = { workspace = true }
 chm-dns_resolver = { workspace = true }
 chm-grpc = { workspace = true, features = ["restful-common-client"] }
 chm-project_const = { workspace = true }
+chm-password = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
@@ -24,3 +25,5 @@ tokio = { workspace = true }
 reqwest = { workspace = true }
 argh = { workspace = true }
 openssl = { workspace = true }
+actix-cors = { workspace = true }
+actix-session = { workspace = true }

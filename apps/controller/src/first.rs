@@ -134,6 +134,7 @@ pub async fn first_run(marker_path: &Path) -> ConResult<()> {
     }
     std::fs::write(marker_path, "done")?;
     GlobalConfig::save_config().await?;
+    GlobalConfig::reload_config().await?;
     tracing::debug!("mCA UUID: {:?}", conn.ca_unique_id);
     Ok(())
 }

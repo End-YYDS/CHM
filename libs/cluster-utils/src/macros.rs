@@ -95,7 +95,7 @@ macro_rules! init_with {
             tracing::error!("初始化失敗: {}", __msg);
             Err::<(), Box<dyn std::error::Error + Send + Sync>>(__msg.into())
         } else {
-            tracing::info!("初始化成功: {}", __api_resp.message);
+            tracing::debug!("初始化成功: {}", __api_resp.message);
             Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
         }
     }};
@@ -129,7 +129,7 @@ macro_rules! init_with {
         } else {
             match __parsed.data {
                 Some(__val) => {
-                    tracing::info!("初始化成功: {}", __parsed.message);
+                    tracing::debug!("初始化成功: {}", __parsed.message);
                     Ok::<$resp_ty, Box<dyn std::error::Error + Send + Sync>>(__val)
                 }
                 None => {

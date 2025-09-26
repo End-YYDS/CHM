@@ -7,6 +7,7 @@ mod file;
 mod firewall;
 mod info;
 pub mod login;
+mod logout;
 mod logs;
 mod network;
 mod process;
@@ -15,6 +16,7 @@ mod software;
 
 pub fn handles_scope(cfg: &mut ServiceConfig) {
     cfg.service(login::login_scope())
+        .service(logout::logout_scope())
         .service(server::server_scope())
         .service(chm::chm_scope())
         .service(cron::cron_scope())

@@ -8,6 +8,7 @@ use chm_config_bus::{declare_config, declare_config_bus};
 use chm_grpc::{restful::restful_service_client::RestfulServiceClient, tonic::transport::Channel};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::AtomicBool;
+mod auth;
 mod commons;
 // mod config;
 mod handles;
@@ -20,11 +21,33 @@ pub(crate) const DEFAULT_OTP_LEN: usize = 6;
 pub type ApiResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
-pub struct Services {
-    #[serde(default = "Services::default_controller")]
+pub struct ApiConfigExtend {
+    #[serde(default = "ApiConfigExtend::default_controller")]
     pub controller: String,
+    #[serde(default)]
+    pub security:   ApiSecurityConfig,
 }
-impl Services {
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct ApiSecurityConfig {
+    pub frontend_origin: String,
+    pub cookie_name:     String,
+    pub session_key:     String,
+    pub same_site:       String,
+    pub cookie_secure:   bool,
+}
+impl Default for ApiSecurityConfig {
+    fn default() -> Self {
+        Self {
+            frontend_origin: String::from("https://localhost:3000"),
+            cookie_name:     String::from("chm_sid"),
+            session_key:     chm_password::generate_key64_base64(),
+            same_site:       String::from("Lax"),
+            cookie_secure:   true,
+        }
+    }
+}
+impl ApiConfigExtend {
     fn default_controller() -> String {
         let mut cip = String::from("https://");
         #[cfg(debug_assertions)]
@@ -43,13 +66,13 @@ impl Services {
         cip
     }
 }
-impl Default for Services {
+impl Default for ApiConfigExtend {
     fn default() -> Self {
-        Self { controller: Self::default_controller() }
+        Self { controller: Self::default_controller(), security: ApiSecurityConfig::default() }
     }
 }
 
-declare_config!(extend = crate::Services);
+declare_config!(extend = crate::ApiConfigExtend);
 declare_config_bus!();
 
 #[allow(dead_code)]

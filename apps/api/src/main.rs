@@ -1,4 +1,12 @@
-use actix_web::{middleware, middleware::Logger, App, HttpServer};
+use actix_cors::Cors;
+use actix_session::{storage::CookieSessionStore, SessionMiddleware};
+use actix_web::{
+    cookie::{Key, SameSite},
+    http::header,
+    middleware,
+    middleware::Logger,
+    App, HttpServer,
+};
 use api_server::{
     config, configure_app, ApiResult, AppState, CertInfo, GlobalConfig, ID, NEED_EXAMPLE,
 };
@@ -39,8 +47,6 @@ pub struct InitCarry {
     pub server_port:     u16,
     pub private_key:     Vec<u8>,
     pub cert_info:       CertInfo,
-    // pub cert_pem:        RwLock<Option<Vec<u8>>>,
-    // pub chain_pem:       RwLock<Option<Vec<Vec<u8>>>>,
 }
 
 impl InitCarry {
@@ -52,16 +58,7 @@ impl InitCarry {
         private_key: Vec<u8>,
         cert_info: CertInfo,
     ) -> Arc<Self> {
-        Arc::new(Self {
-            root_ca_path,
-            uuid,
-            server_hostname,
-            server_port,
-            private_key,
-            cert_info,
-            // cert_pem: RwLock::new(None),
-            // chain_pem: RwLock::new(None),
-        })
+        Arc::new(Self { root_ca_path, uuid, server_hostname, server_port, private_key, cert_info })
     }
 }
 
@@ -98,21 +95,12 @@ async fn init_data_handler(
                 server_port: carry.server_port,
             };
             return ControlFlow::Break(api_resp!(ok "初始化交換成功", resp));
-            // TODO: 回傳BootstrapResp
         }
         InitData::Finalize { id, cert_pem, .. } => {
             if id != carry.uuid {
                 tracing::warn!("收到的 UUID 與預期不符，拒絕接收憑證");
                 return ControlFlow::Break(api_resp!(BadRequest "UUID 不符"));
             }
-            // {
-            //     let mut cert_lock = carry.cert_pem.write().await;
-            //     *cert_lock = Some(cert_pem);
-            // }
-            // {
-            //     let mut chain_lock = carry.chain_pem.write().await;
-            //     *chain_lock = Some(chain_pem);
-            // }
             if let Err(e) = CertUtils::save_cert(ID, &carry.private_key, &cert_pem) {
                 tracing::error!("保存憑證失敗: {:?}", e);
                 return ControlFlow::Break(api_resp!(InternalServerError "保存憑證失敗"));
@@ -150,6 +138,11 @@ async fn main() -> ApiResult<()> {
         self_uuid,
         key_path,
         cert_path,
+        frontend_origin,
+        cookie_name,
+        secure_key_bytes,
+        same_site,
+        cookie_secure,
     ) = GlobalConfig::with(|cfg| {
         let host: IpAddr =
             cfg.server.host.clone().parse().unwrap_or(IpAddr::V4(std::net::Ipv4Addr::LOCALHOST));
@@ -162,6 +155,11 @@ async fn main() -> ApiResult<()> {
         let uuid = cfg.server.unique_id;
         let key_path = cfg.certificate.client_key.clone();
         let cert_path = cfg.certificate.client_cert.clone();
+        let frontend_origin = cfg.extend.security.frontend_origin.clone();
+        let cookie_name = cfg.extend.security.cookie_name.clone();
+        let secure_key =
+            chm_password::decode_key64_from_base64(cfg.extend.security.session_key.as_str());
+        let same_site = cfg.extend.security.same_site.clone();
         (
             SocketAddr::new(host, port),
             controller_addr,
@@ -172,6 +170,11 @@ async fn main() -> ApiResult<()> {
             uuid,
             key_path,
             cert_path,
+            frontend_origin,
+            cookie_name,
+            secure_key.expect("無效的 Session Key"),
+            same_site,
+            cfg.extend.security.cookie_secure,
         )
     });
     let (key, x509_cert) = CertUtils::generate_self_signed_cert(
@@ -188,7 +191,7 @@ async fn main() -> ApiResult<()> {
     let carry = InitCarry::new(
         rootca.clone(),
         self_uuid,
-        addr.ip().to_string(),
+        ID.to_string(),
         addr.port(),
         key.clone(),
         cert_info.clone(),
@@ -198,7 +201,6 @@ async fn main() -> ApiResult<()> {
             .with_otp_rotate_every(otp_time)
             .add_configurer(init_route())
             .with_app_data::<InitCarry>(carry.clone());
-    // TODO: 保存憑證、私鑰、RootCA
     tracing::info!("啟動初始化 Server，等待 Controller 的初始化請求...");
     match init_server.init().await {
         ControlFlow::Continue(()) => {
@@ -234,12 +236,28 @@ async fn main() -> ApiResult<()> {
     let mut builder = openssl::ssl::SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
     builder.set_private_key_file(key_path, SslFiletype::PEM)?;
     builder.set_certificate_file(cert_path, SslFiletype::PEM)?;
-
+    let key = Key::from(&secure_key_bytes);
     HttpServer::new(move || {
+        let cors = Cors::default()
+            .allowed_origin(&frontend_origin)
+            .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
+            .allowed_headers(vec![header::CONTENT_TYPE, header::ACCEPT])
+            .supports_credentials()
+            .max_age(3600);
+        let same_site =
+            if same_site.eq_ignore_ascii_case("None") { SameSite::None } else { SameSite::Lax };
+        let session_mw = SessionMiddleware::builder(CookieSessionStore::default(), key.clone())
+            .cookie_name(cookie_name.clone())
+            .cookie_secure(cookie_secure)
+            .cookie_http_only(true)
+            .cookie_same_site(same_site)
+            .build();
         App::new()
             .app_data(Data::new(AppState { gclient: grpc_client.clone() }))
             .wrap(middleware::NormalizePath::trim())
             .wrap(Logger::default())
+            .wrap(cors)
+            .wrap(session_mw)
             .configure(configure_app)
     })
     .bind_openssl(addr, builder)?
