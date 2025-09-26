@@ -3,7 +3,7 @@ use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{api_resp, declare_init_route, Default_ServerCluster};
 use openssl::x509::{X509Req, X509};
 use serde::{Deserialize, Serialize};
-use std::{net::SocketAddr, time::Duration};
+use std::net::SocketAddr;
 use uuid::Uuid;
 
 #[derive(Serialize)]
@@ -92,9 +92,10 @@ impl MiniController {
         addr: SocketAddr,
         id: Uuid,
     ) -> ControlFlow<Box<dyn std::error::Error + Send + Sync>, ()> {
-        let (otp_len, root_ca, hostname, self_port) = GlobalConfig::with(|cfg| {
+        let (otp_len, otp_time, root_ca, hostname, self_port) = GlobalConfig::with(|cfg| {
             (
                 cfg.server.otp_len,
+                cfg.server.otp_time,
                 cfg.certificate.root_ca.clone(),
                 cfg.server.hostname.clone(),
                 cfg.server.port,
@@ -118,7 +119,7 @@ impl MiniController {
             otp_len,
             ID,
         )
-        .with_otp_rotate_every(Duration::from_secs(30))
+        .with_otp_rotate_every(otp_time)
         .add_configurer(init_route())
         .with_app_data(AppState {
             root_ca:      root_ca_bytes,

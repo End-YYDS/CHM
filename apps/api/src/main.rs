@@ -140,33 +140,40 @@ async fn main() -> ApiResult<()> {
         return Ok(());
     }
     config().await?;
-    let (addr, controller_addr, rootca, cert_info, otp_len, self_uuid, key_path, cert_path) =
-        GlobalConfig::with(|cfg| {
-            let host: IpAddr = cfg
-                .server
-                .host
-                .clone()
-                .parse()
-                .unwrap_or(IpAddr::V4(std::net::Ipv4Addr::LOCALHOST));
-            let port = cfg.server.port;
-            let controller_addr = cfg.extend.controller.clone();
-            let rootca = cfg.certificate.root_ca.clone();
-            let cert_info = cfg.certificate.cert_info.clone();
-            let otp_len = cfg.server.otp_len;
-            let uuid = cfg.server.unique_id;
-            let key_path = cfg.certificate.client_key.clone();
-            let cert_path = cfg.certificate.client_cert.clone();
-            (
-                SocketAddr::new(host, port),
-                controller_addr,
-                rootca,
-                cert_info,
-                otp_len,
-                uuid,
-                key_path,
-                cert_path,
-            )
-        });
+    let (
+        addr,
+        controller_addr,
+        rootca,
+        cert_info,
+        otp_len,
+        otp_time,
+        self_uuid,
+        key_path,
+        cert_path,
+    ) = GlobalConfig::with(|cfg| {
+        let host: IpAddr =
+            cfg.server.host.clone().parse().unwrap_or(IpAddr::V4(std::net::Ipv4Addr::LOCALHOST));
+        let port = cfg.server.port;
+        let controller_addr = cfg.extend.controller.clone();
+        let rootca = cfg.certificate.root_ca.clone();
+        let cert_info = cfg.certificate.cert_info.clone();
+        let otp_len = cfg.server.otp_len;
+        let otp_time = cfg.server.otp_time;
+        let uuid = cfg.server.unique_id;
+        let key_path = cfg.certificate.client_key.clone();
+        let cert_path = cfg.certificate.client_cert.clone();
+        (
+            SocketAddr::new(host, port),
+            controller_addr,
+            rootca,
+            cert_info,
+            otp_len,
+            otp_time,
+            uuid,
+            key_path,
+            cert_path,
+        )
+    });
     let (key, x509_cert) = CertUtils::generate_self_signed_cert(
         cert_info.bits,
         &cert_info.country,
@@ -188,7 +195,7 @@ async fn main() -> ApiResult<()> {
     );
     let init_server =
         Default_ServerCluster::new(addr.to_string(), x509_cert, key, None::<String>, otp_len, ID)
-            .with_otp_rotate_every(Duration::from_secs(30))
+            .with_otp_rotate_every(otp_time)
             .add_configurer(init_route())
             .with_app_data::<InitCarry>(carry.clone());
     // TODO: 保存憑證、私鑰、RootCA

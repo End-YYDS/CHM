@@ -12,11 +12,15 @@ use dashmap::DashMap;
 use first::first_run;
 use serde::{Deserialize, Serialize};
 use std::{
+    fs,
     io::Write,
     net::{IpAddr, Ipv4Addr},
     path::PathBuf,
     sync::atomic::AtomicBool,
+    time::Duration,
 };
+use tokio::{net::TcpStream, time::timeout};
+use url::Url;
 
 pub type ConResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
@@ -138,7 +142,7 @@ declare_config_bus!();
 pub async fn entry(args: Args) -> ConResult<()> {
     tracing::debug!("檢查資料目錄...");
     let data_dir = ProjectConst::data_path();
-    std::fs::create_dir_all(&data_dir)?;
+    fs::create_dir_all(&data_dir)?;
     tracing::debug!("資料目錄已檢查");
 
     tracing::debug!("寫入Controller UUID到服務池...");
@@ -185,6 +189,31 @@ pub async fn entry(args: Args) -> ConResult<()> {
     tracing::debug!("二階段Controller 執行完成");
     Ok(())
 }
+async fn ensure_mca_initialized() -> ConResult<()> {
+    let (root_ca_path, ca_server_url) = GlobalConfig::with(|cfg| {
+        (cfg.certificate.root_ca.clone(), cfg.extend.server_ext.ca_server.clone())
+    });
+    let meta = fs::metadata(&root_ca_path)
+        .map_err(|e| format!("無法存取 Root CA 檔案 {}：{e}", root_ca_path.display()))?;
+    if !meta.is_file() || meta.len() == 0 {
+        return Err(format!(
+            "Root CA 檔案不存在或為空：{}（請先完成 mCA 初始化）",
+            root_ca_path.display()
+        )
+        .into());
+    }
+    let url = Url::parse(&ca_server_url)
+        .map_err(|e| format!("mCA 伺服器 URL 非法：{ca_server_url}：{e}"))?;
+    let mut addrs = url
+        .socket_addrs(|| None)
+        .map_err(|e| format!("無法解析 mCA 伺服器位址：{ca_server_url}：{e}"))?;
+    let addr = addrs.pop().ok_or_else(|| format!("mCA 伺服器無有效位址：{ca_server_url}"))?;
+    timeout(Duration::from_secs(3), TcpStream::connect(addr))
+        .await
+        .map_err(|_| "連線 mCA 逾時（3s），請確認服務是否啟動/連線是否可達）")?
+        .map_err(|e| format!("無法連線到 mCA（{addr}）：{e}"))?;
+    Ok(())
+}
 
 #[allow(dead_code)]
 #[derive(Debug)]
@@ -214,6 +243,9 @@ impl Node {
         Self { host, otp_code, gclient, wclient }
     }
     pub async fn add(&self) -> ConResult<()> {
+        ensure_mca_initialized()
+            .await
+            .map_err(|e| format!("mCA 尚未完成初始化或目前不可用：{e}"))?;
         let root_ca_bytes =
             tokio::fs::read(GlobalConfig::with(|cfg| cfg.certificate.root_ca.clone())).await?;
         let payload = InitData::Bootstrap { root_ca_pem: root_ca_bytes };

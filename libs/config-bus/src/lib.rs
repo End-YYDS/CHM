@@ -5,6 +5,7 @@ pub mod _reexports {
     pub use chm_config_loader::{load_config, store_config};
     pub use chm_dns_resolver::DnsResolver;
     pub use chm_project_const::{uuid::Uuid, ProjectConst};
+    pub use humantime_serde;
     pub use serde::{Deserialize, Serialize};
     pub use std::sync::{atomic::Ordering::Relaxed, Arc, OnceLock};
     pub use tokio::sync::watch;
@@ -16,11 +17,11 @@ macro_rules! declare_config {
         pub(crate) mod config {
             use std::{
                 net::{IpAddr, Ipv4Addr},
-                path::PathBuf,
+                path::PathBuf,time::Duration,
             };
             use $crate::_reexports::{
                 load_config, store_config, Deserialize, DnsResolver, ProjectConst, Relaxed, Serialize,
-                Uuid,
+                Uuid,humantime_serde,
             };
             pub type ConfigResult<T> =
                 core::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -35,6 +36,8 @@ macro_rules! declare_config {
                 pub port:      u16,
                 #[serde(default = "Server::default_otp_len")]
                 pub otp_len:   usize,
+                #[serde(with = "humantime_serde", default = "Server::default_opt_time")]
+                pub otp_time: Duration,
                 #[serde(default = "Server::default_unique_id")]
                 pub unique_id: Uuid,
             }
@@ -59,6 +62,9 @@ macro_rules! declare_config {
                     ProjectConst::SOFTWARE_PORT
                 }
                 fn default_otp_len() -> usize { crate::DEFAULT_OTP_LEN }
+                fn default_opt_time() -> Duration {
+                    Duration::from_secs(30)
+                }
                 fn default_unique_id() -> Uuid { Uuid::new_v4() }
             }
             impl Default for Server {
@@ -68,6 +74,7 @@ macro_rules! declare_config {
                         host:      Self::default_host(),
                         port:      Self::default_port(),
                         otp_len:   Self::default_otp_len(),
+                        otp_time:  Self::default_opt_time(),
                         unique_id: Self::default_unique_id(),
                     }
                 }
@@ -168,11 +175,11 @@ macro_rules! declare_config {
         pub(crate) mod config {
             use std::{
                 net::{IpAddr, Ipv4Addr},
-                path::PathBuf,
+                path::PathBuf,time::Duration,
             };
             use $crate::_reexports::{
                 load_config, store_config, Deserialize, DnsResolver, Serialize,
-                ProjectConst, Uuid, Relaxed,
+                ProjectConst, Uuid, Relaxed,humantime_serde,
             };
             pub type ConfigResult<T> = core::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
             #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -185,6 +192,8 @@ macro_rules! declare_config {
                 pub port:      u16,
                 #[serde(default = "Server::default_otp_len")]
                 pub otp_len:   usize,
+                #[serde(with = "humantime_serde", default = "Server::default_opt_time")]
+                pub otp_time: Duration,
                 #[serde(default = "Server::default_unique_id")]
                 pub unique_id: Uuid,
             }
@@ -215,6 +224,9 @@ macro_rules! declare_config {
                 fn default_otp_len() -> usize {
                     crate::DEFAULT_OTP_LEN
                 }
+                fn default_opt_time() -> Duration {
+                    Duration::from_secs(30)
+                }
                 fn default_unique_id() -> Uuid {
                     Uuid::new_v4()
                 }
@@ -226,6 +238,7 @@ macro_rules! declare_config {
                         host:      Self::default_host(),
                         port:      Self::default_port(),
                         otp_len:   Self::default_otp_len(),
+                        otp_time:  Self::default_opt_time(),
                         unique_id: Self::default_unique_id(),
                     }
                 }

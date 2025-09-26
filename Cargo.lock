@@ -712,6 +712,7 @@ dependencies = [
  "chm-config_loader",
  "chm-dns_resolver",
  "chm-project_const",
+ "humantime-serde",
  "serde",
  "tokio",
 ]
@@ -839,6 +840,7 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
+ "url",
 ]
 
 [[package]]
