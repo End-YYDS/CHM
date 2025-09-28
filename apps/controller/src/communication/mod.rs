@@ -2,12 +2,16 @@
 
 use crate::{ConResult, GlobalConfig};
 use backoff::{future::retry, ExponentialBackoff};
+use chm_dns_resolver::{lookup_cached, DnsResolver};
 use chm_grpc::{
-    tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint, Identity},
+    tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint, Identity, Uri},
     tonic_health::pb::{health_client::HealthClient, HealthCheckRequest},
 };
 use futures::future::try_join_all;
-use std::{collections::HashMap, time::Duration};
+use hyper_util::rt::TokioIo;
+use std::{collections::HashMap, future::Future, io, net::SocketAddr, sync::Arc, time::Duration};
+use tokio::net::TcpStream;
+use tower::service_fn;
 
 pub(crate) mod ca;
 pub(crate) mod dhcp;
@@ -33,6 +37,7 @@ pub struct ServiceDescriptor {
     pub kind:        ServiceKind,
     pub uri:         String,
     pub health_name: Option<&'static str>,
+    pub domain_name: Option<&'static str>,
     pub log_name:    &'static str,
 }
 
@@ -116,13 +121,49 @@ impl GrpcConnectOptionsBuilder {
     }
 }
 
+fn to_io_err<E: std::fmt::Display>(e: E) -> io::Error {
+    io::Error::other(format!("{e}"))
+}
+fn make_minidns_connector(
+    resolver: Arc<DnsResolver>,
+) -> impl tower::Service<
+    Uri,
+    Response = TokioIo<TcpStream>,
+    Error = io::Error,
+    Future = impl Future<Output = Result<TokioIo<TcpStream>, io::Error>> + Send,
+> + Clone {
+    service_fn(move |uri: Uri| {
+        let resolver = resolver.clone();
+        async move {
+            let host = uri
+                .host()
+                .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "URI 缺少 host"))?
+                .to_string();
+            let cached = lookup_cached(resolver, host).await.map_err(to_io_err)?;
+            let port = uri.port_u16().unwrap_or_else(|| match uri.scheme_str() {
+                Some("https") => 443,
+                _ => 80,
+            });
+            let target = SocketAddr::new(cached.ip(), port);
+            let stream = TcpStream::connect(target).await?;
+            Ok(TokioIo::new(stream))
+        }
+    })
+}
+
 pub async fn grpc_connect_with_retry(
     uri: &str,
-    tls: ClientTlsConfig,
+    mut tls: ClientTlsConfig,
     backoff: ExponentialBackoff,
     opts: &GrpcConnectOptions,
     log_name: &str,
+    minidns: Arc<DnsResolver>,
+    sni_override: Option<&str>,
 ) -> ConResult<Channel> {
+    if let Some(sni) = sni_override {
+        tls = tls.domain_name(sni);
+    }
+    let connector = make_minidns_connector(minidns);
     let mut endpoint = Endpoint::from_shared(uri.to_string())?.tls_config(tls)?;
 
     if let Some(d) = opts.connect_timeout {
@@ -161,7 +202,7 @@ pub async fn grpc_connect_with_retry(
 
     tracing::debug!("初始化 {log_name} gRPC 連線（帶重試）…");
     let channel = retry(backoff, || async {
-        match endpoint.clone().connect().await {
+        match endpoint.clone().connect_with_connector(connector.clone()).await {
             Ok(ch) => {
                 tracing::info!("{log_name} gRPC Channel 已建立");
                 Ok(ch)
@@ -189,12 +230,24 @@ pub async fn connect_all_services(
     backoff: ExponentialBackoff,
     opts: &GrpcConnectOptions,
 ) -> ConResult<HashMap<ServiceKind, Channel>> {
+    let mdns_addr = GlobalConfig::with(|cfg| cfg.extend.server_ext.dns_server.clone());
+    let dns_rosolver = Arc::new(DnsResolver::new(mdns_addr).await);
     let futs = services.iter().map(|svc| {
+        let minidns = dns_rosolver.clone();
         let tls = tls.clone();
         let opts = opts.clone();
         let backoff = backoff.clone();
         async move {
-            let ch = grpc_connect_with_retry(&svc.uri, tls, backoff, &opts, svc.log_name).await?;
+            let ch = grpc_connect_with_retry(
+                &svc.uri,
+                tls,
+                backoff,
+                &opts,
+                svc.log_name,
+                minidns,
+                svc.domain_name,
+            )
+            .await?;
             if let Some(health_name) = svc.health_name {
                 health_check(ch.clone(), health_name).await?;
             } else {
@@ -247,11 +300,12 @@ pub async fn init_channels_all() -> ConResult<GrpcClients> {
         .initial_conn_window_size(2_097_152)
         .initial_stream_window_size(1_048_576)
         .build();
-
+    // TODO: 後續需要其他預先定義服務，下個版本
     let services = vec![ServiceDescriptor {
         kind:        ServiceKind::Mca,
         uri:         mca_uri,
         health_name: Some("ca.CA"),
+        domain_name: Some("mca.chm.com"),
         log_name:    "CA",
     }];
     let channels = connect_all_services(&services, tls, backoff, &opts).await?;

@@ -50,6 +50,8 @@ pub struct InitEnvelope<T> {
 }
 #[cfg(feature = "client")]
 mod client;
+#[cfg(feature = "grpc-server")]
+pub mod gserver;
 mod macros;
 #[cfg(feature = "server")]
 mod server;

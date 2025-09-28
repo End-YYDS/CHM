@@ -8,12 +8,12 @@ publish = false
 client = ["dep:reqwest"]
 server = ["dep:actix-web", "dep:actix-tls"]
 openssl = ["dep:openssl", "dep:openssl-sys"]
+grpc-server = ["dep:tonic", "dep:num_cpus", "dep:sysinfo"]
 default = ["openssl", "dep:tokio"]
 
 [dependencies]
 actix-tls = { workspace = true, optional = true }
 actix-web = { workspace = true, optional = true }
-cached = { workspace = true }
 chm-dns_resolver = { workspace = true }
 chm-password = { workspace = true }
 futures = { workspace = true }
@@ -25,4 +25,7 @@ tokio = { workspace = true, optional = true, features = ["sync", "fs"] }
 tracing = { workspace = true }
 chm-project_const = { workspace = true }
 serde_json = { workspace = true }
-time = "0.3.41"
+cached = { workspace = true }
+num_cpus = { workspace = true, optional = true }
+sysinfo = { workspace = true, optional = true }
+tonic = { workspace = true, optional = true }

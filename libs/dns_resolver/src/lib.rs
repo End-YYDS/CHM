@@ -1,9 +1,15 @@
 use backoff::{future::retry, ExponentialBackoff};
+use cached::proc_macro::cached;
 use chm_grpc::{dns::dns_service_client::DnsServiceClient, tonic::transport::Channel};
-use std::net::{IpAddr, Ipv4Addr};
+use std::{
+    error::Error as StdError,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    sync::Arc,
+    time::Duration,
+};
 use url::{Host, Url};
 use uuid::Uuid;
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+type Result<T> = std::result::Result<T, Box<dyn StdError + Send + Sync>>;
 #[derive(Debug)]
 pub struct DnsResolver {
     dns_address: String,
@@ -39,25 +45,21 @@ impl From<Uuid> for DnsQuery {
 impl DnsResolver {
     pub async fn new(dns_address: impl Into<String>) -> Self {
         let dns_address = dns_address.into();
-        // let client = DnsServiceClient::connect(dns_address.clone())
-        //     .await
-        //     .expect("Failed to connect to DNS service");
         let backoff = ExponentialBackoff {
-            max_elapsed_time: Some(std::time::Duration::from_secs(60)), // 最長重試 60 秒
+            max_elapsed_time: Some(std::time::Duration::from_secs(60)),
             ..Default::default()
         };
-
         let client = retry(backoff, || {
             let dns_address = dns_address.clone();
             async move {
-                tracing::info!("嘗試連線到 DNS service: {}", dns_address);
+                tracing::debug!("嘗試連線到 DNS service: {dns_address}");
                 match DnsServiceClient::connect(dns_address.clone()).await {
                     Ok(c) => {
-                        tracing::info!("成功連上 DNS service: {}", dns_address);
+                        tracing::info!("成功連上 DNS service: {dns_address}");
                         Ok(c)
                     }
                     Err(e) => {
-                        tracing::warn!("連線失敗: {}，將重試...", e);
+                        tracing::warn!("連線失敗: {e}，將重試...");
                         Err(backoff::Error::transient(e))
                     }
                 }
@@ -67,7 +69,7 @@ impl DnsResolver {
         .expect("Failed to connect to DNS service after retries");
         Self { dns_address, client }
     }
-    pub async fn resolve_ip<Q>(&mut self, query: Q) -> Result<String>
+    pub async fn resolve_ip<Q>(&self, query: Q) -> Result<String>
     where
         Q: Into<DnsQuery>,
     {
@@ -201,4 +203,28 @@ impl DnsResolver {
             Err("Local address is not an IPv4 address".into())
         }
     }
+}
+
+pub async fn lookup_host_via_minidns(
+    resolver: &DnsResolver,
+    host: &str,
+) -> std::result::Result<SocketAddr, Box<dyn StdError + Send + Sync>> {
+    let ip_str = resolver.resolve_ip(host).await?;
+    let ip: IpAddr = ip_str.parse()?;
+    Ok(SocketAddr::new(ip, 0))
+}
+
+#[cached(
+    name = "DNS_CACHE",
+    time = 60,
+    key = "String",
+    convert = r#"{ host.clone() }"#,
+    size = 100,
+    result = true
+)]
+pub async fn lookup_cached(
+    resolver: Arc<DnsResolver>,
+    host: String,
+) -> std::result::Result<SocketAddr, Box<dyn StdError + Send + Sync>> {
+    lookup_host_via_minidns(&resolver, &host).await
 }

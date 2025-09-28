@@ -1,16 +1,7 @@
-use std::{
-    error::Error as StdError,
-    fs,
-    io::Write,
-    net::{IpAddr, SocketAddr},
-    path::PathBuf,
-    sync::Arc,
-    time::Duration,
-};
+use std::{error::Error as StdError, fs, io::Write, path::PathBuf, sync::Arc, time::Duration};
 
 use cached::{proc_macro::cached, TimedSizedCache};
-use chm_dns_resolver::DnsResolver;
-use chm_project_const::uuid::Uuid;
+use chm_dns_resolver::{lookup_cached, DnsResolver};
 use futures::FutureExt;
 use reqwest::{
     dns::{Name, Resolve, Resolving},
@@ -168,38 +159,6 @@ impl ClientCluster {
 }
 
 pub struct MyResolver(pub Arc<DnsResolver>);
-async fn lookup_host_or_custom_uncached(
-    resolver: &DnsResolver,
-    host: &str,
-) -> Result<SocketAddr, Box<dyn StdError + Send + Sync>> {
-    if let Ok(ip) = host.parse::<IpAddr>() {
-        return Ok(SocketAddr::new(ip, 0));
-    }
-    if let Ok(uid) = Uuid::parse_str(host) {
-        let ip_str = resolver.get_ip_by_uuid(uid).await?;
-        let ip = ip_str.parse()?;
-        return Ok(SocketAddr::new(ip, 0));
-    }
-    let ip_str = resolver.get_ip_by_hostname(host).await?;
-    let ip = ip_str.parse()?;
-    Ok(SocketAddr::new(ip, 0))
-}
-
-#[cached(
-    name = "DNS_CACHE",
-    time = 60,
-    key = "String",
-    convert = r#"{ host.clone() }"#,
-    size = 100,
-    result = true
-)]
-async fn lookup_cached(
-    resolver: Arc<DnsResolver>,
-    host: String,
-) -> Result<SocketAddr, Box<dyn StdError + Send + Sync>> {
-    lookup_host_or_custom_uncached(&resolver, &host).await
-}
-
 impl Resolve for MyResolver {
     fn resolve(&self, name: Name) -> Resolving {
         let host = name.as_str().to_string();

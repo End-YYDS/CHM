@@ -33,7 +33,7 @@ use tonic::{
 use tonic_async_interceptor::async_interceptor;
 use tonic_health::server::health_reporter;
 use tower::ServiceBuilder;
-use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
+// use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 use uuid::Uuid;
 
 /// 定義一個簡化的結果類型，用於返回結果或錯誤
@@ -295,17 +295,19 @@ pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>)
                 .accept_compressed(CompressionEncoding::Zstd),
         );
         tracing::info!("[gRPC] 啟動 gRPC 服務於 {addr}");
-        let server = tonic::transport::Server::builder()
-            .layer(
-                TraceLayer::new_for_grpc()
-                    .make_span_with(DefaultMakeSpan::new().include_headers(true))
-                    .on_response(DefaultOnResponse::new().include_headers(true)),
-            )
+        let server = chm_cluster_utils::gserver::grpc_with_tuning()
             .tls_config(tls)?
             .add_service(ca_svc)
             .add_service(crl_svc)
             .add_service(health_service)
             .serve_with_shutdown(addr, shutdown_signal);
+        // let server = tonic::transport::Server::builder()
+        //     .layer(
+        //         TraceLayer::new_for_grpc()
+        //             .make_span_with(DefaultMakeSpan::new())
+        //             .on_response(DefaultOnResponse::new()),
+        //     )
+        //
         if let Err(e) = server.await {
             tracing::error!("[gRPC] 啟動失敗: {e:?}");
         }

@@ -379,7 +379,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr: SocketAddr = format!("{local_ip}:50053").parse()?;
     let solver = DnsSolver::new().await?;
     // 手動添加默認mCA主機
-    // if let Err(e) = solver.add_host("mdns.chm.com", addr.ip().into()).await {
+    // if let Err(e) = solver
+    //     .add_host(
+    //         "mdns.chm.com",
+    //         addr.ip().into(),
+    //         "e52f8d9e-52d7-4a3a-82a7-01195f165b85".parse::<Uuid>()?,
+    //     )
+    //     .await
+    // {
     //     let dns_uuid = solver.get_uuid_by_hostname("mdns.chm.com").await?;
     //     if let Err(e) = solver.edit_ip(dns_uuid, local_ip.into()).await {
     //         tracing::warn!("Failed to edit default host IP: {}", e);

@@ -6,16 +6,12 @@ use chm_grpc::{
     restful::restful_service_server::RestfulServiceServer,
     tonic::{
         codec::CompressionEncoding,
-        transport::{Certificate, Identity, Server, ServerTlsConfig},
+        transport::{Certificate, Identity, ServerTlsConfig},
     },
     tonic_health::server::health_reporter,
 };
-use std::{
-    net::{IpAddr, SocketAddr},
-    time::Duration,
-};
+use std::net::{IpAddr, SocketAddr};
 use tokio_util::sync::CancellationToken;
-use tower_http::trace::{DefaultMakeSpan, DefaultOnResponse, TraceLayer};
 
 pub mod restful;
 pub async fn start_grpc(cancel: CancellationToken, grpc_clients: GrpcClients) -> ConResult<()> {
@@ -54,16 +50,8 @@ pub async fn start_grpc(cancel: CancellationToken, grpc_clients: GrpcClients) ->
                 .await;
         }
     };
-    let server = Server::builder()
-        .layer(
-            TraceLayer::new_for_grpc()
-                .make_span_with(DefaultMakeSpan::new().include_headers(true))
-                .on_response(DefaultOnResponse::new().include_headers(true)),
-        )
+    let server = chm_cluster_utils::gserver::grpc_with_tuning()
         .tls_config(tls)?
-        .http2_keepalive_interval(Some(Duration::from_secs(15))) // 每 15s 送 PING
-        .http2_keepalive_timeout(Some(Duration::from_secs(5))) // 5s 未回應視為斷線
-        .tcp_keepalive(Some(Duration::from_secs(30)))
         .add_service(health_service)
         .add_service(
             rest_svc
