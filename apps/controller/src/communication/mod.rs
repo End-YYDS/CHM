@@ -51,7 +51,7 @@ pub async fn connect_all_services(
     backoff: ExponentialBackoff,
     opts: &GrpcConnectOptions,
 ) -> ConResult<HashMap<ServiceKind, Channel>> {
-    let mdns_addr = GlobalConfig::with(|cfg| cfg.extend.server_ext.dns_server.clone());
+    let mdns_addr = GlobalConfig::with(|cfg| cfg.server.dns_server.clone());
     let dns_rosolver = Arc::new(DnsResolver::new(mdns_addr).await);
     let futs = services.iter().map(|svc| {
         let minidns = dns_rosolver.clone();

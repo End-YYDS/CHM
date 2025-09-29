@@ -40,6 +40,8 @@ macro_rules! declare_config {
                 pub otp_time: Duration,
                 #[serde(default = "Server::default_unique_id")]
                 pub unique_id: Uuid,
+                #[serde(default = "Server::default_dns_server")]
+                pub dns_server: String,
             }
             impl Server {
                 fn default_hostname() -> String { crate::ID.into() }
@@ -66,6 +68,23 @@ macro_rules! declare_config {
                     Duration::from_secs(30)
                 }
                 fn default_unique_id() -> Uuid { Uuid::new_v4() }
+                fn default_dns_server() -> String {
+                    let mut dns_server = String::from("http://");
+                    #[cfg(debug_assertions)]
+                    {
+                        let s = IpAddr::V4(Ipv4Addr::LOCALHOST).to_string();
+                        dns_server.push_str(&s);
+                        dns_server.push_str(":50053");
+                    }
+                    #[cfg(not(debug_assertions))]
+                    {
+                        let s = chm_dns_resolver::DnsResolver::get_local_ip()
+                            .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
+                            .to_string();
+                        dns_server.push_str(&s);
+                    }
+                    dns_server
+                }
             }
             impl Default for Server {
                 fn default() -> Self {
@@ -76,6 +95,7 @@ macro_rules! declare_config {
                         otp_len:   Self::default_otp_len(),
                         otp_time:  Self::default_opt_time(),
                         unique_id: Self::default_unique_id(),
+                        dns_server: Self::default_dns_server(),
                     }
                 }
             }
@@ -196,6 +216,8 @@ macro_rules! declare_config {
                 pub otp_time: Duration,
                 #[serde(default = "Server::default_unique_id")]
                 pub unique_id: Uuid,
+                #[serde(default = "Server::default_dns_server")]
+                pub dns_server: String,
             }
             impl Server {
                 fn default_hostname() -> String {
@@ -230,6 +252,23 @@ macro_rules! declare_config {
                 fn default_unique_id() -> Uuid {
                     Uuid::new_v4()
                 }
+                fn default_dns_server() -> String {
+                    let mut dns_server = String::from("http://");
+                    #[cfg(debug_assertions)]
+                    {
+                        let s = IpAddr::V4(Ipv4Addr::LOCALHOST).to_string();
+                        dns_server.push_str(&s);
+                        dns_server.push_str(":50053");
+                    }
+                    #[cfg(not(debug_assertions))]
+                    {
+                        let s = chm_dns_resolver::DnsResolver::get_local_ip()
+                            .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
+                            .to_string();
+                        dns_server.push_str(&s);
+                    }
+                    dns_server
+                }
             }
             impl Default for Server {
                 fn default() -> Self {
@@ -240,6 +279,7 @@ macro_rules! declare_config {
                         otp_len:   Self::default_otp_len(),
                         otp_time:  Self::default_opt_time(),
                         unique_id: Self::default_unique_id(),
+                        dns_server: Self::default_dns_server(),
                     }
                 }
             }

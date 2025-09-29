@@ -43,12 +43,15 @@ impl From<Uuid> for DnsQuery {
     }
 }
 impl DnsResolver {
-    fn default_backoff() -> ExponentialBackoff {
-        ExponentialBackoff { max_elapsed_time: Some(Duration::from_secs(60)), ..Default::default() }
+    fn default_backoff(max_time: Duration) -> ExponentialBackoff {
+        ExponentialBackoff { max_elapsed_time: Some(max_time), ..Default::default() }
     }
 
-    async fn connect_with_backoff(dns_address: &str) -> Result<DnsServiceClient<Channel>> {
-        let backoff = Self::default_backoff();
+    async fn connect_with_backoff(
+        dns_address: &str,
+        max_time: Duration,
+    ) -> Result<DnsServiceClient<Channel>> {
+        let backoff = Self::default_backoff(max_time);
         let client = retry(backoff, || {
             let addr = dns_address.to_owned();
             async move {
@@ -71,7 +74,7 @@ impl DnsResolver {
 
     pub async fn new(dns_address: impl Into<String>) -> Self {
         let dns_address = dns_address.into();
-        let client = Self::connect_with_backoff(&dns_address)
+        let client = Self::connect_with_backoff(&dns_address, Duration::from_secs(60))
             .await
             .expect("重試後仍無法連上 DNS service，是否初始化過?");
         Self { dns_address, client }
@@ -79,7 +82,7 @@ impl DnsResolver {
 
     pub async fn new_with_result(dns_address: impl Into<String>) -> Result<Self> {
         let dns_address = dns_address.into();
-        let client = Self::connect_with_backoff(&dns_address).await?;
+        let client = Self::connect_with_backoff(&dns_address, Duration::from_secs(15)).await?;
         Ok(Self { dns_address, client })
     }
 

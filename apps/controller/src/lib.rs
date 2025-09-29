@@ -93,36 +93,33 @@ pub struct ServicesPool {
 }
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct ServerExtension {
-    #[serde(default = "ServerExtension::default_dns_server")]
-    /// DNS 伺服器地址
-    pub dns_server: String,
     #[serde(default = "ServerExtension::default_ca_server")]
     /// mCA 伺服器地址
-    pub ca_server:  String,
+    pub ca_server: String,
 }
 impl Default for ServerExtension {
     fn default() -> Self {
-        Self { dns_server: Self::default_dns_server(), ca_server: Self::default_ca_server() }
+        Self { ca_server: Self::default_ca_server() }
     }
 }
 impl ServerExtension {
-    fn default_dns_server() -> String {
-        let mut dns_server = String::from("http://");
-        #[cfg(debug_assertions)]
-        {
-            let s = IpAddr::V4(Ipv4Addr::LOCALHOST).to_string();
-            dns_server.push_str(&s);
-            dns_server.push_str(":50053");
-        }
-        #[cfg(not(debug_assertions))]
-        {
-            let s = chm_dns_resolver::DnsResolver::get_local_ip()
-                .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
-                .to_string();
-            dns_server.push_str(&s);
-        }
-        dns_server
-    }
+    // fn default_dns_server() -> String {
+    //     let mut dns_server = String::from("http://");
+    //     #[cfg(debug_assertions)]
+    //     {
+    //         let s = IpAddr::V4(Ipv4Addr::LOCALHOST).to_string();
+    //         dns_server.push_str(&s);
+    //         dns_server.push_str(":50053");
+    //     }
+    //     #[cfg(not(debug_assertions))]
+    //     {
+    //         let s = chm_dns_resolver::DnsResolver::get_local_ip()
+    //             .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
+    //             .to_string();
+    //         dns_server.push_str(&s);
+    //     }
+    //     dns_server
+    // }
     fn default_ca_server() -> String {
         #[cfg(debug_assertions)]
         let caip = IpAddr::V4(Ipv4Addr::LOCALHOST).to_string();
