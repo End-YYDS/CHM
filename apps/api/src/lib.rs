@@ -9,7 +9,7 @@ use chm_grpc::{restful::restful_service_client::RestfulServiceClient, tonic::tra
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::AtomicBool;
 mod auth;
-mod commons;
+pub mod commons;
 // mod config;
 mod handles;
 pub use config::CertInfo;

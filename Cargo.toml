@@ -71,6 +71,7 @@ actix-session = { version = "0.11.0", features = ["cookie-session"] }
 hyper-util = { version = "0.1.17", features = ["tokio", "client"] }
 num_cpus = "1.17.0"
 sysinfo = "0.37.1"
+futures-util = "0.3.31"
 [profile.release]
 opt-level = "s"
 strip = true
