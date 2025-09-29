@@ -43,19 +43,19 @@ impl From<Uuid> for DnsQuery {
     }
 }
 impl DnsResolver {
-    pub async fn new(dns_address: impl Into<String>) -> Self {
-        let dns_address = dns_address.into();
-        let backoff = ExponentialBackoff {
-            max_elapsed_time: Some(std::time::Duration::from_secs(60)),
-            ..Default::default()
-        };
+    fn default_backoff() -> ExponentialBackoff {
+        ExponentialBackoff { max_elapsed_time: Some(Duration::from_secs(60)), ..Default::default() }
+    }
+
+    async fn connect_with_backoff(dns_address: &str) -> Result<DnsServiceClient<Channel>> {
+        let backoff = Self::default_backoff();
         let client = retry(backoff, || {
-            let dns_address = dns_address.clone();
+            let addr = dns_address.to_owned();
             async move {
-                tracing::debug!("嘗試連線到 DNS service: {dns_address}");
-                match DnsServiceClient::connect(dns_address.clone()).await {
+                tracing::debug!("嘗試連線到 DNS service: {addr}");
+                match DnsServiceClient::connect(addr.clone()).await {
                     Ok(c) => {
-                        tracing::info!("成功連上 DNS service: {dns_address}");
+                        tracing::info!("成功連上 DNS service: {addr}");
                         Ok(c)
                     }
                     Err(e) => {
@@ -65,10 +65,24 @@ impl DnsResolver {
                 }
             }
         })
-        .await
-        .expect("Failed to connect to DNS service after retries");
+        .await?;
+        Ok(client)
+    }
+
+    pub async fn new(dns_address: impl Into<String>) -> Self {
+        let dns_address = dns_address.into();
+        let client = Self::connect_with_backoff(&dns_address)
+            .await
+            .expect("重試後仍無法連上 DNS service，是否初始化過?");
         Self { dns_address, client }
     }
+
+    pub async fn new_with_result(dns_address: impl Into<String>) -> Result<Self> {
+        let dns_address = dns_address.into();
+        let client = Self::connect_with_backoff(&dns_address).await?;
+        Ok(Self { dns_address, client })
+    }
+
     pub async fn resolve_ip<Q>(&self, query: Q) -> Result<String>
     where
         Q: Into<DnsQuery>,

@@ -114,7 +114,7 @@ macro_rules! declare_config {
                         locality: "Taipei".into(),
                         org: "CHM-INIT".into(),
                         cn: crate::ID.into(),
-                        san: vec![],
+                        san: vec!["127.0.0.1".into(), "localhost".into(),format!("{}.chm.com", crate::ID)],
                         days: 1,
                     }
                 }
@@ -282,7 +282,7 @@ macro_rules! declare_config {
                         locality: "Taipei".into(),
                         org:      "CHM-INIT".into(),
                         cn:       crate::ID.into(),
-                        san:      vec![],
+                        san:      vec!["127.0.0.1".into(), "localhost".into(),format!("{}.chm.com", crate::ID)],
                         days:     1,
                     }
                 }

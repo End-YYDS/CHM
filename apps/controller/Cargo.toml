@@ -11,7 +11,7 @@ path = "src/main.rs"
 argh = { workspace = true }
 backoff = { workspace = true }
 chm-cert-utils = { workspace = true }
-chm-cluster-utils = { workspace = true, features = ["client", "server", "grpc-server"] }
+chm-cluster-utils = { workspace = true, features = ["client", "server", "grpc-server", "grpc-client"] }
 chm-config_bus = { workspace = true }
 chm-dns_resolver = { workspace = true }
 chm-grpc = { workspace = true, features = ["controller", "ca-client", "restful"] }
@@ -24,5 +24,5 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 futures = { workspace = true }
 url = { workspace = true }
-tower = "0.5.2"
-hyper-util = { workspace = true }
+tower = { workspace = true }
+

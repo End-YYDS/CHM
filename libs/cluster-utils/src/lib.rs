@@ -29,9 +29,8 @@ impl<T> ApiResponse<T> {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum InitData {
-    Bootstrap { root_ca_pem: Vec<u8> }, /* Controller 連線過來之後先傳送root_ca_pem,並且取得API
-                                         * uuid 與 csr_pem 與Hostname 及 服務本身的Port */
-    Finalize { id: Uuid, cert_pem: Vec<u8>, chain_pem: Vec<Vec<u8>> }, /* 檢查 Controller收到的UUID與自身是否相同，相同才接收憑證 */
+    Bootstrap { root_ca_pem: Vec<u8> },
+    Finalize { id: Uuid, cert_pem: Vec<u8>, chain_pem: Vec<Vec<u8>> },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -50,6 +49,10 @@ pub struct InitEnvelope<T> {
 }
 #[cfg(feature = "client")]
 mod client;
+#[cfg(feature = "grpc-client")]
+pub mod gclient;
+#[cfg(feature = "grpc-client")]
+pub use backoff::ExponentialBackoff;
 #[cfg(feature = "grpc-server")]
 pub mod gserver;
 mod macros;

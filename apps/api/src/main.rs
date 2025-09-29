@@ -76,6 +76,8 @@ async fn init_data_handler(
                 tracing::error!("寫入 RootCA 憑證失敗: {:?}", e);
                 return ControlFlow::Break(api_resp!(InternalServerError "寫入 RootCA 憑證失敗"));
             }
+            let mut san_extend = carry.cert_info.san.clone();
+            san_extend.push(carry.uuid.to_string());
             let csr_pem = match CertUtils::generate_csr(
                 carry.private_key.clone(),
                 &carry.cert_info.country,
@@ -83,7 +85,7 @@ async fn init_data_handler(
                 &carry.cert_info.locality,
                 ProjectConst::PROJECT_NAME,
                 &carry.cert_info.cn,
-                &carry.cert_info.san,
+                san_extend,
             ) {
                 Ok(csr) => csr,
                 Err(e) => {
@@ -220,6 +222,7 @@ async fn main() -> ApiResult<()> {
         ClientTlsConfig::new().identity(Identity::from_pem(identity.1, identity.0)).ca_certificate(
             Certificate::from_pem(std::fs::read(&rootca).expect("讀取 RootCA 憑證失敗")),
         );
+    // TODO: 將EndPoint需要先查詢DNS
     let endpoint = Endpoint::from_shared(controller_addr.clone())
         .map_err(|e| format!("無效的 Controller 地址: {e}"))
         .expect("建立 gRPC Endpoint 失敗")

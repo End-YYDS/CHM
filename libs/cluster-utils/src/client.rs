@@ -116,16 +116,23 @@ impl ClientCluster {
     }
 
     pub async fn build(&self) -> Result<Client, Box<dyn StdError + Send + Sync>> {
-        let raw = Arc::new(DnsResolver::new(&self.mdns_url).await);
-        let my_resolver = Arc::new(MyResolver(raw));
         let mut builder = Client::builder()
-            .dns_resolver(my_resolver)
             .timeout(self.timeout)
             .use_rustls_tls()
             .danger_accept_invalid_certs(true);
+        let mini_dns = DnsResolver::new_with_result(&self.mdns_url).await.ok();
+        match mini_dns {
+            Some(dns) => {
+                tracing::debug!("成功連接到 mDNS 服務: {}", &self.mdns_url);
+                let raw = Arc::new(dns);
+                let my_resolver = Arc::new(MyResolver(raw));
+                builder = builder.dns_resolver(my_resolver);
+            }
+            None => {
+                tracing::warn!("無法連接到 mDNS 服務: {}, 即將跳過...", self.mdns_url);
+            }
+        }
         if let Some((ref key_p, ref cert_p)) = self.cert_chain {
-            // let key_p = ProjectConst::certs_path().join(key_p);
-            // let cert_p = ProjectConst::certs_path().join(cert_p);
             let id = load_client_identity(cert_p.clone(), key_p.clone())?;
             builder = builder.identity(id);
         }

@@ -157,16 +157,17 @@ pub async fn entry(args: Args) -> ConResult<()> {
     let is_first_run = !marker_path.exists();
     if is_first_run {
         first_run(&marker_path).await?;
+        // TODO: 初始化mini_DNS連接
         tracing::debug!("第一次執行檢查完成");
     }
     tracing::debug!("開始執行二階段 Controller...");
-    tracing::info!("創建gRPC客戶端");
+    tracing::debug!("創建gRPC客戶端");
     let clients = communication::init_channels_all().await?;
-    tracing::info!("gRPC客戶端創建完成");
+    tracing::debug!("gRPC客戶端創建完成");
     match args.cmd {
         Some(Command::Add(_)) => {
             let node = Node::new(args.hostip, args.otp_code, clients.clone());
-            tracing::info!("準備新增服務...");
+            tracing::debug!("準備新增服務...");
             node.add().await?;
             tracing::info!("服務新增完成");
             return Ok(());
@@ -174,7 +175,7 @@ pub async fn entry(args: Args) -> ConResult<()> {
 
         Some(Command::Remove(_)) => {
             let node = Node::new(args.hostip, args.otp_code, clients.clone());
-            tracing::info!("準備刪除服務...");
+            tracing::debug!("準備刪除服務...");
             node.remove().await?;
             // node_action(NodeAction::Remove, args.hostip, args.otp_code).await?;
             tracing::info!("服務刪除完成");

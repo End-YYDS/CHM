@@ -764,11 +764,13 @@ version = "0.1.0"
 dependencies = [
  "actix-tls",
  "actix-web",
+ "backoff",
  "cached",
  "chm-dns_resolver",
  "chm-password",
  "chm-project_const",
  "futures",
+ "hyper-util",
  "num_cpus",
  "openssl",
  "openssl-sys",
@@ -778,6 +780,7 @@ dependencies = [
  "sysinfo",
  "tokio",
  "tonic",
+ "tower",
  "tracing",
 ]
 
@@ -823,6 +826,7 @@ dependencies = [
  "backoff",
  "cached",
  "chm-grpc",
+ "tonic",
  "tracing",
  "url",
  "uuid",
@@ -923,7 +927,6 @@ dependencies = [
  "chm-project_const",
  "dashmap",
  "futures",
- "hyper-util",
  "serde",
  "tokio",
  "tokio-util",

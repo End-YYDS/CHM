@@ -21,7 +21,7 @@ impl GrpcSupervisor {
     pub async fn start(&mut self) {
         let token = self.cancel.child_token();
         self.handle = Some(tokio::spawn(start_grpc(token, self.gclients.clone())));
-        tracing::info!("gRPC server 已啟動");
+        tracing::debug!("gRPC server 已啟動");
     }
 
     pub async fn stop(&mut self) {
@@ -37,7 +37,7 @@ impl GrpcSupervisor {
     }
 
     pub async fn restart(&mut self, reason: &str) {
-        tracing::info!("重啟 gRPC server，原因：{reason}");
+        tracing::warn!("重啟 gRPC server，原因：{reason}");
         self.stop().await;
         self.start().await;
     }
