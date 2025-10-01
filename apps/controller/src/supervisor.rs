@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+
+use std::sync::Arc;
 use tokio::{
     task::JoinHandle,
     time::{sleep, Duration},
@@ -10,11 +12,11 @@ use crate::{communication::GrpcClients, server::start_grpc, ConResult, GlobalCon
 pub struct GrpcSupervisor {
     handle:   Option<JoinHandle<ConResult<()>>>,
     cancel:   CancellationToken,
-    gclients: GrpcClients,
+    gclients: Arc<GrpcClients>,
 }
 
 impl GrpcSupervisor {
-    pub fn new(gclients: GrpcClients) -> Self {
+    pub fn new(gclients: Arc<GrpcClients>) -> Self {
         Self { handle: None, cancel: CancellationToken::new(), gclients }
     }
 
@@ -43,7 +45,7 @@ impl GrpcSupervisor {
     }
 }
 
-pub async fn run_supervised(grpc_clients: GrpcClients) -> ConResult<()> {
+pub async fn run_supervised(grpc_clients: Arc<GrpcClients>) -> ConResult<()> {
     let mut sup = GrpcSupervisor::new(grpc_clients);
     sup.start().await;
     let mut rx = GlobalConfig::subscribe_reload();

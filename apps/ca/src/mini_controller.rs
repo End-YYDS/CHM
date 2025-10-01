@@ -1,19 +1,21 @@
 use crate::{cert::process::CertificateProcess, globals::GlobalConfig, PrivateKey, SignedCert, ID};
 use chm_cert_utils::CertUtils;
-use chm_cluster_utils::{api_resp, declare_init_route, Default_ServerCluster};
+use chm_cluster_utils::{
+    api_resp, declare_init_route, Default_ServerCluster, ServiceDescriptor, ServiceKind,
+};
 use openssl::x509::{X509Req, X509};
 use serde::{Deserialize, Serialize};
-use std::net::SocketAddr;
+use std::net::SocketAddrV4;
 use uuid::Uuid;
 
 #[derive(Serialize)]
 struct SignedCertResponse {
-    root_ca:     Vec<u8>,
-    cert:        Vec<u8>,
-    chain:       Vec<Vec<u8>>,
-    unique_id:   Uuid,
-    ca_hostname: String,
-    port:        u16,
+    root_ca:      Vec<u8>,
+    cert:         Vec<u8>,
+    chain:        Vec<Vec<u8>>,
+    ca_hostname:  String,
+    port:         u16,
+    service_desp: ServiceDescriptor,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -28,7 +30,7 @@ struct AppState {
     cert_process: Arc<CertificateProcess>,
     unique_id:    Uuid,
     hostname:     String,
-    port:         u16,
+    socket:       SocketAddrV4,
     root_ca:      Vec<u8>,
 }
 async fn init_data_handler(
@@ -64,13 +66,21 @@ async fn init_data_handler(
         tracing::error!("儲存設定失敗: {:?}", e);
         return ControlFlow::Break(api_resp!(InternalServerError "儲存設定失敗"));
     }
+    let service_desp = ServiceDescriptor {
+        kind:        ServiceKind::Mca,
+        uri:         format!("https://{}:{}", state.socket.ip(), state.socket.port()),
+        health_name: Some("ca.CA".to_string()),
+        hostname:    ID.to_string(),
+        is_server:   true,
+        uuid:        state.unique_id,
+    };
     ControlFlow::Continue(SignedCertResponse {
-        root_ca:     state.root_ca.clone(),
-        cert:        signed_cert.0,
-        chain:       signed_cert.1,
-        unique_id:   state.unique_id,
+        root_ca: state.root_ca.clone(),
+        cert: signed_cert.0,
+        chain: signed_cert.1,
         ca_hostname: state.hostname.clone(),
-        port:        state.port,
+        port: state.socket.port(),
+        service_desp,
     })
 }
 declare_init_route!(init_data_handler, data = InitRequest, extras = (state: Arc<AppState>), ret = SignedCertResponse);
@@ -89,16 +99,15 @@ impl MiniController {
     }
     pub async fn start(
         &self,
-        addr: SocketAddr,
+        addr: SocketAddrV4,
         id: Uuid,
     ) -> ControlFlow<Box<dyn std::error::Error + Send + Sync>, ()> {
-        let (otp_len, otp_time, root_ca, hostname, self_port) = GlobalConfig::with(|cfg| {
+        let (otp_len, otp_time, root_ca, hostname) = GlobalConfig::with(|cfg| {
             (
                 cfg.server.otp_len,
                 cfg.server.otp_time,
                 cfg.certificate.root_ca.clone(),
                 cfg.server.hostname.clone(),
-                cfg.server.port,
             )
         });
         let x509_cert = self.sign_cert.clone().expect("MiniController 憑證獲取失敗");
@@ -126,7 +135,7 @@ impl MiniController {
             cert_process: self.cert_process.clone(),
             unique_id:    id,
             hostname:     hostname.clone(),
-            port:         self_port,
+            socket:       addr,
         });
         match init_server.init().await {
             ControlFlow::Continue(()) => {

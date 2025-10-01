@@ -8,7 +8,7 @@ use ca::{
 use chm_project_const::ProjectConst;
 use std::{
     env,
-    net::SocketAddr,
+    net::SocketAddrV4,
     ops::ControlFlow,
     sync::{atomic::Ordering::Relaxed, Arc},
 };
@@ -46,7 +46,7 @@ async fn main() -> CaResult<()> {
     let first_run = !marker_path.exists();
     let store = StoreFactory::create_store().await?;
     let store: Arc<dyn CertificateStore> = Arc::from(store);
-    let addr = SocketAddr::new(cmg.server.host.parse()?, cmg.server.port);
+    let addr = SocketAddrV4::new(cmg.server.host.parse()?, cmg.server.port);
     tracing::trace!("讀取配置完成，開始載入憑證處理器...");
     let cert_handler = Arc::new(
         CertificateProcess::load(

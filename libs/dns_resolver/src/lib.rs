@@ -58,7 +58,7 @@ impl DnsResolver {
                 tracing::debug!("嘗試連線到 DNS service: {addr}");
                 match DnsServiceClient::connect(addr.clone()).await {
                     Ok(c) => {
-                        tracing::info!("成功連上 DNS service: {addr}");
+                        tracing::debug!("成功連上 DNS service: {addr}");
                         Ok(c)
                     }
                     Err(e) => {

@@ -13,7 +13,7 @@ pub struct ClientCA {
 #[allow(unused)]
 impl ClientCA {
     pub fn new(channel: Channel) -> Self {
-        tracing::info!("建立 CA 客戶端...");
+        tracing::debug!("建立 CA 客戶端...");
         let client = CaClient::new(channel)
             .accept_compressed(CompressionEncoding::Zstd)
             .send_compressed(CompressionEncoding::Zstd);

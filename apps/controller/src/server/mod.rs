@@ -10,11 +10,17 @@ use chm_grpc::{
     },
     tonic_health::server::health_reporter,
 };
-use std::net::{IpAddr, SocketAddr};
+use std::{
+    net::{IpAddr, SocketAddr},
+    sync::Arc,
+};
 use tokio_util::sync::CancellationToken;
 
 pub mod restful;
-pub async fn start_grpc(cancel: CancellationToken, grpc_clients: GrpcClients) -> ConResult<()> {
+pub async fn start_grpc(
+    cancel: CancellationToken,
+    grpc_clients: Arc<GrpcClients>,
+) -> ConResult<()> {
     let (ca_path, host, port, hostname) = GlobalConfig::with(|cfg| {
         (
             cfg.certificate.root_ca.clone(),

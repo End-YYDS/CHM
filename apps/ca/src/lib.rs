@@ -21,7 +21,7 @@ use futures::{future::BoxFuture, FutureExt};
 use openssl::x509::{X509Req, X509};
 use serde::{Deserialize, Serialize};
 use std::{
-    net::SocketAddr,
+    net::SocketAddrV4,
     path::PathBuf,
     sync::{atomic::AtomicBool, Arc},
 };
@@ -244,7 +244,7 @@ fn make_crl_middleware(
 /// # 回傳
 /// * `Result<(), Box<dyn std::error::Error>>`: 返回結果，成功時為 Ok，失敗時為
 ///   Err
-pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>) -> CaResult<()> {
+pub async fn start_grpc(addr: SocketAddrV4, cert_handler: Arc<CertificateProcess>) -> CaResult<()> {
     let (cert_update_tx, mut cert_update_rx) = watch::channel(());
     loop {
         let mut rx = cert_update_rx.clone();
@@ -300,7 +300,7 @@ pub async fn start_grpc(addr: SocketAddr, cert_handler: Arc<CertificateProcess>)
             .add_service(ca_svc)
             .add_service(crl_svc)
             .add_service(health_service)
-            .serve_with_shutdown(addr, shutdown_signal);
+            .serve_with_shutdown(addr.into(), shutdown_signal);
         // let server = tonic::transport::Server::builder()
         //     .layer(
         //         TraceLayer::new_for_grpc()
@@ -338,7 +338,7 @@ pub async fn mini_controller_cert(
         "Taipei",
         "CHM Organization",
         "miniC.chm.com",
-        &["127.0.0.1", "miniC.chm.com", "mca.chm.com", uid.to_string().as_str()],
+        ["127.0.0.1", "miniC.chm.com", "mca.chm.com", uid.to_string().as_str()],
     )?;
     let mini_csr = X509Req::from_pem(&mini_cert.1)?;
     let mini_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&mini_csr, 1).await?;
@@ -360,7 +360,7 @@ pub async fn ca_grpc_cert(cert_handler: &CertificateProcess, uid: Uuid) -> CaRes
         "Taipei",
         "CHM Organization",
         "ca.chm.com",
-        &["127.0.0.1", "ca.chm.com", "mca.chm.com", uid.to_string().as_str()],
+        ["127.0.0.1", "ca.chm.com", "mca.chm.com", uid.to_string().as_str()],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
@@ -382,7 +382,7 @@ pub async fn grpc_test_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
         "Taipei",
         "CHM Organization",
         "test.chm.com",
-        &["127.0.0.1", "test.chm.com"],
+        ["127.0.0.1", "test.chm.com"],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
@@ -400,7 +400,7 @@ pub async fn one_cert(cert_handler: &CertificateProcess) -> CaResult<()> {
         "Taipei",
         "CHM Organization",
         "one.chm.com",
-        &["127.0.0.1", "one.chm.com"],
+        ["127.0.0.1", "one.chm.com"],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;

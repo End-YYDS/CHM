@@ -2,30 +2,34 @@ mod communication;
 pub mod first;
 mod server;
 mod supervisor;
-use crate::communication::GrpcClients;
+use crate::communication::{ClientHandle, GrpcClients};
 pub use crate::{config::config, globals::GlobalConfig};
 use argh::FromArgs;
-use chm_cluster_utils::{init_with, Default_ClientCluster, InitData};
+use chm_cluster_utils::{
+    init_with, Default_ClientCluster, InitData, ServiceDescriptor, ServiceKind,
+};
 use chm_config_bus::{declare_config, declare_config_bus};
 use chm_project_const::ProjectConst;
 use dashmap::DashMap;
 use first::first_run;
 use serde::{Deserialize, Serialize};
 use std::{
-    fs,
+    collections::HashMap,
+    io,
     io::Write,
-    net::{IpAddr, Ipv4Addr},
     path::PathBuf,
-    sync::atomic::AtomicBool,
+    sync::{atomic::AtomicBool, Arc},
 };
+use url::Url;
 
+pub type ClientMap = HashMap<ServiceKind, ClientHandle>;
 pub type ConResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
 pub const ID: &str = "CHMcd";
 const DEFAULT_PORT: u16 = 50051;
 const DEFAULT_OTP_LEN: usize = 6;
 
-#[derive(FromArgs, Debug)]
+#[derive(FromArgs, Debug, Clone)]
 /// Controller 主程式參數
 pub struct Args {
     #[argh(subcommand)]
@@ -34,9 +38,30 @@ pub struct Args {
     /// 範例配置檔案
     #[argh(switch, short = 'i')]
     pub init_config: bool,
+}
 
-    /// 目標主機名稱
-    #[argh(option, short = 'h')]
+#[derive(FromArgs, Debug, Clone)]
+#[argh(subcommand)]
+pub enum Command {
+    /// 新增服務
+    Add(AddService),
+    /// 刪除服務
+    Remove(RemoveService),
+    Serve(Serve),
+    Init(Init),
+}
+impl Default for Command {
+    fn default() -> Self {
+        Command::Serve(Serve::default())
+    }
+}
+
+#[derive(FromArgs, Debug, Clone)]
+#[argh(subcommand, name = "init")]
+/// 啟動服務
+pub struct Init {
+    /// 目標主機名稱或 IP（接受 https:// 開頭）
+    #[argh(option, short = 'H')]
     pub hostip: Option<String>,
 
     /// OTP 驗證碼
@@ -44,30 +69,40 @@ pub struct Args {
     pub otp_code: Option<String>,
 }
 
-#[derive(FromArgs, Debug)]
-#[argh(subcommand)]
-pub enum Command {
-    /// 新增服務
-    Add(AddService),
-    /// 刪除服務
-    Remove(RemoveService),
-}
+#[derive(FromArgs, Debug, Default, Clone)]
+#[argh(subcommand, name = "serve")]
+/// 啟動服務
+pub struct Serve {}
 
-#[derive(FromArgs, Debug)]
+#[derive(FromArgs, Debug, Clone)]
 #[argh(subcommand, name = "add")]
 /// 新增服務
-pub struct AddService {}
+pub struct AddService {
+    /// 目標主機名稱或 IP（接受 https:// 開頭）
+    #[argh(option, short = 'H')]
+    pub hostip: Option<String>,
 
-#[derive(FromArgs, Debug)]
+    /// OTP 驗證碼
+    #[argh(option, short = 'p')]
+    pub otp_code: Option<String>,
+}
+
+#[derive(FromArgs, Debug, Clone)]
 #[argh(subcommand, name = "remove")]
 /// 刪除服務
-pub struct RemoveService {}
+pub struct RemoveService {
+    /// 目標主機名稱或 IP（接受 https:// 開頭）
+    #[argh(option, short = 'H')]
+    pub hostip: Option<String>,
+
+    /// OTP 驗證碼
+    #[argh(option, short = 'p')]
+    pub otp_code: Option<String>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ControllerExtension {
-    #[serde(default)]
-    pub server_ext:    ServerExtension,
     #[serde(default)]
     pub services_pool: ServicesPool,
     #[serde(default)]
@@ -75,157 +110,128 @@ pub struct ControllerExtension {
 }
 impl Default for ControllerExtension {
     fn default() -> Self {
-        Self {
-            server_ext:    Default::default(),
-            services_pool: Default::default(),
-            sign_days:     10,
-        }
+        Self { services_pool: Default::default(), sign_days: 10 }
     }
 }
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct ServicesPool {
     #[cfg(debug_assertions)]
     #[serde(flatten)]
-    pub services_uuid: DashMap<String, String>,
-    #[cfg(not(debug_assertions))]
-    #[serde(flatten)]
-    pub services_uuid: DashMap<String, Uuid>,
-}
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct ServerExtension {
-    #[serde(default = "ServerExtension::default_ca_server")]
-    /// mCA 伺服器地址
-    pub ca_server: String,
-}
-impl Default for ServerExtension {
-    fn default() -> Self {
-        Self { ca_server: Self::default_ca_server() }
-    }
-}
-impl ServerExtension {
-    // fn default_dns_server() -> String {
-    //     let mut dns_server = String::from("http://");
-    //     #[cfg(debug_assertions)]
-    //     {
-    //         let s = IpAddr::V4(Ipv4Addr::LOCALHOST).to_string();
-    //         dns_server.push_str(&s);
-    //         dns_server.push_str(":50053");
-    //     }
-    //     #[cfg(not(debug_assertions))]
-    //     {
-    //         let s = chm_dns_resolver::DnsResolver::get_local_ip()
-    //             .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
-    //             .to_string();
-    //         dns_server.push_str(&s);
-    //     }
-    //     dns_server
-    // }
-    fn default_ca_server() -> String {
-        #[cfg(debug_assertions)]
-        let caip = IpAddr::V4(Ipv4Addr::LOCALHOST).to_string();
-        #[cfg(not(debug_assertions))]
-        let caip = chm_dns_resolver::DnsResolver::get_local_ip()
-            .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
-            .to_string();
-        "https://".to_string() + &caip + ":50052"
-    }
+    pub services: DashMap<ServiceKind, Vec<ServiceDescriptor>>,
 }
 declare_config!(extend = crate::ControllerExtension);
 declare_config_bus!();
 
-pub async fn entry(args: Args) -> ConResult<()> {
-    tracing::debug!("檢查資料目錄...");
-    let data_dir = ProjectConst::data_path();
-    fs::create_dir_all(&data_dir)?;
-    tracing::debug!("資料目錄已檢查");
+fn ask_for_ca_url() -> Url {
+    loop {
+        let mut ca_url = String::new();
+        print!("請輸入 CA 服務的網址 (必須 https:// 開頭): ");
+        io::stdout().flush().unwrap();
 
-    tracing::debug!("寫入Controller UUID到服務池...");
-    GlobalConfig::update_with(|cfg| {
-        let self_hostname = cfg.server.hostname.clone();
-        let self_uuid_port = format!("{}:{}", cfg.server.unique_id, cfg.server.port);
-        #[cfg(debug_assertions)]
-        cfg.extend.services_pool.services_uuid.insert(self_hostname, self_uuid_port);
-        #[cfg(not(debug_assertions))]
-        cfg.extend.services_pool.services_uuid.insert(self_hostname, cfg.server.unique_id);
-    });
-    tracing::debug!("Controller UUID 已寫入服務池");
+        if io::stdin().read_line(&mut ca_url).is_err() {
+            eprintln!("讀取輸入時發生錯誤，請重試。");
+            continue;
+        }
+        let ca_url = ca_url.trim();
+        match Url::parse(ca_url) {
+            Ok(url) if url.scheme() == "https" => {
+                return url;
+            }
+            Ok(_) => {
+                eprintln!("必須使用 https:// 開頭，請再試一次。");
+            }
+            Err(_) => {
+                eprintln!("不是合法的完整網址，請再試一次。");
+            }
+        }
+    }
+}
+
+pub async fn entry(args: Args) -> ConResult<()> {
+    let data_dir = ProjectConst::data_path();
     tracing::debug!("檢查是否為第一次執行...");
     let marker_path = data_dir.join(format!(".{ID}.done"));
     let is_first_run = !marker_path.exists();
     if is_first_run {
-        first_run(&marker_path).await?;
-        // TODO: 初始化mini_DNS連接
-        tracing::debug!("第一次執行檢查完成");
+        if let Some(Command::Init(Init { hostip, otp_code })) = args.cmd.clone() {
+            if is_first_run {
+                tracing::debug!("寫入Controller UUID到服務池...");
+                GlobalConfig::update_with(|cfg| {
+                    let self_hostname = cfg.server.hostname.clone();
+                    let self_uuid_port =
+                        format!("https://{}:{}", cfg.server.unique_id, cfg.server.port);
+                    cfg.extend
+                        .services_pool
+                        .services
+                        .entry(ServiceKind::Controller)
+                        .or_default()
+                        .append(&mut vec![ServiceDescriptor {
+                            kind:        ServiceKind::Controller,
+                            uri:         self_uuid_port,
+                            health_name: Some("controller.Controller".to_string()),
+                            is_server:   false,
+                            hostname:    self_hostname.to_string(),
+                            uuid:        cfg.server.unique_id,
+                        }]);
+                });
+                GlobalConfig::save_config().await?;
+                GlobalConfig::reload_config().await?;
+                tracing::debug!("Controller UUID 已寫入服務池");
+                let ca_url = hostip
+                    .unwrap_or_else(|| ask_for_ca_url().as_str().trim_end_matches('/').to_string());
+                first_run(&marker_path, ca_url, otp_code).await?;
+                // TODO: 初始化mini_DNS連接
+                tracing::debug!("第一次執行檢查完成");
+            }
+        }
     }
-    tracing::debug!("開始執行二階段 Controller...");
-    tracing::debug!("創建gRPC客戶端");
-    let clients = communication::init_channels_all().await?;
-    tracing::debug!("gRPC客戶端創建完成");
-    match args.cmd {
-        Some(Command::Add(_)) => {
-            let node = Node::new(args.hostip, args.otp_code, clients.clone());
+
+    let gclient = Arc::new(GrpcClients::connect_all().await?);
+    match args.cmd.unwrap_or_default() {
+        Command::Add(AddService { hostip, otp_code }) => {
+            let node = Node::new(hostip, otp_code, gclient.clone());
             tracing::debug!("準備新增服務...");
             node.add().await?;
             tracing::info!("服務新增完成");
-            return Ok(());
+            Ok(())
         }
+        Command::Remove(RemoveService { .. }) => {
+            // Todo: 刪除Config中的配置，及mca憑證吊銷，data/.CHM_API.done刪除
 
-        Some(Command::Remove(_)) => {
-            let node = Node::new(args.hostip, args.otp_code, clients.clone());
-            tracing::debug!("準備刪除服務...");
-            node.remove().await?;
-            // node_action(NodeAction::Remove, args.hostip, args.otp_code).await?;
-            tracing::info!("服務刪除完成");
-            return Ok(());
+            // let node = Node::new(hostip, otp_code, clients.clone());
+            // tracing::debug!("準備刪除服務...");
+            // node.remove().await?;
+            // tracing::info!("服務刪除完成");
+            // return Ok(());
+            todo!()
         }
-        _ => {}
+        Command::Serve(Serve {}) | Command::Init(Init { .. }) => {
+            tracing::info!("正在啟動Controller...");
+            supervisor::run_supervised(gclient.clone()).await?;
+            Ok(())
+        }
     }
-    supervisor::run_supervised(clients).await?;
-    tracing::debug!("二階段Controller 執行完成");
-    Ok(())
 }
-// async fn ensure_mca_initialized() -> ConResult<()> {
-//     let (root_ca_path, ca_server_url) = GlobalConfig::with(|cfg| {
-//         (cfg.certificate.root_ca.clone(),
-// cfg.extend.server_ext.ca_server.clone())     });
-//     let meta = fs::metadata(&root_ca_path)
-//         .map_err(|e| format!("無法存取 Root CA 檔案 {}：{e}",
-// root_ca_path.display()))?;     if !meta.is_file() || meta.len() == 0 {
-//         return Err(format!(
-//             "Root CA 檔案不存在或為空：{}（請先完成 mCA 初始化）",
-//             root_ca_path.display()
-//         )
-//         .into());
-//     }
-//     let url = Url::parse(&ca_server_url)
-//         .map_err(|e| format!("mCA 伺服器 URL 非法：{ca_server_url}：{e}"))?;
-//     let mut addrs = url
-//         .socket_addrs(|| None)
-//         .map_err(|e| format!("無法解析 mCA
-// 伺服器位址：{ca_server_url}：{e}"))?;     let addr =
-// addrs.pop().ok_or_else(|| format!("mCA 伺服器無有效位址：{ca_server_url}"))?;
-//     timeout(Duration::from_secs(3), TcpStream::connect(addr))
-//         .await
-//         .map_err(|_| "連線 mCA
-// 逾時（3s），請確認服務是否啟動/連線是否可達）")?         .map_err(|e|
-// format!("無法連線到 mCA（{addr}）：{e}"))?;     Ok(())
-// }
 
 #[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) struct Node {
-    gclient:  GrpcClients,
+    gclient:  Arc<GrpcClients>,
     host:     String,
     otp_code: Option<String>,
     wclient:  Default_ClientCluster,
 }
 impl Node {
-    pub fn new(hostip: Option<String>, otp_code: Option<String>, gclient: GrpcClients) -> Self {
+    pub fn new(
+        hostip: Option<String>,
+        otp_code: Option<String>,
+        gclient: Arc<GrpcClients>,
+    ) -> Self {
         let host = hostip.unwrap_or_else(|| {
             print!("請輸入目標主機名稱或IP網址(https://開頭): ");
-            std::io::stdout().flush().unwrap();
+            io::stdout().flush().unwrap();
             let mut input = String::new();
-            std::io::stdin().read_line(&mut input).unwrap();
+            io::stdin().read_line(&mut input).unwrap();
             format!("https://{}", input.trim())
         });
         let wclient = Default_ClientCluster::new(
@@ -239,39 +245,55 @@ impl Node {
         Self { host, otp_code, gclient, wclient }
     }
     pub async fn add(&self) -> ConResult<()> {
-        // ensure_mca_initialized()
-        //     .await
-        //     .map_err(|e| format!("mCA 尚未完成初始化或目前不可用：{e}"))?;
         let root_ca_bytes =
             tokio::fs::read(GlobalConfig::with(|cfg| cfg.certificate.root_ca.clone())).await?;
         let payload = InitData::Bootstrap { root_ca_pem: root_ca_bytes };
+        tracing::debug!("傳送 Bootstrap 請求到目標服務...");
         let first_step = init_with!(self.wclient, payload, as chm_cluster_utils::BootstrapResp)?;
+        tracing::debug!("Bootstrap完成，取得CSR，準備向CA請求簽發憑證...");
         let sign_days = GlobalConfig::with(|cfg| cfg.extend.sign_days);
-        let certs = self.gclient.ca.sign_certificate(first_step.csr_pem, sign_days).await?;
+        let ca = self.gclient.ca().ok_or("CA client not initialized")?;
+        let certs = ca.sign_certificate(first_step.csr_pem.clone(), sign_days).await?;
         let payload = InitData::Finalize {
-            id:        first_step.uuid,
+            id:        first_step.service_desp.uuid,
             cert_pem:  certs.0,
             chain_pem: certs.1,
         };
+        tracing::debug!("傳送 Finalize 請求到目標服務...");
         init_with!(self.wclient, payload)?;
-        let uuid_port = format!("{}:{}", first_step.uuid, first_step.server_port);
+        tracing::debug!("Finalize完成，將服務資訊寫入配置檔...");
         GlobalConfig::update_with(|cfg| {
-            #[cfg(debug_assertions)]
             cfg.extend
                 .services_pool
-                .services_uuid
-                .insert(first_step.server_hostname.clone(), uuid_port.clone());
-            #[cfg(not(debug_assertions))]
-            cfg.extend
-                .services_pool
-                .services_uuid
-                .insert(first_step.server_hostname.clone(), first_step.uuid);
+                .services
+                .entry(first_step.service_desp.kind)
+                .or_default()
+                .append(&mut vec![first_step.service_desp.clone()]);
         });
         GlobalConfig::save_config().await?;
         GlobalConfig::reload_config().await?;
         Ok(())
     }
-    pub async fn remove(&self) -> ConResult<()> {
+    pub async fn _remove(&self) -> ConResult<()> {
         Ok(())
     }
+}
+
+#[macro_export]
+macro_rules! build_clients {
+    ($channels:expr, { $($kind:ident => $variant:ident($ctor:path)),+ $(,)? }) => {{
+        use std::collections::HashMap;
+        let mut out: HashMap<$crate::ServiceKind, $crate::ClientHandle> = HashMap::new();
+        $(
+            if let Some(ch) = $channels.get(&$crate::ServiceKind::$kind) {
+                out.insert($crate::ServiceKind::$kind, $crate::ClientHandle::$variant($ctor(ch.clone())));
+            } else {
+                ::tracing::warn!(
+                    "channel for {:?} not found; skip building client",
+                    $crate::ServiceKind::$kind
+                );
+            }
+        )+
+        out
+    }};
 }

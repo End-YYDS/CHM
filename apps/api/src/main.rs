@@ -17,6 +17,7 @@ use argh::FromArgs;
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{
     api_resp, declare_init_route, BootstrapResp, Default_ServerCluster, InitData,
+    ServiceDescriptor, ServiceKind,
 };
 use chm_grpc::{
     restful::restful_service_client::RestfulServiceClient,
@@ -28,7 +29,7 @@ use chm_grpc::{
 use chm_project_const::{uuid::Uuid, ProjectConst};
 use openssl::ssl::{SslFiletype, SslMethod};
 use std::{
-    net::{IpAddr, SocketAddr},
+    net::{Ipv4Addr, SocketAddrV4},
     sync::atomic::Ordering::Relaxed,
     time::Duration,
 };
@@ -47,7 +48,7 @@ pub struct InitCarry {
     pub root_ca_path:    PathBuf,
     pub uuid:            Uuid,
     pub server_hostname: String,
-    pub server_port:     u16,
+    pub server_addr:     SocketAddrV4,
     pub private_key:     Vec<u8>,
     pub cert_info:       CertInfo,
 }
@@ -57,11 +58,11 @@ impl InitCarry {
         root_ca_path: PathBuf,
         uuid: Uuid,
         server_hostname: String,
-        server_port: u16,
+        server_addr: SocketAddrV4,
         private_key: Vec<u8>,
         cert_info: CertInfo,
     ) -> Arc<Self> {
-        Arc::new(Self { root_ca_path, uuid, server_hostname, server_port, private_key, cert_info })
+        Arc::new(Self { root_ca_path, uuid, server_hostname, server_addr, private_key, cert_info })
     }
 }
 
@@ -93,12 +94,15 @@ async fn init_data_handler(
                     return ControlFlow::Break(api_resp!(InternalServerError "生成 CSR 失敗"));
                 }
             };
-            let resp = BootstrapResp {
-                uuid: carry.uuid,
-                csr_pem,
-                server_hostname: carry.server_hostname.clone(),
-                server_port: carry.server_port,
+            let service_desp = ServiceDescriptor {
+                kind:        ServiceKind::Api,
+                uri:         format!("https://{}:{}", carry.uuid, carry.server_addr.port()),
+                health_name: None,
+                is_server:   false,
+                hostname:    ID.to_string(),
+                uuid:        carry.uuid,
             };
+            let resp = BootstrapResp { csr_pem, socket: carry.server_addr, service_desp };
             return ControlFlow::Break(api_resp!(ok "初始化交換成功", resp));
         }
         InitData::Finalize { id, cert_pem, .. } => {
@@ -149,8 +153,7 @@ async fn main() -> ApiResult<()> {
         same_site,
         cookie_secure,
     ) = GlobalConfig::with(|cfg| {
-        let host: IpAddr =
-            cfg.server.host.clone().parse().unwrap_or(IpAddr::V4(std::net::Ipv4Addr::LOCALHOST));
+        let host: Ipv4Addr = cfg.server.host.clone().parse().unwrap_or(Ipv4Addr::LOCALHOST);
         let port = cfg.server.port;
         let controller_addr = cfg.extend.controller.clone();
         let rootca = cfg.certificate.root_ca.clone();
@@ -166,7 +169,7 @@ async fn main() -> ApiResult<()> {
             chm_password::decode_key64_from_base64(cfg.extend.security.session_key.as_str());
         let same_site = cfg.extend.security.same_site.clone();
         (
-            SocketAddr::new(host, port),
+            SocketAddrV4::new(host, port),
             controller_addr,
             rootca,
             cert_info,
@@ -197,7 +200,7 @@ async fn main() -> ApiResult<()> {
         rootca.clone(),
         self_uuid,
         ID.to_string(),
-        addr.port(),
+        addr,
         key.clone(),
         cert_info.clone(),
     );

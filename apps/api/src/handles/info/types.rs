@@ -1,4 +1,4 @@
-use crate::none_if_string_none;
+use chm_cluster_utils::none_if_string_none;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

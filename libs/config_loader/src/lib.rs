@@ -1,8 +1,10 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use chm_project_const::ProjectConst;
 use config::{Config, Environment, File};
 use serde::de::DeserializeOwned;
+use tokio::fs;
+
 pub extern crate toml;
 pub struct ConfigLoader<T> {
     pub config:      T,
@@ -54,6 +56,16 @@ where
     if let Some(parent) = config_path.parent() {
         tokio::fs::create_dir_all(parent).await?;
     }
-    tokio::fs::write(config_path, s).await?;
+    atomic_write(&config_path, s.as_bytes()).await?;
+    Ok(())
+}
+
+async fn atomic_write(
+    path: &Path,
+    content: &[u8],
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let tmp_path = path.with_extension("tmp");
+    fs::write(&tmp_path, content).await?;
+    fs::rename(&tmp_path, path).await?;
     Ok(())
 }

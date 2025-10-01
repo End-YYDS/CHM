@@ -1,6 +1,9 @@
 use chm_project_const::uuid::Uuid;
 use serde::{Deserialize, Serialize};
 pub use serde_json::Value;
+use std::{net::SocketAddrV4, path::Path};
+
+pub type CHMResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiResponse<T = Value> {
@@ -26,6 +29,30 @@ impl<T> ApiResponse<T> {
 }
 
 #[allow(dead_code)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ServiceKind {
+    Controller,
+    Mca,
+    Dns,
+    Ldap,
+    Dhcp,
+    Api,
+    Agent,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ServiceDescriptor {
+    pub kind:        ServiceKind,
+    pub uri:         String,
+    #[serde(default, deserialize_with = "crate::none_if_string_none")]
+    pub health_name: Option<String>,
+    pub is_server:   bool,
+    // #[serde(default, deserialize_with = "crate::none_if_string_none")]
+    // pub inner_domain_name: Option<String>,
+    pub hostname:    String,
+    pub uuid:        Uuid,
+}
+
+#[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum InitData {
@@ -35,10 +62,9 @@ pub enum InitData {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BootstrapResp {
-    pub uuid:            Uuid,
-    pub csr_pem:         Vec<u8>,
-    pub server_hostname: String,
-    pub server_port:     u16,
+    pub csr_pem:      Vec<u8>,
+    pub socket:       SocketAddrV4,
+    pub service_desp: ServiceDescriptor,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -47,12 +73,31 @@ pub struct InitEnvelope<T> {
     #[serde(flatten)]
     pub data: T,
 }
+pub fn none_if_string_none<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let opt = Option::<String>::deserialize(deserializer)?;
+    match opt.as_deref() {
+        Some("None") => Ok(None),
+        Some(s) if s.trim().is_empty() => Ok(None),
+        _ => Ok(opt),
+    }
+}
+pub async fn atomic_write(path: &Path, content: &[u8]) -> CHMResult<()> {
+    let tmp_path = path.with_extension("tmp");
+    fs::write(&tmp_path, content).await?;
+    fs::rename(&tmp_path, path).await?;
+    Ok(())
+}
 #[cfg(feature = "client")]
 mod client;
 #[cfg(feature = "grpc-client")]
 pub mod gclient;
 #[cfg(feature = "grpc-client")]
 pub use backoff::ExponentialBackoff;
+use tokio::fs;
+
 #[cfg(feature = "grpc-server")]
 pub mod gserver;
 mod macros;

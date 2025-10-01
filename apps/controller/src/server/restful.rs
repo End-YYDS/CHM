@@ -7,11 +7,12 @@ use chm_grpc::{
     tonic,
     tonic::{Request, Response, Status},
 };
+use std::sync::Arc;
 
 // TODO: 由RestFul Server 為Client 調用Controller RestFul gRPC介面
 #[derive(Debug)]
 pub struct ControllerRestfulServer {
-    pub grpc_clients: GrpcClients,
+    pub grpc_clients: Arc<GrpcClients>,
 }
 
 #[tonic::async_trait]
@@ -69,9 +70,12 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetValidCertsRequest>,
     ) -> Result<Response<GetValidCertsResponse>, Status> {
-        let r = &self
+        let ca = self
             .grpc_clients
-            .ca
+            .ca()
+            .ok_or_else(|| "CA client not initialized")
+            .map_err(|e| Status::internal(e.to_string()))?;
+        let r = ca
             .get_all_certificates()
             .await
             .map_err(|e| Status::internal(format!("Failed to get valid certificates: {e}")))?;
@@ -92,10 +96,15 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetRevokedCertsRequest>,
     ) -> Result<Response<GetRevokedCertsResponse>, Status> {
-        let r =
-            &self.grpc_clients.ca.get_all_revoked_certificates().await.map_err(|e| {
-                Status::internal(format!("Failed to get revoked certificates: {e}"))
-            })?;
+        let ca = self
+            .grpc_clients
+            .ca()
+            .ok_or_else(|| "CA client not initialized")
+            .map_err(|e| Status::internal(e.to_string()))?;
+        let r = ca
+            .get_all_revoked_certificates()
+            .await
+            .map_err(|e| Status::internal(format!("Failed to get revoked certificates: {e}")))?;
         let revoked_certs: Vec<RevokedCert> = r
             .iter()
             .map(|entry| RevokedCert {
@@ -114,9 +123,12 @@ impl RestfulService for ControllerRestfulServer {
         request: Request<RevokeCertRequest>,
     ) -> Result<Response<RevokeCertResponse>, Status> {
         let RevokeCertRequest { name, reason } = request.into_inner();
-        let cert = self
+        let ca = self
             .grpc_clients
-            .ca
+            .ca()
+            .ok_or_else(|| "CA client not initialized")
+            .map_err(|e| Status::internal(e.to_string()))?;
+        let cert = ca
             .get_certificate_by_common_name(&name)
             .await
             .map_err(|e| Status::internal(format!("Failed to get serail {name}")))?;
@@ -124,9 +136,7 @@ impl RestfulService for ControllerRestfulServer {
             Some(c) => c,
             None => return Err(Status::not_found(format!("Certificate {name} not found"))),
         };
-        self.grpc_clients
-            .ca
-            .mark_certificate_as_revoked(cert.serial, Some(reason))
+        ca.mark_certificate_as_revoked(cert.serial, Some(reason))
             .await
             .map_err(|e| Status::internal(format!("Failed to revoke certificate {name}: {e}")))?;
         let result = chm_grpc::common::ResponseResult {

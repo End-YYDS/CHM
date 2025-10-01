@@ -1,3 +1,4 @@
+use argh::FromArgs;
 use controller::{config, Args, ConResult, ID, NEED_EXAMPLE};
 use std::sync::atomic::Ordering::Relaxed;
 use tracing_subscriber::EnvFilter;
@@ -18,11 +19,16 @@ async fn main() -> ConResult<()> {
         tracing::info!("配置檔案已生成，請檢查 {ID}_config.toml.example");
         return Ok(());
     }
-    tracing::info!("Controller 啟動中...");
+    if args.cmd.is_none() {
+        let app_name = std::env::args().next().unwrap_or_else(|| "controller".to_string());
+        let msg = Args::from_args(&[app_name.as_str()], &["help"]).unwrap_err().output;
+        eprintln!("{msg}");
+        return Ok(());
+    }
     tracing::debug!("初始化全域設定...");
     config().await?;
     tracing::debug!("全域設定已初始化");
-    tracing::info!("正在啟動Controller...");
+
     controller::entry(args).await?;
     Ok(())
 }

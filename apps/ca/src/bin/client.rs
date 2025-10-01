@@ -227,7 +227,7 @@ async fn test_first_controller_connect(client: &reqwest::Client) -> Result<()> {
         "Taipei",
         "CHM Organization",
         "one.chm.com",
-        &["127.0.0.1"],
+        ["127.0.0.1"],
     )?;
     let data = Otp { code: input.trim().to_string(), csr_cert, days: 365 };
     let resp = client.post("https://127.0.0.1:50052/init").json(&data).send().await?;

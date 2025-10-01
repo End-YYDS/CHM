@@ -59,15 +59,19 @@ impl CertUtils {
     /// # 回傳
     /// * `Ok((private_key_pem, csr_pem))`：分別是私鑰和 CSR 的 PEM Bytes
     /// * `Err(e)`：若任何步驟失敗，回傳錯誤
-    pub fn generate_csr_with_new_key(
+    pub fn generate_csr_with_new_key<I, S>(
         key_bits: u32,
         country: &str,
         state: &str,
         locality: &str,
         organization: &str,
         common_name: &str,
-        subject_alt_names: &[&str],
-    ) -> Result<(Vec<u8>, Vec<u8>)> {
+        subject_alt_names: I,
+    ) -> Result<(Vec<u8>, Vec<u8>)>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<str>,
+    {
         //  產生RSA私鑰
         let (key_pem, _) = Self::generate_rsa_keypair(key_bits)?;
         let private_key = PKey::private_key_from_pem(&key_pem)?;
