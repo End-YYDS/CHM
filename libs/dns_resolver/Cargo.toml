@@ -5,9 +5,9 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+backoff = { workspace = true }
+cached = { workspace = true }
 chm-grpc = { workspace = true }
+tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true }
-backoff = { workspace = true }
-tracing = { workspace = true }
-cached = { workspace = true }

@@ -15,21 +15,21 @@ default = ["openssl", "dep:tokio"]
 [dependencies]
 actix-tls = { workspace = true, optional = true }
 actix-web = { workspace = true, optional = true }
+backoff = { workspace = true, optional = true }
+cached = { workspace = true }
 chm-dns_resolver = { workspace = true }
 chm-password = { workspace = true }
+chm-project_const = { workspace = true }
 futures = { workspace = true }
+hyper-util = { workspace = true, optional = true }
+num_cpus = { workspace = true, optional = true }
 openssl = { workspace = true, optional = true }
 openssl-sys = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
 serde = { workspace = true }
-tokio = { workspace = true, optional = true, features = ["sync", "fs", "net"] }
-tracing = { workspace = true }
-chm-project_const = { workspace = true }
 serde_json = { workspace = true }
-cached = { workspace = true }
-num_cpus = { workspace = true, optional = true }
 sysinfo = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["sync", "fs", "net"] }
 tonic = { workspace = true, optional = true }
-hyper-util = { workspace = true, optional = true }
-backoff = { workspace = true, optional = true }
 tower = { workspace = true, optional = true }
+tracing = { workspace = true }

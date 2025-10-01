@@ -5,7 +5,7 @@ edition.workspace = true
 publish = false
 
 [dependencies]
+anyhow = "1.0.100"
 argon2 = { workspace = true }
 base64 = { workspace = true }
 rand = { workspace = true }
-anyhow = "1.0.100"
