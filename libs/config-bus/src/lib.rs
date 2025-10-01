@@ -78,7 +78,7 @@ macro_rules! declare_config {
                     }
                     #[cfg(not(debug_assertions))]
                     {
-                        let s = chm_dns_resolver::DnsResolver::get_local_ip()
+                        let s = DnsResolver::get_local_ip()
                             .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
                             .to_string();
                         dns_server.push_str(&s);
@@ -262,7 +262,7 @@ macro_rules! declare_config {
                     }
                     #[cfg(not(debug_assertions))]
                     {
-                        let s = chm_dns_resolver::DnsResolver::get_local_ip()
+                        let s = DnsResolver::get_local_ip()
                             .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
                             .to_string();
                         dns_server.push_str(&s);

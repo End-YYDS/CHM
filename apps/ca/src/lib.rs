@@ -49,6 +49,7 @@ pub type CsrCert = Vec<u8>;
 type CheckFuture = BoxFuture<'static, Result<Request<()>, Status>>;
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
 pub const ID: &str = "CHMmCA";
+#[cfg(debug_assertions)]
 pub const DEFAULT_PORT: u16 = 50052;
 pub const DEFAULT_OTP_LEN: usize = 6;
 pub const DEFAULT_MAX_CONNECTIONS: u32 = 5;

@@ -826,7 +826,6 @@ dependencies = [
  "backoff",
  "cached",
  "chm-grpc",
- "tonic",
  "tracing",
  "url",
  "uuid",

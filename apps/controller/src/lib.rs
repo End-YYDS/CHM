@@ -26,6 +26,7 @@ pub type ClientMap = HashMap<ServiceKind, ClientHandle>;
 pub type ConResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
 pub const ID: &str = "CHMcd";
+#[cfg(debug_assertions)]
 const DEFAULT_PORT: u16 = 50051;
 const DEFAULT_OTP_LEN: usize = 6;
 
@@ -115,7 +116,6 @@ impl Default for ControllerExtension {
 }
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct ServicesPool {
-    #[cfg(debug_assertions)]
     #[serde(flatten)]
     pub services: DashMap<ServiceKind, Vec<ServiceDescriptor>>,
 }

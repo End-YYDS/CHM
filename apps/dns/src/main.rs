@@ -6,9 +6,11 @@ use chm_grpc::dns::{
     HostnameResponse, IpResponse, UuidResponse,
 };
 use sqlx::{types::ipnetwork::IpNetwork, Error as SqlxError, PgPool};
+#[cfg(debug_assertions)]
+use std::net::Ipv4Addr;
 use std::{
     env,
-    net::{IpAddr, Ipv4Addr, SocketAddr},
+    net::{IpAddr, SocketAddr},
 };
 use thiserror::Error;
 use tonic::{transport::Server, Request, Response, Status};

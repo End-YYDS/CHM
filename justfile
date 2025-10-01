@@ -4,6 +4,8 @@ set dotenv-load := true
 CA_DATABASE_URL := env_var('CA_DATABASE_URL')
 DNS_DATABASE_URL := env_var('DNS_DATABASE_URL')
 CA_FOLDER_MIGRATE := "apps/ca/migrations"
+CA_FOLDER := "apps/ca"
+DNS_FOLDER := "apps/dns"
 DNS_FOLDER_MIGRATE := "apps/dns/migrations"
 CONFIG_FOLDER := "config"
 DATA_FOLDER := "data"
@@ -98,3 +100,16 @@ run-r-api args="":
     @RUST_LOG=CHM_API=info cargo run -p api_server --bin CHM_API -r -- {{ args }}
 
 # Todo: 添加release編譯
+sqlx-prepare:
+    @[[ ! -f "{{ DB_FOLDER }}/cert_store.db" ]] && just create-ca-db || true
+    @just reset-all
+    @(cd {{ CA_FOLDER }} && cargo sqlx prepare  -D "{{ CA_DATABASE_URL }}")
+    @(cd {{ DNS_FOLDER }} && cargo sqlx prepare -D "{{ DNS_DATABASE_URL }}")
+
+build-release:
+    @[[ ! -f "{{ DB_FOLDER }}/cert_store.db" ]] && just create-ca-db || true
+    @SQLX_OFFLINE=true cargo build --workspace --release
+
+release-all:
+    @just sqlx-prepare
+    @just build-release

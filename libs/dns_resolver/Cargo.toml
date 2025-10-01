@@ -11,4 +11,3 @@ uuid = { workspace = true }
 backoff = { workspace = true }
 tracing = { workspace = true }
 cached = { workspace = true }
-tonic = "0.13.1"
