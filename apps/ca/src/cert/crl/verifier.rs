@@ -1,13 +1,13 @@
+use chm_crl_cache::{CrlCache, CrlCacheError, CrlProvider};
+use chm_grpc::tonic::async_trait;
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use crl_cache::{CrlCache, CrlCacheError, CrlProvider};
-use grpc::tonic::async_trait;
 use std::sync::Arc;
 
 use crate::cert::store::{CertificateStore, CrlEntry as StoreCrlEntry};
 
 #[derive(Debug)]
 pub struct StoreCrlProvider {
-    store: Arc<dyn CertificateStore + Send + Sync>,
+    store:         Arc<dyn CertificateStore + Send + Sync>,
     poll_interval: ChronoDuration,
 }
 /// 繼承 CrlProvider，從 Store 中獲取 CRL，而不從gRPC 獲取。
@@ -16,10 +16,12 @@ impl CrlProvider for StoreCrlProvider {
     async fn fetch_crl(
         &self,
         since: Option<DateTime<Utc>>,
+        limit: usize,
+        offset: usize,
     ) -> Result<(Vec<String>, DateTime<Utc>, DateTime<Utc>), CrlCacheError> {
         let entries: Vec<StoreCrlEntry> =
             self.store
-                .list_crl_entries(since, usize::MAX, 0)
+                .list_crl_entries(since, limit, offset)
                 .await
                 .map_err(|e| CrlCacheError::ProviderError(e.to_string()))?;
         let serials: Vec<String> = entries.into_iter().filter_map(|e| e.cert_serial).collect();
@@ -34,10 +36,7 @@ impl StoreCrlProvider {
         store: Arc<dyn CertificateStore + Send + Sync>,
         poll_interval: ChronoDuration,
     ) -> Self {
-        Self {
-            store,
-            poll_interval,
-        }
+        Self { store, poll_interval }
     }
 }
 
@@ -53,12 +52,8 @@ impl CrlVerifier {
         poll_interval: ChronoDuration,
     ) -> Result<Self, CrlCacheError> {
         let provider = Arc::new(StoreCrlProvider::new(store.clone(), poll_interval));
-        let (full, this_u, next_u) = provider.fetch_crl(None).await?;
-        let cache = Arc::new(CrlCache::new(this_u, next_u, provider.clone()));
-        {
-            let mut w = cache.writer().await;
-            *w = full.into_iter().collect();
-        }
+        let now = Utc::now();
+        let cache = Arc::new(CrlCache::new(now, now, provider.clone()));
         cache.clone().start();
         Ok(CrlVerifier { cache })
     }

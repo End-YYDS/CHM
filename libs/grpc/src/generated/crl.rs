@@ -3,10 +3,10 @@
 pub struct ListCrlEntriesRequest {
     /// 只取 revoked_at > since 的條目；若不想篩時戳可留空
     #[prost(message, optional, tag = "1")]
-    pub since: ::core::option::Option<::prost_types::Timestamp>,
+    pub since:  ::core::option::Option<::prost_types::Timestamp>,
     /// 分頁大小
     #[prost(uint32, tag = "2")]
-    pub limit: u32,
+    pub limit:  u32,
     /// 分頁偏移（跳過前 offset 筆）
     #[prost(uint32, tag = "3")]
     pub offset: u32,
@@ -15,7 +15,7 @@ pub struct ListCrlEntriesRequest {
 pub struct ListCrlEntriesResponse {
     /// 這次回傳的所有條目
     #[prost(message, repeated, tag = "1")]
-    pub entries: ::prost::alloc::vec::Vec<CrlEntry>,
+    pub entries:     ::prost::alloc::vec::Vec<CrlEntry>,
     /// 本次 CRL 發佈時間
     #[prost(message, optional, tag = "2")]
     pub this_update: ::core::option::Option<::prost_types::Timestamp>,
@@ -24,22 +24,22 @@ pub struct ListCrlEntriesResponse {
     pub next_update: ::core::option::Option<::prost_types::Timestamp>,
     /// CRL Number (遞增版本號)
     #[prost(uint64, tag = "4")]
-    pub crl_number: u64,
+    pub crl_number:  u64,
     /// Root CA（mCA）對上面所有欄位做簽名的 bytes
     #[prost(bytes = "vec", tag = "5")]
-    pub signature: ::prost::alloc::vec::Vec<u8>,
+    pub signature:   ::prost::alloc::vec::Vec<u8>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CrlEntry {
     /// 憑證序號（hex string）
     #[prost(string, tag = "1")]
-    pub serial: ::prost::alloc::string::String,
+    pub serial:     ::prost::alloc::string::String,
     /// 撤銷時間
     #[prost(message, optional, tag = "2")]
     pub revoked_at: ::core::option::Option<::prost_types::Timestamp>,
     /// 撤銷原因
     #[prost(string, tag = "3")]
-    pub reason: ::prost::alloc::string::String,
+    pub reason:     ::prost::alloc::string::String,
 }
 /// Generated client implementations.
 #[cfg(feature = "crl-client")]
@@ -49,10 +49,9 @@ pub mod crl_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
-    use tonic::codegen::http::Uri;
+    use tonic::codegen::{http::Uri, *};
     /// CRL 服務：分頁列出撤銷條目，並附上更新時間、CRL 編號和簽名
     #[derive(Debug, Clone)]
     pub struct CrlClient<T> {
@@ -84,10 +83,7 @@ pub mod crl_client {
             let inner = tonic::client::Grpc::with_origin(inner, origin);
             Self { inner }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> CrlClient<InterceptedService<T, F>>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> CrlClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -97,16 +93,15 @@ pub mod crl_client {
                     <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             CrlClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
-        /// This requires the server to support it otherwise it might respond with an
-        /// error.
+        /// This requires the server to support it otherwise it might respond
+        /// with an error.
         #[must_use]
         pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
             self.inner = self.inner.send_compressed(encoding);
@@ -138,18 +133,11 @@ pub mod crl_client {
         pub async fn list_crl_entries(
             &mut self,
             request: impl tonic::IntoRequest<super::ListCrlEntriesRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListCrlEntriesResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ListCrlEntriesResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/crl.Crl/ListCrlEntries");
             let mut req = request.into_request();
@@ -166,20 +154,18 @@ pub mod crl_server {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with CrlServer.
+    /// Generated trait containing gRPC methods that should be implemented for
+    /// use with CrlServer.
     #[async_trait]
     pub trait Crl: std::marker::Send + std::marker::Sync + 'static {
         /// 分頁取得撤銷條目
         async fn list_crl_entries(
             &self,
             request: tonic::Request<super::ListCrlEntriesRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListCrlEntriesResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ListCrlEntriesResponse>, tonic::Status>;
     }
     /// CRL 服務：分頁列出撤銷條目，並附上更新時間、CRL 編號和簽名
     #[derive(Debug)]
@@ -203,10 +189,7 @@ pub mod crl_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -218,7 +201,8 @@ pub mod crl_server {
             self.accept_compression_encodings.enable(encoding);
             self
         }
-        /// Compress responses with the given encoding, if the client supports it.
+        /// Compress responses with the given encoding, if the client supports
+        /// it.
         #[must_use]
         pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
             self.send_compression_encodings.enable(encoding);
@@ -261,23 +245,16 @@ pub mod crl_server {
                 "/crl.Crl/ListCrlEntries" => {
                     #[allow(non_camel_case_types)]
                     struct ListCrlEntriesSvc<T: Crl>(pub Arc<T>);
-                    impl<
-                        T: Crl,
-                    > tonic::server::UnaryService<super::ListCrlEntriesRequest>
-                    for ListCrlEntriesSvc<T> {
+                    impl<T: Crl> tonic::server::UnaryService<super::ListCrlEntriesRequest> for ListCrlEntriesSvc<T> {
                         type Response = super::ListCrlEntriesResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ListCrlEntriesRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as Crl>::list_crl_entries(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as Crl>::list_crl_entries(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -303,25 +280,16 @@ pub mod crl_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        let mut response = http::Response::new(
-                            tonic::body::Body::default(),
-                        );
-                        let headers = response.headers_mut();
-                        headers
-                            .insert(
-                                tonic::Status::GRPC_STATUS,
-                                (tonic::Code::Unimplemented as i32).into(),
-                            );
-                        headers
-                            .insert(
-                                http::header::CONTENT_TYPE,
-                                tonic::metadata::GRPC_CONTENT_TYPE,
-                            );
-                        Ok(response)
-                    })
-                }
+                _ => Box::pin(async move {
+                    let mut response = http::Response::new(tonic::body::Body::default());
+                    let headers = response.headers_mut();
+                    headers.insert(
+                        tonic::Status::GRPC_STATUS,
+                        (tonic::Code::Unimplemented as i32).into(),
+                    );
+                    headers.insert(http::header::CONTENT_TYPE, tonic::metadata::GRPC_CONTENT_TYPE);
+                    Ok(response)
+                }),
             }
         }
     }

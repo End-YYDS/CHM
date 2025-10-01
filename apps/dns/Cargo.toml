@@ -1,24 +1,21 @@
 [package]
-name = "DNS"
-version = "0.1.0"
-edition = "2021"
+name = "dns"
+version = { workspace = true }
+edition = { workspace = true }
+
+[[bin]]
+name = "CHM_mDNSd"
+path = "src/main.rs"
 
 [dependencies]
-dotenv = "0.15.0"
-serde = { version = "1.0.218", features = ["derive"] }
-sqlx = { version = "0.8.3", features = [
-  "postgres",
-  "runtime-tokio",
-  "uuid",
-  "macros",
-  "ipnetwork",
-] }
-uuid = { version = "1.14.0", features = ["v4", "serde"] }
-thiserror = "2.0.12"
-tonic = "0.12.2"
-prost = "0.13.4"
-tokio = { version = "1.43.0", features = ["full"] }
-tonic-reflection = "0.12.2"
-
-[build-dependencies]
-tonic-build = "0.12.2"
+chm-dns_resolver = { workspace = true }
+chm-grpc = { workspace = true, features = ["dns"] }
+prost = { workspace = true }
+serde = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tonic = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+uuid = { workspace = true }

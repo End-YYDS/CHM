@@ -3,31 +3,29 @@ name = "ca"
 version.workspace = true
 edition.workspace = true
 
+[[bin]]
+name = "CHM_CA"
+path = "src/main.rs"
+
 [dependencies]
-actix-tls = { workspace = true }
 actix-web = { workspace = true }
-cert-utils = { workspace = true }
+chm-cert-utils = { workspace = true }
+chm-config_bus = { workspace = true }
+chm-cluster-utils = { workspace = true, features = ["server", "grpc-server"], default-features = true }
+chm-crl_cache = { workspace = true }
+chm-grpc = { workspace = true, features = ["ca", "crl-server"] }
+chm-project_const = { workspace = true }
 chrono = { workspace = true }
-config_loader = { workspace = true,default-features = true }
-crl_cache = { workspace = true }
 futures = { workspace = true }
-grpc = { workspace = true, features = ["ca","crl-server"] }
-humantime = { workspace = true }
 humantime-serde = { workspace = true }
-once_cell = { workspace = true }
 openssl = { workspace = true }
-openssl-sys = { workspace = true }
-password = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 sqlx = { workspace = true }
 tokio = { workspace = true }
 tonic-async-interceptor = { workspace = true }
 tower = { workspace = true }
-tower-http = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
+uuid = { workspace = true }
 
-[[bin]]
-name = "CHM_CA"
-path = "src/main.rs"

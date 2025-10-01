@@ -2,14 +2,14 @@
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CsrRequest {
     #[prost(bytes = "vec", tag = "1")]
-    pub csr: ::prost::alloc::vec::Vec<u8>,
+    pub csr:  ::prost::alloc::vec::Vec<u8>,
     #[prost(uint32, tag = "2")]
     pub days: u32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CsrResponse {
     #[prost(bytes = "vec", tag = "1")]
-    pub cert: ::prost::alloc::vec::Vec<u8>,
+    pub cert:  ::prost::alloc::vec::Vec<u8>,
     #[prost(bytes = "vec", repeated, tag = "2")]
     pub chain: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
@@ -23,37 +23,40 @@ pub struct ReloadResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Cert {
     #[prost(string, tag = "1")]
-    pub serial: ::prost::alloc::string::String,
+    pub serial:      ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub subject_cn: ::prost::alloc::string::String,
+    pub subject_cn:  ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub subject_dn: ::prost::alloc::string::String,
+    pub subject_dn:  ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
-    pub issuer: ::prost::alloc::string::String,
+    pub issuer:      ::prost::alloc::string::String,
     #[prost(message, optional, tag = "5")]
     pub issued_date: ::core::option::Option<::prost_types::Timestamp>,
     #[prost(message, optional, tag = "6")]
-    pub expiration: ::core::option::Option<::prost_types::Timestamp>,
+    pub expiration:  ::core::option::Option<::prost_types::Timestamp>,
     #[prost(string, tag = "7")]
-    pub thumbprint: ::prost::alloc::string::String,
+    pub thumbprint:  ::prost::alloc::string::String,
     #[prost(enumeration = "CertStatus", tag = "8")]
-    pub status: i32,
-    #[prost(bytes = "vec", tag = "9")]
-    pub cert_der: ::prost::alloc::vec::Vec<u8>,
+    pub status:      i32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CrlEntry {
     #[prost(string, tag = "1")]
     pub cert_serial: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "2")]
-    pub revoked_at: ::core::option::Option<::prost_types::Timestamp>,
+    pub revoked_at:  ::core::option::Option<::prost_types::Timestamp>,
     #[prost(string, tag = "3")]
-    pub reason: ::prost::alloc::string::String,
+    pub reason:      ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListAllCertsResponse {
     #[prost(message, repeated, tag = "1")]
     pub certs: ::prost::alloc::vec::Vec<Cert>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ListAllCrlResponse {
+    #[prost(message, repeated, tag = "1")]
+    pub certs: ::prost::alloc::vec::Vec<CrlEntry>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetCertRequest {
@@ -117,7 +120,8 @@ impl CertStatus {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic
+    /// use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Valid => "VALID",
@@ -141,10 +145,9 @@ pub mod ca_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
-    use tonic::codegen::http::Uri;
+    use tonic::codegen::{http::Uri, *};
     #[derive(Debug, Clone)]
     pub struct CaClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -175,10 +178,7 @@ pub mod ca_client {
             let inner = tonic::client::Grpc::with_origin(inner, origin);
             Self { inner }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> CaClient<InterceptedService<T, F>>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> CaClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -188,16 +188,15 @@ pub mod ca_client {
                     <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             CaClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
-        /// This requires the server to support it otherwise it might respond with an
-        /// error.
+        /// This requires the server to support it otherwise it might respond
+        /// with an error.
         #[must_use]
         pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
             self.inner = self.inner.send_compressed(encoding);
@@ -229,14 +228,9 @@ pub mod ca_client {
             &mut self,
             request: impl tonic::IntoRequest<super::CsrRequest>,
         ) -> std::result::Result<tonic::Response<super::CsrResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/ca.CA/SignCsr");
             let mut req = request.into_request();
@@ -247,14 +241,9 @@ pub mod ca_client {
             &mut self,
             request: impl tonic::IntoRequest<super::Empty>,
         ) -> std::result::Result<tonic::Response<super::ReloadResponse>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/ca.CA/ReloadGrpc");
             let mut req = request.into_request();
@@ -264,39 +253,38 @@ pub mod ca_client {
         pub async fn list_all(
             &mut self,
             request: impl tonic::IntoRequest<super::Empty>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListAllCertsResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ListAllCertsResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/ca.CA/ListAll");
             let mut req = request.into_request();
             req.extensions_mut().insert(GrpcMethod::new("ca.CA", "ListAll"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn list_crl(
+            &mut self,
+            request: impl tonic::IntoRequest<super::Empty>,
+        ) -> std::result::Result<tonic::Response<super::ListAllCrlResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/ca.CA/ListCrl");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("ca.CA", "ListCrl"));
+            self.inner.unary(req, path, codec).await
+        }
         pub async fn get(
             &mut self,
             request: impl tonic::IntoRequest<super::GetCertRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetCertResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::GetCertResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/ca.CA/Get");
             let mut req = request.into_request();
@@ -306,18 +294,11 @@ pub mod ca_client {
         pub async fn get_by_thumbprint(
             &mut self,
             request: impl tonic::IntoRequest<super::GetByThumprintRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetByThumprintResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::GetByThumprintResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/ca.CA/GetByThumbprint");
             let mut req = request.into_request();
@@ -327,18 +308,11 @@ pub mod ca_client {
         pub async fn get_by_common_name(
             &mut self,
             request: impl tonic::IntoRequest<super::GetByCommonNameRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetByCommonNameResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::GetByCommonNameResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/ca.CA/GetByCommonName");
             let mut req = request.into_request();
@@ -348,18 +322,11 @@ pub mod ca_client {
         pub async fn query_cert_status(
             &mut self,
             request: impl tonic::IntoRequest<super::QueryCertStatusRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::QueryCertStatusResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::QueryCertStatusResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/ca.CA/QueryCertStatus");
             let mut req = request.into_request();
@@ -369,18 +336,11 @@ pub mod ca_client {
         pub async fn mark_cert_revoked(
             &mut self,
             request: impl tonic::IntoRequest<super::MarkCertRevokedRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::MarkCertRevokedResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::MarkCertRevokedResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/ca.CA/MarkCertRevoked");
             let mut req = request.into_request();
@@ -397,10 +357,11 @@ pub mod ca_server {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with CaServer.
+    /// Generated trait containing gRPC methods that should be implemented for
+    /// use with CaServer.
     #[async_trait]
     pub trait Ca: std::marker::Send + std::marker::Sync + 'static {
         async fn sign_csr(
@@ -414,10 +375,11 @@ pub mod ca_server {
         async fn list_all(
             &self,
             request: tonic::Request<super::Empty>,
-        ) -> std::result::Result<
-            tonic::Response<super::ListAllCertsResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ListAllCertsResponse>, tonic::Status>;
+        async fn list_crl(
+            &self,
+            request: tonic::Request<super::Empty>,
+        ) -> std::result::Result<tonic::Response<super::ListAllCrlResponse>, tonic::Status>;
         async fn get(
             &self,
             request: tonic::Request<super::GetCertRequest>,
@@ -425,31 +387,19 @@ pub mod ca_server {
         async fn get_by_thumbprint(
             &self,
             request: tonic::Request<super::GetByThumprintRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetByThumprintResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::GetByThumprintResponse>, tonic::Status>;
         async fn get_by_common_name(
             &self,
             request: tonic::Request<super::GetByCommonNameRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetByCommonNameResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::GetByCommonNameResponse>, tonic::Status>;
         async fn query_cert_status(
             &self,
             request: tonic::Request<super::QueryCertStatusRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::QueryCertStatusResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::QueryCertStatusResponse>, tonic::Status>;
         async fn mark_cert_revoked(
             &self,
             request: tonic::Request<super::MarkCertRevokedRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::MarkCertRevokedResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::MarkCertRevokedResponse>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct CaServer<T> {
@@ -472,10 +422,7 @@ pub mod ca_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -487,7 +434,8 @@ pub mod ca_server {
             self.accept_compression_encodings.enable(encoding);
             self
         }
-        /// Compress responses with the given encoding, if the client supports it.
+        /// Compress responses with the given encoding, if the client supports
+        /// it.
         #[must_use]
         pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
             self.send_compression_encodings.enable(encoding);
@@ -530,21 +478,15 @@ pub mod ca_server {
                 "/ca.CA/SignCsr" => {
                     #[allow(non_camel_case_types)]
                     struct SignCsrSvc<T: Ca>(pub Arc<T>);
-                    impl<T: Ca> tonic::server::UnaryService<super::CsrRequest>
-                    for SignCsrSvc<T> {
+                    impl<T: Ca> tonic::server::UnaryService<super::CsrRequest> for SignCsrSvc<T> {
                         type Response = super::CsrResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CsrRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as Ca>::sign_csr(&inner, request).await
-                            };
+                            let fut = async move { <T as Ca>::sign_csr(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -573,21 +515,12 @@ pub mod ca_server {
                 "/ca.CA/ReloadGrpc" => {
                     #[allow(non_camel_case_types)]
                     struct ReloadGrpcSvc<T: Ca>(pub Arc<T>);
-                    impl<T: Ca> tonic::server::UnaryService<super::Empty>
-                    for ReloadGrpcSvc<T> {
+                    impl<T: Ca> tonic::server::UnaryService<super::Empty> for ReloadGrpcSvc<T> {
                         type Response = super::ReloadResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::Empty>,
-                        ) -> Self::Future {
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(&mut self, request: tonic::Request<super::Empty>) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as Ca>::reload_grpc(&inner, request).await
-                            };
+                            let fut = async move { <T as Ca>::reload_grpc(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -616,21 +549,12 @@ pub mod ca_server {
                 "/ca.CA/ListAll" => {
                     #[allow(non_camel_case_types)]
                     struct ListAllSvc<T: Ca>(pub Arc<T>);
-                    impl<T: Ca> tonic::server::UnaryService<super::Empty>
-                    for ListAllSvc<T> {
+                    impl<T: Ca> tonic::server::UnaryService<super::Empty> for ListAllSvc<T> {
                         type Response = super::ListAllCertsResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::Empty>,
-                        ) -> Self::Future {
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(&mut self, request: tonic::Request<super::Empty>) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as Ca>::list_all(&inner, request).await
-                            };
+                            let fut = async move { <T as Ca>::list_all(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -656,24 +580,52 @@ pub mod ca_server {
                     };
                     Box::pin(fut)
                 }
+                "/ca.CA/ListCrl" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListCrlSvc<T: Ca>(pub Arc<T>);
+                    impl<T: Ca> tonic::server::UnaryService<super::Empty> for ListCrlSvc<T> {
+                        type Response = super::ListAllCrlResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(&mut self, request: tonic::Request<super::Empty>) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move { <T as Ca>::list_crl(&inner, request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ListCrlSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
                 "/ca.CA/Get" => {
                     #[allow(non_camel_case_types)]
                     struct GetSvc<T: Ca>(pub Arc<T>);
-                    impl<T: Ca> tonic::server::UnaryService<super::GetCertRequest>
-                    for GetSvc<T> {
+                    impl<T: Ca> tonic::server::UnaryService<super::GetCertRequest> for GetSvc<T> {
                         type Response = super::GetCertResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetCertRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as Ca>::get(&inner, request).await
-                            };
+                            let fut = async move { <T as Ca>::get(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -702,21 +654,16 @@ pub mod ca_server {
                 "/ca.CA/GetByThumbprint" => {
                     #[allow(non_camel_case_types)]
                     struct GetByThumbprintSvc<T: Ca>(pub Arc<T>);
-                    impl<T: Ca> tonic::server::UnaryService<super::GetByThumprintRequest>
-                    for GetByThumbprintSvc<T> {
+                    impl<T: Ca> tonic::server::UnaryService<super::GetByThumprintRequest> for GetByThumbprintSvc<T> {
                         type Response = super::GetByThumprintResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetByThumprintRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as Ca>::get_by_thumbprint(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as Ca>::get_by_thumbprint(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -745,23 +692,16 @@ pub mod ca_server {
                 "/ca.CA/GetByCommonName" => {
                     #[allow(non_camel_case_types)]
                     struct GetByCommonNameSvc<T: Ca>(pub Arc<T>);
-                    impl<
-                        T: Ca,
-                    > tonic::server::UnaryService<super::GetByCommonNameRequest>
-                    for GetByCommonNameSvc<T> {
+                    impl<T: Ca> tonic::server::UnaryService<super::GetByCommonNameRequest> for GetByCommonNameSvc<T> {
                         type Response = super::GetByCommonNameResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetByCommonNameRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as Ca>::get_by_common_name(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as Ca>::get_by_common_name(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -790,23 +730,16 @@ pub mod ca_server {
                 "/ca.CA/QueryCertStatus" => {
                     #[allow(non_camel_case_types)]
                     struct QueryCertStatusSvc<T: Ca>(pub Arc<T>);
-                    impl<
-                        T: Ca,
-                    > tonic::server::UnaryService<super::QueryCertStatusRequest>
-                    for QueryCertStatusSvc<T> {
+                    impl<T: Ca> tonic::server::UnaryService<super::QueryCertStatusRequest> for QueryCertStatusSvc<T> {
                         type Response = super::QueryCertStatusResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::QueryCertStatusRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as Ca>::query_cert_status(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as Ca>::query_cert_status(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -835,23 +768,16 @@ pub mod ca_server {
                 "/ca.CA/MarkCertRevoked" => {
                     #[allow(non_camel_case_types)]
                     struct MarkCertRevokedSvc<T: Ca>(pub Arc<T>);
-                    impl<
-                        T: Ca,
-                    > tonic::server::UnaryService<super::MarkCertRevokedRequest>
-                    for MarkCertRevokedSvc<T> {
+                    impl<T: Ca> tonic::server::UnaryService<super::MarkCertRevokedRequest> for MarkCertRevokedSvc<T> {
                         type Response = super::MarkCertRevokedResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::MarkCertRevokedRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as Ca>::mark_cert_revoked(&inner, request).await
-                            };
+                            let fut =
+                                async move { <T as Ca>::mark_cert_revoked(&inner, request).await };
                             Box::pin(fut)
                         }
                     }
@@ -877,25 +803,16 @@ pub mod ca_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        let mut response = http::Response::new(
-                            tonic::body::Body::default(),
-                        );
-                        let headers = response.headers_mut();
-                        headers
-                            .insert(
-                                tonic::Status::GRPC_STATUS,
-                                (tonic::Code::Unimplemented as i32).into(),
-                            );
-                        headers
-                            .insert(
-                                http::header::CONTENT_TYPE,
-                                tonic::metadata::GRPC_CONTENT_TYPE,
-                            );
-                        Ok(response)
-                    })
-                }
+                _ => Box::pin(async move {
+                    let mut response = http::Response::new(tonic::body::Body::default());
+                    let headers = response.headers_mut();
+                    headers.insert(
+                        tonic::Status::GRPC_STATUS,
+                        (tonic::Code::Unimplemented as i32).into(),
+                    );
+                    headers.insert(http::header::CONTENT_TYPE, tonic::metadata::GRPC_CONTENT_TYPE);
+                    Ok(response)
+                }),
             }
         }
     }

@@ -1,7 +1,8 @@
 [package]
-name = "grpc"
+name = "chm-grpc"
 version.workspace = true
 edition.workspace = true
+publish = false
 [features]
 ca-client = []
 ca-server = []
@@ -9,11 +10,27 @@ ca = ["ca-client", "ca-server"]
 crl-client = []
 crl-server = []
 crl = ["crl-client", "crl-server"]
-default = ["crl-client"]
+controller-client = []
+controller-server = []
+controller = ["controller-client", "controller-server"]
+dns-client = []
+dns-server = []
+dns = ["dns-client", "dns-server"]
+restful-server = []
+restful-client = []
+common-server = []
+common-client = []
+restful-common-server = ["restful-server", "common-server"]
+restful-common-client = ["restful-client", "common-client"]
+common = ["common-server", "common-client"]
+restful = ["restful-server", "restful-client", "common"]
+default = ["crl-client", "dns-client"]
+all = ["ca", "crl", "controller", "dns", "restful", "common"]
 [dependencies]
-prost = "0.13.5"
-prost-types = "0.13.5"
-tonic = { version = "0.13.1", features = ["tls-ring"] }
-tonic-health = "0.13.0"
+prost = { workspace = true }
+prost-types = { workspace = true }
+tonic = { workspace = true }
+tonic-health = { workspace = true }
 [build-dependencies]
+protoc-bin-vendored = "3.2.0"
 tonic-build = "0.13.1"

@@ -1,11 +1,12 @@
 [package]
-name = "cert-utils"
+name = "chm-cert-utils"
 version.workspace = true
 edition.workspace = true
+publish = false
 
 [dependencies]
-config_loader = { workspace = true,  features = ["project_dirs"] }
-grpc = { workspace = true, features = ["crl-client"] }
+chm-grpc = { workspace = true, features = ["crl-client"] }
+chm-project_const = { workspace = true }
 openssl = { workspace = true }
-openssl-sys = { workspace = true }
+chrono = { workspace = true }
 

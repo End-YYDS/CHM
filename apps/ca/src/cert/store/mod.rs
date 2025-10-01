@@ -1,6 +1,6 @@
-use crate::{config::BackendConfig, globals::GlobalConfig, CaResult};
+use crate::{globals::GlobalConfig, BackendConfig, CaResult};
+use chm_grpc::tonic::async_trait;
 use chrono::{DateTime, Utc};
-use grpc::tonic::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, path::PathBuf};
 
@@ -21,21 +21,21 @@ pub enum CertStatus {
 
 #[derive(Debug)]
 pub struct Cert {
-    pub serial: Option<String>,     // PK: 憑證序號 (hex string)
-    pub subject_cn: Option<String>, // Common Name
-    pub subject_dn: Option<String>, // 完整 Subject DN
-    pub issuer: Option<String>,     // 完整 Issuer DN
-    pub issued_date: DateTime<Utc>, // 解析自 ISO8601
-    pub expiration: DateTime<Utc>,  // 同上
-    pub thumbprint: Option<String>, // SHA-256 指紋 hex
-    pub status: CertStatus,         // 'valid' / 'revoked'
-    pub cert_der: Option<CertDer>,  // BLOB 原始 DER bytes
+    pub serial:      Option<String>,  // PK: 憑證序號 (hex string)
+    pub subject_cn:  Option<String>,  // Common Name
+    pub subject_dn:  Option<String>,  // 完整 Subject DN
+    pub issuer:      Option<String>,  // 完整 Issuer DN
+    pub issued_date: DateTime<Utc>,   // 解析自 ISO8601
+    pub expiration:  DateTime<Utc>,   // 同上
+    pub thumbprint:  Option<String>,  // SHA-256 指紋 hex
+    pub status:      CertStatus,      // 'valid' / 'revoked'
+    pub cert_der:    Option<CertDer>, // BLOB 原始 DER bytes
 }
 #[derive(Debug)]
 pub struct CrlEntry {
     pub cert_serial: Option<String>, // FK: 對應到 certs.serial
-    pub revoked_at: DateTime<Utc>,   // 解析自 ISO8601
-    pub reason: Option<String>,      // 註銷原因
+    pub revoked_at:  DateTime<Utc>,  // 解析自 ISO8601
+    pub reason:      Option<String>, // 註銷原因
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -49,18 +49,14 @@ pub struct StoreFactory;
 /// 創建憑證存儲的工廠類
 impl StoreFactory {
     pub async fn create_store() -> CaResult<Box<dyn CertificateStore>> {
-        let cfg = &GlobalConfig::read().await.settings;
+        let cfg = GlobalConfig::get();
 
-        match &cfg.certificate.backend {
-            BackendConfig::Sqlite {
-                store_path,
-                max_connections,
-                timeout,
-            } => {
+        match &cfg.extend.cert_ext.backend {
+            BackendConfig::Sqlite { store_path, max_connections, timeout } => {
                 let sqlite_cfg = BackendConfig::Sqlite {
-                    store_path: store_path.clone(),
+                    store_path:      store_path.clone(),
                     max_connections: *max_connections,
-                    timeout: *timeout,
+                    timeout:         *timeout,
                 };
                 let conn = sqlite::SqlConnection::new(sqlite_cfg).await?;
                 Ok(Box::new(conn))
@@ -89,7 +85,8 @@ pub trait CertificateStore: Debug + Sync + Send {
     // 撤銷憑證操作相關的異步方法
     /// 列出所有撤銷憑證
     async fn list_crl(&self) -> CaResult<Vec<CrlEntry>>;
-    /// 分頁列出 CRL 條目，只回傳 revoked_at > `since`（若 `since` 為 None 就不加時間過濾）
+    /// 分頁列出 CRL 條目，只回傳 revoked_at > `since`（若 `since` 為 None
+    /// 就不加時間過濾）
     async fn list_crl_entries(
         &self,
         since: Option<DateTime<Utc>>,

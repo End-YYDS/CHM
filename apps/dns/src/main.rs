@@ -1,22 +1,19 @@
-use dns::dns_service_server::{DnsService, DnsServiceServer};
-use dns::{
+use chm_grpc::dns::{
+    dns_service_server::{DnsService, DnsServiceServer},
     AddHostRequest, AddHostResponse, DeleteHostRequest, DeleteHostResponse, EditHostnameRequest,
     EditIpRequest, EditResponse, EditUuidRequest, GetHostnameByIpRequest, GetHostnameByUuidRequest,
     GetIpByHostnameRequest, GetIpByUuidRequest, GetUuidByHostnameRequest, GetUuidByIpRequest,
     HostnameResponse, IpResponse, UuidResponse,
 };
-use dotenv::dotenv;
-use sqlx::types::ipnetwork::IpNetwork;
-use sqlx::{Error as SqlxError, PgPool};
-use std::env;
-use std::net::IpAddr;
+use sqlx::{types::ipnetwork::IpNetwork, Error as SqlxError, PgPool};
+use std::{
+    env,
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+};
 use thiserror::Error;
 use tonic::{transport::Server, Request, Response, Status};
+use tracing_subscriber::EnvFilter;
 use uuid::Uuid;
-
-pub mod dns {
-    include!("generated/dns.rs");
-}
 
 #[derive(Debug, Error)]
 pub enum DnsSolverError {
@@ -52,16 +49,16 @@ impl From<DnsSolverError> for Status {
             DnsSolverError::InvalidIpFormat => Status::invalid_argument(e.to_string()),
             DnsSolverError::MissingDatabaseUrl => Status::internal(e.to_string()),
             DnsSolverError::AlreadyExists(h) => {
-                Status::already_exists(format!("'{}' already exists", h))
+                Status::already_exists(format!("'{h}' already exists"))
             }
             DnsSolverError::NotFoundUuid(id) => {
-                Status::not_found(format!("No entry found for UUID {}", id))
+                Status::not_found(format!("No entry found for UUID {id}"))
             }
             DnsSolverError::NotFoundHostname(h) => {
-                Status::not_found(format!("No entry found for hostname {}", h))
+                Status::not_found(format!("No entry found for hostname {h}"))
             }
             DnsSolverError::NotFoundIp(ip) => {
-                Status::not_found(format!("No entry found for IP {}", ip))
+                Status::not_found(format!("No entry found for IP {ip}"))
             }
             DnsSolverError::EditError => Status::internal(e.to_string()),
         }
@@ -74,16 +71,21 @@ pub struct DnsSolver {
 
 impl DnsSolver {
     pub async fn new() -> Result<Self, DnsSolverError> {
-        dotenv().ok();
+        // TODO: 從Config中讀取數據庫連接字符串
         let database_url =
             env::var("DATABASE_URL").map_err(|_| DnsSolverError::MissingDatabaseUrl)?;
         let pool = PgPool::connect(&database_url).await?;
         Ok(Self { pool })
     }
 
-    pub async fn add_host(&self, hostname: &str, ip: IpNetwork) -> Result<Uuid, DnsSolverError> {
+    pub async fn add_host(
+        &self,
+        hostname: &str,
+        ip: IpNetwork,
+        id: Uuid,
+    ) -> Result<(), DnsSolverError> {
         // Check if the hostname already exists
-        let existing = sqlx::query!("SELECT id FROM hosts WHERE hostname = $1", hostname)
+        let existing = sqlx::query!("SELECT id FROM hosts WHERE hostname = $1::citext", hostname)
             .fetch_optional(&self.pool)
             .await?;
 
@@ -91,22 +93,15 @@ impl DnsSolver {
             return Err(DnsSolverError::AlreadyExists(hostname.to_string()));
         }
 
-        let id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO hosts (id, hostname, ip) VALUES ($1, $2, $3)",
-            id,
-            hostname,
-            ip
-        )
-        .execute(&self.pool)
-        .await?;
-        Ok(id)
+        // let id = Uuid::new_v4();
+        sqlx::query!("INSERT INTO hosts (id, hostname, ip) VALUES ($1, $2, $3)", id, hostname, ip)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     pub async fn delete_host(&self, id: Uuid) -> Result<(), DnsSolverError> {
-        sqlx::query!("DELETE FROM hosts WHERE id = $1", id)
-            .execute(&self.pool)
-            .await?;
+        sqlx::query!("DELETE FROM hosts WHERE id = $1", id).execute(&self.pool).await?;
         Ok(())
     }
 
@@ -128,21 +123,18 @@ impl DnsSolver {
 
     pub async fn edit_hostname(&self, id: Uuid, new_hostname: &str) -> Result<(), DnsSolverError> {
         // Check if the hostname already exists
-        let existing = sqlx::query!("SELECT id FROM hosts WHERE hostname = $1", new_hostname)
-            .fetch_optional(&self.pool)
-            .await?;
+        let existing =
+            sqlx::query!("SELECT id FROM hosts WHERE hostname = $1::citext", new_hostname)
+                .fetch_optional(&self.pool)
+                .await?;
 
         if existing.is_some() {
             return Err(DnsSolverError::AlreadyExists(new_hostname.to_string()));
         }
 
-        sqlx::query!(
-            "UPDATE hosts SET hostname = $1 WHERE id = $2",
-            new_hostname,
-            id
-        )
-        .execute(&self.pool)
-        .await?;
+        sqlx::query!("UPDATE hosts SET hostname = $1 WHERE id = $2", new_hostname, id)
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 
@@ -163,12 +155,11 @@ impl DnsSolver {
     }
 
     pub async fn get_uuid_by_hostname(&self, hostname: &str) -> Result<Uuid, DnsSolverError> {
-        let row = sqlx::query!("SELECT id FROM hosts WHERE hostname = $1", hostname)
+        let row = sqlx::query!("SELECT id FROM hosts WHERE hostname = $1::citext", hostname)
             .fetch_optional(&self.pool)
             .await?;
 
-        row.map(|r| r.id)
-            .ok_or(DnsSolverError::NotFoundHostname(hostname.to_string()))
+        row.map(|r| r.id).ok_or(DnsSolverError::NotFoundHostname(hostname.to_string()))
     }
 
     pub async fn get_uuid_by_ip(&self, ip: IpNetwork) -> Result<Uuid, DnsSolverError> {
@@ -176,8 +167,7 @@ impl DnsSolver {
             .fetch_optional(&self.pool)
             .await?;
 
-        row.map(|r| r.id)
-            .ok_or(DnsSolverError::NotFoundIp(ip.to_string()))
+        row.map(|r| r.id).ok_or(DnsSolverError::NotFoundIp(ip.to_string()))
     }
 
     pub async fn get_hostname_by_uuid(&self, id: Uuid) -> Result<String, DnsSolverError> {
@@ -185,8 +175,7 @@ impl DnsSolver {
             .fetch_optional(&self.pool)
             .await?;
 
-        row.map(|r| r.hostname)
-            .ok_or(DnsSolverError::NotFoundUuid(id))
+        row.map(|r| r.hostname).ok_or(DnsSolverError::NotFoundUuid(id))
     }
 
     pub async fn get_hostname_by_ip(&self, ip: IpNetwork) -> Result<String, DnsSolverError> {
@@ -194,26 +183,22 @@ impl DnsSolver {
             .fetch_optional(&self.pool)
             .await?;
 
-        row.map(|r| r.hostname)
-            .ok_or(DnsSolverError::NotFoundIp(ip.to_string()))
+        row.map(|r| r.hostname).ok_or(DnsSolverError::NotFoundIp(ip.to_string()))
     }
 
     pub async fn get_ip_by_uuid(&self, id: Uuid) -> Result<IpAddr, DnsSolverError> {
         let row = sqlx::query!("SELECT ip FROM hosts WHERE id = $1", id)
             .fetch_optional(&self.pool)
             .await?;
-
-        row.map(|r| r.ip.ip())
-            .ok_or(DnsSolverError::NotFoundUuid(id))
+        row.map(|r| r.ip.ip()).ok_or(DnsSolverError::NotFoundUuid(id))
     }
 
     pub async fn get_ip_by_hostname(&self, hostname: &str) -> Result<IpAddr, DnsSolverError> {
-        let row = sqlx::query!("SELECT ip FROM hosts WHERE hostname = $1", hostname)
+        let row = sqlx::query!("SELECT ip FROM hosts WHERE hostname = $1::citext", hostname)
             .fetch_optional(&self.pool)
             .await?;
 
-        row.map(|r| r.ip.ip())
-            .ok_or(DnsSolverError::NotFoundHostname(hostname.to_string()))
+        row.map(|r| r.ip.ip()).ok_or(DnsSolverError::NotFoundHostname(hostname.to_string()))
     }
 }
 
@@ -234,13 +219,13 @@ impl DnsService for MyDnsService {
         request: Request<AddHostRequest>,
     ) -> Result<Response<AddHostResponse>, Status> {
         let req = request.into_inner();
-        let ip: IpNetwork = req
-            .ip
-            .parse()
-            .map_err(|_| Status::invalid_argument("Invalid IP format"))?;
+        let ip: IpNetwork =
+            req.ip.parse().map_err(|_| Status::invalid_argument("Invalid IP format"))?;
+        let id: Uuid =
+            req.id.parse().map_err(|_| Status::invalid_argument("Invalid UUID format"))?;
 
-        match self.solver.add_host(&req.hostname, ip).await {
-            Ok(id) => Ok(Response::new(AddHostResponse { id: id.to_string() })),
+        match self.solver.add_host(&req.hostname, ip, id).await {
+            Ok(_) => Ok(Response::new(AddHostResponse { success: true })),
             Err(e) => Err(e.into()),
         }
     }
@@ -292,10 +277,8 @@ impl DnsService for MyDnsService {
     ) -> Result<Response<EditResponse>, Status> {
         let req = request.into_inner();
         let id = Uuid::parse_str(&req.id).map_err(|_| Status::invalid_argument("Invalid UUID"))?;
-        let ip: IpNetwork = req
-            .new_ip
-            .parse()
-            .map_err(|_| Status::invalid_argument("Invalid IP format"))?;
+        let ip: IpNetwork =
+            req.new_ip.parse().map_err(|_| Status::invalid_argument("Invalid IP format"))?;
 
         match self.solver.edit_ip(id, ip).await {
             Ok(_) => Ok(Response::new(EditResponse { success: true })),
@@ -309,9 +292,7 @@ impl DnsService for MyDnsService {
     ) -> Result<Response<UuidResponse>, Status> {
         let req = request.into_inner();
         match self.solver.get_uuid_by_hostname(&req.hostname).await {
-            Ok(uuid) => Ok(Response::new(UuidResponse {
-                id: uuid.to_string(),
-            })),
+            Ok(uuid) => Ok(Response::new(UuidResponse { id: uuid.to_string() })),
             Err(e) => Err(e.into()),
         }
     }
@@ -321,15 +302,11 @@ impl DnsService for MyDnsService {
         request: Request<GetUuidByIpRequest>,
     ) -> Result<Response<UuidResponse>, Status> {
         let req = request.into_inner();
-        let ip: IpNetwork = req
-            .ip
-            .parse()
-            .map_err(|_| Status::invalid_argument("Invalid IP format"))?;
+        let ip: IpNetwork =
+            req.ip.parse().map_err(|_| Status::invalid_argument("Invalid IP format"))?;
 
         match self.solver.get_uuid_by_ip(ip).await {
-            Ok(uuid) => Ok(Response::new(UuidResponse {
-                id: uuid.to_string(),
-            })),
+            Ok(uuid) => Ok(Response::new(UuidResponse { id: uuid.to_string() })),
             Err(e) => Err(e.into()),
         }
     }
@@ -352,10 +329,8 @@ impl DnsService for MyDnsService {
         request: Request<GetHostnameByIpRequest>,
     ) -> Result<Response<HostnameResponse>, Status> {
         let req = request.into_inner();
-        let ip: IpNetwork = req
-            .ip
-            .parse()
-            .map_err(|_| Status::invalid_argument("Invalid IP format"))?;
+        let ip: IpNetwork =
+            req.ip.parse().map_err(|_| Status::invalid_argument("Invalid IP format"))?;
 
         match self.solver.get_hostname_by_ip(ip).await {
             Ok(hostname) => Ok(Response::new(HostnameResponse { hostname })),
@@ -390,16 +365,39 @@ impl DnsService for MyDnsService {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "[::1]:50051".parse()?;
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    #[cfg(debug_assertions)]
+    let filter = EnvFilter::from_default_env().add_directive("info".parse().unwrap());
+    #[cfg(not(debug_assertions))]
+    let filter = EnvFilter::from_default_env();
+    tracing_subscriber::fmt().with_env_filter(filter).init();
+    tracing::info!("正在啟動DNS...");
+    #[cfg(debug_assertions)]
+    let local_ip = IpAddr::V4(Ipv4Addr::LOCALHOST);
+    #[cfg(not(debug_assertions))]
+    let local_ip = chm_dns_resolver::DnsResolver::get_local_ip()?;
+    let addr: SocketAddr = format!("{local_ip}:50053").parse()?;
     let solver = DnsSolver::new().await?;
+    // 手動添加默認mCA主機
+    // if let Err(e) = solver
+    //     .add_host(
+    //         "mdns.chm.com",
+    //         addr.ip().into(),
+    //         "e52f8d9e-52d7-4a3a-82a7-01195f165b85".parse::<Uuid>()?,
+    //     )
+    //     .await
+    // {
+    //     let dns_uuid = solver.get_uuid_by_hostname("mdns.chm.com").await?;
+    //     if let Err(e) = solver.edit_ip(dns_uuid, local_ip.into()).await {
+    //         tracing::warn!("Failed to edit default host IP: {}", e);
+    //     }
+    //     tracing::warn!("Failed to add default host: {}", e);
+    // }
     let service = MyDnsService::new(solver);
-
-    println!("Starting gRPC server on {}", addr);
-    Server::builder()
-        .add_service(DnsServiceServer::new(service))
-        .serve(addr)
-        .await?;
+    tracing::info!("Starting gRPC server on {addr}");
+    Server::builder().add_service(DnsServiceServer::new(service)).serve(addr).await?;
+    // TODO: 添加TLS支持,及添加CRL檢查
+    // TODO: 配置添加至Controller中的服務
 
     Ok(())
 }

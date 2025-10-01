@@ -1,0 +1,35 @@
+[package]
+name = "chm-cluster-utils"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[features]
+client = ["dep:reqwest"]
+server = ["dep:actix-web", "dep:actix-tls"]
+openssl = ["dep:openssl", "dep:openssl-sys"]
+grpc-server = ["dep:tonic", "dep:num_cpus", "dep:sysinfo"]
+grpc-client = ["dep:tonic", "dep:hyper-util", "dep:backoff", "dep:tower", "dep:tokio"]
+default = ["openssl", "dep:tokio"]
+
+[dependencies]
+actix-tls = { workspace = true, optional = true }
+actix-web = { workspace = true, optional = true }
+chm-dns_resolver = { workspace = true }
+chm-password = { workspace = true }
+futures = { workspace = true }
+openssl = { workspace = true, optional = true }
+openssl-sys = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+serde = { workspace = true }
+tokio = { workspace = true, optional = true, features = ["sync", "fs", "net"] }
+tracing = { workspace = true }
+chm-project_const = { workspace = true }
+serde_json = { workspace = true }
+cached = { workspace = true }
+num_cpus = { workspace = true, optional = true }
+sysinfo = { workspace = true, optional = true }
+tonic = { workspace = true, optional = true }
+hyper-util = { workspace = true, optional = true }
+backoff = { workspace = true, optional = true }
+tower = { workspace = true, optional = true }

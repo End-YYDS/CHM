@@ -1,0 +1,14 @@
+[package]
+name = "chm-config_bus"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+arc-swap = { workspace = true }
+tokio = { workspace = true, features = ["sync"] }
+serde = { workspace = true }
+chm-config_loader = { workspace = true, default-features = true }
+chm-dns_resolver = { workspace = true }
+chm-project_const = { workspace = true }
+humantime-serde = { workspace = true }

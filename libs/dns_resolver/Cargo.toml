@@ -1,0 +1,14 @@
+[package]
+name = "chm-dns_resolver"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+chm-grpc = { workspace = true }
+url = { workspace = true }
+uuid = { workspace = true }
+backoff = { workspace = true }
+tracing = { workspace = true }
+cached = { workspace = true }
+tonic = "0.13.1"

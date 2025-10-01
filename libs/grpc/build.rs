@@ -1,59 +1,10 @@
-// use std::env;
-// use std::path::Path;
-
-// fn main() -> Result<(), Box<dyn std::error::Error>> {
-//     let p_crate = Path::new(&env::var("CARGO_MANIFEST_DIR")?).to_owned();
-//     let generated = p_crate.join("src/generated");
-//     if !generated.exists() {
-//         std::fs::create_dir_all(&generated)?;
-//     }
-//     let proto_root = p_crate.join("proto_def");
-//     let mut protos = Vec::new();
-//     if env::var("CARGO_FEATURE_CA").is_ok() {
-//         protos.push(proto_root.join("ca.proto"));
-//     }
-//     if env::var("CARGO_FEATURE_CRL").is_ok() {
-//         protos.push(proto_root.join("crl.proto"));
-//     }
-//     // if env::var("CARGO_FEATURE_{features_name}").is_ok() {
-//     //     protos.push(proto_root.join("{file_name}.proto"));
-//     // }
-
-//     if protos.is_empty() {
-//         println!("cargo:warning=No proto features enabled, skipping tonic-build");
-//         return Ok(());
-//     }
-
-//     let proto_strs: Vec<_> = protos
-//         .iter()
-//         .map(|p| p.to_string_lossy().into_owned())
-//         .collect();
-
-//     tonic_build::configure()
-//         .build_server(true)
-//         .build_client(true)
-//         .out_dir(&generated)
-//         .compile_protos(&proto_strs, &[proto_root])?;
-//     let mut mod_rs = String::new();
-//     for entry in std::fs::read_dir(&generated)? {
-//         let path = entry?.path();
-//         if path.extension().and_then(|e| e.to_str()) == Some("rs") {
-//             if let Some(name) = path.file_stem().and_then(|n| n.to_str()) {
-//                 if name != "mod" {
-//                     mod_rs += &format!("#[cfg(feature = \"{0}\")]\n", name);
-//                     mod_rs += &format!("pub mod {};\n\n", name);
-//                 }
-//             }
-//         }
-//     }
-//     std::fs::write(generated.join("mod.rs"), mod_rs)?;
-//     Ok(())
-// }
-
-use std::path::Path;
-use std::{env, fs};
+use std::{env, fs, path::Path};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let protoc = protoc_bin_vendored::protoc_bin_path()?;
+    env::set_var("PROTOC", protoc);
+    let include_path = protoc_bin_vendored::include_path()?;
+    println!("cargo:rerun-if-env-changed=CARGO_FEATURE");
     let crate_root = Path::new(&env::var("CARGO_MANIFEST_DIR")?).to_owned();
     let out_dir = crate_root.join("src/generated");
     if !out_dir.exists() {
@@ -65,10 +16,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         if path.extension().and_then(|e| e.to_str()) != Some("proto") {
             continue;
         }
-        let stem = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .expect("檔名一定要是 valid UTF-8");
+        println!("cargo:rerun-if-changed={}", path.display());
+        let stem = path.file_stem().and_then(|s| s.to_str()).expect("檔名一定要是 valid UTF-8");
         let feature_client = format!("CARGO_FEATURE_{}_CLIENT", stem.to_uppercase());
         let feature_server = format!("CARGO_FEATURE_{}_SERVER", stem.to_uppercase());
         if env::var(&feature_client).is_err() && env::var(&feature_server).is_err() {
@@ -76,13 +25,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         let want_client = env::var(&feature_client).is_ok();
         let want_server = env::var(&feature_server).is_ok();
+        let generated_rs = out_dir.join(format!("{stem}.rs"));
+        if generated_rs.exists() {
+            let proto_meta = fs::metadata(&path)?.modified()?;
+            let gen_meta = fs::metadata(&generated_rs)?.modified()?;
+            if gen_meta >= proto_meta {
+                println!("skip compiling {stem} (up to date)");
+                continue;
+            }
+        }
         tonic_build::configure()
             .out_dir(&out_dir)
             .client_mod_attribute(stem, format!("#[cfg(feature = \"{stem}-client\")]"))
             .server_mod_attribute(stem, format!("#[cfg(feature = \"{stem}-server\")]"))
             .build_client(want_client)
             .build_server(want_server)
-            .compile_protos(&[path.clone()], &[&proto_root])?;
+            .compile_protos(&[&path], &[&proto_root, &include_path])?;
     }
     let mut mod_rs = String::new();
     for entry in fs::read_dir(&proto_root)? {

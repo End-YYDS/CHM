@@ -1,30 +1,41 @@
 #![allow(unused)]
-use chrono::{DateTime, Duration, Local, Utc};
-use grpc::ca::CertStatus;
-use grpc::crl::crl_client::CrlClient;
-use grpc::crl::{ListCrlEntriesRequest, ListCrlEntriesResponse};
-use grpc::prost::Message;
-use grpc::prost_types::Timestamp;
-use grpc::tonic::client;
-use grpc::tonic::transport::{Certificate, Channel, ClientTlsConfig, Endpoint};
-use grpc::tonic_health::pb::{health_client::HealthClient, HealthCheckRequest};
-use grpc::{
-    ca::{ca_client::CaClient, CsrRequest},
+use chm_cert_utils::CertUtils;
+use chm_grpc::{
+    ca::{ca_client::CaClient, CertStatus, CsrRequest},
+    crl::{crl_client::CrlClient, ListCrlEntriesRequest, ListCrlEntriesResponse},
+    prost::Message,
+    prost_types::Timestamp,
     tonic,
+    tonic::{
+        client,
+        transport::{Certificate, Channel, ClientTlsConfig, Endpoint},
+    },
+    tonic_health::pb::{health_client::HealthClient, HealthCheckRequest},
 };
-use openssl::hash::MessageDigest;
-use openssl::sign::Verifier;
-use openssl::x509::X509;
-use std::collections::HashMap;
-use std::fs;
-type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
+use chrono::{DateTime, Duration, Local, Utc};
+use openssl::{hash::MessageDigest, sign::Verifier, x509::X509};
+use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, fs};
+type Result<T> = std::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
+#[derive(Debug, Deserialize)]
+struct SignedCertResponse {
+    cert:  Vec<u8>,
+    chain: Vec<Vec<u8>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct Otp {
+    code:     String,
+    csr_cert: Vec<u8>,
+    days:     u32,
+}
 
 #[derive(Debug)]
 struct Info {
     root_ca: &'static str,
     private: &'static str,
-    cert: &'static str,
-    url: &'static str,
+    cert:    &'static str,
+    url:     &'static str,
     // one_test_private: &'static str,
     // one_test_cert: &'static str,
 }
@@ -41,20 +52,13 @@ struct Info {
 async fn main() -> Result<()> {
     let info: Info = Info {
         root_ca: "certs/rootCA.pem",
-        private: "certs/grpc_test.key",
-        cert: "certs/grpc_test.pem",
-        url: "https://127.0.0.1:50052",
+        private: "certs/CHMcd.key",
+        cert:    "certs/CHMcd.pem",
+        url:     "https://127.0.0.1:50052",
     };
-    let info1 = Info {
-        private: "certs/one_test.key",
-        cert: "certs/one_test.pem",
-        ..info
-    };
-    let info2 = Info {
-        private: "certs/mini_controller.key",
-        cert: "certs/mini_controller.pem",
-        ..info
-    };
+    let info1 = Info { private: "certs/one_test.key", cert: "certs/one_test.pem", ..info };
+    let info2 =
+        Info { private: "certs/mini_controller.key", cert: "certs/mini_controller.pem", ..info };
     let args = std::env::args().collect::<Vec<_>>();
     if args.iter().all(|arg| arg != "--help" && arg != "-h") && args.len() < 2 {
         eprintln!("Usage: {} [--help | -h]", args[0]);
@@ -93,12 +97,12 @@ async fn main() -> Result<()> {
         // .await?;
         // get_cert_by_common_name(grpc_client.clone(), "one.example.com").await?;
 
-        // mark_cert_revoked(
-        //     grpc_client.clone(),
-        //     "6efa012bdf10f10b7bba8329b7b7c604c0201236cef251a6149d9fdad8b3a640",
-        //     Some("測試撤銷".to_string()),
-        // )
-        // .await?;
+        mark_cert_revoked(
+            grpc_client.clone(),
+            "7e6eeaa164b26dc7c8963679fddfeaaf347aefaf3d5c7339e54d34cc0aba5f25",
+            Some("測試撤銷".to_string()),
+        )
+        .await?;
 
         // CRL 測試
         // let crl_client = CrlClient::new(channel.clone());
@@ -115,8 +119,8 @@ async fn main() -> Result<()> {
 
 async fn sign_cert(mut client: CaClient<Channel>) -> Result<()> {
     let resp = client
-        .sign_csr(grpc::ca::CsrRequest {
-            csr: std::fs::read("certs/intermediateCA.csr")?,
+        .sign_csr(chm_grpc::ca::CsrRequest {
+            csr:  std::fs::read("certs/intermediateCA.csr")?,
             days: 365,
         })
         .await?;
@@ -129,12 +133,7 @@ async fn sign_cert(mut client: CaClient<Channel>) -> Result<()> {
 
 async fn health_check(channel: Channel) -> Result<()> {
     let mut health = HealthClient::new(channel.clone());
-    let resp = health
-        .check(HealthCheckRequest {
-            service: "ca.CA".into(),
-        })
-        .await?
-        .into_inner();
+    let resp = health.check(HealthCheckRequest { service: "ca.CA".into() }).await?.into_inner();
     println!("ca.CA health status = {:?}", resp.status());
     Ok(())
 }
@@ -142,7 +141,7 @@ async fn health_check(channel: Channel) -> Result<()> {
 async fn test_crl(mut client: CrlClient<Channel>) -> Result<()> {
     let to_timestamp = |dt: DateTime<Utc>| Timestamp {
         seconds: dt.timestamp(),
-        nanos: dt.timestamp_subsec_nanos() as i32,
+        nanos:   dt.timestamp_subsec_nanos() as i32,
     };
     let from_timestamp =
         |ts: Timestamp| DateTime::<Utc>::from_timestamp(ts.seconds, ts.nanos as u32);
@@ -157,11 +156,7 @@ async fn test_crl(mut client: CrlClient<Channel>) -> Result<()> {
     let since_dt = Utc::now() - Duration::days(5);
     let since = to_timestamp(since_dt);
     let resp = client
-        .list_crl_entries(ListCrlEntriesRequest {
-            since: Some(since),
-            limit: 10,
-            offset: 0,
-        })
+        .list_crl_entries(ListCrlEntriesRequest { since: Some(since), limit: 10, offset: 0 })
         .await?;
     // let resp = client
     //     .list_crl_entries(ListCrlEntriesRequest {
@@ -183,7 +178,7 @@ async fn test_crl(mut client: CrlClient<Channel>) -> Result<()> {
 
 async fn test_grpc_restart(mut client: CaClient<Channel>) -> Result<()> {
     // 模擬憑證更新
-    let resp = client.reload_grpc(grpc::ca::Empty {}).await?.into_inner();
+    let resp = client.reload_grpc(chm_grpc::ca::Empty {}).await?.into_inner();
     if resp.success {
         println!("gRPC CA 重啟成功");
     } else {
@@ -199,13 +194,9 @@ async fn init_grpc_connect() -> Result<Channel> {
     let grpc_test_pri = fs::read("certs/grpc_test.key")?;
     let grpc_test_identity = tonic::transport::Identity::from_pem(grpc_test, grpc_test_pri);
 
-    let tls = ClientTlsConfig::new()
-        .ca_certificate(ca_certificate)
-        .identity(grpc_test_identity);
-    let channel = Endpoint::from_static("https://127.0.0.1:50052")
-        .tls_config(tls)?
-        .connect()
-        .await?;
+    let tls = ClientTlsConfig::new().ca_certificate(ca_certificate).identity(grpc_test_identity);
+    let channel =
+        Endpoint::from_static("https://127.0.0.1:50052").tls_config(tls)?.connect().await?;
     Ok(channel)
 }
 async fn init_http_connect(info: &Info) -> Result<reqwest::Client> {
@@ -229,20 +220,19 @@ async fn test_first_controller_connect(client: &reqwest::Client) -> Result<()> {
     println!("OTP code: ");
     let mut input = String::new();
     std::io::stdin().read_line(&mut input)?;
-    let mut map = HashMap::new();
-    map.insert("code", input.trim());
-    let resp = client
-        .post("https://127.0.0.1:50052/init")
-        .json(&map)
-        .send()
-        .await?
-        .error_for_status()?;
-    let status: reqwest::StatusCode = resp.status();
-    let body: String = resp.text_with_charset("utf-8").await?;
-
-    // 5. 输出
-    println!("Response Status: {status}"); // e.g. 200 OK
-    println!("Response Body:\n{body}");
+    let (pri_key, csr_cert) = CertUtils::generate_csr_with_new_key(
+        4096,
+        "TW",
+        "Taipei",
+        "Taipei",
+        "CHM Organization",
+        "one.chm.com",
+        ["127.0.0.1"],
+    )?;
+    let data = Otp { code: input.trim().to_string(), csr_cert, days: 365 };
+    let resp = client.post("https://127.0.0.1:50052/init").json(&data).send().await?;
+    let signed_cert: SignedCertResponse = resp.json().await?;
+    dbg!(&signed_cert);
     Ok(())
 }
 
@@ -254,13 +244,8 @@ async fn init_grpc(info: &Info) -> Result<Channel> {
     let grpc_test_pri = fs::read(info.private)?;
     let grpc_test_identity = tonic::transport::Identity::from_pem(grpc_test, grpc_test_pri);
 
-    let tls = ClientTlsConfig::new()
-        .ca_certificate(ca_certificate)
-        .identity(grpc_test_identity);
-    let channel = Endpoint::from_static(info.url)
-        .tls_config(tls)?
-        .connect()
-        .await?;
+    let tls = ClientTlsConfig::new().ca_certificate(ca_certificate).identity(grpc_test_identity);
+    let channel = Endpoint::from_static(info.url).tls_config(tls)?.connect().await?;
     Ok(channel)
 }
 
@@ -272,18 +257,11 @@ pub fn verify_crl_signature(
     let mut clean = resp.clone();
     clean.signature = Vec::new();
     let raw = Message::encode_to_vec(&clean);
-    let pubkey = ca_cert
-        .public_key()
-        .map_err(|e| format!("取公鑰失敗: {e}"))?;
+    let pubkey = ca_cert.public_key().map_err(|e| format!("取公鑰失敗: {e}"))?;
     let mut verifier = Verifier::new(MessageDigest::sha256(), &pubkey)
         .map_err(|e| format!("建立 Verifier 失敗: {e}"))?;
-    verifier
-        .update(&raw)
-        .map_err(|e| format!("Verifier update 失敗: {e}"))?;
-    if verifier
-        .verify(signature)
-        .map_err(|e| format!("執行 verify 失敗: {e}"))?
-    {
+    verifier.update(&raw).map_err(|e| format!("Verifier update 失敗: {e}"))?;
+    if verifier.verify(signature).map_err(|e| format!("執行 verify 失敗: {e}"))? {
         Ok(())
     } else {
         Err("簽名驗證失敗：簽章不符".into())
@@ -291,7 +269,7 @@ pub fn verify_crl_signature(
 }
 
 pub async fn get_all_certs(mut client: CaClient<Channel>) -> Result<()> {
-    let resp = client.list_all(grpc::ca::Empty {}).await?;
+    let resp = client.list_all(chm_grpc::ca::Empty {}).await?;
     let reply = resp.into_inner();
     println!("All Certificates: {:?}", reply.certs);
     Ok(())
@@ -300,12 +278,8 @@ pub async fn get_all_certs(mut client: CaClient<Channel>) -> Result<()> {
 pub async fn get_cert_by_serial(
     mut client: CaClient<Channel>,
     serial: &str,
-) -> Result<Option<grpc::ca::Cert>> {
-    let resp = client
-        .get(grpc::ca::GetCertRequest {
-            serial: serial.to_string(),
-        })
-        .await?;
+) -> Result<Option<chm_grpc::ca::Cert>> {
+    let resp = client.get(chm_grpc::ca::GetCertRequest { serial: serial.to_string() }).await?;
     let reply = resp.into_inner();
     if reply.cert.is_some() {
         println!("Found Certificate: {:?}", reply.cert);
@@ -318,9 +292,9 @@ pub async fn get_cert_by_serial(
 pub async fn get_cert_by_thumbprint(
     mut client: CaClient<Channel>,
     thumbprint: &str,
-) -> Result<Option<grpc::ca::Cert>> {
+) -> Result<Option<chm_grpc::ca::Cert>> {
     let resp = client
-        .get_by_thumbprint(grpc::ca::GetByThumprintRequest {
+        .get_by_thumbprint(chm_grpc::ca::GetByThumprintRequest {
             thumbprint: thumbprint.to_string(),
         })
         .await?;
@@ -336,11 +310,9 @@ pub async fn get_cert_by_thumbprint(
 pub async fn get_cert_status_by_serial(
     mut client: CaClient<Channel>,
     serial: &str,
-) -> Result<Option<grpc::ca::CertStatus>> {
+) -> Result<Option<chm_grpc::ca::CertStatus>> {
     let resp = client
-        .query_cert_status(grpc::ca::QueryCertStatusRequest {
-            serial: serial.to_string(),
-        })
+        .query_cert_status(chm_grpc::ca::QueryCertStatusRequest { serial: serial.to_string() })
         .await?;
     let reply = resp.into_inner();
     if reply.status.is_some() {
@@ -357,11 +329,9 @@ pub async fn get_cert_status_by_serial(
 pub async fn get_cert_by_common_name(
     mut client: CaClient<Channel>,
     common_name: &str,
-) -> Result<Option<grpc::ca::Cert>> {
+) -> Result<Option<chm_grpc::ca::Cert>> {
     let resp = client
-        .get_by_common_name(grpc::ca::GetByCommonNameRequest {
-            name: common_name.to_string(),
-        })
+        .get_by_common_name(chm_grpc::ca::GetByCommonNameRequest { name: common_name.to_string() })
         .await?;
     let reply = resp.into_inner();
     if reply.cert.is_some() {
@@ -378,7 +348,7 @@ pub async fn mark_cert_revoked(
     reason: Option<String>,
 ) -> Result<()> {
     let resp = client
-        .mark_cert_revoked(grpc::ca::MarkCertRevokedRequest {
+        .mark_cert_revoked(chm_grpc::ca::MarkCertRevokedRequest {
             serial: serial.to_string(),
             reason,
         })
