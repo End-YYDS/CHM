@@ -15,21 +15,18 @@ CERT_FOLDER := "certs"
 default:
     @just --list
 
-clean:
-    @cargo clean
-
 reset-db db_url src="./migrations":
     @[ -n "{{ db_url }}" ] || { echo "ERROR: db_url is empty"; exit 1; }
     @[ -d "{{ src }}" ]    || { echo "ERROR: source '{{ src }}' not found"; exit 1; }
-    @sqlx migrate revert --source "{{ src }}" -D "{{ db_url }}"
-    @sqlx migrate run    --source "{{ src }}" -D "{{ db_url }}"
+    @sqlx migrate revert --source "{{ src }}" -D "{{ db_url }}" || true
+    @sqlx migrate run    --source "{{ src }}" -D "{{ db_url }}" || true
 
 migrate db_url src="./migrations":
     @[ -n "{{ db_url }}" ] || { echo "ERROR: db_url is empty"; exit 1; }
     @[ -d "{{ src }}" ]    || { echo "ERROR: source '{{ src }}' not found"; exit 1; }
     @[ -n "{{ db_url }}" ] || { echo "ERROR: db_url is empty"; exit 1; }
     @[ -d "{{ src }}" ]    || { echo "ERROR: source '{{ src }}' not found"; exit 1; }
-    @sqlx migrate run --source "{{ src }}" -D "{{ db_url }}"
+    @sqlx migrate run --source "{{ src }}" -D "{{ db_url }}" || true
 
 create-ca-db:
     @sqlx database create -D "{{ CA_DATABASE_URL }}"
@@ -80,8 +77,10 @@ clean-db:
 clean-config:
     @find {{ CONFIG_FOLDER }} -mindepth 1 -not -name ".gitkeep" -print0 | xargs -0 rm -rf
 
-# clean-run-all: clean reset-all run-ca run-dns run-controller
-clean-all: reset-all clean-certs clean-config clean-data clean-db
+clean-all: clean
+    @cargo clean
+
+clean: reset-all clean-certs clean-config clean-data clean-db
 
 # Todo: 添加release執行
 run-r-ca args="":
