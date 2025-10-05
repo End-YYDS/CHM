@@ -20,7 +20,7 @@ use chm_grpc::{
     tonic_health::server::health_reporter,
 };
 use chm_project_const::{uuid::Uuid, ProjectConst};
-use futures::FutureExt;
+use http::Request as hRequest;
 use serde::{Deserialize, Serialize};
 use sqlx::{
     types::ipnetwork::{IpNetwork, Ipv4Network},
@@ -32,16 +32,17 @@ use std::{
     env,
     net::{IpAddr, SocketAddrV4},
     sync::atomic::{AtomicBool, Ordering::Relaxed},
+    task::{Context, Poll},
 };
 use thiserror::Error;
 use tokio::sync::watch;
 use tonic::{
     codec::CompressionEncoding,
+    codegen::InterceptedService,
     transport::{Certificate, Identity, ServerTlsConfig},
     Request, Response, Status,
 };
-use tonic_async_interceptor::async_interceptor;
-use tower::ServiceBuilder;
+use tower::{Layer, Service};
 use tracing_subscriber::EnvFilter;
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
 pub const ID: &str = "CHMmDNS";
@@ -306,7 +307,6 @@ impl DnsSolver {
         ip: IpNetwork,
         id: Uuid,
     ) -> Result<(), DnsSolverError> {
-        // Check if the hostname already exists
         let existing = sqlx::query!("SELECT id FROM hosts WHERE hostname = $1::citext", hostname)
             .fetch_optional(&self.pool)
             .await?;
@@ -582,31 +582,89 @@ impl DnsService for MyDnsService {
         }
     }
 }
-type CheckFuture = futures::future::BoxFuture<'static, Result<Request<()>, Status>>;
-fn make_dns_middleware(
+#[derive(Clone, Debug)]
+pub struct GrpcRouteInfo {
+    pub path:    String,
+    pub service: String,
+    pub method:  String,
+}
+
+#[derive(Clone, Default)]
+pub struct GrpcRouteLayer;
+
+impl<S> Layer<S> for GrpcRouteLayer {
+    type Service = GrpcRouteSvc<S>;
+    fn layer(&self, inner: S) -> Self::Service {
+        GrpcRouteSvc { inner }
+    }
+}
+
+#[derive(Clone)]
+pub struct GrpcRouteSvc<S> {
+    inner: S,
+}
+
+impl<S, B> Service<hRequest<B>> for GrpcRouteSvc<S>
+where
+    S: Service<hRequest<B>> + Clone + Send + 'static,
+    S::Future: Send + 'static,
+{
+    type Response = S::Response;
+    type Error = S::Error;
+    type Future = S::Future;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx)
+    }
+
+    fn call(&mut self, mut req: hRequest<B>) -> Self::Future {
+        let path = req.uri().path().to_string();
+        let (service, method) = if let Some(rest) = path.strip_prefix('/') {
+            let mut it = rest.splitn(2, '/');
+            (it.next().unwrap_or_default().to_string(), it.next().unwrap_or_default().to_string())
+        } else {
+            (String::new(), String::new())
+        };
+
+        req.extensions_mut().insert(GrpcRouteInfo { path, service, method });
+        self.inner.call(req)
+    }
+}
+fn make_dns_interceptor<F>(
     controller_args: (String, String),
-) -> impl Fn(Request<()>) -> CheckFuture + Clone + Send + Sync + 'static {
+    needs_controller: F,
+) -> impl FnMut(Request<()>) -> Result<Request<()>, Status> + Clone + Send + 'static
+where
+    F: Fn(&GrpcRouteInfo) -> bool + Clone + Send + Sync + 'static,
+{
     move |req: Request<()>| {
-        let controller_args = controller_args.clone();
-        async move {
-            let peer_der_vec =
-                req.peer_certs().ok_or_else(|| Status::unauthenticated("No TLS connection"))?;
-            let peer_slice: &[tonic::transport::CertificateDer] = peer_der_vec.as_ref().as_slice();
-            let leaf = peer_slice
-                .first()
-                .ok_or_else(|| Status::unauthenticated("No peer certificate presented"))?;
-            let x509 = CertUtils::load_cert_from_bytes(leaf)
-                .map_err(|_| Status::invalid_argument("Peer certificate DER is invalid"))?;
-            let serial = CertUtils::cert_serial_sha256(&x509)
-                .map_err(|e| Status::internal(format!("Serial sha256 failed: {e}")))?;
-            let fingerprint = CertUtils::cert_fingerprint_sha256(&x509)
-                .map_err(|e| Status::internal(format!("Fingerprint sha256 failed: {e}")))?;
-            if serial != controller_args.0 || fingerprint != controller_args.1 {
-                return Err(Status::permission_denied("Only controller cert is allowed"));
-            }
-            Ok(req)
+        let m = req
+            .extensions()
+            .get::<GrpcRouteInfo>()
+            .ok_or_else(|| Status::internal("GrpcRouteInfo missing after routing"))?;
+        if !needs_controller(m) {
+            return Ok(req);
         }
-        .boxed()
+        let peer_der_vec =
+            req.peer_certs().ok_or_else(|| Status::unauthenticated("No TLS connection"))?;
+        let leaf = peer_der_vec
+            .as_ref()
+            .as_slice()
+            .first()
+            .ok_or_else(|| Status::unauthenticated("No peer certificate presented"))?;
+
+        let x509 = CertUtils::load_cert_from_bytes(leaf)
+            .map_err(|_| Status::invalid_argument("Peer certificate DER is invalid"))?;
+        let serial = CertUtils::cert_serial_sha256(&x509)
+            .map_err(|e| Status::internal(format!("Serial sha256 failed: {e}")))?;
+        let fingerprint = CertUtils::cert_fingerprint_sha256(&x509)
+            .map_err(|e| Status::internal(format!("Fingerprint sha256 failed: {e}")))?;
+
+        if serial != controller_args.0 || fingerprint != controller_args.1 {
+            return Err(Status::permission_denied("Only controller cert is allowed"));
+        }
+
+        Ok(req)
     }
 }
 
@@ -722,15 +780,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 tracing::warn!("DNS主機IP更新失敗: {}", e);
             }
         }
-        let dns_layer = async_interceptor(make_dns_middleware(controller_args));
-        let dns_svc = ServiceBuilder::new().layer(dns_layer).service(
-            DnsServiceServer::new(MyDnsService::new(solver, cert_update_tx.clone()))
-                .send_compressed(CompressionEncoding::Zstd)
-                .accept_compressed(CompressionEncoding::Zstd),
-        );
+        let needs = |m: &GrpcRouteInfo| {
+            m.service.as_str() == "dns.DnsService"
+                && matches!(
+                    m.method.as_str(),
+                    "AddHost" | "DeleteHost" | "EditUuid" | "EditHostname" | "EditIp"
+                )
+        };
+        let raw_dns = DnsServiceServer::new(MyDnsService::new(solver, cert_update_tx.clone()))
+            .send_compressed(CompressionEncoding::Zstd)
+            .accept_compressed(CompressionEncoding::Zstd);
+        let dns_svc =
+            InterceptedService::new(raw_dns, make_dns_interceptor(controller_args, needs));
         tracing::info!("Starting gRPC server on {addr}");
         let server = chm_cluster_utils::gserver::grpc_with_tuning()
             .tls_config(tls)?
+            .layer(GrpcRouteLayer)
             .add_service(dns_svc)
             .add_service(health_service)
             .serve_with_shutdown(addr.into(), shutdown_signal);
@@ -744,8 +809,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
         break;
     }
-    // TODO: 添加TLS支持,及添加CRL檢查
-    // TODO: 配置添加至Controller中的服務
-
+    // TODO: 添加CRL檢查
     Ok(())
 }
