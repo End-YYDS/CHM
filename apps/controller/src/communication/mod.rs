@@ -20,7 +20,7 @@ pub(crate) mod ldap;
 #[derive(Debug, Clone)]
 pub enum ClientHandle {
     Ca(ca::ClientCA),
-    // Dns(dns::ClientDNS),
+    Dns(dns::ClientDNS),
     // Ldap(ldap::ClientLdap),
     // Dhcp(dhcp::ClientDhcp),
 }
@@ -38,6 +38,12 @@ impl GrpcClients {
     pub fn ca(&self) -> Option<&ca::ClientCA> {
         match self.map.get(&ServiceKind::Mca) {
             Some(ClientHandle::Ca(ca)) => Some(ca),
+            _ => None,
+        }
+    }
+    pub fn dns(&self) -> Option<&dns::ClientDNS> {
+        match self.map.get(&ServiceKind::Dns) {
+            Some(ClientHandle::Dns(dns)) => Some(dns),
             _ => None,
         }
     }
@@ -154,8 +160,8 @@ pub async fn init_channels_all(only_ca: bool) -> ConResult<GrpcClients> {
     let channels = connect_all_services(only_ca, &services, tls, backoff, &opts).await?;
     let client_map: ClientMap = crate::build_clients!(
         &channels, {
-            Mca  => Ca(ca::ClientCA::new)
-            // Dns  => Dns(dns::ClientDNS::new),
+            Mca  => Ca(ca::ClientCA::new),
+            Dns  => Dns(dns::ClientDNS::new),
             // Ldap => Ldap(ldap::ClientLdap::new),
             // Dhcp => Dhcp(dhcp::ClientDhcp::new),
         }

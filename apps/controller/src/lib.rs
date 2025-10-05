@@ -197,14 +197,45 @@ pub async fn entry(args: Args) -> ConResult<()> {
                     .unwrap_or_else(|| ask_for_ca_url().as_str().trim_end_matches('/').to_string());
                 first_run(ca_url, ca_otp_code).await?;
             }
-            dbg!(has_dns);
-
             if !has_dns {
                 let dns_server = GlobalConfig::with(|cfg| cfg.server.dns_server.clone());
                 let gclient = Arc::new(GrpcClients::connect_all(true).await?);
                 let dns_node = Node::new(Some(dns_server), dns_otp_code, gclient, config.clone());
                 dns_node.add().await?;
             }
+            let (controller_name, controller_ip, controller_uuid, ca_desp) =
+                GlobalConfig::with(|cfg| {
+                    let controller_name = cfg.server.hostname.clone();
+                    let controller_ip = cfg.server.host.clone();
+                    let controller_uuid = cfg.server.unique_id;
+                    let ca_set: Option<HashSet<ServiceDescriptor>> =
+                        cfg.extend.services_pool.services.get(&ServiceKind::Mca).map(|r| r.clone());
+                    (controller_name, controller_ip, controller_uuid, ca_set)
+                });
+            let gclient = Arc::new(GrpcClients::connect_all(false).await?);
+            let dns_client = gclient.dns().ok_or("DNS client not initialized")?;
+            tracing::debug!("將 Controller 資訊加入 DNS 伺服器...");
+            {
+                let full_fqdn = format!("{controller_name}.chm.com");
+                dns_client.add_host(full_fqdn, controller_ip, controller_uuid).await?;
+                tracing::debug!("Controller 資訊已加入 DNS 伺服器");
+            }
+            {
+                if let Some(ca_set) = ca_desp {
+                    for ca in ca_set.iter() {
+                        let full_fqdn = format!("{}.chm.com", ca.hostname);
+                        let ca_ip = Url::parse(&ca.uri)
+                            .map_err(|e| format!("解析 CA URI 時發生錯誤: {e}"))?
+                            .host_str()
+                            .ok_or("無法從 CA URI 中取得主機名稱")?
+                            .to_string();
+                        dbg!(&full_fqdn, &ca_ip, &ca.uuid);
+                        dns_client.add_host(full_fqdn, ca_ip, ca.uuid).await?;
+                        tracing::debug!("CA {} 資訊已加入 DNS 伺服器", ca.hostname);
+                    }
+                }
+            }
+
             atomic_write(&marker_path, b"done").await?;
             tracing::debug!("第一次執行檢查完成");
             Ok(())
