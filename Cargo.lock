@@ -767,6 +767,7 @@ dependencies = [
  "backoff",
  "cached",
  "chm-dns_resolver",
+ "chm-grpc",
  "chm-password",
  "chm-project_const",
  "futures",
@@ -1174,17 +1175,22 @@ dependencies = [
 name = "dns"
 version = "0.1.0"
 dependencies = [
+ "argh",
+ "chm-cert-utils",
+ "chm-cluster-utils",
+ "chm-config_bus",
  "chm-dns_resolver",
  "chm-grpc",
- "prost",
+ "chm-project_const",
+ "http 1.3.1",
  "serde",
  "sqlx",
  "thiserror",
  "tokio",
  "tonic",
+ "tower",
  "tracing",
  "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]

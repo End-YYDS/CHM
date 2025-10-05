@@ -1,7 +1,11 @@
 use chm_project_const::uuid::Uuid;
 use serde::{Deserialize, Serialize};
 pub use serde_json::Value;
-use std::{net::SocketAddrV4, path::Path};
+use std::{
+    hash::{Hash, Hasher},
+    net::SocketAddrV4,
+    path::Path,
+};
 
 pub type CHMResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 
@@ -51,13 +55,34 @@ pub struct ServiceDescriptor {
     pub hostname:    String,
     pub uuid:        Uuid,
 }
+impl PartialEq for ServiceDescriptor {
+    fn eq(&self, other: &Self) -> bool {
+        self.uuid == other.uuid
+    }
+}
+impl Eq for ServiceDescriptor {}
+
+impl Hash for ServiceDescriptor {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.uuid.hash(state);
+    }
+}
 
 #[allow(dead_code)]
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "op", rename_all = "snake_case")]
 pub enum InitData {
-    Bootstrap { root_ca_pem: Vec<u8> },
-    Finalize { id: Uuid, cert_pem: Vec<u8>, chain_pem: Vec<Vec<u8>> },
+    Bootstrap {
+        root_ca_pem: Vec<u8>,
+        con_uuid:    Uuid,
+    },
+    Finalize {
+        id:              Uuid,
+        cert_pem:        Vec<u8>,
+        chain_pem:       Vec<Vec<u8>>,
+        controller_pem:  Vec<u8>,
+        controller_uuid: Uuid,
+    },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -103,6 +128,8 @@ pub mod gserver;
 mod macros;
 #[cfg(feature = "server")]
 mod server;
+#[cfg(feature = "server")]
+pub use server::PeerCerts;
 
 #[cfg(feature = "client")]
 pub use client::ClientCluster as Default_ClientCluster;
@@ -114,7 +141,7 @@ pub use server::ServerCluster as Default_ServerCluster;
 pub mod _reexports {
     pub use actix_web::{
         web::{post, resource, Data, Json, ServiceConfig},
-        HttpRequest, HttpResponse, Responder,
+        HttpMessage, HttpRequest, HttpResponse, Responder,
     };
     pub use tokio::{
         fs,

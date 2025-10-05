@@ -69,7 +69,7 @@ macro_rules! declare_config {
                 }
                 fn default_unique_id() -> Uuid { Uuid::new_v4() }
                 fn default_dns_server() -> String {
-                    let mut dns_server = String::from("http://");
+                    let mut dns_server = String::from("https://");
                     #[cfg(debug_assertions)]
                     {
                         let s = IpAddr::V4(Ipv4Addr::LOCALHOST).to_string();
@@ -253,7 +253,7 @@ macro_rules! declare_config {
                     Uuid::new_v4()
                 }
                 fn default_dns_server() -> String {
-                    let mut dns_server = String::from("http://");
+                    let mut dns_server = String::from("https://");
                     #[cfg(debug_assertions)]
                     {
                         let s = IpAddr::V4(Ipv4Addr::LOCALHOST).to_string();

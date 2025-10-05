@@ -16,7 +16,7 @@ use api_server::{
 use argh::FromArgs;
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{
-    api_resp, declare_init_route, BootstrapResp, Default_ServerCluster, InitData,
+    api_resp, atomic_write, declare_init_route, BootstrapResp, Default_ServerCluster, InitData,
     ServiceDescriptor, ServiceKind,
 };
 use chm_grpc::{
@@ -72,8 +72,8 @@ async fn init_data_handler(
     carry: Data<Arc<InitCarry>>,
 ) -> ControlFlow<HttpResponse, ()> {
     match data {
-        InitData::Bootstrap { root_ca_pem } => {
-            if let Err(e) = tokio::fs::write(&carry.root_ca_path, &root_ca_pem).await {
+        InitData::Bootstrap { root_ca_pem, .. } => {
+            if let Err(e) = atomic_write(&carry.root_ca_path, &root_ca_pem).await {
                 tracing::error!("寫入 RootCA 憑證失敗: {:?}", e);
                 return ControlFlow::Break(api_resp!(InternalServerError "寫入 RootCA 憑證失敗"));
             }

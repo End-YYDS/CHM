@@ -1,6 +1,12 @@
 use backoff::{future::retry, ExponentialBackoff};
 use cached::proc_macro::cached;
-use chm_grpc::{dns::dns_service_client::DnsServiceClient, tonic::transport::Channel};
+use chm_grpc::{
+    dns::dns_service_client::DnsServiceClient,
+    tonic::transport::{Channel, ClientTlsConfig, Endpoint},
+    tonic_health::pb::{
+        health_check_response::ServingStatus, health_client::HealthClient, HealthCheckRequest,
+    },
+};
 use std::{
     error::Error as StdError,
     net::{IpAddr, Ipv4Addr, SocketAddr},
@@ -9,7 +15,10 @@ use std::{
 };
 use url::{Host, Url};
 use uuid::Uuid;
+
 type Result<T> = std::result::Result<T, Box<dyn StdError + Send + Sync>>;
+type RetryErr = backoff::Error<Box<dyn StdError + Send + Sync>>;
+const DNS_SERVICE_FQN: &str = "dns.DnsService";
 #[derive(Debug)]
 pub struct DnsResolver {
     dns_address: String,
@@ -47,42 +56,106 @@ impl DnsResolver {
         ExponentialBackoff { max_elapsed_time: Some(max_time), ..Default::default() }
     }
 
-    async fn connect_with_backoff(
+    async fn connect_channel_with_backoff(
         dns_address: &str,
         max_time: Duration,
-    ) -> Result<DnsServiceClient<Channel>> {
+        tls: ClientTlsConfig,
+    ) -> Result<Channel> {
         let backoff = Self::default_backoff(max_time);
-        let client = retry(backoff, || {
-            let addr = dns_address.to_owned();
+        let addr = dns_address.to_owned();
+        let tls_cfg = tls.clone();
+        let channel: Channel = retry(backoff, move || {
+            let addr = addr.clone();
+            let tls_cfg = tls_cfg.clone();
             async move {
-                tracing::debug!("嘗試連線到 DNS service: {addr}");
-                match DnsServiceClient::connect(addr.clone()).await {
-                    Ok(c) => {
-                        tracing::debug!("成功連上 DNS service: {addr}");
-                        Ok(c)
+                tracing::debug!("嘗試建立 gRPC channel: {addr}");
+                let mut ep = Endpoint::from_shared(addr.clone())
+                    .map_err(|e| RetryErr::transient(e.into()))?;
+                let needs_tls = addr.starts_with("https://");
+                if needs_tls {
+                    ep = ep.tls_config(tls_cfg).map_err(|e| RetryErr::transient(e.into()))?;
+                }
+
+                match ep.connect().await {
+                    Ok(ch) => {
+                        tracing::debug!("成功建立 gRPC channel: {addr}");
+                        Ok(ch)
                     }
                     Err(e) => {
-                        tracing::warn!("連線失敗: {e}，將重試...");
-                        Err(backoff::Error::transient(e))
+                        tracing::warn!("建立 channel 失敗: {e}，將重試…");
+                        Err(RetryErr::transient(e.into()))
                     }
                 }
             }
         })
         .await?;
-        Ok(client)
+
+        Ok(channel)
+    }
+    async fn wait_health_serving_with_backoff(
+        channel: Channel,
+        service_name: &str,
+        max_time: Duration,
+    ) -> Result<Channel> {
+        let backoff = Self::default_backoff(max_time);
+
+        retry(backoff, || {
+            let mut health = HealthClient::new(channel.clone());
+            let service_name = service_name.to_string();
+            async move {
+                match health.check(HealthCheckRequest { service: service_name.clone() }).await {
+                    Ok(resp) => {
+                        let status = resp.into_inner().status;
+                        if status == ServingStatus::Serving as i32 {
+                            tracing::info!("Health 狀態為 Serving");
+                            Ok(())
+                        } else {
+                            tracing::warn!(
+                                "Health 非 Serving
+    (status={status})，將重試…"
+                            );
+                            Err(RetryErr::transient(
+                                std::io::Error::other("Health 非 Serving").into(),
+                            ))
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Health 呼叫失敗：{e}，將重試…");
+                        Err(RetryErr::transient(e.into()))
+                    }
+                }
+            }
+        })
+        .await?;
+
+        Ok(channel)
     }
 
-    pub async fn new(dns_address: impl Into<String>) -> Self {
+    async fn connect_with_backoff(
+        dns_address: &str,
+        max_time: Duration,
+        tls: ClientTlsConfig,
+    ) -> Result<DnsServiceClient<Channel>> {
+        let channel = Self::connect_channel_with_backoff(dns_address, max_time, tls).await?;
+        let channel =
+            Self::wait_health_serving_with_backoff(channel, DNS_SERVICE_FQN, max_time).await?;
+        Ok(DnsServiceClient::new(channel))
+    }
+
+    pub async fn new(dns_address: impl Into<String>, tls: ClientTlsConfig) -> Self {
         let dns_address = dns_address.into();
-        let client = Self::connect_with_backoff(&dns_address, Duration::from_secs(60))
+        let client = Self::connect_with_backoff(&dns_address, Duration::from_secs(5), tls)
             .await
             .expect("重試後仍無法連上 DNS service，是否初始化過?");
         Self { dns_address, client }
     }
 
-    pub async fn new_with_result(dns_address: impl Into<String>) -> Result<Self> {
+    pub async fn new_with_result(
+        dns_address: impl Into<String>,
+        tls: ClientTlsConfig,
+    ) -> Result<Self> {
         let dns_address = dns_address.into();
-        let client = Self::connect_with_backoff(&dns_address, Duration::from_secs(15)).await?;
+        let client = Self::connect_with_backoff(&dns_address, Duration::from_secs(5), tls).await?;
         Ok(Self { dns_address, client })
     }
 

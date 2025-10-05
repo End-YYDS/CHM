@@ -14,12 +14,12 @@ chm-cert-utils = { workspace = true }
 chm-cluster-utils = { workspace = true, features = ["client", "server", "grpc-server", "grpc-client"] }
 chm-config_bus = { workspace = true }
 chm-dns_resolver = { workspace = true }
-chm-grpc = { workspace = true, features = ["controller", "ca-client", "restful"] }
+chm-grpc = { workspace = true, features = ["controller", "ca-client", "restful", "dns-client"] }
 chm-project_const = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tokio-util = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }
