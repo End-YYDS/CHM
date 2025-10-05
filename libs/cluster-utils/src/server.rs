@@ -22,7 +22,7 @@ use tokio::{net::TcpStream, sync::RwLock, time, time::Instant};
 pub type ValidCertHandler = Arc<dyn Fn(&str, &str) -> bool + Send + Sync>;
 #[allow(unused)]
 #[derive(Debug, Clone)]
-pub struct PeerCerts(Vec<X509>);
+pub struct PeerCerts(pub Vec<X509>);
 pub type Configurer = Vec<Arc<dyn Fn(&mut ServiceConfig) + Send + Sync>>;
 pub struct ServerCluster {
     bind_address:       String,

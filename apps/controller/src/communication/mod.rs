@@ -32,8 +32,8 @@ pub(crate) struct GrpcClients {
 }
 
 impl GrpcClients {
-    pub async fn connect_all() -> ConResult<Self> {
-        init_channels_all().await
+    pub async fn connect_all(only_ca: bool) -> ConResult<Self> {
+        init_channels_all(only_ca).await
     }
     pub fn ca(&self) -> Option<&ca::ClientCA> {
         match self.map.get(&ServiceKind::Mca) {
@@ -52,18 +52,35 @@ pub async fn health_check(channel: Channel, service_name: impl AsRef<str>) -> Co
     Ok(())
 }
 pub async fn connect_all_services(
+    only_ca: bool,
     services: &[ServiceDescriptor],
     tls: ClientTlsConfig,
     backoff: ExponentialBackoff,
     opts: &GrpcConnectOptions,
 ) -> ConResult<HashMap<ServiceKind, Channel>> {
-    let mdns_addr = GlobalConfig::with(|cfg| cfg.server.dns_server.clone());
-    let dns_rosolver = Arc::new(DnsResolver::new(mdns_addr).await);
-    let futs = services.iter().map(|svc| {
-        let minidns = dns_rosolver.clone();
+    let selected: Vec<ServiceDescriptor> = if only_ca {
+        let ca_services: Vec<ServiceDescriptor> =
+            services.iter().filter(|s| s.kind == ServiceKind::Mca).cloned().collect();
+        if ca_services.is_empty() {
+            return Err("配置中沒有找到 CA 服務".into());
+        }
+        ca_services
+    } else {
+        services.to_vec()
+    };
+
+    let dns_resolver = if only_ca {
+        None
+    } else {
+        let mdns_addr = GlobalConfig::with(|cfg| cfg.server.dns_server.clone());
+        Some(Arc::new(DnsResolver::new(mdns_addr, tls.clone()).await))
+    };
+    let futs = selected.into_iter().map(|svc| {
         let tls = tls.clone();
         let opts = opts.clone();
         let backoff = backoff.clone();
+        let dns_resolver = dns_resolver.clone();
+
         async move {
             let ch = grpc_connect_with_retry(
                 &svc.uri,
@@ -71,42 +88,46 @@ pub async fn connect_all_services(
                 backoff,
                 &opts,
                 &svc.hostname,
-                minidns,
+                dns_resolver.clone(),
                 None,
+                svc.health_name.as_deref(),
             )
             .await?;
+
             if let Some(health_name) = svc.health_name.as_deref() {
                 health_check(ch.clone(), health_name).await?;
             } else {
                 tracing::info!("{} 跳過健康檢查", svc.hostname);
             }
+
             ConResult::<(ServiceKind, Channel)>::Ok((svc.kind, ch))
         }
     });
+
     let pairs: Vec<(ServiceKind, Channel)> = try_join_all(futs).await?;
     Ok(pairs.into_iter().collect())
 }
 
-pub async fn init_channels_all() -> ConResult<GrpcClients> {
-    let (root_cert, client_cert, client_key) = GlobalConfig::with(|cfg| -> ConResult<_> {
-        let root = &cfg.certificate.root_ca;
-        let cert = &cfg.certificate.client_cert;
-        let key = &cfg.certificate.client_key;
+pub async fn init_channels_all(only_ca: bool) -> ConResult<GrpcClients> {
+    let (root, cert, key) = GlobalConfig::with(|cfg| -> ConResult<_> {
+        let root = cfg.certificate.root_ca.clone();
+        let cert = cfg.certificate.client_cert.clone();
+        let key = cfg.certificate.client_key.clone();
         if root.as_os_str().is_empty() || cert.as_os_str().is_empty() || key.as_os_str().is_empty()
         {
             return Err("GlobalsVar 中的憑證或 URI 未正確初始化".into());
         }
-        let root_bytes = std::fs::read(root).map_err(|_| "無法讀取 CA 根憑證")?;
-        let cert_bytes = std::fs::read(cert).map_err(|_| "無法讀取客戶端憑證")?;
-        let key_bytes = std::fs::read(key).map_err(|_| "無法讀取客戶端金鑰")?;
-        Ok((root_bytes, cert_bytes, key_bytes))
+        Ok((root, cert, key))
     })?;
+    let root_cert = tokio::fs::read(root).await.map_err(|_| "無法讀取 CA 根憑證")?;
+    let client_cert = tokio::fs::read(cert).await.map_err(|_| "無法讀取客戶端憑證")?;
+    let client_key = tokio::fs::read(key).await.map_err(|_| "無法讀取客戶端金鑰")?;
 
     let tls = ClientTlsConfig::new()
         .ca_certificate(Certificate::from_pem(root_cert))
         .identity(Identity::from_pem(client_cert, client_key));
     let backoff = ExponentialBackoff {
-        max_elapsed_time: Some(Duration::from_secs(30)),
+        max_elapsed_time: Some(Duration::from_secs(15)),
         ..Default::default()
     };
     let opts = GrpcConnectOptions::builder()
@@ -130,7 +151,7 @@ pub async fn init_channels_all() -> ConResult<GrpcClients> {
             .flat_map(|entry| entry.value().clone().into_iter().filter(|s| s.is_server))
             .collect()
     });
-    let channels = connect_all_services(&services, tls, backoff, &opts).await?;
+    let channels = connect_all_services(only_ca, &services, tls, backoff, &opts).await?;
     let client_map: ClientMap = crate::build_clients!(
         &channels, {
             Mca  => Ca(ca::ClientCA::new)

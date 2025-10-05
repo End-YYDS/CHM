@@ -7,6 +7,7 @@ use reqwest::{
     dns::{Name, Resolve, Resolving},
     Certificate, Client, Identity,
 };
+use tonic::transport::ClientTlsConfig;
 
 type ClientCert = PathBuf;
 type ClientKey = PathBuf;
@@ -120,7 +121,21 @@ impl ClientCluster {
             .timeout(self.timeout)
             .use_rustls_tls()
             .danger_accept_invalid_certs(true);
-        let mini_dns = DnsResolver::new_with_result(&self.mdns_url).await.ok();
+        let mut tls = ClientTlsConfig::new();
+        if let Some((ref key_p, ref cert_p)) = self.cert_chain {
+            let id = load_client_identity(cert_p.clone(), key_p.clone())?;
+            builder = builder.identity(id);
+            let g_cert = tokio::fs::read(cert_p).await?;
+            let g_key = tokio::fs::read(key_p).await?;
+            tls = tls.identity(tonic::transport::Identity::from_pem(g_cert, g_key));
+        }
+        if let Some(ref ca_p) = self.root_ca {
+            let ca_cert = load_ca_identity(ca_p.clone())?;
+            let g_ca = tokio::fs::read(ca_p).await?;
+            builder = builder.add_root_certificate(ca_cert);
+            tls = tls.ca_certificate(tonic::transport::Certificate::from_pem(g_ca));
+        }
+        let mini_dns = DnsResolver::new_with_result(&self.mdns_url, tls).await.ok();
         match mini_dns {
             Some(dns) => {
                 tracing::debug!("成功連接到 mDNS 服務: {}", &self.mdns_url);
@@ -132,15 +147,6 @@ impl ClientCluster {
                 tracing::warn!("無法連接到 mDNS 服務: {}, 即將跳過...", self.mdns_url);
             }
         }
-        if let Some((ref key_p, ref cert_p)) = self.cert_chain {
-            let id = load_client_identity(cert_p.clone(), key_p.clone())?;
-            builder = builder.identity(id);
-        }
-        if let Some(ref ca_p) = self.root_ca {
-            let ca_cert = load_ca_identity(ca_p.clone())?;
-            builder = builder.add_root_certificate(ca_cert);
-        }
-
         Ok(builder.build()?)
     }
     pub fn get_otp(&self) -> Result<String, Box<dyn StdError + Send + Sync>> {

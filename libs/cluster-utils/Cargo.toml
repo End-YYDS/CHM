@@ -19,6 +19,7 @@ backoff = { workspace = true, optional = true }
 cached = { workspace = true }
 chm-dns_resolver = { workspace = true }
 chm-password = { workspace = true }
+chm-grpc = { workspace = true }
 chm-project_const = { workspace = true }
 futures = { workspace = true }
 hyper-util = { workspace = true, optional = true }

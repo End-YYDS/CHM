@@ -19,7 +19,7 @@ chm-project_const = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tokio-util = { workspace = true }
 tower = { workspace = true }
 tracing = { workspace = true }

@@ -10,12 +10,18 @@ path = "src/main.rs"
 [dependencies]
 chm-dns_resolver = { workspace = true }
 chm-grpc = { workspace = true, features = ["dns"] }
-prost = { workspace = true }
-serde = { workspace = true }
 sqlx = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tonic = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-uuid = { workspace = true }
+chm-project_const = { workspace = true }
+chm-config_bus = { workspace = true }
+serde = { workspace = true }
+argh = { workspace = true }
+chm-cert-utils = { workspace = true }
+chm-cluster-utils = { workspace = true, features = ["server", "grpc-server"], default-features = true }
+tonic-async-interceptor = { workspace = true }
+futures = { workspace = true }
+tower = { workspace = true }

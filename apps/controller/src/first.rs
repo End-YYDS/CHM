@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use crate::{ConResult, GlobalConfig};
 use chm_cert_utils::CertUtils;
@@ -12,6 +12,7 @@ struct FirstStart {
 struct FirstStartParams {
     base_url:  String,
     self_uuid: Uuid,
+    mdns_url:  String,
 }
 #[derive(Debug, Deserialize)]
 struct SignedCertResponse {
@@ -42,11 +43,11 @@ struct InitOutput {
 }
 impl FirstStart {
     pub fn new(parms: FirstStartParams) -> Self {
-        let FirstStartParams { base_url, self_uuid } = parms;
+        let FirstStartParams { base_url, self_uuid, mdns_url } = parms;
         Self {
             inner: Default_ClientCluster::new(
                 base_url,
-                None::<String>,
+                Some(mdns_url),
                 None::<PathBuf>,
                 None::<PathBuf>,
                 None::<PathBuf>,
@@ -83,16 +84,17 @@ impl FirstStart {
     }
 }
 
-pub async fn first_run(
-    marker_path: &Path,
-    ca_url: String,
-    otp_code: Option<String>,
-) -> ConResult<()> {
+pub async fn first_run(ca_url: String, otp_code: Option<String>) -> ConResult<()> {
     tracing::info!("第一次啟動，正在初始化...");
-    let (self_uuid, self_hostname, root_ca) = GlobalConfig::with(|cfg| {
-        (cfg.server.unique_id, cfg.server.hostname.clone(), cfg.certificate.root_ca.clone())
+    let (self_uuid, self_hostname, root_ca, mdns_url) = GlobalConfig::with(|cfg| {
+        (
+            cfg.server.unique_id,
+            cfg.server.hostname.clone(),
+            cfg.certificate.root_ca.clone(),
+            cfg.server.dns_server.clone(),
+        )
     });
-    let mut conn = FirstStart::new(FirstStartParams { base_url: ca_url, self_uuid });
+    let mut conn = FirstStart::new(FirstStartParams { base_url: ca_url, self_uuid, mdns_url });
     conn.inner = conn.inner.with_otp_code(otp_code);
     let output = conn.init().await?;
     GlobalConfig::update_with(|cfg| {
@@ -102,13 +104,13 @@ pub async fn first_run(
             .services
             .entry(service_desp.kind)
             .or_default()
-            .append(&mut vec![service_desp])
+            .insert(service_desp);
     });
     atomic_write(&root_ca, &output.root_ca).await?;
     CertUtils::save_cert(&self_hostname, &output.private_key, &output.cert)
         .map_err(|e| format!("儲存憑證失敗：{e}"))?;
     tracing::info!("已儲存憑證與私鑰：{name}.pem / {name}.key", name = self_hostname);
-    atomic_write(marker_path, b"done").await?;
+
     GlobalConfig::save_config().await?;
     GlobalConfig::reload_config().await?;
     tracing::debug!("mCA UUID: {:?}", output.service_desp.uuid);
