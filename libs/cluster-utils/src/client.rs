@@ -17,7 +17,7 @@ pub struct ClientCluster {
     base_url:   String,
     timeout:    Duration,
     mdns_url:   String,
-    cert_chain: Option<(ClientKey, ClientCert)>,
+    cert_chain: Option<(ClientCert, ClientKey)>,
     root_ca:    Option<PathBuf>,
     otp_code:   Option<String>,
 }
@@ -81,7 +81,6 @@ impl ClientCluster {
     }
     pub fn with_base_url(mut self, url: impl Into<String>) -> Self {
         self.base_url = url.into();
-        // TODO: 從mDNS中解析IP地址
         self
     }
     pub fn with_mdns(mut self, mdns_addr: Option<impl Into<String>>) -> Self {
@@ -122,7 +121,7 @@ impl ClientCluster {
             .use_rustls_tls()
             .danger_accept_invalid_certs(true);
         let mut tls = ClientTlsConfig::new();
-        if let Some((ref key_p, ref cert_p)) = self.cert_chain {
+        if let Some((ref cert_p, ref key_p)) = self.cert_chain {
             let id = load_client_identity(cert_p.clone(), key_p.clone())?;
             builder = builder.identity(id);
             let g_cert = tokio::fs::read(cert_p).await?;

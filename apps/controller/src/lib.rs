@@ -201,7 +201,7 @@ pub async fn entry(args: Args) -> ConResult<()> {
                 let dns_server = GlobalConfig::with(|cfg| cfg.server.dns_server.clone());
                 let gclient = Arc::new(GrpcClients::connect_all(true).await?);
                 let dns_node = Node::new(Some(dns_server), dns_otp_code, gclient, config.clone());
-                dns_node.add().await?;
+                dns_node.add(true).await?;
             }
             let (controller_name, controller_ip, controller_uuid, ca_desp) =
                 GlobalConfig::with(|cfg| {
@@ -229,7 +229,6 @@ pub async fn entry(args: Args) -> ConResult<()> {
                             .host_str()
                             .ok_or("無法從 CA URI 中取得主機名稱")?
                             .to_string();
-                        dbg!(&full_fqdn, &ca_ip, &ca.uuid);
                         dns_client.add_host(full_fqdn, ca_ip, ca.uuid).await?;
                         tracing::debug!("CA {} 資訊已加入 DNS 伺服器", ca.hostname);
                     }
@@ -250,7 +249,7 @@ pub async fn entry(args: Args) -> ConResult<()> {
         Command::Add(AddService { hostip, otp_code }) => {
             let node = Node::new(hostip, otp_code, gclient.clone(), config.clone());
             tracing::debug!("準備新增服務...");
-            node.add().await?;
+            node.add(false).await?;
             tracing::info!("服務新增完成");
             Ok(())
         }
@@ -306,7 +305,7 @@ impl Node {
         );
         Self { host, otp_code, gclient, wclient }
     }
-    pub async fn add(&self) -> ConResult<()> {
+    pub async fn add(&self, is_dns: bool) -> ConResult<()> {
         let root_ca_bytes =
             tokio::fs::read(GlobalConfig::with(|cfg| cfg.certificate.root_ca.clone())).await?;
         let payload = InitData::Bootstrap {
@@ -342,6 +341,19 @@ impl Node {
         });
         GlobalConfig::save_config().await?;
         GlobalConfig::reload_config().await?;
+        if !is_dns {
+            tracing::debug!("將服務資訊加入 DNS 伺服器...");
+            let dns_client = self.gclient.dns().ok_or("DNS client not initialized")?;
+            let full_fqdn = format!("{}.chm.com", first_step.service_desp.hostname);
+            dns_client
+                .add_host(
+                    full_fqdn,
+                    first_step.socket.ip().to_string(),
+                    first_step.service_desp.uuid,
+                )
+                .await?;
+            tracing::info!("服務資訊已加入 DNS 伺服器");
+        }
         Ok(())
     }
     pub async fn _remove(&self) -> ConResult<()> {

@@ -116,7 +116,7 @@ async fn init_data_handler(
             let service_desp = ServiceDescriptor {
                 kind:        ServiceKind::Dns,
                 uri:         format!("https://{}:{}", carry.uuid, carry.server_addr.port()),
-                health_name: None,
+                health_name: Some("dns.DnsService".to_string()),
                 is_server:   true,
                 hostname:    ID.to_string(),
                 uuid:        carry.uuid,
