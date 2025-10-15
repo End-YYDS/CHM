@@ -42,3 +42,8 @@ Import-Module cargo-chm
 ```
 ## frontend 資料夾
 ### 使用`git subtree pull --prefix=frontend origin frontend-develop`來更新
+
+## 環境變數
+```text
+CHM_{ID}__{結構名稱}___{欄位名稱}
+```
