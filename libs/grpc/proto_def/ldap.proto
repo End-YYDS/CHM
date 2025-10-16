@@ -1,4 +1,5 @@
 syntax = "proto3";
+
 package ldap;
 
 service LdapService {
@@ -12,13 +13,23 @@ service LdapService {
 
   rpc AddGroup (GroupRequest) returns (GenericResponse);
   rpc DeleteGroup (GroupRequest) returns (GenericResponse);
-  rpc ListGroup (GroupRequest) returns (GroupDetailResponse);
+  rpc ListGroup (Empty) returns (GroupListResponse);
   rpc SearchGroup (GroupRequest) returns (GroupDetailResponse);
+
+  rpc AddWebRole (GroupRequest) returns (GenericResponse);
+  rpc DeleteWebRole (GroupRequest) returns (GenericResponse);
+  rpc ListWebRole (Empty) returns (GroupListResponse);
+  rpc SearchWebRole (GroupRequest) returns (WebRoleDetailResponse);
 
   rpc AddUserToGroup (UserGroupRequest) returns (GenericResponse);
   rpc RemoveUserFromGroup (UserGroupRequest) returns (GenericResponse);
   rpc ListUserInGroup (GroupRequest) returns (UserListResponse);
   rpc SearchUserInGroup (UserGroupRequest) returns (GenericResponse);
+
+  rpc AddUserToWebRole (UserGroupRequest) returns (GenericResponse);
+  rpc RemoveUserFromWebRole (UserGroupRequest) returns (GenericResponse);
+  rpc ListUserInWebRole (GroupRequest) returns (UserListResponse);
+  rpc SearchUserInWebRole (UserGroupRequest) returns (GenericResponse);
 }
 
 message Empty {}
@@ -78,9 +89,29 @@ message UserListResponse {
 }
 
 message UserDetailResponse {
-  string details = 1;
+  string uid = 1;
+  string cn = 2;
+  string sn = 3;
+  string uidNumber = 4;
+  string gidNumber = 5;
+  string homeDirectory = 6;
+  string loginShell = 7;
+  string givenName = 8;
+  string displayName = 9;
+  string gecos = 10;
+}
+
+message GroupListResponse {
+  repeated string groups = 1;
 }
 
 message GroupDetailResponse {
-  string details = 1;
+  string cn = 1;
+  string gidnumber = 2;
+  repeated string memberUid = 3;
+}
+
+message WebRoleDetailResponse {
+  string cn = 1;
+  repeated string memberUid = 3;
 }

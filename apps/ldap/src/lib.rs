@@ -78,6 +78,16 @@ pub struct LdapSettings {
     pub url:           String,
     #[serde(default = "LdapSettings::default_base_dn")]
     pub base_dn:       String,
+    #[serde(default = "LdapSettings::default_user_dn")]
+    pub user_dn:       String,
+    #[serde(default = "LdapSettings::default_group_dn")]
+    pub group_dn:      String,
+    #[serde(default = "LdapSettings::default_upg_dn")]
+    pub upg_dn:        String,
+    #[serde(default = "LdapSettings::default_web_dn")]
+    pub web_dn:        String,
+    #[serde(default = "LdapSettings::default_service_dn")]
+    pub service_dn:    String,
     #[serde(default = "LdapSettings::default_bind_dn")]
     pub bind_dn:       String,
     #[serde(default = "LdapSettings::default_bind_password")]
@@ -101,6 +111,21 @@ impl LdapSettings {
     fn default_base_dn() -> String {
         "dc=chm,dc=com".to_string()
     }
+    fn default_user_dn() -> String {
+        "ou=Users,dc=chm,dc=com".to_string()
+    }
+    fn default_group_dn() -> String {
+        "ou=Groups,dc=chm,dc=com".to_string()
+    }
+    fn default_upg_dn() -> String {
+        "ou=UPG,ou=Groups,dc=chm,dc=com".to_string()
+    }
+    fn default_web_dn() -> String {
+        "ou=WebRoles,dc=chm,dc=com".to_string()
+    }
+    fn default_service_dn() -> String {
+        "ou=Service,dc=chm,dc=com".to_string()
+    }
     fn default_bind_dn() -> String {
         "cn=admin,dc=chm,dc=com".to_string()
     }
@@ -114,6 +139,11 @@ impl Default for LdapSettings {
         Self {
             url:           Self::default_url(),
             base_dn:       Self::default_base_dn(),
+            user_dn:       Self::default_user_dn(),
+            group_dn:      Self::default_group_dn(),
+            upg_dn:        Self::default_upg_dn(),
+            web_dn:        Self::default_web_dn(),
+            service_dn:    Self::default_service_dn(),
             bind_dn:       Self::default_bind_dn(),
             bind_password: Self::default_bind_password(),
         }

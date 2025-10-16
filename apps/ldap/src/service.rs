@@ -9,8 +9,9 @@ use arc_swap::ArcSwapOption;
 use chm_grpc::{
     ldap::{
         ldap_service_server::LdapService, AuthRequest, AuthResponse, Empty, GenericResponse,
-        GroupDetailResponse, GroupRequest, ModifyUserRequest, ToggleUserStatusRequest,
-        UserDetailResponse, UserGroupRequest, UserIdRequest, UserListResponse, UserRequest,
+        GroupDetailResponse, GroupListResponse, GroupRequest, ModifyUserRequest,
+        ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest, UserIdRequest,
+        UserListResponse, UserRequest, WebRoleDetailResponse,
     },
     tonic::{async_trait, Request, Response, Status},
 };
@@ -168,14 +169,14 @@ impl LdapService for MyLdapService {
         request: Request<UserIdRequest>,
     ) -> Result<Response<UserDetailResponse>, Status> {
         let req = request.into_inner();
-        let json_map = self
+        let resp = self
             .ldap
             .with_ldap(move |ldap| {
                 let req_cloned = req.clone();
                 Pin::from(Box::new(async move { search_user_impl(ldap, req_cloned).await }))
             })
             .await?;
-        Ok(Response::new(UserDetailResponse { details: json_map.to_string() }))
+        Ok(Response::new(resp))
     }
 
     async fn authenticate_user(
@@ -243,15 +244,11 @@ impl LdapService for MyLdapService {
 
     async fn list_group(
         &self,
-        request: Request<GroupRequest>,
-    ) -> Result<Response<GroupDetailResponse>, Status> {
-        let req = request.into_inner();
+        _request: Request<Empty>,
+    ) -> Result<Response<GroupListResponse>, Status> {
         let resp = self
             .ldap
-            .with_ldap(move |ldap| {
-                let req_cloned = req.clone();
-                Pin::from(Box::new(async move { list_group_impl(ldap, req_cloned).await }))
-            })
+            .with_ldap(move |ldap| Pin::from(Box::new(async move { list_group_impl(ldap).await })))
             .await?;
         Ok(Response::new(resp))
     }
@@ -260,7 +257,73 @@ impl LdapService for MyLdapService {
         &self,
         request: Request<GroupRequest>,
     ) -> Result<Response<GroupDetailResponse>, Status> {
-        self.list_group(request).await
+        let req = request.into_inner();
+        let resp = self
+            .ldap
+            .with_ldap(move |ldap| {
+                let req_cloned = req.clone();
+                Pin::from(Box::new(async move { search_group_impl(ldap, req_cloned).await }))
+            })
+            .await?;
+        Ok(Response::new(resp))
+    }
+
+    async fn add_web_role(
+        &self,
+        request: Request<GroupRequest>,
+    ) -> Result<Response<GenericResponse>, Status> {
+        let req = request.into_inner();
+        let resp = self
+            .ldap
+            .with_ldap(move |ldap| {
+                let req_cloned = req.clone();
+                Pin::from(Box::new(async move { add_web_role_impl(ldap, req_cloned).await }))
+            })
+            .await?;
+        Ok(Response::new(resp))
+    }
+
+    async fn delete_web_role(
+        &self,
+        request: Request<GroupRequest>,
+    ) -> Result<Response<GenericResponse>, Status> {
+        let req = request.into_inner();
+        let resp = self
+            .ldap
+            .with_ldap(move |ldap| {
+                let req_cloned = req.clone();
+                Pin::from(Box::new(async move { delete_web_role_impl(ldap, req_cloned).await }))
+            })
+            .await?;
+        Ok(Response::new(resp))
+    }
+
+    async fn list_web_role(
+        &self,
+        _request: Request<Empty>,
+    ) -> Result<Response<GroupListResponse>, Status> {
+        let resp = self
+            .ldap
+            .with_ldap(move |ldap| {
+                Pin::from(Box::new(async move { list_web_roles_impl(ldap).await }))
+            })
+            .await?;
+        Ok(Response::new(resp))
+    }
+
+    async fn search_web_role(
+        &self,
+        request: Request<GroupRequest>,
+    ) -> Result<Response<WebRoleDetailResponse>, Status> {
+        let req = request.into_inner();
+        let resp = self
+            .ldap
+            .with_ldap(move |ldap| {
+                let req_cloned = req.clone();
+                Pin::from(Box::new(async move { search_web_role_impl(ldap, req_cloned).await }))
+            })
+            .await?;
+        Ok(Response::new(resp))
     }
 
     async fn add_user_to_group(
@@ -323,6 +386,76 @@ impl LdapService for MyLdapService {
                 let req_cloned = req.clone();
                 Pin::from(Box::new(
                     async move { search_user_in_group_impl(ldap, req_cloned).await },
+                ))
+            })
+            .await?;
+        Ok(Response::new(resp))
+    }
+
+    async fn add_user_to_web_role(
+        &self,
+        request: Request<UserGroupRequest>,
+    ) -> Result<Response<GenericResponse>, Status> {
+        let req = request.into_inner();
+        let resp = self
+            .ldap
+            .with_ldap(move |ldap| {
+                let req_cloned = req.clone();
+                Pin::from(Box::new(
+                    async move { add_user_to_web_role_impl(ldap, req_cloned).await },
+                ))
+            })
+            .await?;
+
+        Ok(Response::new(resp))
+    }
+
+    async fn remove_user_from_web_role(
+        &self,
+        request: Request<UserGroupRequest>,
+    ) -> Result<Response<GenericResponse>, Status> {
+        let req = request.into_inner();
+        let resp = self
+            .ldap
+            .with_ldap(move |ldap| {
+                let req_cloned = req.clone();
+                Pin::from(Box::new(async move {
+                    remove_user_from_web_role_impl(ldap, req_cloned).await
+                }))
+            })
+            .await?;
+
+        Ok(Response::new(resp))
+    }
+
+    async fn list_user_in_web_role(
+        &self,
+        request: Request<GroupRequest>,
+    ) -> Result<Response<UserListResponse>, Status> {
+        let req = request.into_inner();
+        let resp = self
+            .ldap
+            .with_ldap(move |ldap| {
+                let req_cloned = req.clone();
+                Pin::from(Box::new(
+                    async move { list_user_in_web_role_impl(ldap, req_cloned).await },
+                ))
+            })
+            .await?;
+        Ok(Response::new(resp))
+    }
+
+    async fn search_user_in_web_role(
+        &self,
+        request: Request<UserGroupRequest>,
+    ) -> Result<Response<GenericResponse>, Status> {
+        let req = request.into_inner();
+        let resp = self
+            .ldap
+            .with_ldap(move |ldap| {
+                let req_cloned = req.clone();
+                Pin::from(Box::new(
+                    async move { search_user_in_web_role_impl(ldap, req_cloned).await },
                 ))
             })
             .await?;

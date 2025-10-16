@@ -84,12 +84,46 @@ pub struct UserListResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UserDetailResponse {
     #[prost(string, tag = "1")]
-    pub details: ::prost::alloc::string::String,
+    pub uid:            ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub cn:             ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub sn:             ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub uid_number:     ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub gid_number:     ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub home_directory: ::prost::alloc::string::String,
+    #[prost(string, tag = "7")]
+    pub login_shell:    ::prost::alloc::string::String,
+    #[prost(string, tag = "8")]
+    pub given_name:     ::prost::alloc::string::String,
+    #[prost(string, tag = "9")]
+    pub display_name:   ::prost::alloc::string::String,
+    #[prost(string, tag = "10")]
+    pub gecos:          ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GroupListResponse {
+    #[prost(string, repeated, tag = "1")]
+    pub groups: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GroupDetailResponse {
     #[prost(string, tag = "1")]
-    pub details: ::prost::alloc::string::String,
+    pub cn:         ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub gidnumber:  ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "3")]
+    pub member_uid: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct WebRoleDetailResponse {
+    #[prost(string, tag = "1")]
+    pub cn:         ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "3")]
+    pub member_uid: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// Generated client implementations.
 #[cfg(feature = "ldap-client")]
@@ -301,9 +335,8 @@ pub mod ldap_service_client {
         }
         pub async fn list_group(
             &mut self,
-            request: impl tonic::IntoRequest<super::GroupRequest>,
-        ) -> std::result::Result<tonic::Response<super::GroupDetailResponse>, tonic::Status>
-        {
+            request: impl tonic::IntoRequest<super::Empty>,
+        ) -> std::result::Result<tonic::Response<super::GroupListResponse>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
             })?;
@@ -325,6 +358,59 @@ pub mod ldap_service_client {
             let path = http::uri::PathAndQuery::from_static("/ldap.LdapService/SearchGroup");
             let mut req = request.into_request();
             req.extensions_mut().insert(GrpcMethod::new("ldap.LdapService", "SearchGroup"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn add_web_role(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GroupRequest>,
+        ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/ldap.LdapService/AddWebRole");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("ldap.LdapService", "AddWebRole"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn delete_web_role(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GroupRequest>,
+        ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/ldap.LdapService/DeleteWebRole");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("ldap.LdapService", "DeleteWebRole"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn list_web_role(
+            &mut self,
+            request: impl tonic::IntoRequest<super::Empty>,
+        ) -> std::result::Result<tonic::Response<super::GroupListResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/ldap.LdapService/ListWebRole");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("ldap.LdapService", "ListWebRole"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn search_web_role(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GroupRequest>,
+        ) -> std::result::Result<tonic::Response<super::WebRoleDetailResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/ldap.LdapService/SearchWebRole");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("ldap.LdapService", "SearchWebRole"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn add_user_to_group(
@@ -378,6 +464,61 @@ pub mod ldap_service_client {
             let path = http::uri::PathAndQuery::from_static("/ldap.LdapService/SearchUserInGroup");
             let mut req = request.into_request();
             req.extensions_mut().insert(GrpcMethod::new("ldap.LdapService", "SearchUserInGroup"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn add_user_to_web_role(
+            &mut self,
+            request: impl tonic::IntoRequest<super::UserGroupRequest>,
+        ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/ldap.LdapService/AddUserToWebRole");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("ldap.LdapService", "AddUserToWebRole"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn remove_user_from_web_role(
+            &mut self,
+            request: impl tonic::IntoRequest<super::UserGroupRequest>,
+        ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/ldap.LdapService/RemoveUserFromWebRole");
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("ldap.LdapService", "RemoveUserFromWebRole"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn list_user_in_web_role(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GroupRequest>,
+        ) -> std::result::Result<tonic::Response<super::UserListResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/ldap.LdapService/ListUserInWebRole");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("ldap.LdapService", "ListUserInWebRole"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn search_user_in_web_role(
+            &mut self,
+            request: impl tonic::IntoRequest<super::UserGroupRequest>,
+        ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/ldap.LdapService/SearchUserInWebRole");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("ldap.LdapService", "SearchUserInWebRole"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -435,12 +576,28 @@ pub mod ldap_service_server {
         ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status>;
         async fn list_group(
             &self,
-            request: tonic::Request<super::GroupRequest>,
-        ) -> std::result::Result<tonic::Response<super::GroupDetailResponse>, tonic::Status>;
+            request: tonic::Request<super::Empty>,
+        ) -> std::result::Result<tonic::Response<super::GroupListResponse>, tonic::Status>;
         async fn search_group(
             &self,
             request: tonic::Request<super::GroupRequest>,
         ) -> std::result::Result<tonic::Response<super::GroupDetailResponse>, tonic::Status>;
+        async fn add_web_role(
+            &self,
+            request: tonic::Request<super::GroupRequest>,
+        ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status>;
+        async fn delete_web_role(
+            &self,
+            request: tonic::Request<super::GroupRequest>,
+        ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status>;
+        async fn list_web_role(
+            &self,
+            request: tonic::Request<super::Empty>,
+        ) -> std::result::Result<tonic::Response<super::GroupListResponse>, tonic::Status>;
+        async fn search_web_role(
+            &self,
+            request: tonic::Request<super::GroupRequest>,
+        ) -> std::result::Result<tonic::Response<super::WebRoleDetailResponse>, tonic::Status>;
         async fn add_user_to_group(
             &self,
             request: tonic::Request<super::UserGroupRequest>,
@@ -454,6 +611,22 @@ pub mod ldap_service_server {
             request: tonic::Request<super::GroupRequest>,
         ) -> std::result::Result<tonic::Response<super::UserListResponse>, tonic::Status>;
         async fn search_user_in_group(
+            &self,
+            request: tonic::Request<super::UserGroupRequest>,
+        ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status>;
+        async fn add_user_to_web_role(
+            &self,
+            request: tonic::Request<super::UserGroupRequest>,
+        ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status>;
+        async fn remove_user_from_web_role(
+            &self,
+            request: tonic::Request<super::UserGroupRequest>,
+        ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status>;
+        async fn list_user_in_web_role(
+            &self,
+            request: tonic::Request<super::GroupRequest>,
+        ) -> std::result::Result<tonic::Response<super::UserListResponse>, tonic::Status>;
+        async fn search_user_in_web_role(
             &self,
             request: tonic::Request<super::UserGroupRequest>,
         ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status>;
@@ -882,13 +1055,10 @@ pub mod ldap_service_server {
                 "/ldap.LdapService/ListGroup" => {
                     #[allow(non_camel_case_types)]
                     struct ListGroupSvc<T: LdapService>(pub Arc<T>);
-                    impl<T: LdapService> tonic::server::UnaryService<super::GroupRequest> for ListGroupSvc<T> {
-                        type Response = super::GroupDetailResponse;
+                    impl<T: LdapService> tonic::server::UnaryService<super::Empty> for ListGroupSvc<T> {
+                        type Response = super::GroupListResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::GroupRequest>,
-                        ) -> Self::Future {
+                        fn call(&mut self, request: tonic::Request<super::Empty>) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
                                 <T as LdapService>::list_group(&inner, request).await
@@ -942,6 +1112,159 @@ pub mod ldap_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = SearchGroupSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/ldap.LdapService/AddWebRole" => {
+                    #[allow(non_camel_case_types)]
+                    struct AddWebRoleSvc<T: LdapService>(pub Arc<T>);
+                    impl<T: LdapService> tonic::server::UnaryService<super::GroupRequest> for AddWebRoleSvc<T> {
+                        type Response = super::GenericResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GroupRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as LdapService>::add_web_role(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = AddWebRoleSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/ldap.LdapService/DeleteWebRole" => {
+                    #[allow(non_camel_case_types)]
+                    struct DeleteWebRoleSvc<T: LdapService>(pub Arc<T>);
+                    impl<T: LdapService> tonic::server::UnaryService<super::GroupRequest> for DeleteWebRoleSvc<T> {
+                        type Response = super::GenericResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GroupRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as LdapService>::delete_web_role(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = DeleteWebRoleSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/ldap.LdapService/ListWebRole" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListWebRoleSvc<T: LdapService>(pub Arc<T>);
+                    impl<T: LdapService> tonic::server::UnaryService<super::Empty> for ListWebRoleSvc<T> {
+                        type Response = super::GroupListResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(&mut self, request: tonic::Request<super::Empty>) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as LdapService>::list_web_role(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ListWebRoleSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/ldap.LdapService/SearchWebRole" => {
+                    #[allow(non_camel_case_types)]
+                    struct SearchWebRoleSvc<T: LdapService>(pub Arc<T>);
+                    impl<T: LdapService> tonic::server::UnaryService<super::GroupRequest> for SearchWebRoleSvc<T> {
+                        type Response = super::WebRoleDetailResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GroupRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as LdapService>::search_web_role(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = SearchWebRoleSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -1102,6 +1425,168 @@ pub mod ldap_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = SearchUserInGroupSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/ldap.LdapService/AddUserToWebRole" => {
+                    #[allow(non_camel_case_types)]
+                    struct AddUserToWebRoleSvc<T: LdapService>(pub Arc<T>);
+                    impl<T: LdapService> tonic::server::UnaryService<super::UserGroupRequest>
+                        for AddUserToWebRoleSvc<T>
+                    {
+                        type Response = super::GenericResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::UserGroupRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as LdapService>::add_user_to_web_role(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = AddUserToWebRoleSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/ldap.LdapService/RemoveUserFromWebRole" => {
+                    #[allow(non_camel_case_types)]
+                    struct RemoveUserFromWebRoleSvc<T: LdapService>(pub Arc<T>);
+                    impl<T: LdapService> tonic::server::UnaryService<super::UserGroupRequest>
+                        for RemoveUserFromWebRoleSvc<T>
+                    {
+                        type Response = super::GenericResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::UserGroupRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as LdapService>::remove_user_from_web_role(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = RemoveUserFromWebRoleSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/ldap.LdapService/ListUserInWebRole" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListUserInWebRoleSvc<T: LdapService>(pub Arc<T>);
+                    impl<T: LdapService> tonic::server::UnaryService<super::GroupRequest> for ListUserInWebRoleSvc<T> {
+                        type Response = super::UserListResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GroupRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as LdapService>::list_user_in_web_role(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ListUserInWebRoleSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/ldap.LdapService/SearchUserInWebRole" => {
+                    #[allow(non_camel_case_types)]
+                    struct SearchUserInWebRoleSvc<T: LdapService>(pub Arc<T>);
+                    impl<T: LdapService> tonic::server::UnaryService<super::UserGroupRequest>
+                        for SearchUserInWebRoleSvc<T>
+                    {
+                        type Response = super::GenericResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::UserGroupRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as LdapService>::search_user_in_web_role(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = SearchUserInWebRoleSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
