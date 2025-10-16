@@ -3,7 +3,9 @@
 pub struct Empty {}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GenericResponse {
-    #[prost(string, tag = "1")]
+    #[prost(bool, tag = "1")]
+    pub success: bool,
+    #[prost(string, tag = "2")]
     pub message: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]

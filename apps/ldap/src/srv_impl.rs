@@ -298,12 +298,14 @@ pub(crate) async fn toggle_user_status_impl(
     if req.enable {
         let op: Mod<String> = Mod::Delete("shadowExpire".into(), HashSet::<String>::new());
         match ldap.modify(&dn, vec![op]).await?.success() {
-            Ok(_) => {
-                Ok(GenericResponse { message: format!("User '{}' has been enabled.", req.uid) })
-            }
-            Err(e) if is_no_such_attribute(&e) => {
-                Ok(GenericResponse { message: format!("User '{}' has been enabled.", req.uid) })
-            }
+            Ok(_) => Ok(GenericResponse {
+                success: true,
+                message: format!("User '{}' has been enabled.", req.uid),
+            }),
+            Err(e) if is_no_such_attribute(&e) => Ok(GenericResponse {
+                success: true,
+                message: format!("User '{}' has been enabled.", req.uid),
+            }),
             Err(e) if is_no_such_object(&e) => Err(LdapServiceError::UserNotFound(req.uid.clone())),
             Err(e) => Err(e.into()),
         }
@@ -312,9 +314,10 @@ pub(crate) async fn toggle_user_status_impl(
         hs.insert("1".to_string());
         let op: Mod<String> = Mod::Replace("shadowExpire".into(), hs);
         match ldap.modify(&dn, vec![op]).await?.success() {
-            Ok(_) => {
-                Ok(GenericResponse { message: format!("User '{}' has been disabled.", req.uid) })
-            }
+            Ok(_) => Ok(GenericResponse {
+                success: true,
+                message: format!("User '{}' has been disabled.", req.uid),
+            }),
             Err(e) if is_no_such_object(&e) => Err(LdapServiceError::UserNotFound(req.uid.clone())),
             Err(e) => Err(e.into()),
         }
@@ -418,6 +421,7 @@ pub(crate) async fn add_user_to_group_impl(
     let op = Mod::Add("memberUid".into(), vec![req.uid.clone()].into_iter().collect());
     ldap.modify(&group_dn, vec![op]).await?.success()?;
     Ok(GenericResponse {
+        success: true,
         message: format!("User '{}' added to group '{}'.", req.uid, req.group_name),
     })
 }
@@ -439,6 +443,7 @@ pub(crate) async fn remove_user_from_group_impl(
     let op = Mod::Delete("memberUid".into(), vec![req.uid.clone()].into_iter().collect());
     ldap.modify(&group_dn, vec![op]).await?.success()?;
     Ok(GenericResponse {
+        success: true,
         message: format!("User '{}' removed from group '{}'.", req.uid, req.group_name),
     })
 }
@@ -489,6 +494,7 @@ pub(crate) async fn search_user_in_group_impl(
         };
     let found = !results.is_empty();
     Ok(GenericResponse {
+        success: found,
         message: if found {
             format!("User '{}' is in group '{}'.", req.uid, req.group_name)
         } else {
@@ -513,7 +519,10 @@ pub(crate) async fn add_web_role_impl(
     attrs.insert("member", vec![dn.as_str()]);
     let attributes = map_to_attrs(attrs);
     ldap.add(&dn, attributes).await?.success()?;
-    Ok(GenericResponse { message: format!("Web role '{}' has been created.", req.group_name) })
+    Ok(GenericResponse {
+        success: true,
+        message: format!("Web role '{}' has been created.", req.group_name),
+    })
 }
 
 pub(crate) async fn delete_web_role_impl(
@@ -524,7 +533,10 @@ pub(crate) async fn delete_web_role_impl(
     let filter = format!("(cn={})", req.group_name);
     if let Some(se) = search_one(ldap, &wbase, Scope::OneLevel, &filter, vec!["dn"]).await? {
         ldap.delete(&se.dn).await?.success()?;
-        Ok(GenericResponse { message: format!("Web role '{}' has been deleted.", req.group_name) })
+        Ok(GenericResponse {
+            success: true,
+            message: format!("Web role '{}' has been deleted.", req.group_name),
+        })
     } else {
         Err(LdapServiceError::GroupNotFound(format!("Web role '{}' Not found", req.group_name)))
     }
@@ -606,6 +618,7 @@ pub(crate) async fn add_user_to_web_role_impl(
     let op = Mod::Add("member", vec![&*user_dn].into_iter().collect());
     ldap.modify(&role_dn, vec![op]).await?.success()?;
     Ok(GenericResponse {
+        success: true,
         message: format!("User '{}' added to web role '{}'.", req.uid, req.group_name),
     })
 }
@@ -627,6 +640,7 @@ pub(crate) async fn remove_user_from_web_role_impl(
     let op = Mod::Delete("member", vec![&*user_dn].into_iter().collect());
     ldap.modify(&role_dn, vec![op]).await?.success()?;
     Ok(GenericResponse {
+        success: true,
         message: format!("User '{}' removed from web role '{}'.", req.uid, req.group_name),
     })
 }
@@ -682,6 +696,7 @@ pub(crate) async fn search_user_in_web_role_impl(
     };
     let found = !results.is_empty();
     Ok(GenericResponse {
+        success: found,
         message: if found {
             format!("User '{}' is in web role '{}'.", req.uid, req.group_name)
         } else {

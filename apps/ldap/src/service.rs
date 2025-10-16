@@ -122,7 +122,10 @@ impl LdapService for MyLdapService {
                 Pin::from(Box::new(async move { add_user_impl(ldap, req_cloned).await }))
             })
             .await?;
-        Ok(Response::new(GenericResponse { message: format!("User '{user_id}' added.") }))
+        Ok(Response::new(GenericResponse {
+            success: true,
+            message: format!("User '{user_id}' added."),
+        }))
     }
 
     async fn delete_user(
@@ -137,7 +140,10 @@ impl LdapService for MyLdapService {
                 Pin::from(Box::new(async move { delete_user_impl(ldap, req_cloned).await }))
             })
             .await?;
-        Ok(Response::new(GenericResponse { message: format!("User '{user_id}' deleted.") }))
+        Ok(Response::new(GenericResponse {
+            success: true,
+            message: format!("User '{user_id}' deleted."),
+        }))
     }
 
     async fn modify_user(
@@ -152,7 +158,10 @@ impl LdapService for MyLdapService {
                 Pin::from(Box::new(async move { modify_user_impl(ldap, req_cloned).await }))
             })
             .await?;
-        Ok(Response::new(GenericResponse { message: format!("User '{user_id}' modified.") }))
+        Ok(Response::new(GenericResponse {
+            success: true,
+            message: format!("User '{user_id}' modified."),
+        }))
     }
 
     async fn list_user(
@@ -223,7 +232,10 @@ impl LdapService for MyLdapService {
             })
             .await?;
 
-        Ok(Response::new(GenericResponse { message: format!("Group '{group_name}' added.") }))
+        Ok(Response::new(GenericResponse {
+            success: true,
+            message: format!("Group '{group_name}' added."),
+        }))
     }
 
     async fn delete_group(
@@ -239,7 +251,10 @@ impl LdapService for MyLdapService {
             })
             .await?;
 
-        Ok(Response::new(GenericResponse { message: format!("Group '{group_name}' deleted.") }))
+        Ok(Response::new(GenericResponse {
+            success: true,
+            message: format!("Group '{group_name}' deleted."),
+        }))
     }
 
     async fn list_group(

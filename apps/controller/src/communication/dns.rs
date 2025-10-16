@@ -21,7 +21,6 @@ impl ClientDNS {
         tracing::info!("DNS 客戶端已建立");
         Self { client }
     }
-
     pub fn get_client(&self) -> DnsServiceClient<Channel> {
         self.client.clone()
     }
