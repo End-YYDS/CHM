@@ -7,10 +7,7 @@ use crate::{
     commons::{ResponseResult, ResponseType},
     AppState,
 };
-use chm_grpc::{
-    restful::GetUsersRequest as Grpc_GetUsersRequest,
-    tonic,
-};
+use chm_grpc::{restful::GetUsersRequest as Grpc_GetUsersRequest, tonic};
 use types::{UserEntry as Web_UserEntry, *};
 
 pub fn user_scope() -> Scope {
