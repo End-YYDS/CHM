@@ -16,6 +16,8 @@ pub struct Uuid {
     pub hostname: String,
     #[serde(rename = "Ip")]
     pub ip:       String,
+    #[serde(rename = "Status")]
+    pub status:   bool,
 }
 
 // #[derive(Debug, Serialize)]
