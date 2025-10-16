@@ -8,6 +8,7 @@ use chm_grpc::{
     tonic::{Request, Response, Status},
 };
 use std::sync::Arc;
+use std::collections::HashMap;
 
 // TODO: 由RestFul Server 為Client 調用Controller RestFul gRPC介面
 #[derive(Debug)]
@@ -361,7 +362,39 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetUsersRequest>,
     ) -> Result<Response<GetUsersResponse>, Status> {
-        todo!()
+        // todo!() // TODO: 調用ldap handler
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))
+            .map_err(|e| Status::internal(e.to_string()))?;
+        let uids = ldap
+            .list_users()
+            .await
+            .map_err(|e| Status::internal(format!("Failed to list users: {e}")))?;
+        let mut users: HashMap<String, UserEntry> = HashMap::new();
+        for uid in uids {
+            match ldap.search_user(uid.clone()).await {
+                Ok(detail) => {
+                    let gid_number = detail.gid_number.clone();
+                    let group_name = ldap.get_group_name(gid_number).await.map_err(|e|{Status::not_found(e.to_string())})?.group_name;
+                    let entry = UserEntry {
+                        username: detail.cn,
+                        group: vec![group_name],
+                        home_directory: format!("/home/{}", detail.uid),
+                        shell: "/bin/bash".to_string(),
+                    };
+                    users.insert(uid, entry);
+                }
+                Err(e) => {
+                    eprintln!("Failed to fetch details for user {}: {}", uid, e);
+                    continue;
+                }
+            }
+        }
+        let length = users.len() as u64;
+        let resp = GetUsersResponse { users, length };
+        Ok(Response::new(resp))
     }
 
     async fn create_user(

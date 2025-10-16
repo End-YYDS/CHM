@@ -4,9 +4,7 @@ use crate::{
     globals::GlobalConfig,
 };
 use chm_grpc::ldap::{
-    AuthRequest, AuthResponse, GenericResponse, GroupDetailResponse, GroupListResponse,
-    GroupRequest, ModifyUserRequest, ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest,
-    UserIdRequest, UserListResponse, UserRequest, WebRoleDetailResponse,
+    AuthRequest, AuthResponse, GenericResponse, GroupDetailResponse, GroupIdRequest, GroupListResponse, GroupNameResponse, GroupRequest, ModifyUserRequest, ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest, UserIdRequest, UserListResponse, UserRequest, WebRoleDetailResponse
 };
 use ldap3::{Ldap, LdapError, Mod, Scope, SearchEntry};
 use std::collections::{HashMap, HashSet};
@@ -382,6 +380,23 @@ pub(crate) async fn search_group_impl(
     };
     Ok(resp)
 }
+
+pub(crate) async fn get_group_name_impl(
+    ldap: &mut Ldap,
+    req: GroupIdRequest,
+) -> SrvResult<GroupNameResponse> {
+    let gbase = groups_base();
+    let filter = format!("(gidNumber={})", req.gid_number);
+    if let Some(se) = search_one(ldap, &gbase, Scope::Subtree, &filter, vec!["cn"]).await? {
+        if let Some(vals) = se.attrs.get("cn") {
+            if let Some(v) = vals.first() {
+                return Ok(GroupNameResponse { group_name: v.to_string() });
+            }
+        }
+    }
+    Err(LdapServiceError::GroupNotFound(format!("Group with gidNumber '{}' not found", req.gid_number)))
+}
+
 pub(crate) async fn list_group_impl(ldap: &mut Ldap) -> SrvResult<GroupListResponse> {
     let gbase = groups_base();
     let results = match ldap
