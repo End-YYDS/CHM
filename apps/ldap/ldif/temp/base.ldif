@@ -1,0 +1,12 @@
+dn: ou=Users,dc=chm,dc=com
+objectClass: organizationalUnit
+ou: Users
+
+dn: ou=Groups,dc=chm,dc=com
+objectClass: organizationalUnit
+ou: Groups
+
+dn: ou=UPG,ou=Groups,dc=chm,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: UPG

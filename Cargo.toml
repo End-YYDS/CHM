@@ -1,18 +1,19 @@
 [workspace]
 members = [
-    "apps/api",
-    "apps/ca",
-    "apps/controller",
-    "apps/dns",
-    "libs/cert-utils",
-    "libs/cluster-utils",
-    "libs/config-bus",
-    "libs/config_loader",
-    "libs/crl_cache",
-    "libs/dns_resolver",
-    "libs/grpc",
-    "libs/password",
-    "libs/project_const",
+  "apps/api",
+  "apps/ca",
+  "apps/controller",
+  "apps/dns",
+  "apps/ldap",
+  "libs/cert-utils",
+  "libs/cluster-utils",
+  "libs/config-bus",
+  "libs/config_loader",
+  "libs/crl_cache",
+  "libs/dns_resolver",
+  "libs/grpc",
+  "libs/password",
+  "libs/project_const",
 ]
 resolver = "2"
 [workspace.package]
