@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::{ClientMap, ConResult, GlobalConfig};
 use backoff::ExponentialBackoff;
 use chm_cluster_utils::{
@@ -21,7 +22,7 @@ pub(crate) mod ldap;
 pub enum ClientHandle {
     Ca(ca::ClientCA),
     Dns(dns::ClientDNS),
-    // Ldap(ldap::ClientLdap),
+    Ldap(ldap::ClientLdap),
     // Dhcp(dhcp::ClientDhcp),
 }
 
@@ -44,6 +45,12 @@ impl GrpcClients {
     pub fn dns(&self) -> Option<&dns::ClientDNS> {
         match self.map.get(&ServiceKind::Dns) {
             Some(ClientHandle::Dns(dns)) => Some(dns),
+            _ => None,
+        }
+    }
+    pub fn ldap(&self) -> Option<&ldap::ClientLdap> {
+        match self.map.get(&ServiceKind::Ldap) {
+            Some(ClientHandle::Ldap(ldap)) => Some(ldap),
             _ => None,
         }
     }
@@ -162,7 +169,7 @@ pub async fn init_channels_all(only_ca: bool) -> ConResult<GrpcClients> {
         &channels, {
             Mca  => Ca(ca::ClientCA::new),
             Dns  => Dns(dns::ClientDNS::new),
-            // Ldap => Ldap(ldap::ClientLdap::new),
+            Ldap => Ldap(ldap::ClientLdap::new),
             // Dhcp => Dhcp(dhcp::ClientDhcp::new),
         }
     );

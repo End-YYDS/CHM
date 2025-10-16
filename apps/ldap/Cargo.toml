@@ -9,7 +9,6 @@ path = "src/main.rs"
 
 [dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-prost = { workspace = true }
 chm-dns_resolver = { workspace = true }
 chm-project_const = { workspace = true }
 chm-config_bus = { workspace = true }
@@ -28,3 +27,4 @@ serde = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 arc-swap = { workspace = true }
+chm-cert-utils = { workspace = true }

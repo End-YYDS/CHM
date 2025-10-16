@@ -3,11 +3,15 @@ pub mod error;
 pub mod service;
 mod srv_impl;
 
-pub use crate::{config::config, globals::GlobalConfig};
+pub use crate::{
+    config::{config, CertInfo},
+    globals::GlobalConfig,
+};
 
 use chm_config_bus::{declare_config, declare_config_bus};
 use std::{path::PathBuf, sync::atomic::AtomicBool};
 
+use chm_config_bus::_reexports::Uuid;
 use chm_project_const::ProjectConst;
 use serde::{Deserialize, Serialize};
 
@@ -150,6 +154,34 @@ impl Default for LdapSettings {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, Default, Clone)]
+/// 控制器設定
+pub struct Controller {
+    /// 控制器的指紋，用於識別和驗證
+    #[serde(default = "Controller::default_fingerprint")]
+    pub fingerprint: String,
+    /// 控制器的序列號，用於唯一標識
+    #[serde(default = "Controller::default_serial")]
+    pub serial:      String,
+    /// 控制器的UUID
+    #[serde(default = "Controller::default_uuid")]
+    pub uuid:        Uuid,
+}
+
+impl Controller {
+    /// 取得控制器的預設指紋
+    pub fn default_fingerprint() -> String {
+        "".into()
+    }
+    /// 取得控制器的預設序列號
+    pub fn default_serial() -> String {
+        "".into()
+    }
+    pub fn default_uuid() -> Uuid {
+        Uuid::nil()
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct LdapExtension {
@@ -159,6 +191,8 @@ pub struct LdapExtension {
     pub allocator:     AllocatorSettings,
     #[serde(default)]
     pub ldap_settings: LdapSettings,
+    #[serde(default)]
+    pub controller:    Controller,
 }
 declare_config!(extend = crate::LdapExtension);
 declare_config_bus!();

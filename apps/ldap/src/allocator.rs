@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::error::SrvResult;
 use ldap3::{Ldap, Scope, SearchEntry};
 use sqlx::{
@@ -18,8 +17,6 @@ pub struct Allocator {
     gid_start:       i64,
     pool:            OnceCell<SqlitePool>,
 }
-
-// FIXME: allocator.reseed_from_ldap(&ldap, base_dn).await?;
 
 impl Allocator {
     pub const fn new(

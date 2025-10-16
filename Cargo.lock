@@ -2014,6 +2014,7 @@ version = "0.1.0"
 dependencies = [
  "arc-swap",
  "argh",
+ "chm-cert-utils",
  "chm-cluster-utils",
  "chm-config_bus",
  "chm-dns_resolver",
@@ -2021,7 +2022,6 @@ dependencies = [
  "chm-password",
  "chm-project_const",
  "ldap3",
- "prost",
  "serde",
  "serde_json",
  "sqlx",
