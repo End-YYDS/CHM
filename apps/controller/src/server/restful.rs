@@ -7,8 +7,7 @@ use chm_grpc::{
     tonic,
     tonic::{Request, Response, Status},
 };
-use std::sync::Arc;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 // TODO: 由RestFul Server 為Client 調用Controller RestFul gRPC介面
 #[derive(Debug)]
@@ -377,12 +376,16 @@ impl RestfulService for ControllerRestfulServer {
             match ldap.search_user(uid.clone()).await {
                 Ok(detail) => {
                     let gid_number = detail.gid_number.clone();
-                    let group_name = ldap.get_group_name(gid_number).await.map_err(|e|{Status::not_found(e.to_string())})?.group_name;
+                    let group_name = ldap
+                        .get_group_name(gid_number)
+                        .await
+                        .map_err(|e| Status::not_found(e.to_string()))?
+                        .group_name;
                     let entry = UserEntry {
-                        username: detail.cn,
-                        group: vec![group_name],
+                        username:       detail.cn,
+                        group:          vec![group_name],
                         home_directory: format!("/home/{}", detail.uid),
-                        shell: "/bin/bash".to_string(),
+                        shell:          "/bin/bash".to_string(),
                     };
                     users.insert(uid, entry);
                 }

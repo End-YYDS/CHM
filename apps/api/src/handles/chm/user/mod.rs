@@ -1,15 +1,17 @@
-mod types;
 mod translate;
-use actix_web::{delete, get, patch, post, put, web, HttpResponse, Scope};
+mod types;
+use actix_web::{delete, get, patch, post, put, web, Scope};
 use std::collections::HashMap;
 
-use crate::{commons::{ResponseResult, ResponseType}, AppState};
-use types::*;
+use crate::{
+    commons::{ResponseResult, ResponseType},
+    AppState,
+};
 use chm_grpc::{
     restful::GetUsersRequest as Grpc_GetUsersRequest,
-    tonic::{self, Status},
+    tonic,
 };
-use types::UserEntry as Web_UserEntry;
+use types::{UserEntry as Web_UserEntry, *};
 
 pub fn user_scope() -> Scope {
     web::scope("/user")
@@ -37,7 +39,9 @@ pub fn user_scope() -> Scope {
 //     HttpResponse::Ok().json(body)
 // }
 #[get("")]
-async fn _get_user_root(app_state: web::Data<AppState>) -> actix_web::Result<web::Json<UsersCollection>> {
+async fn _get_user_root(
+    app_state: web::Data<AppState>,
+) -> actix_web::Result<web::Json<UsersCollection>> {
     let mut client = app_state.gclient.clone();
 
     // 呼叫 gRPC server 取得使用者列表
@@ -51,12 +55,14 @@ async fn _get_user_root(app_state: web::Data<AppState>) -> actix_web::Result<web
             _ => actix_web::error::ErrorInternalServerError(format!("gRPC call failed: {status}")),
         })?
         .into_inner();
-    let users = resp.users.into_iter().map(|(k, v)| (k, v.into())).collect::<HashMap<String, Web_UserEntry>>();
-    let length = usize::try_from(resp.length).map_err(|e|{actix_web::error::ErrorInternalServerError(e.to_string())})?;
-    Ok(web::Json(UsersCollection {
-        users,
-        length,
-    }))
+    let users = resp
+        .users
+        .into_iter()
+        .map(|(k, v)| (k, v.into()))
+        .collect::<HashMap<String, Web_UserEntry>>();
+    let length = usize::try_from(resp.length)
+        .map_err(|e| actix_web::error::ErrorInternalServerError(e.to_string()))?;
+    Ok(web::Json(UsersCollection { users, length }))
 }
 
 /// POST /api/chm/user
