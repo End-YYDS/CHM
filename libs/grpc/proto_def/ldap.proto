@@ -35,7 +35,8 @@ service LdapService {
 message Empty {}
 
 message GenericResponse {
-  string message = 1;
+  bool success = 1;
+  string message = 2;
 }
 
 message UserRequest {
