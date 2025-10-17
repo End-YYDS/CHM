@@ -282,7 +282,10 @@ pub(crate) async fn authenticate_user_impl(
             }
         }
     }
+    let svc_dn = GlobalConfig::with(|c| c.extend.ldap_settings.bind_dn.clone());
+    let svc_pw = GlobalConfig::with(|c| c.extend.ldap_settings.bind_password.clone());
     let auth_ok = ldap.simple_bind(&entry.dn, &req.user_password).await?.success().is_ok();
+    let _ = ldap.simple_bind(&svc_dn, &svc_pw).await?.success();
     if auth_ok {
         Ok(AuthResponse { success: true, message: "Authenticated".into() })
     } else {
