@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            UPDATE id_alloc\n               SET next = ?1\n             WHERE kind = 'uid'\n               AND next < ?1\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "0dcd48266dc8fb1a06fc256ef0b491d87f75919c031bdcd3c40d533094696d1e"
+}

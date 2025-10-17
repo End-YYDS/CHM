@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT ip FROM hosts WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ip",
+        "type_info": "Inet"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "782e114d2199f380b1c07a00a3f0c2c7b3a5ebae3f226c0070d8cb10ffbaf3ad"
+}

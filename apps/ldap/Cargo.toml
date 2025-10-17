@@ -1,19 +1,30 @@
 [package]
 name = "ldap"
-version = "0.1.0"
-edition = "2021"
+version = { workspace = true }
+edition = { workspace = true }
+
+[[bin]]
+name = "CHM_ldapd"
+path = "src/main.rs"
 
 [dependencies]
-tonic = "0.13.0"
-tokio = { version = "1", features = ["full"] }
-prost = "0.13.5"
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+chm-dns_resolver = { workspace = true }
+chm-project_const = { workspace = true }
+chm-config_bus = { workspace = true }
+argh = { workspace = true }
+chm-cluster-utils = { workspace = true, features = [
+  "server",
+  "grpc-server",
+], default-features = true }
 ldap3 = { version = "0.11", default-features = false, features = ["sync"] }
-uuid = { version = "1", features = ["v4"] }
-rand = { version = "0.8", features = ["std"] }
-serde_json = "1.0"
-sha2 = "0.10"
-base64 = "0.22.1"
-thiserror = "2.0.12"
-
-[build-dependencies]
-tonic-build = "0.13.0"
+chm-password = { workspace = true }
+thiserror = { workspace = true }
+chm-grpc = { workspace = true, features = ["ldap"] }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+arc-swap = { workspace = true }
+chm-cert-utils = { workspace = true }

@@ -1,0 +1,118 @@
+syntax = "proto3";
+
+package ldap;
+
+service LdapService {
+  rpc AddUser (UserRequest) returns (GenericResponse);
+  rpc DeleteUser (UserIdRequest) returns (GenericResponse);
+  rpc ModifyUser (ModifyUserRequest) returns (GenericResponse);
+  rpc ListUser (Empty) returns (UserListResponse);
+  rpc SearchUser (UserIdRequest) returns (UserDetailResponse);
+  rpc AuthenticateUser (AuthRequest) returns (AuthResponse);
+  rpc ToggleUserStatus (ToggleUserStatusRequest) returns (GenericResponse);
+
+  rpc AddGroup (GroupRequest) returns (GenericResponse);
+  rpc DeleteGroup (GroupRequest) returns (GenericResponse);
+  rpc ListGroup (Empty) returns (GroupListResponse);
+  rpc SearchGroup (GroupRequest) returns (GroupDetailResponse);
+
+  rpc AddWebRole (GroupRequest) returns (GenericResponse);
+  rpc DeleteWebRole (GroupRequest) returns (GenericResponse);
+  rpc ListWebRole (Empty) returns (GroupListResponse);
+  rpc SearchWebRole (GroupRequest) returns (WebRoleDetailResponse);
+
+  rpc AddUserToGroup (UserGroupRequest) returns (GenericResponse);
+  rpc RemoveUserFromGroup (UserGroupRequest) returns (GenericResponse);
+  rpc ListUserInGroup (GroupRequest) returns (UserListResponse);
+  rpc SearchUserInGroup (UserGroupRequest) returns (GenericResponse);
+
+  rpc AddUserToWebRole (UserGroupRequest) returns (GenericResponse);
+  rpc RemoveUserFromWebRole (UserGroupRequest) returns (GenericResponse);
+  rpc ListUserInWebRole (GroupRequest) returns (UserListResponse);
+  rpc SearchUserInWebRole (UserGroupRequest) returns (GenericResponse);
+}
+
+message Empty {}
+
+message GenericResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message UserRequest {
+  string uid = 1;
+  string userPassword = 2;
+  string cn = 3;
+  string sn = 4;
+  string homeDirectory = 5;
+  string loginShell = 6;
+  string givenName = 7;
+  string displayName = 8;
+  string gidNumber = 9;
+  string gecos = 10;
+}
+
+message UserIdRequest {
+  string uid = 1;
+}
+
+message ModifyUserRequest {
+  string uid = 1;
+  map<string, string> changes = 2;
+}
+
+message AuthRequest {
+  string uid = 1;
+  string userPassword = 2;
+}
+
+message AuthResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ToggleUserStatusRequest {
+  string uid = 1;
+  bool enable = 2; // true=啟用, false=停用
+}
+
+message GroupRequest {
+  string groupName = 1;
+}
+
+message UserGroupRequest {
+  string uid = 1;
+  string groupName = 2;
+}
+
+message UserListResponse {
+  repeated string users = 1;
+}
+
+message UserDetailResponse {
+  string uid = 1;
+  string cn = 2;
+  string sn = 3;
+  string uidNumber = 4;
+  string gidNumber = 5;
+  string homeDirectory = 6;
+  string loginShell = 7;
+  string givenName = 8;
+  string displayName = 9;
+  string gecos = 10;
+}
+
+message GroupListResponse {
+  repeated string groups = 1;
+}
+
+message GroupDetailResponse {
+  string cn = 1;
+  string gidnumber = 2;
+  repeated string memberUid = 3;
+}
+
+message WebRoleDetailResponse {
+  string cn = 1;
+  repeated string memberUid = 3;
+}

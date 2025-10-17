@@ -1,0 +1,8 @@
+[package]
+name = "chm-project_const"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+uuid = { workspace = true }

@@ -1,0 +1,12 @@
+[package]
+name = "chm-crl_cache"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+chm-grpc = { workspace = true }
+chrono = { workspace = true }
+openssl = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }

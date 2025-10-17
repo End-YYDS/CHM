@@ -1,708 +1,304 @@
-use base64::{engine::general_purpose, Engine as _};
-use ldap::ldap_service_server::{LdapService, LdapServiceServer};
-use ldap::{
-    AuthRequest, AuthResponse, Empty, GenericResponse, GroupDetailResponse, GroupRequest,
-    ModifyUserRequest, ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest,
-    UserIdRequest, UserListResponse, UserRequest,
+use argh::FromArgs;
+use chm_cert_utils::CertUtils;
+use chm_cluster_utils::{
+    api_resp, atomic_write, declare_init_route, BootstrapResp, Default_ServerCluster, InitData,
+    ServiceDescriptor, ServiceKind,
 };
-use ldap3::{result::Result as LdapResult, Ldap, LdapConnAsync, Mod, Scope, SearchEntry};
-use rand::{rngs::OsRng, RngCore};
-use serde_json;
-use sha2::{Digest, Sha256};
-use std::collections::{HashMap, HashSet};
-use thiserror::Error;
-use tonic::{transport::Server, Request, Response, Status};
-use uuid::Uuid;
+use chm_config_bus::_reexports::Uuid;
+use chm_grpc::{
+    ldap::ldap_service_server::LdapServiceServer,
+    tonic::{
+        codec::CompressionEncoding,
+        codegen::InterceptedService,
+        transport::{Certificate, Identity, ServerTlsConfig},
+        Request, Status,
+    },
+    tonic_health::server::health_reporter,
+};
+use chm_project_const::ProjectConst;
+use ldap::{config, service::MyLdapService, CertInfo, GlobalConfig, ID, NEED_EXAMPLE};
+use std::{
+    net::{Ipv4Addr, SocketAddrV4},
+    sync::atomic::Ordering::Relaxed,
+};
+use tokio::sync::watch;
+use tracing_subscriber::EnvFilter;
 
-pub mod ldap {
-    include!("generated/ldap.rs");
+#[derive(FromArgs, Debug, Clone)]
+/// Ldap 主程式參數
+pub struct Args {
+    /// 範例配置檔案
+    #[argh(switch, short = 'i')]
+    pub init_config: bool,
+}
+// TODO: 添加叢集交換的FN
+
+#[derive(Debug)]
+pub struct InitCarry {
+    pub root_ca_path:    PathBuf,
+    pub uuid:            Uuid,
+    pub server_hostname: String,
+    pub server_addr:     SocketAddrV4,
+    pub private_key:     Vec<u8>,
+    pub cert_info:       CertInfo,
 }
 
-#[derive(Debug, Error)]
-pub enum LdapServiceError {
-    #[error("LDAP connection error: {0}")]
-    ConnectionError(String),
-
-    #[error("LDAP operation error: {0}")]
-    OperationError(String),
-
-    #[error("User '{0}' already exists")]
-    UserAlreadyExists(String),
-
-    #[error("User '{0}' not found")]
-    UserNotFound(String),
-
-    #[error("Group '{0}' already exists")]
-    GroupAlreadyExists(String),
-
-    #[error("Group '{0}' not found")]
-    GroupNotFound(String),
-
-    #[error("Invalid credentials")]
-    InvalidCredentials,
-}
-
-impl From<LdapServiceError> for Status {
-    fn from(err: LdapServiceError) -> Self {
-        match err {
-            LdapServiceError::ConnectionError(e) => Status::internal(e),
-            LdapServiceError::OperationError(e) => Status::internal(e),
-            LdapServiceError::UserAlreadyExists(uid) => Status::already_exists(uid),
-            LdapServiceError::UserNotFound(uid) => Status::not_found(uid),
-            LdapServiceError::GroupAlreadyExists(name) => Status::already_exists(name),
-            LdapServiceError::GroupNotFound(name) => Status::not_found(name),
-            LdapServiceError::InvalidCredentials => Status::unauthenticated("Invalid credentials"),
-        }
+impl InitCarry {
+    pub fn new(
+        root_ca_path: PathBuf,
+        uuid: Uuid,
+        server_hostname: String,
+        server_addr: SocketAddrV4,
+        private_key: Vec<u8>,
+        cert_info: CertInfo,
+    ) -> Arc<Self> {
+        Arc::new(Self { root_ca_path, uuid, server_hostname, server_addr, private_key, cert_info })
     }
 }
 
-async fn bind() -> LdapResult<Ldap> {
-    let url = "ldap://192.168.56.2:389";
-    let (conn, mut ldap) = LdapConnAsync::new(url).await?;
-    ldap3::drive!(conn);
-    ldap.simple_bind("cn=admin,dc=example,dc=com", "admin")
-        .await?
-        .success()?;
-    Ok(ldap)
-}
-
-fn generate_id_from_uuid() -> String {
-    let uuid = Uuid::new_v4();
-    let bytes = uuid.as_bytes();
-    let mut buf = [0u8; 8];
-    buf.copy_from_slice(&bytes[..8]);
-    let id = u64::from_be_bytes(buf);
-    id.to_string()
-}
-
-fn hash_password_ssha(password: &str) -> String {
-    let mut salt = [0u8; 8];
-    let mut rng = OsRng::default();
-    rng.fill_bytes(&mut salt);
-
-    let mut hasher = Sha256::new();
-    hasher.update(password.as_bytes());
-    hasher.update(&salt);
-    let digest = hasher.finalize();
-
-    let mut ssha = Vec::new();
-    ssha.extend_from_slice(&digest);
-    ssha.extend_from_slice(&salt);
-
-    format!("{{SSHA256}}{}", general_purpose::STANDARD.encode(&ssha))
-}
-
-// ============================================================
-// ======================= gRPC Service =======================
-// ============================================================
-
-#[derive(Debug, Default)]
-pub struct MyLdapService;
-
-#[tonic::async_trait]
-impl LdapService for MyLdapService {
-    /* ---------------- User APIs ---------------- */
-    async fn add_user(
-        &self,
-        request: Request<UserRequest>,
-    ) -> Result<Response<GenericResponse>, Status> {
-        let req = request.into_inner();
-
-        let mut ldap = bind()
-            .await
-            .map_err(|e| LdapServiceError::ConnectionError(format!("{:?}", e)))?;
-        let dn = format!("uid={},ou=Users,dc=example,dc=com", req.uid);
-
-        let filter = format!("(uid={})", req.uid);
-        let base_dn = format!("ou=Users,dc=example,dc=com");
-        let (results, _) = ldap
-            .search(&base_dn, Scope::OneLevel, &filter, vec!["dn"])
-            .await
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-        if !results.is_empty() {
-            return Err(LdapServiceError::UserAlreadyExists(req.uid.clone()).into());
-        }
-
-        let mut attrs = HashMap::new();
-        let uid_number = generate_id_from_uuid();
-        let hashed_password = hash_password_ssha(&req.user_password);
-        attrs.insert(
-            "objectClass",
-            vec!["inetOrgPerson", "posixAccount", "shadowAccount", "top"],
-        );
-        attrs.insert("uid", vec![req.uid.as_str()]);
-        attrs.insert("userPassword", vec![hashed_password.as_str()]);
-        attrs.insert("cn", vec![req.cn.as_str()]);
-        attrs.insert("sn", vec![req.sn.as_str()]);
-        attrs.insert("homeDirectory", vec![req.home_directory.as_str()]);
-        attrs.insert("loginShell", vec![req.login_shell.as_str()]);
-        attrs.insert("givenName", vec![req.given_name.as_str()]);
-        attrs.insert("displayName", vec![req.display_name.as_str()]);
-        attrs.insert("uidNumber", vec![uid_number.as_str()]);
-        attrs.insert("gidNumber", vec![req.gid_number.as_str()]);
-        attrs.insert("gecos", vec![req.gecos.as_str()]);
-
-        let attributes: Vec<(&str, HashSet<&str>)> = attrs
-            .into_iter()
-            .map(|(k, v)| (k, v.into_iter().collect()))
-            .collect();
-
-        ldap.add(&dn, attributes)
-            .await
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-
-        Ok(Response::new(GenericResponse {
-            message: format!("User '{}' added.", req.uid),
-        }))
-    }
-
-    async fn delete_user(
-        &self,
-        request: Request<UserIdRequest>,
-    ) -> Result<Response<GenericResponse>, Status> {
-        let req = request.into_inner();
-        let mut ldap = bind()
-            .await
-            .map_err(|e| LdapServiceError::ConnectionError(format!("{:?}", e)))?;
-        let dn = format!("uid={},ou=Users,dc=example,dc=com", req.uid);
-
-        ldap.delete(&dn)
-            .await
-            .map_err(|e| match e {
-                e if e.to_string().contains("No such object") => {
-                    LdapServiceError::UserNotFound(req.uid.clone())
+async fn init_data_handler(
+    _req: &HttpRequest,
+    Json(data): Json<InitData>,
+    carry: Data<Arc<InitCarry>>,
+) -> ControlFlow<HttpResponse, ()> {
+    match data {
+        InitData::Bootstrap { root_ca_pem, .. } => {
+            if let Err(e) = atomic_write(&carry.root_ca_path, &root_ca_pem).await {
+                tracing::error!("寫入 RootCA 憑證失敗: {:?}", e);
+                return ControlFlow::Break(api_resp!(InternalServerError "寫入 RootCA 憑證失敗"));
+            }
+            let mut san_extend = carry.cert_info.san.clone();
+            san_extend.push(carry.uuid.to_string());
+            let csr_pem = match CertUtils::generate_csr(
+                carry.private_key.clone(),
+                &carry.cert_info.country,
+                &carry.cert_info.state,
+                &carry.cert_info.locality,
+                ProjectConst::PROJECT_NAME,
+                &carry.cert_info.cn,
+                san_extend,
+            ) {
+                Ok(csr) => csr,
+                Err(e) => {
+                    tracing::error!("生成 CSR 失敗: {:?}", e);
+                    return ControlFlow::Break(api_resp!(InternalServerError "生成 CSR 失敗"));
                 }
-                other => {
-                    LdapServiceError::OperationError(format!("LDAP delete error: {:?}", other))
-                }
-            })?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-
-        Ok(Response::new(GenericResponse {
-            message: format!("User '{}' deleted.", req.uid),
-        }))
-    }
-
-    async fn modify_user(
-        &self,
-        request: Request<ModifyUserRequest>,
-    ) -> Result<Response<GenericResponse>, Status> {
-        let req = request.into_inner();
-        let mut ldap = bind()
-            .await
-            .map_err(|e| LdapServiceError::ConnectionError(format!("{:?}", e)))?;
-
-        let dn = format!("uid={},ou=Users,dc=example,dc=com", req.uid);
-        let changes: Vec<Mod<String>> = req
-            .changes
-            .into_iter()
-            .map(|(k, v)| {
-                let value = if k == "userPassword" {
-                    hash_password_ssha(&v)
-                } else {
-                    v
-                };
-                Mod::Replace(k, vec![value].into_iter().collect())
-            })
-            .collect();
-
-        ldap.modify(&dn, changes)
-            .await
-            .map_err(|e| match e {
-                e if e.to_string().contains("No such object") => {
-                    LdapServiceError::UserNotFound(req.uid.clone())
-                }
-                other => LdapServiceError::OperationError(format!("{:?}", other)),
-            })?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-
-        Ok(Response::new(GenericResponse {
-            message: format!("User '{}' modified.", req.uid),
-        }))
-    }
-
-    async fn list_user(
-        &self,
-        _request: Request<Empty>,
-    ) -> Result<Response<UserListResponse>, Status> {
-        let mut ldap = bind()
-            .await
-            .map_err(|e| LdapServiceError::ConnectionError(format!("{:?}", e)))?;
-        let base_dn = "ou=Users,dc=example,dc=com";
-
-        let (results, _) = ldap
-            .search(
-                base_dn,
-                Scope::OneLevel,
-                "(objectClass=inetOrgPerson)",
-                vec!["uid"],
-            )
-            .await
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-
-        let users: Vec<String> = results
-            .into_iter()
-            .filter_map(|entry| {
-                let entry = SearchEntry::construct(entry);
-                entry.attrs.get("uid").and_then(|v| v.get(0)).cloned()
-            })
-            .collect();
-
-        Ok(Response::new(UserListResponse { users }))
-    }
-
-    async fn search_user(
-        &self,
-        request: Request<UserIdRequest>,
-    ) -> Result<Response<UserDetailResponse>, Status> {
-        let req = request.into_inner();
-        let mut ldap = bind()
-            .await
-            .map_err(|e| LdapServiceError::ConnectionError(format!("{:?}", e)))?;
-        let filter = format!("(uid={})", req.uid);
-
-        let (results, _) = ldap
-            .search(
-                "ou=Users,dc=example,dc=com",
-                Scope::OneLevel,
-                &filter,
-                vec!["*"],
-            )
-            .await
-            .map_err(|e| match e {
-                e if e.to_string().contains("No such object") => {
-                    LdapServiceError::UserNotFound(req.uid.clone())
-                }
-                other => LdapServiceError::OperationError(format!("{:?}", other)),
-            })?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-
-        if results.is_empty() {
-            return Ok(Response::new(UserDetailResponse {
-                details: format!("User '{}' not found.", req.uid),
-            }));
+            };
+            let service_desp = ServiceDescriptor {
+                kind:        ServiceKind::Ldap,
+                uri:         format!("https://{}:{}", carry.uuid, carry.server_addr.port()),
+                health_name: Some("ldap.LdapService".to_string()),
+                is_server:   true,
+                hostname:    ID.to_string(),
+                uuid:        carry.uuid,
+            };
+            let resp = BootstrapResp { csr_pem, socket: carry.server_addr, service_desp };
+            return ControlFlow::Break(api_resp!(ok "初始化交換成功", resp));
         }
-
-        let entry = SearchEntry::construct(results[0].clone());
-        let attrs = &entry.attrs;
-        let json_map = serde_json::json!({
-            "uid": attrs.get("uid").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "cn": attrs.get("cn").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "sn": attrs.get("sn").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "uidNumber": attrs.get("uidNumber").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "gidNumber": attrs.get("gidNumber").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "homeDirectory": attrs.get("homeDirectory").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "loginShell": attrs.get("loginShell").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "givenName": attrs.get("givenName").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "displayName": attrs.get("displayName").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "gecos": attrs.get("gecos").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-        });
-
-        Ok(Response::new(UserDetailResponse {
-            details: json_map.to_string(),
-        }))
-    }
-
-    async fn authenticate_user(
-        &self,
-        request: Request<AuthRequest>,
-    ) -> Result<Response<AuthResponse>, Status> {
-        let req = request.into_inner();
-        let mut ldap = bind()
-            .await
-            .map_err(|e| LdapServiceError::ConnectionError(format!("{:?}", e)))?;
-
-        let filter = format!("(uid={})", req.uid);
-        let (results, _) = ldap
-            .search("dc=example,dc=com", Scope::Subtree, &filter, vec!["dn"])
-            .await
-            .map_err(|e| match e {
-                e if e.to_string().contains("No such object") => {
-                    LdapServiceError::UserNotFound(req.uid.clone())
-                }
-                other => LdapServiceError::OperationError(format!("{:?}", other)),
-            })?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-
-        if results.is_empty() {
-            return Ok(Response::new(AuthResponse {
-                success: false,
-                message: "User not found".into(),
-            }));
-        }
-
-        let entry = SearchEntry::construct(results.into_iter().next().unwrap());
-        let auth_ok = ldap
-            .simple_bind(&entry.dn, &req.user_password)
-            .await
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?
-            .success()
-            .is_ok();
-
-        if auth_ok {
-            Ok(Response::new(AuthResponse {
-                success: true,
-                message: "Authenticated".into(),
-            }))
-        } else {
-            Ok(Response::new(AuthResponse {
-                success: false,
-                message: "Invalid credentials".into(),
-            }))
+        InitData::Finalize { id, cert_pem, controller_pem, controller_uuid, .. } => {
+            if id != carry.uuid {
+                tracing::warn!("收到的 UUID 與預期不符，拒絕接收憑證");
+                return ControlFlow::Break(api_resp!(BadRequest "UUID 不符"));
+            }
+            if let Err(e) = CertUtils::save_cert(ID, &carry.private_key, &cert_pem) {
+                tracing::error!("保存憑證失敗: {:?}", e);
+                return ControlFlow::Break(api_resp!(InternalServerError "保存憑證失敗"));
+            }
+            GlobalConfig::update_with(|cfg| {
+                let cert =
+                    CertUtils::load_cert_from_bytes(&controller_pem).expect("無法載入剛接收的憑證");
+                cfg.extend.controller.serial =
+                    CertUtils::cert_serial_sha256(&cert).expect("無法計算Serial");
+                cfg.extend.controller.fingerprint = CertUtils::cert_fingerprint_sha256(&cert)
+                    .expect(
+                        "
+            無法計算fingerprint",
+                    );
+                cfg.extend.controller.uuid = controller_uuid;
+            });
+            if let Err(e) = GlobalConfig::save_config().await {
+                tracing::error!("保存配置檔案失敗: {:?}", e);
+                return ControlFlow::Break(api_resp!(InternalServerError "保存配置檔案失敗"));
+            }
+            if let Err(e) = GlobalConfig::reload_config().await {
+                tracing::error!("重新載入配置檔案失敗: {:?}", e);
+                return ControlFlow::Break(api_resp!(InternalServerError "重新載入配置檔案失敗"));
+            }
+            tracing::info!("初始化完成，已接收憑證");
         }
     }
+    ControlFlow::Continue(())
+}
+declare_init_route!(init_data_handler, data = InitData,extras = (carry: Arc<InitCarry>));
 
-    async fn toggle_user_status(
-        &self,
-        request: Request<ToggleUserStatusRequest>,
-    ) -> Result<Response<GenericResponse>, Status> {
-        let req = request.into_inner();
-        let mut ldap = bind()
-            .await
-            .map_err(|e| LdapServiceError::ConnectionError(format!("{:?}", e)))?;
+fn make_ldap_interceptor(
+    controller_args: (String, String),
+) -> impl FnMut(Request<()>) -> Result<Request<()>, Status> + Clone + Send + 'static {
+    move |req: Request<()>| {
+        let peer_der_vec =
+            req.peer_certs().ok_or_else(|| Status::unauthenticated("No TLS connection"))?;
+        let leaf = peer_der_vec
+            .as_ref()
+            .as_slice()
+            .first()
+            .ok_or_else(|| Status::unauthenticated("No peer certificate presented"))?;
 
-        let dn = format!("uid={},ou=Users,dc=example,dc=com", req.uid);
+        let x509 = CertUtils::load_cert_from_bytes(leaf)
+            .map_err(|_| Status::invalid_argument("Peer certificate DER is invalid"))?;
+        let serial = CertUtils::cert_serial_sha256(&x509)
+            .map_err(|e| Status::internal(format!("Serial sha256 failed: {e}")))?;
+        let fingerprint = CertUtils::cert_fingerprint_sha256(&x509)
+            .map_err(|e| Status::internal(format!("Fingerprint sha256 failed: {e}")))?;
 
-        let mod_op = if req.enable {
-            Mod::Delete("shadowExpire".into(), HashSet::<&str>::new())
-        } else {
-            Mod::Replace("shadowExpire".into(), vec!["1"].into_iter().collect())
-        };
-
-        ldap.modify(&dn, vec![mod_op])
-            .await
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-
-        let msg = if req.enable {
-            format!("User '{}' has been enabled.", req.uid)
-        } else {
-            format!("User '{}' has been disabled.", req.uid)
-        };
-
-        Ok(Response::new(GenericResponse { message: msg }))
-    }
-
-    /* ---------------- Group APIs ---------------- */
-    async fn add_group(
-        &self,
-        request: Request<GroupRequest>,
-    ) -> Result<Response<GenericResponse>, Status> {
-        let req = request.into_inner();
-        let mut ldap = bind()
-            .await
-            .map_err(|e| LdapServiceError::ConnectionError(format!("{:?}", e)))?;
-        let dn = format!("cn={},ou=Groups,dc=example,dc=com", req.group_name);
-
-        let filter = format!("(cn={})", req.group_name);
-        let (results, _) = ldap
-            .search(
-                "ou=Groups,dc=example,dc=com",
-                Scope::OneLevel,
-                &filter,
-                vec!["dn"],
-            )
-            .await
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-        if !results.is_empty() {
-            return Err(LdapServiceError::GroupAlreadyExists(req.group_name.clone()).into());
+        if serial != controller_args.0 || fingerprint != controller_args.1 {
+            return Err(Status::permission_denied("Only controller cert is allowed"));
         }
-
-        let mut attrs = HashMap::new();
-        let gid_number = generate_id_from_uuid();
-        attrs.insert("objectClass", vec!["posixGroup", "top"]);
-        attrs.insert("cn", vec![req.group_name.as_str()]);
-        attrs.insert("gidNumber", vec![gid_number.as_str()]);
-
-        let attributes: Vec<(&str, HashSet<&str>)> = attrs
-            .into_iter()
-            .map(|(k, v)| (k, v.into_iter().collect()))
-            .collect();
-
-        ldap.add(&dn, attributes)
-            .await
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-
-        Ok(Response::new(GenericResponse {
-            message: format!("Group '{}' added.", req.group_name),
-        }))
-    }
-
-    async fn delete_group(
-        &self,
-        request: Request<GroupRequest>,
-    ) -> Result<Response<GenericResponse>, Status> {
-        let req = request.into_inner();
-        let mut ldap = bind()
-            .await
-            .map_err(|e| LdapServiceError::ConnectionError(format!("{:?}", e)))?;
-        let dn = format!("cn={},ou=Groups,dc=example,dc=com", req.group_name);
-
-        ldap.delete(&dn)
-            .await
-            .map_err(|e| match e {
-                e if e.to_string().contains("No such object") => {
-                    LdapServiceError::GroupNotFound(req.group_name.clone())
-                }
-                other => LdapServiceError::OperationError(format!("{:?}", other)),
-            })?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-
-        Ok(Response::new(GenericResponse {
-            message: format!("Group '{}' deleted.", req.group_name),
-        }))
-    }
-
-    async fn list_group(
-        &self,
-        request: Request<GroupRequest>,
-    ) -> Result<Response<GroupDetailResponse>, Status> {
-        let req = request.into_inner();
-        let mut ldap = bind()
-            .await
-            .map_err(|e| LdapServiceError::ConnectionError(format!("{:?}", e)))?;
-
-        if req.group_name.is_empty() {
-            let (results, _) = ldap
-                .search(
-                    "ou=Groups,dc=example,dc=com",
-                    Scope::OneLevel,
-                    "(objectClass=posixGroup)",
-                    vec!["cn"],
-                )
-                .await
-                .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?
-                .success()
-                .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-            let groups: Vec<String> = results
-                .into_iter()
-                .filter_map(|e| {
-                    let entry = SearchEntry::construct(e);
-                    entry.attrs.get("cn").and_then(|v| v.get(0)).cloned()
-                })
-                .collect();
-            return Ok(Response::new(GroupDetailResponse {
-                details: groups.join(", "),
-            }));
-        }
-
-        let base_dn = format!("cn={},ou=Groups,dc=example,dc=com", req.group_name);
-        let (results, _) = ldap
-            .search(&base_dn, Scope::Base, "(objectClass=posixGroup)", vec!["*"])
-            .await
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-        if results.is_empty() {
-            return Ok(Response::new(GroupDetailResponse {
-                details: format!("Group '{}' not found.", req.group_name),
-            }));
-        }
-        let entry = SearchEntry::construct(results[0].clone());
-        let attrs = &entry.attrs;
-        let json_map = serde_json::json!({
-            "cn": attrs.get("cn").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "gidNumber": attrs.get("gidNumber").and_then(|v| v.get(0)).cloned().unwrap_or_default(),
-            "memberUid": attrs.get("memberUid").cloned().unwrap_or_default(), // 這是 Vec<String>
-        });
-
-        Ok(Response::new(GroupDetailResponse {
-            details: json_map.to_string(),
-        }))
-    }
-
-    async fn search_group(
-        &self,
-        request: Request<GroupRequest>,
-    ) -> Result<Response<GroupDetailResponse>, Status> {
-        self.list_group(request).await
-    }
-
-    async fn add_user_to_group(
-        &self,
-        request: Request<UserGroupRequest>,
-    ) -> Result<Response<GenericResponse>, Status> {
-        let req = request.into_inner();
-        let mut ldap = bind()
-            .await
-            .map_err(|e| LdapServiceError::ConnectionError(format!("{:?}", e)))?;
-
-        let base_dn = format!("cn={},ou=Groups,dc=example,dc=com", req.group_name);
-        let filter = format!("(memberUid={})", req.uid);
-
-        let (results, _) = ldap
-            .search(&base_dn, Scope::Base, &filter, vec!["memberUid"])
-            .await
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-
-        if !results.is_empty() {
-            return Err(LdapServiceError::OperationError(format!(
-                "User '{}' is already a member of group '{}'",
-                req.uid, req.group_name
-            ))
-            .into());
-        }
-
-        let dn = format!("cn={},ou=Groups,dc=example,dc=com", req.group_name);
-        let mod_op = Mod::Add(
-            "memberUid".into(),
-            vec![req.uid.clone()].into_iter().collect(),
-        );
-        ldap.modify(&dn, vec![mod_op])
-            .await
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-
-        Ok(Response::new(GenericResponse {
-            message: format!("User '{}' added to group '{}'.", req.uid, req.group_name),
-        }))
-    }
-
-    async fn remove_user_from_group(
-        &self,
-        request: Request<UserGroupRequest>,
-    ) -> Result<Response<GenericResponse>, Status> {
-        let req = request.into_inner();
-        let mut ldap = bind()
-            .await
-            .map_err(|e| LdapServiceError::ConnectionError(format!("{:?}", e)))?;
-
-        let base_dn = format!("cn={},ou=Groups,dc=example,dc=com", req.group_name);
-        let filter = format!("(memberUid={})", req.uid);
-
-        let (results, _) = ldap
-            .search(&base_dn, Scope::Base, &filter, vec!["memberUid"])
-            .await
-            .map_err(|e| LdapServiceError::OperationError(format!("Search failed: {:?}", e)))?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("Search failed: {:?}", e)))?;
-
-        if results.is_empty() {
-            return Err(LdapServiceError::OperationError(format!(
-                "User '{}' is not a member of group '{}'",
-                req.uid, req.group_name
-            ))
-            .into());
-        }
-
-        let dn = format!("cn={},ou=Groups,dc=example,dc=com", req.group_name);
-        let mod_op = Mod::Delete(
-            "memberUid".into(),
-            vec![req.uid.clone()].into_iter().collect(),
-        );
-        ldap.modify(&dn, vec![mod_op])
-            .await
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-
-        Ok(Response::new(GenericResponse {
-            message: format!(
-                "User '{}' removed from group '{}'.",
-                req.uid, req.group_name
-            ),
-        }))
-    }
-
-    async fn list_user_in_group(
-        &self,
-        request: Request<GroupRequest>,
-    ) -> Result<Response<UserListResponse>, Status> {
-        let req = request.into_inner();
-        let mut ldap = bind()
-            .await
-            .map_err(|e| LdapServiceError::ConnectionError(format!("{:?}", e)))?;
-        let base_dn = format!("cn={},ou=Groups,dc=example,dc=com", req.group_name);
-
-        let (results, _) = ldap
-            .search(
-                &base_dn,
-                Scope::Base,
-                "(objectClass=posixGroup)",
-                vec!["memberUid"],
-            )
-            .await
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-        if results.is_empty() {
-            return Ok(Response::new(UserListResponse { users: vec![] }));
-        }
-        let entry = SearchEntry::construct(results[0].clone());
-        let users = entry
-            .attrs
-            .get("memberUid")
-            .cloned()
-            .unwrap_or_default()
-            .into_iter()
-            .map(|s| s.to_string())
-            .collect();
-        Ok(Response::new(UserListResponse { users }))
-    }
-
-    async fn search_user_in_group(
-        &self,
-        request: Request<UserGroupRequest>,
-    ) -> Result<Response<GenericResponse>, Status> {
-        let req = request.into_inner();
-        let mut ldap = bind()
-            .await
-            .map_err(|e| LdapServiceError::ConnectionError(format!("{:?}", e)))?;
-        let base_dn = format!("cn={},ou=Groups,dc=example,dc=com", req.group_name);
-        let filter = format!("(memberUid={})", req.uid);
-
-        let (results, _) = ldap
-            .search(&base_dn, Scope::Base, &filter, vec!["memberUid"])
-            .await
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?
-            .success()
-            .map_err(|e| LdapServiceError::OperationError(format!("{:?}", e)))?;
-
-        let found = !results.is_empty();
-        Ok(Response::new(GenericResponse {
-            message: if found {
-                format!("User '{}' is in group '{}'.", req.uid, req.group_name)
-            } else {
-                format!("User '{}' is NOT in group '{}'.", req.uid, req.group_name)
-            },
-        }))
+        Ok(req)
     }
 }
-
-// ==============================================================
-// ============================ Main ============================
-// ==============================================================
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let addr = "[::1]:50051".parse()?;
-    let server = MyLdapService::default();
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    #[cfg(debug_assertions)]
+    let filter = EnvFilter::from_default_env().add_directive("info".parse().unwrap());
+    #[cfg(not(debug_assertions))]
+    let filter = EnvFilter::from_default_env();
+    tracing_subscriber::fmt().with_env_filter(filter).init();
+    let args: Args = argh::from_env();
+    if args.init_config {
+        NEED_EXAMPLE.store(true, Relaxed);
+        tracing::info!("初始化配置檔案...");
+        config().await?;
+        tracing::info!("配置檔案已生成，請檢查 {ID}_config.toml.example");
+        return Ok(());
+    }
+    config().await?;
+    tracing::info!("配置檔案加載完成");
+    let (
+        addr,
+        ldap_url,
+        bind_dn,
+        bind_password,
+        rootca,
+        cert_info,
+        otp_len,
+        otp_time,
+        self_uuid,
+        key_path,
+        cert_path,
+    ) = GlobalConfig::with(|cfg| {
+        let host: Ipv4Addr = cfg.server.host.clone().parse().unwrap_or(Ipv4Addr::LOCALHOST);
+        let port = cfg.server.port;
+        let ldap_url = cfg.extend.ldap_settings.url.clone();
+        let bind_dn = cfg.extend.ldap_settings.bind_dn.clone();
+        let bind_password = cfg.extend.ldap_settings.bind_password.clone();
+        let rootca = cfg.certificate.root_ca.clone();
+        let cert_info = cfg.certificate.cert_info.clone();
+        let otp_len = cfg.server.otp_len;
+        let otp_time = cfg.server.otp_time;
+        let uuid = cfg.server.unique_id;
+        let key_path = cfg.certificate.client_key.clone();
+        let cert_path = cfg.certificate.client_cert.clone();
+        (
+            SocketAddrV4::new(host, port),
+            ldap_url,
+            bind_dn,
+            bind_password,
+            rootca,
+            cert_info,
+            otp_len,
+            otp_time,
+            uuid,
+            key_path,
+            cert_path,
+        )
+    });
+    let (key, x509_cert) = CertUtils::generate_self_signed_cert(
+        cert_info.bits,
+        &cert_info.country,
+        &cert_info.state,
+        &cert_info.locality,
+        &cert_info.org,
+        &cert_info.cn,
+        &cert_info.san,
+        cert_info.days,
+    )
+    .map_err(|e| format!("生成自簽憑證失敗: {e}"))?;
+    let carry = InitCarry::new(
+        rootca.clone(),
+        self_uuid,
+        ID.to_string(),
+        addr,
+        key.clone(),
+        cert_info.clone(),
+    );
+    let init_server =
+        Default_ServerCluster::new(addr.to_string(), x509_cert, key, None::<String>, otp_len, ID)
+            .with_otp_rotate_every(otp_time)
+            .add_configurer(init_route())
+            .with_app_data::<InitCarry>(carry.clone());
+    tracing::info!("啟動初始化 Server，等待 Controller 的初始化請求...");
+    match init_server.init().await {
+        ControlFlow::Continue(()) => {
+            tracing::info!("初始化完成，啟動正式服務...");
+        }
+        ControlFlow::Break(_) => {
+            tracing::warn!("初始化未完成 (Ctrl+C)，程式結束");
+            return Ok(());
+        }
+    }
+    tracing::info!("初始化 Server 已結束，繼續啟動正式服務...");
+    tracing::info!("正在啟動Ldap...");
+    let (_cert_update_tx, mut cert_update_rx) = watch::channel(());
 
-    println!("gRPC server running on {}", addr);
+    loop {
+        let (key, cert) = CertUtils::cert_from_path(&cert_path, &key_path, None)?;
+        let identity = Identity::from_pem(cert, key);
+        let tls = ServerTlsConfig::new()
+            .identity(identity)
+            .client_ca_root(Certificate::from_pem(CertUtils::load_cert(&rootca)?.to_pem()?));
+        let (health_reporter, health_service) = health_reporter();
 
-    Server::builder()
-        .add_service(LdapServiceServer::new(server))
-        .serve(addr)
-        .await?;
-
+        health_reporter.set_serving::<LdapServiceServer<MyLdapService>>().await;
+        let mut rx = cert_update_rx.clone();
+        let shutdown_signal = {
+            let health_reporter = health_reporter.clone();
+            async move {
+                tokio::select! {
+                    _ = tokio::signal::ctrl_c() => {
+                        tracing::info!("[gRPC] 收到 Ctrl-C，開始關閉...");
+                    }
+                    Ok(_) = rx.changed() => {
+                        tracing::info!("[gRPC] 憑證更新，開始重新啟動 gRPC...");
+                    }
+                }
+                health_reporter.set_not_serving::<LdapServiceServer<MyLdapService>>().await;
+            }
+        };
+        let controller_args = GlobalConfig::with(|cfg| {
+            (cfg.extend.controller.serial.clone(), cfg.extend.controller.fingerprint.clone())
+        });
+        // TODO: 加入cert_update_tx
+        let server = MyLdapService::new(ldap_url.clone(), bind_dn.clone(), bind_password.clone());
+        let raw_ldap = LdapServiceServer::new(server)
+            .send_compressed(CompressionEncoding::Zstd)
+            .accept_compressed(CompressionEncoding::Zstd);
+        let ldap_svc = InterceptedService::new(raw_ldap, make_ldap_interceptor(controller_args));
+        tracing::info!("Starting gRPC server on {addr}");
+        let server = chm_cluster_utils::gserver::grpc_with_tuning()
+            .tls_config(tls)?
+            .add_service(ldap_svc)
+            .add_service(health_service)
+            .serve_with_shutdown(addr.into(), shutdown_signal);
+        if let Err(e) = server.await {
+            tracing::error!("[gRPC] 啟動失敗: {e:?}");
+        }
+        if cert_update_rx.has_changed().unwrap_or(false) {
+            tracing::info!("[gRPC] 憑證更新，重新啟動 gRPC 服務");
+            let _ = cert_update_rx.borrow_and_update();
+            continue;
+        }
+        break;
+    }
     Ok(())
 }

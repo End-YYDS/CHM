@@ -1,8 +1,18 @@
 {
-    "rust-analyzer.cargo.features": [
-        // "ca_server",
-        // "client",
-        // "controller_server"
-    ],
-    "postman.settings.dotenv-detection-notification-visibility": false
+  "rust-analyzer.cargo.features": "all",
+  // "rust-analyzer.rustfmt.overrideCommand": [
+  //   "rustup",
+  //   "run",
+  //   "nightly",
+  //   "rustfmt"
+  // ],
+
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer",
+    "editor.formatOnSave": true
+  },
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "always"
+  },
+  "postman.settings.dotenv-detection-notification-visibility": false
 }

@@ -1,0 +1,72 @@
+# Load Argon module
+dn: cn=module{0},cn=config
+changetype: modify
+add: olcModuleload
+olcModuleload: pw-argon2.so
+
+# Change password hashing to Argon2
+dn: olcDatabase={-1}frontend,cn=config
+changetype: modify
+replace: olcPasswordHash
+olcPasswordHash: {ARGON2}
+
+# Load Unique module
+dn: cn=module{0},cn=config
+changetype: modify
+add: olcModuleLoad
+olcModuleLoad: unique
+
+# Add Unique overlay to the mdb database
+dn: olcOverlay=unique,olcDatabase={1}mdb,cn=config
+objectClass: olcOverlayConfig
+objectClass: olcUniqueConfig
+olcOverlay: unique
+olcUniqueURI: ldap:///dc=chm,dc=com?uidNumber?sub
+olcUniqueURI: ldap:///dc=chm,dc=com?gidNumber?sub
+
+# Base structure
+
+dn: ou=Users,dc=chm,dc=com
+objectClass: organizationalUnit
+ou: Users
+
+dn: ou=Groups,dc=chm,dc=com
+objectClass: organizationalUnit
+ou: Groups
+
+dn: ou=Service,dc=chm,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: Service
+
+dn: ou=UPG,ou=Groups,dc=chm,dc=com
+objectClass: top
+objectClass: organizationalUnit
+ou: UPG
+
+dn: cn=ldap-reader,ou=Service,dc=chm,dc=com
+objectClass: top
+objectClass: simpleSecurityObject
+objectClass: organizationalRole
+cn: ldap-reader
+description: Read-only bind account for SSSD queries
+userPassword: {ARGON2}$argon2i$v=19$m=4096,t=3,p=1$EOAMhB2trvMUTLQapwJPeQ$vpgO0kd9FGZRo109dmJxcIDHxzgxj8OGEZfEl9xRHpw
+
+dn: ou=Sudoers,dc=domain,dc=com
+objectClass: organizationalUnit
+objectClass: top
+ou: Sudoers
+dn: cn=defaults,ou=Sudoers,dc=domain,dc=com
+objectClass: sudoRole
+objectClass: top
+cn: defaults
+sudoOption: env_reset
+sudoOption: mail_badpass
+sudoOption: secure_path=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+dn: cn=%administrators,ou=Sudoers,dc=domain,dc=com
+objectClass: top
+objectClass: sudoRole
+cn: %administrators
+sudoUser: %administrators
+sudoHost: ALL
+sudoCommand: ALL

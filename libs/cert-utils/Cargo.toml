@@ -1,0 +1,12 @@
+[package]
+name = "chm-cert-utils"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+chm-grpc = { workspace = true, features = ["crl-client"] }
+chm-project_const = { workspace = true }
+chrono = { workspace = true }
+openssl = { workspace = true }
+
