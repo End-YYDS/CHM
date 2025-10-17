@@ -1,9 +1,81 @@
 [workspace]
-members = ["apps/*", "libs/*", "xtask"]
+members = [
+  "apps/api",
+  "apps/ca",
+  "apps/controller",
+  "apps/dns",
+  "apps/ldap",
+  "libs/cert-utils",
+  "libs/cluster-utils",
+  "libs/config-bus",
+  "libs/config_loader",
+  "libs/crl_cache",
+  "libs/dns_resolver",
+  "libs/grpc",
+  "libs/password",
+  "libs/project_const",
+]
 resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
-config = { path = "./libs/config" }
+actix-cors = "0.7.1"
+actix-multipart = "0.7.2"
+actix-session = { version = "0.11.0", features = ["cookie-session"] }
+actix-tls = { version = "3.4.0", features = ["openssl"] }
+actix-web = { version = "4.11.0", features = ["openssl", "cookies", "secure-cookies"] }
+arc-swap = "1.7.1"
+argh = "0.1.13"
+argon2 = { version = "0.5.3", features = ["std"] }
+backoff = { version = "0.4.0", features = ["tokio"] }
+base64 = "0.22.1"
+cached = { version = "0.56.0", features = ["async", "proc_macro"] }
+chm-cert-utils = { version = "0.1.0", path = "./libs/cert-utils" }
+chm-cluster-utils = { version = "0.1.0", path = "./libs/cluster-utils" }
+chm-config_bus = { version = "0.1.0", path = "./libs/config-bus" }
+chm-config_loader = { version = "0.1.0", path = "./libs/config_loader", default-features = false }
+chm-crl_cache = { version = "0.1.0", path = "./libs/crl_cache" }
+chm-dns_resolver = { version = "0.1.0", path = "./libs/dns_resolver" }
+chm-grpc = { version = "0.1.0", path = "./libs/grpc" }
+chm-password = { version = "0.1.0", path = "./libs/password" }
+chm-project_const = { version = "0.1.0", path = "./libs/project_const" }
+chrono = { version = "0.4.41", features = ["serde"] }
+config = { version = "0.15.11", default-features = false, features = ["toml"] }
+dashmap = { version = "6.1.0", features = ["serde"] }
+futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
+humantime = "2.2.0"
+humantime-serde = "1.1.1"
+hyper-util = { version = "0.1.17", features = ["tokio", "client"] }
+num_cpus = "1.17.0"
+openssl = "0.10.72"
+openssl-sys = "0.9.109"
+prost = "0.13.5"
+prost-types = "0.13.5"
+rand = { version = "0.9.1", features = ["os_rng"] }
+reqwest = { version = "0.12.20", features = ["json", "rustls-tls"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.142"
+sqlx = { version = "0.8.6", features = ["sqlite", "postgres", "uuid", "ipnetwork", "macros", "chrono", "runtime-tokio", "migrate"] }
+sysinfo = "0.37.1"
+thiserror = "2.0.12"
+tokio = { version = "1.43.0", default-features = false }
+tokio-util = "0.7.16"
+toml = "0.8.22"
+tonic = { version = "0.13.1", features = ["tls-ring", "zstd"] }
+tonic-async-interceptor = "0.13.0"
+tonic-health = "0.13.1"
+tower = "0.5.2"
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
+url = "2.5.4"
+uuid = { version = "1.17.0", features = ["v4", "serde"] }
+[profile.release]
+opt-level = "s"
+strip = true
+lto = true
+codegen-units = 1
+debug = false
+panic = "abort"
+split-debuginfo = "packed"

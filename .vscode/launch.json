@@ -1,0 +1,384 @@
+{
+    // 使用 IntelliSense 以得知可用的屬性。
+    // 暫留以檢視現有屬性的描述。
+    // 如需詳細資訊，請瀏覽: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'ca'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=ca"
+                ],
+                "filter": {
+                    "name": "ca",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'CHM_CA'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=CHM_CA",
+                    "--package=ca"
+                ],
+                "filter": {
+                    "name": "CHM_CA",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'CHM_CA'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=CHM_CA",
+                    "--package=ca"
+                ],
+                "filter": {
+                    "name": "CHM_CA",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'client'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=client",
+                    "--package=ca"
+                ],
+                "filter": {
+                    "name": "client",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'client'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=client",
+                    "--package=ca"
+                ],
+                "filter": {
+                    "name": "client",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'chm_cert_utils'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=chm-cert-utils"
+                ],
+                "filter": {
+                    "name": "chm_cert_utils",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'chm_config_loader'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=chm-config_loader"
+                ],
+                "filter": {
+                    "name": "chm_config_loader",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'chm_project_const'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=chm-project_const"
+                ],
+                "filter": {
+                    "name": "chm_project_const",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'chm_grpc'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=chm-grpc"
+                ],
+                "filter": {
+                    "name": "chm_grpc",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'chm_crl_cache'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=chm-crl_cache"
+                ],
+                "filter": {
+                    "name": "chm_crl_cache",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'chm_dns_resolver'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=chm-dns_resolver"
+                ],
+                "filter": {
+                    "name": "chm_dns_resolver",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'chm_password'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=chm-password"
+                ],
+                "filter": {
+                    "name": "chm_password",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'controller'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=controller"
+                ],
+                "filter": {
+                    "name": "controller",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'CHMcd'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=CHMcd",
+                    "--package=controller"
+                ],
+                "filter": {
+                    "name": "CHMcd",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'CHMcd'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=CHMcd",
+                    "--package=controller"
+                ],
+                "filter": {
+                    "name": "CHMcd",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'chm_cluster_utils'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=chm-cluster-utils"
+                ],
+                "filter": {
+                    "name": "chm_cluster_utils",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'CHM_mDNSd'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=CHM_mDNSd",
+                    "--package=dns"
+                ],
+                "filter": {
+                    "name": "CHM_mDNSd",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'CHM_mDNSd'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=CHM_mDNSd",
+                    "--package=dns"
+                ],
+                "filter": {
+                    "name": "CHM_mDNSd",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'xtask'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=xtask",
+                    "--package=xtask"
+                ],
+                "filter": {
+                    "name": "xtask",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'xtask'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=xtask",
+                    "--package=xtask"
+                ],
+                "filter": {
+                    "name": "xtask",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

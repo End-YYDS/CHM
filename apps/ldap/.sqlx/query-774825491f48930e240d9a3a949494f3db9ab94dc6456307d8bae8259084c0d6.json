@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        UPDATE id_alloc\n        SET next = next + 1\n        WHERE kind = ?1\n        RETURNING next - 1 as \"allocated!: i64\"\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "allocated!: i64",
+        "ordinal": 0,
+        "type_info": "Null"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "774825491f48930e240d9a3a949494f3db9ab94dc6456307d8bae8259084c0d6"
+}

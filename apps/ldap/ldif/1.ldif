@@ -1,0 +1,66 @@
+dn: ou=Users,dc=chm,dc=com
+changetype: add
+objectClass: organizationalUnit
+ou: Users
+
+dn: ou=Groups,dc=chm,dc=com
+changetype: add
+objectClass: organizationalUnit
+ou: Groups
+
+dn: ou=WebRoles,dc=chm,dc=com
+changetype: add
+objectClass: organizationalUnit
+ou: WebRoles
+
+dn: ou=Service,dc=chm,dc=com
+changetype: add
+objectClass: top
+objectClass: organizationalUnit
+ou: Service
+
+dn: ou=UPG,ou=Groups,dc=chm,dc=com
+changetype: add
+objectClass: top
+objectClass: organizationalUnit
+ou: UPG
+
+dn: cn=ldap-reader,ou=Service,dc=chm,dc=com
+changetype: add
+objectClass: top
+objectClass: simpleSecurityObject
+objectClass: organizationalRole
+cn: ldap-reader
+description: Read-only bind account for SSSD queries
+userPassword: {ARGON2}$argon2i$v=19$m=4096,t=3,p=1$XFKxkWjxuY2twfOIZDgH9A$Xbj9flPSbqWk/3aOIImyWtpHJmfPD9aYUcx/sg8JdaE
+
+dn: ou=Sudoers,dc=chm,dc=com
+changetype: add
+objectClass: organizationalUnit
+objectClass: top
+ou: Sudoers
+
+dn: cn=defaults,ou=Sudoers,dc=chm,dc=com
+changetype: add
+objectClass: sudoRole
+objectClass: top
+cn: defaults
+sudoOption: env_reset
+sudoOption: mail_badpass
+sudoOption: secure_path=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+
+dn: cn=admins-all,ou=Sudoers,dc=chm,dc=com
+changetype: add
+objectClass: top
+objectClass: sudoRole
+cn: admins-all
+sudoUser: %administrators
+sudoHost: ALL
+sudoCommand: ALL
+
+dn: cn=administrators,ou=Groups,dc=chm,dc=com
+changetype: add
+objectClass: top
+objectClass: posixGroup
+cn: administrators
+gidNumber: 9999

@@ -39,11 +39,7 @@ pub async fn plugin_system_rest_server_handle(cmg: &ConfigManager) -> std::io::R
     let target = cmg.get_rest_service_ip();
 
     env_logger::builder()
-        .filter_level(if is_debug {
-            LevelFilter::Debug
-        } else {
-            LevelFilter::Info
-        })
+        .filter_level(if is_debug { LevelFilter::Debug } else { LevelFilter::Info })
         .init();
     if is_debug {
         std::env::set_var("RUST_LOG", "actix_web=debug");
@@ -51,9 +47,9 @@ pub async fn plugin_system_rest_server_handle(cmg: &ConfigManager) -> std::io::R
     } else {
         std::env::set_var("RUST_LOG", "actix_web=info");
     }
-    let plugin_dir = if is_debug{
+    let plugin_dir = if is_debug {
         std::env::current_dir()?.join("plugins")
-    }else {
+    } else {
         std::env::current_exe()?.parent().unwrap().parent().unwrap().join("plugins")
     };
     if !plugin_dir.exists() {
@@ -63,10 +59,7 @@ pub async fn plugin_system_rest_server_handle(cmg: &ConfigManager) -> std::io::R
     let mut manager = PluginManager::new(plugin_dir);
     manager.load_all_plugins()?;
     let plugin_manager = web::Data::new(manager);
-    println!(
-        "\nServer ready at {}",
-        blue.apply_to(format!("http://{}", &target))
-    );
+    println!("\nServer ready at {}", blue.apply_to(format!("http://{}", &target)));
     let server = HttpServer::new(move || {
         let origins_clone = origins.clone();
         let governor = GovernorConfigBuilder::default()
@@ -76,12 +69,11 @@ pub async fn plugin_system_rest_server_handle(cmg: &ConfigManager) -> std::io::R
             .unwrap();
         let cors = actix_cors::Cors::default()
             .allowed_origin_fn(move |origin, _req_head| {
-                origins_clone
-                    .iter()
-                    .any(|allowed| allowed.as_bytes() == origin.as_bytes())
+                origins_clone.iter().any(|allowed| allowed.as_bytes() == origin.as_bytes())
             })
             .allowed_methods(allow_method.clone())
             .allowed_headers(allow_headers.clone())
+            .supports_credentials(true)
             .max_age(cors_timeout);
         App::new()
             .wrap(cors)
@@ -94,14 +86,8 @@ pub async fn plugin_system_rest_server_handle(cmg: &ConfigManager) -> std::io::R
                     .add(("X-Content-Type-Options", "nosniff"))
                     .add(("Referrer-Policy", "strict-origin-when-cross-origin"))
                     .add(("Content-Security-Policy", csp.as_str()))
-                    .add((
-                        "Strict-Transport-Security",
-                        "max-age=31536000; includeSubDomains",
-                    ))
-                    .add((
-                        "Permissions-Policy",
-                        "geolocation=(), microphone=(), camera=()",
-                    ))
+                    .add(("Strict-Transport-Security", "max-age=31536000; includeSubDomains"))
+                    .add(("Permissions-Policy", "geolocation=(), microphone=(), camera=()"))
                     .add(("Cross-Origin-Embedder-Policy", "require-corp"))
                     .add(("Cross-Origin-Opener-Policy", "same-origin"))
                     .add(("Cross-Origin-Resource-Policy", "same-site")),

@@ -1,0 +1,30 @@
+[package]
+name = "ldap"
+version = { workspace = true }
+edition = { workspace = true }
+
+[[bin]]
+name = "CHM_ldapd"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+chm-dns_resolver = { workspace = true }
+chm-project_const = { workspace = true }
+chm-config_bus = { workspace = true }
+argh = { workspace = true }
+chm-cluster-utils = { workspace = true, features = [
+  "server",
+  "grpc-server",
+], default-features = true }
+ldap3 = { version = "0.11", default-features = false, features = ["sync"] }
+chm-password = { workspace = true }
+thiserror = { workspace = true }
+chm-grpc = { workspace = true, features = ["ldap"] }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+arc-swap = { workspace = true }
+chm-cert-utils = { workspace = true }

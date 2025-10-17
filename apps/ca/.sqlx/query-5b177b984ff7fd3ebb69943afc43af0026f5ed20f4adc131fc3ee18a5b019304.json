@@ -1,0 +1,68 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                serial,\n                subject_cn,\n                subject_dn,\n                issuer,\n                issued_date as \"issued_date: DateTime<Utc>\",\n                expiration as \"expiration: DateTime<Utc>\",\n                thumbprint,\n                status as \"status: CertStatus\",\n                cert_der\n            FROM certs\n            WHERE subject_cn = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "serial",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "subject_cn",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "subject_dn",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "issuer",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "issued_date: DateTime<Utc>",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "expiration: DateTime<Utc>",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "thumbprint",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "status: CertStatus",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "cert_der",
+        "ordinal": 8,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "5b177b984ff7fd3ebb69943afc43af0026f5ed20f4adc131fc3ee18a5b019304"
+}

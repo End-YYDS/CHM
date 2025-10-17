@@ -1,0 +1,6 @@
+dn: dc=chm,dc=com
+objectClass: top
+objectClass: dcObject
+objectClass: organization
+o: CHM Directory
+dc: chm

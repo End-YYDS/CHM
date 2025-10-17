@@ -1,0 +1,10 @@
+dn: cn=config
+changetype: modify
+replace: olcTLSCACertificateFile
+olcTLSCACertificateFile: /etc/ldap/tls/ca.crt
+-
+replace: olcTLSCertificateFile
+olcTLSCertificateFile: /etc/ldap/tls/ldap.example.com.crt
+-
+replace: olcTLSCertificateKeyFile
+olcTLSCertificateKeyFile: /etc/ldap/tls/ldap.example.com.key

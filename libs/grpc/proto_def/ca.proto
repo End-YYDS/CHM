@@ -1,0 +1,93 @@
+syntax = "proto3";
+
+package ca;
+
+import "google/protobuf/timestamp.proto";
+
+message CsrRequest {
+  bytes csr = 1;
+  uint32 days = 2;
+}
+message CsrResponse {
+  bytes cert = 1;
+  repeated bytes chain = 2;
+}
+message Empty {}
+message ReloadResponse {
+  bool success = 1;
+}
+
+
+enum CertStatus {
+  VALID = 0;
+  REVOKED = 1;
+}
+message Cert {
+  string serial = 1;
+  string subject_cn = 2;
+  string subject_dn = 3;
+  string issuer = 4;
+  google.protobuf.Timestamp issued_date = 5;
+  google.protobuf.Timestamp expiration = 6;
+  string thumbprint = 7;
+  CertStatus status = 8;
+}
+message CrlEntry {
+  string cert_serial = 1;
+  google.protobuf.Timestamp revoked_at = 2;
+  string reason = 3;
+}
+
+message ListAllCertsResponse {
+  repeated Cert certs = 1;
+}
+message ListAllCrlResponse {
+  repeated CrlEntry certs = 1;
+}
+
+message GetCertRequest {
+  string serial = 1;
+}
+message GetCertResponse {
+  optional Cert cert = 1;
+}
+
+message GetByThumprintRequest {
+  string thumbprint = 1;
+}
+message GetByThumprintResponse {
+  optional Cert cert = 1;
+}
+message GetByCommonNameRequest {
+  string name = 1;
+}
+message GetByCommonNameResponse {
+  optional Cert cert = 1;
+}
+
+message QueryCertStatusRequest {
+  string serial = 1;
+}
+message QueryCertStatusResponse {
+  optional CertStatus status = 1;
+}
+
+message MarkCertRevokedRequest {
+  string serial = 1;
+  optional string reason = 2;
+}
+message MarkCertRevokedResponse {
+  bool success = 1;
+}
+
+service CA {
+  rpc SignCsr (CsrRequest) returns (CsrResponse);
+  rpc ReloadGrpc (Empty) returns (ReloadResponse);
+  rpc ListAll (Empty) returns (ListAllCertsResponse);
+  rpc ListCrl (Empty) returns (ListAllCrlResponse);
+  rpc Get (GetCertRequest) returns (GetCertResponse);
+  rpc GetByThumbprint (GetByThumprintRequest) returns (GetByThumprintResponse);
+  rpc GetByCommonName (GetByCommonNameRequest) returns (GetByCommonNameResponse);
+  rpc QueryCertStatus (QueryCertStatusRequest) returns (QueryCertStatusResponse);
+  rpc MarkCertRevoked (MarkCertRevokedRequest) returns (MarkCertRevokedResponse);
+}

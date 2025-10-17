@@ -20,6 +20,7 @@ fi
 ```
 添加完成之後再執行`source ~/.bashrc`
 ### zsh
+#### 如果有使用oh-my-zsh的話，需要在plugin中添加`rust`插件
 #### `~/.zshrc`
 ```shell
 fpath+=(~/.zsh/completion)
@@ -38,4 +39,11 @@ notepad $PROFILE
 添加以下內容
 ```powershell
 Import-Module cargo-chm
+```
+## frontend 資料夾
+### 使用`git subtree pull --prefix=frontend origin frontend-develop`來更新
+
+## 環境變數
+```text
+CHM_{ID}__{結構名稱}___{欄位名稱}
 ```

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                UPDATE certs SET status = 'revoked'\n                WHERE serial = ?\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "8da8879a83a5ec4072fd4a5c49e71bba0245d73df62b9c440e7060514558f648"
+}

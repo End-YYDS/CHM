@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT status FROM certs WHERE serial = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "status",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2c70e61abba78caef59cb1cb63d8f70f62ea56fb5457d88e4285fb209112b2e8"
+}
