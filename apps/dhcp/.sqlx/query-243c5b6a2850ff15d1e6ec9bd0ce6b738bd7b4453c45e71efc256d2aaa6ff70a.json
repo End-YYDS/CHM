@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO ip_pools (zone_id, ip) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "243c5b6a2850ff15d1e6ec9bd0ce6b738bd7b4453c45e71efc256d2aaa6ff70a"
+}

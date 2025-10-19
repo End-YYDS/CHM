@@ -5,6 +5,7 @@ members = [
   "apps/controller",
   "apps/dns",
   "apps/ldap",
+  "apps/dhcp",
   "libs/cert-utils",
   "libs/cluster-utils",
   "libs/config-bus",

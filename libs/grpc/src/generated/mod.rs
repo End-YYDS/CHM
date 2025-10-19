@@ -10,6 +10,9 @@ pub mod ldap;
 #[cfg(any(feature = "ca-client", feature = "ca-server"))]
 pub mod ca;
 
+#[cfg(any(feature = "dhcp-client", feature = "dhcp-server"))]
+pub mod dhcp;
+
 #[cfg(any(feature = "controller-client", feature = "controller-server"))]
 pub mod controller;
 
@@ -18,4 +21,3 @@ pub mod common;
 
 #[cfg(any(feature = "restful-client", feature = "restful-server"))]
 pub mod restful;
-
