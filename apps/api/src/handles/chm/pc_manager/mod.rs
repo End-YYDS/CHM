@@ -47,7 +47,11 @@ async fn all() -> web::Json<PcInformation> {
     let mut pcs_map = std::collections::HashMap::new();
     pcs_map.insert(
         "uuid1".to_string(),
-        Uuid { hostname: "localhost1".to_string(), ip: "127.0.0.1".to_string() },
+        Uuid {
+            hostname: "localhost1".to_string(),
+            ip:       "127.0.0.1".to_string(),
+            status:   true,
+        },
     );
     web::Json(PcInformation { pcs: pcs_map, length: 1 })
 }
@@ -69,7 +73,11 @@ async fn specific(q: web::Json<SpecificRequest>) -> web::Json<PcInformation> {
     let mut pcs_map = std::collections::HashMap::new();
     pcs_map.insert(
         "uuid2".to_string(),
-        Uuid { hostname: "localhost2".to_string(), ip: "127.0.0.1".to_string() },
+        Uuid {
+            hostname: "localhost2".to_string(),
+            ip:       "127.0.0.1".to_string(),
+            status:   true,
+        },
     );
     web::Json(PcInformation { pcs: pcs_map, length: 1 })
 }

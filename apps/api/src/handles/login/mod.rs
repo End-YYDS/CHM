@@ -1,24 +1,47 @@
 #![allow(unused)]
 
-use crate::commons::{ResponseResult, ResponseType};
+use crate::{
+    commons::{ResponseResult, ResponseType},
+    AppState,
+};
 use actix_session::Session;
 use actix_web::{get, post, web, HttpResponse};
+use chm_grpc::{common::ResponseType as gResponseType, restful::LoginRequest as gLoginRequest};
 use serde::Deserialize;
 
 #[post("")]
-async fn login(session: Session, data: web::Json<LoginRequest>) -> web::Json<ResponseResult> {
-    println!("{data:#?}");
-    if data.username != "admin" || data.password != "password" {
-        return web::Json(ResponseResult {
-            r#type:  ResponseType::Err,
-            message: "Invalid credentials".to_string(),
-        });
+async fn login(
+    session: Session,
+    app_state: web::Data<AppState>,
+    web::Json(data): web::Json<LoginRequest>,
+) -> actix_web::Result<web::Json<ResponseResult>> {
+    dbg!(&data);
+    let mut h = app_state.gclient.clone();
+    let resp = h
+        .login(gLoginRequest { username: data.username.clone(), password: data.password })
+        .await
+        .map_err(|e| actix_web::error::ErrorForbidden(e.message().to_string()))?
+        .into_inner()
+        .result
+        .unwrap();
+    dbg!(&resp);
+    let is_success = gResponseType::try_from(resp.r#type)
+        .map_err(actix_web::error::ErrorForbidden)?
+        == gResponseType::Ok;
+    dbg!(is_success);
+    if !is_success {
+        return Err(actix_web::error::ErrorForbidden("Invalid Username or Password"));
     }
-    session.insert("uid", "1").unwrap();
-    session.insert("username", data.username.clone()).ok();
-    session.insert("role", "admin").ok(); // 例子
+    // Todo: 等dodo的get_users()完成
     session.renew();
-    web::Json(ResponseResult { r#type: ResponseType::Ok, message: "Login successful".to_string() })
+    session.insert("uid", "1")?;
+    session.insert("username", data.username)?;
+    session.insert("role", "admin")?; // 例子
+
+    Ok(web::Json(ResponseResult {
+        r#type:  ResponseType::Ok,
+        message: "Login successful".to_string(),
+    }))
 }
 
 #[cfg(debug_assertions)]

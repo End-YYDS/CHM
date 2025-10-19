@@ -3,6 +3,7 @@
 use crate::communication::GrpcClients;
 use chm_cert_utils::CertUtils;
 use chm_grpc::{
+    common::{ResponseResult, ResponseType},
     restful::{restful_service_server::RestfulService, *},
     tonic,
     tonic::{Request, Response, Status},
@@ -21,7 +22,27 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<LoginRequest>,
     ) -> Result<Response<LoginResponse>, Status> {
-        todo!()
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| "CA client not initialized")
+            .map_err(|e| Status::internal(e.to_string()))?;
+        let req = request.into_inner();
+        let res = ldap
+            .authenticate_user(req.username.clone(), req.password)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+        if !res {
+            Err(Status::permission_denied(format!("Invalid credentials for user {}", req.username)))
+        } else {
+            let resp = LoginResponse {
+                result: Some(ResponseResult {
+                    r#type:  ResponseType::Ok as i32,
+                    message: "Login successful".to_string(),
+                }),
+            };
+            Ok(Response::new(resp))
+        }
     }
 
     async fn get_all_info(
