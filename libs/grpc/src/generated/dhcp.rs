@@ -6,9 +6,9 @@ pub struct CreateZoneRequest {
     #[prost(string, tag = "1")]
     pub zone_name: ::prost::alloc::string::String,
     #[prost(int32, tag = "2")]
-    pub vni: i32,
+    pub vni:       i32,
     #[prost(string, tag = "3")]
-    pub cidr: ::prost::alloc::string::String,
+    pub cidr:      ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateZoneResponse {
@@ -30,7 +30,7 @@ pub struct ReleaseIpRequest {
     #[prost(string, tag = "1")]
     pub zone_name: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub ip: ::prost::alloc::string::String,
+    pub ip:        ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ReleaseIpResponse {
@@ -42,7 +42,7 @@ pub struct DeleteZoneRequest {
     #[prost(string, tag = "1")]
     pub group_name: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub zone_name: ::prost::alloc::string::String,
+    pub zone_name:  ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeleteZoneResponse {
@@ -59,7 +59,7 @@ pub struct Zone {
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
     #[prost(int32, tag = "2")]
-    pub vni: i32,
+    pub vni:  i32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ZoneIdentifier {
@@ -72,16 +72,16 @@ pub struct IpList {
     pub ips: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// Generated client implementations.
+#[cfg(feature = "dhcp-client")]
 pub mod dhcp_service_client {
     #![allow(
         unused_variables,
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
-    use tonic::codegen::*;
-    use tonic::codegen::http::Uri;
+    use tonic::codegen::{http::Uri, *};
     #[derive(Debug, Clone)]
     pub struct DhcpServiceClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -125,16 +125,15 @@ pub mod dhcp_service_client {
                     <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<
-                http::Request<tonic::body::Body>,
-            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
+                Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             DhcpServiceClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
-        /// This requires the server to support it otherwise it might respond with an
-        /// error.
+        /// This requires the server to support it otherwise it might respond
+        /// with an error.
         #[must_use]
         pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
             self.inner = self.inner.send_compressed(encoding);
@@ -165,184 +164,117 @@ pub mod dhcp_service_client {
         pub async fn create_zone(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateZoneRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::CreateZoneResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::CreateZoneResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/dhcp.DhcpService/CreateZone",
-            );
+            let path = http::uri::PathAndQuery::from_static("/dhcp.DhcpService/CreateZone");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("dhcp.DhcpService", "CreateZone"));
+            req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "CreateZone"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn allocate_ip(
             &mut self,
             request: impl tonic::IntoRequest<super::AllocateIpRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::AllocateIpResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::AllocateIpResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/dhcp.DhcpService/AllocateIp",
-            );
+            let path = http::uri::PathAndQuery::from_static("/dhcp.DhcpService/AllocateIp");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("dhcp.DhcpService", "AllocateIp"));
+            req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "AllocateIp"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn release_ip(
             &mut self,
             request: impl tonic::IntoRequest<super::ReleaseIpRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ReleaseIpResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::ReleaseIpResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/dhcp.DhcpService/ReleaseIp",
-            );
+            let path = http::uri::PathAndQuery::from_static("/dhcp.DhcpService/ReleaseIp");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("dhcp.DhcpService", "ReleaseIp"));
+            req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "ReleaseIp"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn delete_zone(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteZoneRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::DeleteZoneResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+        ) -> std::result::Result<tonic::Response<super::DeleteZoneResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/dhcp.DhcpService/DeleteZone",
-            );
+            let path = http::uri::PathAndQuery::from_static("/dhcp.DhcpService/DeleteZone");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("dhcp.DhcpService", "DeleteZone"));
+            req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "DeleteZone"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn list_zones(
             &mut self,
             request: impl tonic::IntoRequest<super::Empty>,
         ) -> std::result::Result<tonic::Response<super::ZoneList>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/dhcp.DhcpService/ListZones",
-            );
+            let path = http::uri::PathAndQuery::from_static("/dhcp.DhcpService/ListZones");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("dhcp.DhcpService", "ListZones"));
+            req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "ListZones"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn list_available_ips(
             &mut self,
             request: impl tonic::IntoRequest<super::ZoneIdentifier>,
         ) -> std::result::Result<tonic::Response<super::IpList>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::unknown(
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/dhcp.DhcpService/ListAvailableIps",
-            );
+            let path = http::uri::PathAndQuery::from_static("/dhcp.DhcpService/ListAvailableIps");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("dhcp.DhcpService", "ListAvailableIps"));
+            req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "ListAvailableIps"));
             self.inner.unary(req, path, codec).await
         }
     }
 }
 /// Generated server implementations.
+#[cfg(feature = "dhcp-server")]
 pub mod dhcp_service_server {
     #![allow(
         unused_variables,
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value,
+        clippy::let_unit_value
     )]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for use with DhcpServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for
+    /// use with DhcpServiceServer.
     #[async_trait]
     pub trait DhcpService: std::marker::Send + std::marker::Sync + 'static {
         async fn create_zone(
             &self,
             request: tonic::Request<super::CreateZoneRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::CreateZoneResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::CreateZoneResponse>, tonic::Status>;
         async fn allocate_ip(
             &self,
             request: tonic::Request<super::AllocateIpRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::AllocateIpResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::AllocateIpResponse>, tonic::Status>;
         async fn release_ip(
             &self,
             request: tonic::Request<super::ReleaseIpRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::ReleaseIpResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::ReleaseIpResponse>, tonic::Status>;
         async fn delete_zone(
             &self,
             request: tonic::Request<super::DeleteZoneRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::DeleteZoneResponse>,
-            tonic::Status,
-        >;
+        ) -> std::result::Result<tonic::Response<super::DeleteZoneResponse>, tonic::Status>;
         async fn list_zones(
             &self,
             request: tonic::Request<super::Empty>,
@@ -373,10 +305,7 @@ pub mod dhcp_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(
-            inner: T,
-            interceptor: F,
-        ) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -388,7 +317,8 @@ pub mod dhcp_service_server {
             self.accept_compression_encodings.enable(encoding);
             self
         }
-        /// Compress responses with the given encoding, if the client supports it.
+        /// Compress responses with the given encoding, if the client supports
+        /// it.
         #[must_use]
         pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
             self.send_compression_encodings.enable(encoding);
@@ -431,15 +361,9 @@ pub mod dhcp_service_server {
                 "/dhcp.DhcpService/CreateZone" => {
                     #[allow(non_camel_case_types)]
                     struct CreateZoneSvc<T: DhcpService>(pub Arc<T>);
-                    impl<
-                        T: DhcpService,
-                    > tonic::server::UnaryService<super::CreateZoneRequest>
-                    for CreateZoneSvc<T> {
+                    impl<T: DhcpService> tonic::server::UnaryService<super::CreateZoneRequest> for CreateZoneSvc<T> {
                         type Response = super::CreateZoneResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateZoneRequest>,
@@ -476,15 +400,9 @@ pub mod dhcp_service_server {
                 "/dhcp.DhcpService/AllocateIp" => {
                     #[allow(non_camel_case_types)]
                     struct AllocateIpSvc<T: DhcpService>(pub Arc<T>);
-                    impl<
-                        T: DhcpService,
-                    > tonic::server::UnaryService<super::AllocateIpRequest>
-                    for AllocateIpSvc<T> {
+                    impl<T: DhcpService> tonic::server::UnaryService<super::AllocateIpRequest> for AllocateIpSvc<T> {
                         type Response = super::AllocateIpResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::AllocateIpRequest>,
@@ -521,15 +439,9 @@ pub mod dhcp_service_server {
                 "/dhcp.DhcpService/ReleaseIp" => {
                     #[allow(non_camel_case_types)]
                     struct ReleaseIpSvc<T: DhcpService>(pub Arc<T>);
-                    impl<
-                        T: DhcpService,
-                    > tonic::server::UnaryService<super::ReleaseIpRequest>
-                    for ReleaseIpSvc<T> {
+                    impl<T: DhcpService> tonic::server::UnaryService<super::ReleaseIpRequest> for ReleaseIpSvc<T> {
                         type Response = super::ReleaseIpResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ReleaseIpRequest>,
@@ -566,15 +478,9 @@ pub mod dhcp_service_server {
                 "/dhcp.DhcpService/DeleteZone" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteZoneSvc<T: DhcpService>(pub Arc<T>);
-                    impl<
-                        T: DhcpService,
-                    > tonic::server::UnaryService<super::DeleteZoneRequest>
-                    for DeleteZoneSvc<T> {
+                    impl<T: DhcpService> tonic::server::UnaryService<super::DeleteZoneRequest> for DeleteZoneSvc<T> {
                         type Response = super::DeleteZoneResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteZoneRequest>,
@@ -611,17 +517,10 @@ pub mod dhcp_service_server {
                 "/dhcp.DhcpService/ListZones" => {
                     #[allow(non_camel_case_types)]
                     struct ListZonesSvc<T: DhcpService>(pub Arc<T>);
-                    impl<T: DhcpService> tonic::server::UnaryService<super::Empty>
-                    for ListZonesSvc<T> {
+                    impl<T: DhcpService> tonic::server::UnaryService<super::Empty> for ListZonesSvc<T> {
                         type Response = super::ZoneList;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::Empty>,
-                        ) -> Self::Future {
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(&mut self, request: tonic::Request<super::Empty>) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
                                 <T as DhcpService>::list_zones(&inner, request).await
@@ -654,23 +553,16 @@ pub mod dhcp_service_server {
                 "/dhcp.DhcpService/ListAvailableIps" => {
                     #[allow(non_camel_case_types)]
                     struct ListAvailableIpsSvc<T: DhcpService>(pub Arc<T>);
-                    impl<
-                        T: DhcpService,
-                    > tonic::server::UnaryService<super::ZoneIdentifier>
-                    for ListAvailableIpsSvc<T> {
+                    impl<T: DhcpService> tonic::server::UnaryService<super::ZoneIdentifier> for ListAvailableIpsSvc<T> {
                         type Response = super::IpList;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ZoneIdentifier>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as DhcpService>::list_available_ips(&inner, request)
-                                    .await
+                                <T as DhcpService>::list_available_ips(&inner, request).await
                             };
                             Box::pin(fut)
                         }
@@ -697,25 +589,16 @@ pub mod dhcp_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => {
-                    Box::pin(async move {
-                        let mut response = http::Response::new(
-                            tonic::body::Body::default(),
-                        );
-                        let headers = response.headers_mut();
-                        headers
-                            .insert(
-                                tonic::Status::GRPC_STATUS,
-                                (tonic::Code::Unimplemented as i32).into(),
-                            );
-                        headers
-                            .insert(
-                                http::header::CONTENT_TYPE,
-                                tonic::metadata::GRPC_CONTENT_TYPE,
-                            );
-                        Ok(response)
-                    })
-                }
+                _ => Box::pin(async move {
+                    let mut response = http::Response::new(tonic::body::Body::default());
+                    let headers = response.headers_mut();
+                    headers.insert(
+                        tonic::Status::GRPC_STATUS,
+                        (tonic::Code::Unimplemented as i32).into(),
+                    );
+                    headers.insert(http::header::CONTENT_TYPE, tonic::metadata::GRPC_CONTENT_TYPE);
+                    Ok(response)
+                }),
             }
         }
     }

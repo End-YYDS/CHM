@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "DELETE FROM zones WHERE name = ?",
+  "query": "DELETE FROM ip_pools WHERE zone_id = ?",
   "describe": {
     "columns": [],
     "parameters": {
@@ -8,5 +8,5 @@
     },
     "nullable": []
   },
-  "hash": "73c41e618948c38e5b21f29de5ff44a12c2d423a59ed72f7b2bf41a4732fac86"
+  "hash": "7867b836a4be411f820bb46515ca3b27e2ed9bdfffdcad1a2e6361dd9ca6e328"
 }

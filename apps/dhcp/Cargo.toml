@@ -1,18 +1,28 @@
 [package]
-name = "dhcp_service"
-version = "0.1.0"
-edition = "2021"
-build = "build.rs"
+name = "dhcp"
+version = { workspace = true }
+edition = { workspace = true }
+
+[[bin]]
+name = "CHM_dhcpd"
+path = "src/main.rs"
 
 [dependencies]
-tokio = { version = "1", features = ["full"] }
-tonic = { version = "0.13.1", features = ["transport"] }
-prost = "0.13.5"
-dotenv = "0.15"
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 ipnetwork = "0.21.1"
-sqlx = { version = "0.8.6", features = ["sqlite", "runtime-tokio-native-tls", "macros"] }
-thiserror = "2.0.12"
-serde_json = "1.0.109"
-
-[build-dependencies]
-tonic-build = "0.13.1"
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+serde_json = { workspace = true }
+chm-grpc = { workspace = true, features = ["dhcp"] }
+chm-dns_resolver = { workspace = true }
+chm-project_const = { workspace = true }
+chm-config_bus = { workspace = true }
+argh = { workspace = true }
+chm-cluster-utils = { workspace = true, features = [
+  "server",
+  "grpc-server",
+], default-features = true }
+serde = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+chm-cert-utils = { workspace = true }

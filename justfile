@@ -43,6 +43,7 @@ create-ca-root:
 reset-ca: (reset-db CA_DATABASE_URL CA_FOLDER_MIGRATE)
 
 reset-dns: (reset-db DNS_DATABASE_URL DNS_FOLDER_MIGRATE)
+
 reset-ldap: (reset-db LDAP_DATABASE_URL LDAP_FOLDER_MIGRATE)
 
 reset-all: reset-ca reset-dns reset-ldap
@@ -74,6 +75,9 @@ run-api args="":
 run-ldap args="":
     @[[ ! -f "{{ DB_FOLDER }}/ids.db" ]] && just create-ldap-db || true
     @RUST_LOG=trace,ldap=debug,CHM_ldapd=debug cargo run -p ldap --bin CHM_ldapd -- {{ args }}
+
+run-dhcp args="":
+    @RUST_LOG=dhcp=debug,CHM_dhcpd=debug cargo run -p dhcp --bin CHM_dhcpd -- {{ args }}
 
 run-api-client args="":
     @RUST_LOG=CHM_API=debug,api_server=debug,chm_cluster_utils=debug cargo run -p api_server --bin client -- {{ args }}
