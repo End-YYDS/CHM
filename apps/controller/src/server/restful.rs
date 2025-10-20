@@ -474,15 +474,15 @@ impl RestfulService for ControllerRestfulServer {
             if group_name == &username {
                 continue;
             }
-            ldap.add_user_to_group(username.clone(), group_name.clone())
-                .await
-                .map_err(|e| Status::internal(format!(
+            ldap.add_user_to_group(username.clone(), group_name.clone()).await.map_err(|e| {
+                Status::internal(format!(
                     "Failed to add user {} to group {}: {e}",
                     username, group_name
-                )))?;
+                ))
+            })?;
         }
         let result = chm_grpc::common::ResponseResult {
-            r#type: chm_grpc::common::ResponseType::Ok as i32,
+            r#type:  chm_grpc::common::ResponseType::Ok as i32,
             message: format!("使用者 {} 已成功建立", username),
         };
         Ok(Response::new(CreateUserResponse { result: Some(result) }))

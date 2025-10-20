@@ -7,12 +7,14 @@ use crate::{
     commons::{ResponseResult, ResponseType},
     AppState,
 };
-use chm_grpc::{restful::{
-        GetUsersRequest as Grpc_GetUsersRequest,
-        CreateUserRequest as Grpc_CreateUserRequest,
+use chm_grpc::{
+    restful::{
+        CreateUserRequest as Grpc_CreateUserRequest, GetUsersRequest as Grpc_GetUsersRequest,
         UserEntry as Grpc_UserEntry,
-    }, tonic};
-use types::{GetUserEntry as Web_GetUserEntry, CreateUserRequest as Web_CreateUserRequest, *};
+    },
+    tonic,
+};
+use types::{CreateUserRequest as Web_CreateUserRequest, GetUserEntry as Web_GetUserEntry, *};
 
 pub fn user_scope() -> Scope {
     web::scope("/user")
@@ -94,16 +96,14 @@ async fn _post_user_root(
         gecos:          data.gecos,
     };
 
-    let grpc_req = Grpc_CreateUserRequest {
-        user: Some(user),
-    };
+    let grpc_req = Grpc_CreateUserRequest { user: Some(user) };
     let resp = client.create_user(grpc_req).await;
 
     match resp {
         Ok(ok_resp) => {
             let inner = ok_resp.into_inner();
             let result = inner.result.unwrap_or(chm_grpc::common::ResponseResult {
-                r#type: chm_grpc::common::ResponseType::Err as i32,
+                r#type:  chm_grpc::common::ResponseType::Err as i32,
                 message: "Unknown error".into(),
             });
             Ok(web::Json(result.into()))
