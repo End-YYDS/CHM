@@ -7,8 +7,12 @@ use crate::{
     commons::{ResponseResult, ResponseType},
     AppState,
 };
-use chm_grpc::{restful::GetUsersRequest as Grpc_GetUsersRequest, tonic};
-use types::{UserEntry as Web_UserEntry, *};
+use chm_grpc::{restful::{
+        GetUsersRequest as Grpc_GetUsersRequest,
+        CreateUserRequest as Grpc_CreateUserRequest,
+        UserEntry as Grpc_UserEntry,
+    }, tonic};
+use types::{GetUserEntry as Web_GetUserEntry, CreateUserRequest as Web_CreateUserRequest, *};
 
 pub fn user_scope() -> Scope {
     web::scope("/user")
@@ -56,17 +60,65 @@ async fn _get_user_root(
         .users
         .into_iter()
         .map(|(k, v)| (k, v.into()))
-        .collect::<HashMap<String, Web_UserEntry>>();
+        .collect::<HashMap<String, Web_GetUserEntry>>();
     let length = usize::try_from(resp.length)
         .map_err(|e| actix_web::error::ErrorInternalServerError(e.to_string()))?;
     Ok(web::Json(UsersCollection { users, length }))
 }
 
 /// POST /api/chm/user
+// #[post("")]
+// async fn _post_user_root(data: web::Json<CreateUserRequest>) -> web::Json<ResponseResult> {
+//     dbg!(&data);
+//     web::Json(ResponseResult { r#type: ResponseType::Ok, message: "User created".into() })
+// }
+
 #[post("")]
-async fn _post_user_root(data: web::Json<CreateUserRequest>) -> web::Json<ResponseResult> {
-    dbg!(&data);
-    web::Json(ResponseResult { r#type: ResponseType::Ok, message: "User created".into() })
+async fn _post_user_root(
+    app_state: web::Data<AppState>,
+    payload: web::Json<Web_CreateUserRequest>,
+) -> actix_web::Result<web::Json<ResponseResult>> {
+    let data = payload.into_inner();
+    let mut client = app_state.gclient.clone();
+    let user = Grpc_UserEntry {
+        username:       data.username,
+        password:       data.password,
+        cn:             data.cn,
+        sn:             data.sn,
+        home_directory: data.home_directory,
+        shell:          data.shell,
+        given_name:     data.given_name,
+        display_name:   data.display_name,
+        gid_number:     "".to_string(),
+        group:          data.group,
+        gecos:          data.gecos,
+    };
+
+    let grpc_req = Grpc_CreateUserRequest {
+        user: Some(user),
+    };
+    let resp = client.create_user(grpc_req).await;
+
+    match resp {
+        Ok(ok_resp) => {
+            let inner = ok_resp.into_inner();
+            let result = inner.result.unwrap_or(chm_grpc::common::ResponseResult {
+                r#type: chm_grpc::common::ResponseType::Err as i32,
+                message: "Unknown error".into(),
+            });
+            Ok(web::Json(result.into()))
+        }
+        Err(status) => {
+            let message = match status.code() {
+                tonic::Code::Cancelled | tonic::Code::Unavailable => {
+                    format!("gRPC 連線中斷: {status}")
+                }
+                _ => format!("gRPC 執行失敗: {status}"),
+            };
+            let result = ResponseResult { r#type: ResponseType::Err, message };
+            Ok(web::Json(result))
+        }
+    }
 }
 
 /// PUT /api/chm/user  （整筆）

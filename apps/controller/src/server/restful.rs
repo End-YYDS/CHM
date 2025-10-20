@@ -403,10 +403,17 @@ impl RestfulService for ControllerRestfulServer {
                         .map_err(|e| Status::not_found(e.to_string()))?
                         .group_name;
                     let entry = UserEntry {
-                        username:       detail.cn,
+                        username:       detail.uid,
+                        password:       "".to_string(),
+                        cn:             detail.cn,
+                        sn:             detail.sn,
+                        home_directory: detail.home_directory,
+                        shell:          detail.login_shell,
+                        given_name:     detail.given_name,
+                        display_name:   detail.display_name,
+                        gid_number:     detail.gid_number,
                         group:          vec![group_name],
-                        home_directory: format!("/home/{}", detail.uid),
-                        shell:          "/bin/bash".to_string(),
+                        gecos:          detail.gecos,
                     };
                     users.insert(uid, entry);
                 }
@@ -425,7 +432,60 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<CreateUserRequest>,
     ) -> Result<Response<CreateUserResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let user = req.user.ok_or_else(|| Status::invalid_argument("User field is required"))?;
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
+        let username = user.username.clone();
+        // 先檢查 group 是否存在（避免先建 user 再報錯）
+        if !user.group.is_empty() {
+            for group_name in user.group.iter() {
+                if group_name == &username {
+                    continue; // 跳過使用者自己的 primary group
+                }
+                // 檢查群組是否存在
+                if let Err(e) = ldap.search_group(group_name.clone()).await {
+                    return Err(Status::not_found(format!(
+                        "Group {} not found: {}",
+                        group_name, e
+                    )));
+                }
+            }
+        }
+        // 通過所有群組檢查後，才建立 user
+        ldap.add_user(
+            username.clone(),
+            user.password,
+            Some(user.cn),
+            Some(user.sn),
+            Some(user.home_directory),
+            Some(user.shell),
+            Some(user.given_name),
+            Some(user.display_name),
+            Some(user.gid_number),
+            Some(user.gecos),
+        )
+        .await
+        .map_err(|e| Status::internal(format!("Failed to add user {}: {e}", username)))?;
+        // 再將 user 加入次要群組
+        for group_name in user.group.iter() {
+            if group_name == &username {
+                continue;
+            }
+            ldap.add_user_to_group(username.clone(), group_name.clone())
+                .await
+                .map_err(|e| Status::internal(format!(
+                    "Failed to add user {} to group {}: {e}",
+                    username, group_name
+                )))?;
+        }
+        let result = chm_grpc::common::ResponseResult {
+            r#type: chm_grpc::common::ResponseType::Ok as i32,
+            message: format!("使用者 {} 已成功建立", username),
+        };
+        Ok(Response::new(CreateUserResponse { result: Some(result) }))
     }
 
     async fn put_users(

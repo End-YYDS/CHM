@@ -555,9 +555,16 @@ message PutSettingValuesResponse {
 // 使用者基本資料
 message UserEntry {
   string username = 1; // Username
-  repeated string group = 2; // Group
-  string home_directory = 3; // Home_directory
-  string shell = 4; // Shell
+  string password = 2;
+  string cn = 3;
+  string sn = 4;
+  string home_directory = 5;
+  string shell = 6;
+  string given_name = 7;
+  string display_name = 8;
+  string gid_number = 9;
+  repeated string group = 10; // Group
+  string gecos = 11;
 }
 
 // 取得所有使用者資訊  GET /api/chm/user
@@ -569,10 +576,7 @@ message GetUsersResponse {
 
 // 新增 User  POST /api/chm/user
 message CreateUserRequest {
-  string username = 1;
-  repeated string group = 2;
-  string home_directory = 3;
-  string shell = 4;
+  UserEntry user = 1;
 }
 message CreateUserResponse {
   common.ResponseResult result = 1; // {Type, Message}
@@ -589,10 +593,7 @@ message PutUsersResponse {
 
 // 更新 User 單一內容  PATCH /api/chm/user
 message UserPatch {
-  optional string username = 1;
-  repeated string group = 2; // 若只改 Username，其餘欄位可不帶
-  optional string home_directory = 3;
-  optional string shell = 4;
+  UserEntry user = 1;
 }
 message PatchUsersRequest {
   map<string, UserPatch> users = 1; // 例如 {"uid01": {"username": "..."}}
