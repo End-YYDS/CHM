@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package dhcp;
+
+service DhcpService {
+  rpc CreateZone (CreateZoneRequest) returns (CreateZoneResponse);
+  rpc AllocateIp (AllocateIpRequest) returns (AllocateIpResponse);
+  rpc ReleaseIp (ReleaseIpRequest) returns (ReleaseIpResponse);
+  rpc DeleteZone (DeleteZoneRequest) returns (DeleteZoneResponse);
+
+  rpc ListZones (Empty) returns (ZoneList);
+  rpc ListAvailableIps (ZoneIdentifier) returns (IpList);
+}
+
+message Empty {}
+
+message CreateZoneRequest {
+  string zone_name = 1;
+  int32 vni = 2;
+  string cidr = 3;
+}
+
+message CreateZoneResponse {
+  string message = 1;
+}
+
+message AllocateIpRequest {
+  string zone_name = 1;
+}
+
+message AllocateIpResponse {
+  string ip = 1;
+}
+
+message ReleaseIpRequest {
+  string zone_name = 1;
+  string ip = 2;
+}
+
+message ReleaseIpResponse {
+  string message = 1;
+}
+
+message DeleteZoneRequest {
+  string zone_name = 2;
+}
+
+message DeleteZoneResponse {
+  string message = 1;
+}
+
+message ZoneList {
+  repeated Zone zones = 1;
+}
+
+message Zone {
+  string name = 1;
+  int32 vni = 2;
+}
+
+message ZoneIdentifier {
+  string zone_name = 1;
+}
+
+message IpList {
+  repeated string ips = 1;
+}
