@@ -39,10 +39,8 @@ pub struct ReleaseIpResponse {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeleteZoneRequest {
-    #[prost(string, tag = "1")]
-    pub group_name: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub zone_name:  ::prost::alloc::string::String,
+    pub zone_name: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeleteZoneResponse {

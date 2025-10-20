@@ -143,7 +143,7 @@ async fn release_ip_nonexistent(client: &mut DhcpServiceClient<Channel>) -> Resu
 /// 刪除 Zone
 async fn delete_zone(client: &mut DhcpServiceClient<Channel>) -> Result<()> {
     println!("➡️  刪除 Zone...");
-    let req = DeleteZoneRequest { group_name: "".to_string(), zone_name: "test_zone".to_string() };
+    let req = DeleteZoneRequest { zone_name: "test_zone".to_string() };
     let resp = client.delete_zone(req).await?;
     let reply = resp.into_inner();
     println!("✅ DeleteZone Response: {}", reply.message);
