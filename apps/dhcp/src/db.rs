@@ -127,7 +127,7 @@ impl Db {
         let pool = self.pool().await?;
         if let Some(ip_rec) = ip {
             let mut tx = pool.begin().await?;
-            sqlx::query!("DELETE FROM ip_pools WHERE zone_id = ?", ip_rec.id)
+            sqlx::query!("DELETE FROM ip_pools WHERE id = ?", ip_rec.id)
                 .execute(tx.as_mut())
                 .await?;
             tx.commit().await?;

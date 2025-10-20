@@ -231,7 +231,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
     tracing::info!("初始化 Server 已結束，繼續啟動正式服務...");
-    tracing::info!("正在啟動Ldap...");
+    tracing::info!("正在啟動{ID}...");
     let (_reload_tx, mut reload_rx) = watch::channel(());
     loop {
         let (key, cert) = CertUtils::cert_from_path(&cert_path, &key_path, None)?;
@@ -265,17 +265,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             .send_compressed(CompressionEncoding::Zstd)
             .accept_compressed(CompressionEncoding::Zstd);
         let dhcp_srv = InterceptedService::new(raw_dhcp, make_dhcp_interceptor(controller_args));
-        println!("[gRPC] server listening on {addr}");
+        tracing::info!("[gRPC] server listening on {addr}");
         let server = chm_cluster_utils::gserver::grpc_with_tuning()
             .tls_config(tls)?
             .add_service(dhcp_srv)
             .add_service(health_service)
             .serve_with_shutdown(addr.into(), shutdown_signal);
         if let Err(e) = server.await {
-            eprintln!("[gRPC] startup failed: {e:?}");
+            tracing::debug!("[gRPC] startup failed: {e:?}");
         }
         if reload_rx.has_changed().unwrap_or(false) {
-            println!("[gRPC] restart complete");
+            tracing::info!("[gRPC] restart complete");
             let _ = reload_rx.borrow_and_update();
             continue;
         }

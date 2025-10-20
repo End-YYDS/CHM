@@ -3,13 +3,13 @@ syntax = "proto3";
 package dhcp;
 
 service DhcpService {
-  rpc CreateZone(CreateZoneRequest) returns (CreateZoneResponse);
-  rpc AllocateIp(AllocateIpRequest) returns (AllocateIpResponse);
-  rpc ReleaseIp(ReleaseIpRequest) returns (ReleaseIpResponse);
-  rpc DeleteZone(DeleteZoneRequest) returns (DeleteZoneResponse);
+  rpc CreateZone (CreateZoneRequest) returns (CreateZoneResponse);
+  rpc AllocateIp (AllocateIpRequest) returns (AllocateIpResponse);
+  rpc ReleaseIp (ReleaseIpRequest) returns (ReleaseIpResponse);
+  rpc DeleteZone (DeleteZoneRequest) returns (DeleteZoneResponse);
 
-  rpc ListZones(Empty) returns (ZoneList);
-  rpc ListAvailableIps(ZoneIdentifier) returns (IpList);
+  rpc ListZones (Empty) returns (ZoneList);
+  rpc ListAvailableIps (ZoneIdentifier) returns (IpList);
 }
 
 message Empty {}
@@ -42,7 +42,6 @@ message ReleaseIpResponse {
 }
 
 message DeleteZoneRequest {
-  string group_name = 1;
   string zone_name = 2;
 }
 

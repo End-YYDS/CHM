@@ -4,12 +4,15 @@ set dotenv-load := true
 CA_DATABASE_URL := env_var('CA_DATABASE_URL')
 DNS_DATABASE_URL := env_var('DNS_DATABASE_URL')
 LDAP_DATABASE_URL := env_var('LDAP_DATABASE_URL')
+DHCP_DATABASE_URL := env_var('DHCP_DATABASE_URL')
 CA_FOLDER := "apps/ca"
 DNS_FOLDER := "apps/dns"
 LDAP_FOLDER := "apps/ldap"
+DHCP_FOLDER := "apps/dhcp"
 CA_FOLDER_MIGRATE := "apps/ca/migrations"
 LDAP_FOLDER_MIGRATE := "apps/ldap/migrations"
 DNS_FOLDER_MIGRATE := "apps/dns/migrations"
+DHCP_FOLDER_MIGRATE := "apps/dhcp/migrations"
 CONFIG_FOLDER := "config"
 DATA_FOLDER := "data"
 DB_FOLDER := "db"
@@ -37,6 +40,9 @@ create-ca-db:
 create-ldap-db:
     @sqlx database create -D "{{ LDAP_DATABASE_URL }}"
 
+create-dhcp-db:
+    @sqlx database create -D "{{ DHCP_DATABASE_URL }}"
+
 create-ca-root:
     @cargo run -p ca --bin CHM_CA -- --create-ca
 
@@ -46,6 +52,8 @@ reset-dns: (reset-db DNS_DATABASE_URL DNS_FOLDER_MIGRATE)
 
 reset-ldap: (reset-db LDAP_DATABASE_URL LDAP_FOLDER_MIGRATE)
 
+reset-dhcp: (reset-db DHCP_DATABASE_URL DHCP_FOLDER_MIGRATE)
+
 reset-all: reset-ca reset-dns reset-ldap
 
 migrate-ca: (migrate CA_DATABASE_URL CA_FOLDER_MIGRATE)
@@ -53,6 +61,8 @@ migrate-ca: (migrate CA_DATABASE_URL CA_FOLDER_MIGRATE)
 migrate-dns: (migrate DNS_DATABASE_URL DNS_FOLDER_MIGRATE)
 
 migrate-ldap: (migrate LDAP_DATABASE_URL LDAP_FOLDER_MIGRATE)
+
+migrate-dhcp: (migrate DHCP_DATABASE_URL DHCP_FOLDER_MIGRATE)
 
 migrate-all: migrate-ca migrate-dns migrate-ldap
 
@@ -77,6 +87,7 @@ run-ldap args="":
     @RUST_LOG=trace,ldap=debug,CHM_ldapd=debug cargo run -p ldap --bin CHM_ldapd -- {{ args }}
 
 run-dhcp args="":
+    @[[ ! -f "{{ DB_FOLDER }}/dhcp.db" ]] && just create-dhcp-db || true
     @RUST_LOG=dhcp=debug,CHM_dhcpd=debug cargo run -p dhcp --bin CHM_dhcpd -- {{ args }}
 
 run-api-client args="":
@@ -119,18 +130,25 @@ run-r-ldap args="":
     @[[ ! -f "{{ DB_FOLDER }}/ids.db" ]] && just create-ldap-db || true
     @RUST_LOG=trace,ldap=info,CHM_ldapd=info cargo run -p ldap --bin CHM_ldapd -r -- {{ args }}
 
+run-r-dhcp args="":
+    @[[ ! -f "{{ DB_FOLDER }}/dhcp.db" ]] && just create-dhcp-db || true
+    @RUST_LOG=dhcp=info,CHM_dhcpd=info cargo run -p dhcp --bin CHM_dhcpd -r -- {{ args }}
+
 # Todo: 添加release編譯
 sqlx-prepare:
     @[[ ! -f "{{ DB_FOLDER }}/cert_store.db" ]] && just create-ca-db || true
     @[[ ! -f "{{ DB_FOLDER }}/ids.db" ]] && just create-ldap-db || true
+    @[[ ! -f "{{ DB_FOLDER }}/dhcp.db" ]] && just create-dhcp-db || true
     @just reset-all
     @(cd {{ CA_FOLDER }} && cargo sqlx prepare  -D "{{ CA_DATABASE_URL }}")
     @(cd {{ DNS_FOLDER }} && cargo sqlx prepare -D "{{ DNS_DATABASE_URL }}")
     @(cd {{ LDAP_FOLDER }} && cargo sqlx prepare -D "{{ LDAP_DATABASE_URL }}")
+    @(cd {{ DHCP_FOLDER }} && cargo sqlx prepare -D "{{ DHCP_DATABASE_URL }}")
 
 build-release:
     @[[ ! -f "{{ DB_FOLDER }}/cert_store.db" ]] && just create-ca-db || true
     @[[ ! -f "{{ DB_FOLDER }}/ids.db" ]] && just create-ldap-db || true
+    @[[ ! -f "{{ DB_FOLDER }}/dhcp.db" ]] && just create-dhcp-db || true
     @SQLX_OFFLINE=true cargo build --workspace --release
 
 release-all:
