@@ -9,9 +9,9 @@ use arc_swap::ArcSwapOption;
 use chm_grpc::{
     ldap::{
         ldap_service_server::LdapService, AuthRequest, AuthResponse, Empty, GenericResponse,
-        GroupDetailResponse, GroupListResponse, GroupRequest, ModifyUserRequest,
-        ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest, UserIdRequest,
-        UserListResponse, UserRequest, WebRoleDetailResponse,
+        GroupDetailResponse, GroupIdRequest, GroupListResponse, GroupNameResponse, GroupRequest,
+        ModifyUserRequest, ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest,
+        UserIdRequest, UserListResponse, UserRequest, WebRoleDetailResponse,
     },
     tonic::{async_trait, Request, Response, Status},
 };
@@ -278,6 +278,21 @@ impl LdapService for MyLdapService {
             .with_ldap(move |ldap| {
                 let req_cloned = req.clone();
                 Pin::from(Box::new(async move { search_group_impl(ldap, req_cloned).await }))
+            })
+            .await?;
+        Ok(Response::new(resp))
+    }
+
+    async fn get_group_name(
+        &self,
+        request: Request<GroupIdRequest>,
+    ) -> Result<Response<GroupNameResponse>, Status> {
+        let req = request.into_inner();
+        let resp = self
+            .ldap
+            .with_ldap(move |ldap| {
+                let req_cloned = req.clone();
+                Pin::from(Box::new(async move { get_group_name_impl(ldap, req_cloned).await }))
             })
             .await?;
         Ok(Response::new(resp))

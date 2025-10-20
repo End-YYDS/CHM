@@ -8,7 +8,7 @@ use chm_grpc::{
     tonic,
     tonic::{Request, Response, Status},
 };
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 // TODO: 由RestFul Server 為Client 調用Controller RestFul gRPC介面
 #[derive(Debug)]
@@ -382,35 +382,264 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetUsersRequest>,
     ) -> Result<Response<GetUsersResponse>, Status> {
-        todo!()
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))
+            .map_err(|e| Status::internal(e.to_string()))?;
+        let uids = ldap
+            .list_users()
+            .await
+            .map_err(|e| Status::internal(format!("Failed to list users: {e}")))?;
+        let mut users: HashMap<String, UserEntry> = HashMap::new();
+        for uid in uids {
+            match ldap.search_user(uid.clone()).await {
+                Ok(detail) => {
+                    let gid_number = detail.gid_number.clone();
+                    let group_name = ldap
+                        .get_group_name(gid_number)
+                        .await
+                        .map_err(|e| Status::not_found(e.to_string()))?
+                        .group_name;
+                    let entry = UserEntry {
+                        username:       detail.uid,
+                        password:       "".to_string(),
+                        cn:             detail.cn,
+                        sn:             detail.sn,
+                        home_directory: detail.home_directory,
+                        shell:          detail.login_shell,
+                        given_name:     detail.given_name,
+                        display_name:   detail.display_name,
+                        gid_number:     detail.gid_number,
+                        group:          vec![group_name],
+                        gecos:          detail.gecos,
+                    };
+                    users.insert(uid, entry);
+                }
+                Err(e) => {
+                    eprintln!("Failed to fetch details for user {}: {}", uid, e);
+                    continue;
+                }
+            }
+        }
+        let length = users.len() as u64;
+        let resp = GetUsersResponse { users, length };
+        Ok(Response::new(resp))
     }
 
     async fn create_user(
         &self,
         request: Request<CreateUserRequest>,
     ) -> Result<Response<CreateUserResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let user = req.user.ok_or_else(|| Status::invalid_argument("User field is required"))?;
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
+        let username = user.username.clone();
+        if !user.group.is_empty() {
+            for group_name in user.group.iter() {
+                if group_name == &username {
+                    continue;
+                }
+                if let Err(e) = ldap.search_group(group_name.clone()).await {
+                    return Err(Status::not_found(format!(
+                        "Group {} not found: {}",
+                        group_name, e
+                    )));
+                }
+            }
+        }
+        ldap.add_user(
+            username.clone(),
+            user.password,
+            Some(user.cn),
+            Some(user.sn),
+            Some(user.home_directory),
+            Some(user.shell),
+            Some(user.given_name),
+            Some(user.display_name),
+            Some(user.gid_number),
+            Some(user.gecos),
+        )
+        .await
+        .map_err(|e| Status::internal(format!("Failed to add user {}: {e}", username)))?;
+        for group_name in user.group.iter() {
+            if group_name == &username {
+                continue;
+            }
+            ldap.add_user_to_group(username.clone(), group_name.clone()).await.map_err(|e| {
+                Status::internal(format!(
+                    "Failed to add user {} to group {}: {e}",
+                    username, group_name
+                ))
+            })?;
+        }
+        let result = chm_grpc::common::ResponseResult {
+            r#type:  chm_grpc::common::ResponseType::Ok as i32,
+            message: format!("使用者 {} 已成功建立", username),
+        };
+        Ok(Response::new(CreateUserResponse { result: Some(result) }))
     }
 
     async fn put_users(
         &self,
         request: Request<PutUsersRequest>,
     ) -> Result<Response<PutUsersResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let users = req.users;
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
+        if users.is_empty() {
+            return Err(Status::invalid_argument("At least one user entry is required"));
+        }
+        let (username, user) = users
+            .iter()
+            .next()
+            .ok_or_else(|| Status::invalid_argument("At least one user entry is required"))?;
+
+        if let Err(e) = ldap.search_user(username.clone()).await {
+            return Err(Status::not_found(format!("User {} not found: {}", username, e)));
+        }
+        if !user.group.is_empty() {
+            for group_name in user.group.iter() {
+                if group_name == username {
+                    continue; // 跳過 primary group
+                }
+                if let Err(e) = ldap.search_group(group_name.clone()).await {
+                    return Err(Status::not_found(format!(
+                        "Group {} not found: {}",
+                        group_name, e
+                    )));
+                }
+            }
+        }
+        let mut attr: HashMap<String, String> = HashMap::new();
+        attr.insert("userPassword".into(), user.password.clone());
+        attr.insert("cn".into(), user.cn.clone());
+        attr.insert("sn".into(), user.sn.clone());
+        attr.insert("homeDirectory".into(), user.home_directory.clone());
+        attr.insert("loginShell".into(), user.shell.clone());
+        attr.insert("givenName".into(), user.given_name.clone());
+        attr.insert("displayName".into(), user.display_name.clone());
+        attr.insert("gecos".into(), user.gecos.clone());
+        ldap.modify_user(username.clone(), attr)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to modify user {}: {}", username, e)))?;
+
+        for group_name in user.group.iter() {
+            if group_name == username {
+                continue;
+            }
+            ldap.add_user_to_group(username.clone(), group_name.clone()).await.map_err(|e| {
+                Status::internal(format!(
+                    "Failed to add user {} to group {}: {}",
+                    username, group_name, e
+                ))
+            })?;
+        }
+
+        let result = chm_grpc::common::ResponseResult {
+            r#type:  chm_grpc::common::ResponseType::Ok as i32,
+            message: format!("使用者 {} 已成功更新", username),
+        };
+
+        Ok(Response::new(PutUsersResponse { result: Some(result) }))
     }
 
     async fn patch_users(
         &self,
         request: Request<PatchUsersRequest>,
     ) -> Result<Response<PatchUsersResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let users = req.users;
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
+        if users.is_empty() {
+            return Err(Status::invalid_argument("At least one user entry is required"));
+        }
+        let (username, user) = users
+            .iter()
+            .next()
+            .ok_or_else(|| Status::invalid_argument("At least one user entry is required"))?;
+
+        if let Err(e) = ldap.search_user(username.clone()).await {
+            return Err(Status::not_found(format!("User {} not found: {}", username, e)));
+        }
+        let mut attr: HashMap<String, String> = HashMap::new();
+        if let Some(u) = &user.password {
+            attr.insert("userPassword".into(), u.clone());
+        }
+        if let Some(u) = &user.cn {
+            attr.insert("cn".into(), u.clone());
+        }
+        if let Some(u) = &user.sn {
+            attr.insert("sn".into(), u.clone());
+        }
+        if let Some(u) = &user.home_directory {
+            attr.insert("homeDirectory".into(), u.clone());
+        }
+        if let Some(u) = &user.shell {
+            attr.insert("loginShell".into(), u.clone());
+        }
+        if let Some(u) = &user.given_name {
+            attr.insert("givenName".into(), u.clone());
+        }
+        if let Some(u) = &user.display_name {
+            attr.insert("displayName".into(), u.clone());
+        }
+        if let Some(u) = &user.gecos {
+            attr.insert("gecos".into(), u.clone());
+        }
+        if !user.group.is_empty() {
+            for group_name in user.group.iter() {
+                if group_name == username {
+                    continue; // 跳過 primary group
+                }
+                if let Err(e) = ldap.search_group(group_name.clone()).await {
+                    return Err(Status::not_found(format!(
+                        "Group {} not found: {}",
+                        group_name, e
+                    )));
+                }
+            }
+        }
+        ldap.modify_user(username.clone(), attr)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to modify user {}: {}", username, e)))?;
+        let result = chm_grpc::common::ResponseResult {
+            r#type:  chm_grpc::common::ResponseType::Ok as i32,
+            message: format!("使用者 {} 已成功更新", username),
+        };
+        Ok(Response::new(PatchUsersResponse { result: Some(result) }))
     }
 
     async fn delete_user(
         &self,
         request: Request<DeleteUserRequest>,
     ) -> Result<Response<DeleteUserResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let uid = req.uid;
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
+        if let Err(e) = ldap.search_user(uid.clone()).await {
+            return Err(Status::not_found(format!("User {} not found: {}", uid, e)));
+        }
+        ldap.delete_user(uid.clone())
+            .await
+            .map_err(|e| Status::internal(format!("Failed to delete user {}: {}", uid, e)))?;
+        let result = ResponseResult {
+            r#type:  ResponseType::Ok as i32,
+            message: format!("使用者 {} 已成功刪除", uid),
+        };
+        Ok(Response::new(DeleteUserResponse { result: Some(result) }))
     }
 
     async fn get_groups(

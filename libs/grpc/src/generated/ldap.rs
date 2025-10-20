@@ -127,6 +127,16 @@ pub struct WebRoleDetailResponse {
     #[prost(string, repeated, tag = "3")]
     pub member_uid: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GroupIdRequest {
+    #[prost(string, tag = "1")]
+    pub gid_number: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GroupNameResponse {
+    #[prost(string, tag = "1")]
+    pub group_name: ::prost::alloc::string::String,
+}
 /// Generated client implementations.
 #[cfg(feature = "ldap-client")]
 pub mod ldap_service_client {
@@ -362,6 +372,19 @@ pub mod ldap_service_client {
             req.extensions_mut().insert(GrpcMethod::new("ldap.LdapService", "SearchGroup"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn get_group_name(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GroupIdRequest>,
+        ) -> std::result::Result<tonic::Response<super::GroupNameResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/ldap.LdapService/GetGroupName");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("ldap.LdapService", "GetGroupName"));
+            self.inner.unary(req, path, codec).await
+        }
         pub async fn add_web_role(
             &mut self,
             request: impl tonic::IntoRequest<super::GroupRequest>,
@@ -584,6 +607,10 @@ pub mod ldap_service_server {
             &self,
             request: tonic::Request<super::GroupRequest>,
         ) -> std::result::Result<tonic::Response<super::GroupDetailResponse>, tonic::Status>;
+        async fn get_group_name(
+            &self,
+            request: tonic::Request<super::GroupIdRequest>,
+        ) -> std::result::Result<tonic::Response<super::GroupNameResponse>, tonic::Status>;
         async fn add_web_role(
             &self,
             request: tonic::Request<super::GroupRequest>,
@@ -1114,6 +1141,45 @@ pub mod ldap_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = SearchGroupSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/ldap.LdapService/GetGroupName" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetGroupNameSvc<T: LdapService>(pub Arc<T>);
+                    impl<T: LdapService> tonic::server::UnaryService<super::GroupIdRequest> for GetGroupNameSvc<T> {
+                        type Response = super::GroupNameResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GroupIdRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as LdapService>::get_group_name(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = GetGroupNameSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

@@ -3,9 +3,10 @@
 use crate::ConResult;
 use chm_grpc::{
     ldap::{
-        ldap_service_client::LdapServiceClient, AuthRequest, Empty, GroupRequest,
-        ModifyUserRequest, ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest,
-        UserIdRequest, UserRequest, WebRoleDetailResponse,
+        ldap_service_client::LdapServiceClient, AuthRequest, Empty, GroupDetailResponse,
+        GroupIdRequest, GroupNameResponse, GroupRequest, ModifyUserRequest,
+        ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest, UserIdRequest, UserRequest,
+        WebRoleDetailResponse,
     },
     tonic::transport::Channel,
 };
@@ -115,6 +116,18 @@ impl ClientLdap {
     pub async fn list_groups(&self) -> ConResult<Vec<String>> {
         let mut client = self.client.clone();
         let resp = client.list_group(Empty {}).await?.into_inner().groups;
+        Ok(resp)
+    }
+    pub async fn search_group(&self, group_name: String) -> ConResult<GroupDetailResponse> {
+        let mut client = self.client.clone();
+        let req = GroupRequest { group_name };
+        let resp = client.search_group(req).await?.into_inner();
+        Ok(resp)
+    }
+    pub async fn get_group_name(&self, gid_number: String) -> ConResult<GroupNameResponse> {
+        let mut client = self.client.clone();
+        let req = GroupIdRequest { gid_number };
+        let resp = client.get_group_name(req).await?.into_inner();
         Ok(resp)
     }
     pub async fn add_user_to_group(&self, uid: String, group_name: String) -> ConResult<bool> {
