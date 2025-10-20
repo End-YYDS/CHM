@@ -1,8 +1,12 @@
 use actix_cors::Cors;
-use actix_session::{storage::CookieSessionStore, Session, SessionMiddleware};
+use actix_session::{
+    config::{PersistentSession, TtlExtensionPolicy},
+    storage::CookieSessionStore,
+    Session, SessionMiddleware,
+};
 use actix_web::{
     body::MessageBody,
-    cookie::{Key, SameSite},
+    cookie::{time::Duration as ac_Duration, Key, SameSite},
     dev::{ServiceRequest, ServiceResponse},
     http::header,
     middleware,
@@ -302,11 +306,15 @@ async fn main() -> ApiResult<()> {
             .max_age(3600);
         let same_site =
             if same_site.eq_ignore_ascii_case("None") { SameSite::None } else { SameSite::Lax };
+        let lifecycle = PersistentSession::default()
+            .session_ttl(ac_Duration::minutes(30))
+            .session_ttl_extension_policy(TtlExtensionPolicy::OnEveryRequest);
         let session_mw = SessionMiddleware::builder(CookieSessionStore::default(), key.clone())
             .cookie_name(cookie_name.clone())
             .cookie_secure(cookie_secure)
             .cookie_http_only(true)
             .cookie_same_site(same_site)
+            .session_lifecycle(lifecycle)
             .build();
         App::new()
             .app_data(Data::new(AppState { gclient: grpc_client.clone() }))

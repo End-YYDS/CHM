@@ -593,7 +593,17 @@ message PutUsersResponse {
 
 // 更新 User 單一內容  PATCH /api/chm/user
 message UserPatch {
-  UserEntry user = 1;
+  optional string username = 1;
+  optional string password = 2;
+  optional string cn = 3;
+  optional string sn = 4;
+  optional string home_directory = 5;
+  optional string shell = 6;
+  optional string given_name = 7;
+  optional string display_name = 8;
+  optional string gid_number = 9;
+  repeated string group = 10;
+  optional string gecos = 11;
 }
 message PatchUsersRequest {
   map<string, UserPatch> users = 1; // 例如 {"uid01": {"username": "..."}}

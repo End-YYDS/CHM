@@ -89,23 +89,37 @@ pub struct PutUsersRequest {
 }
 
 // PATCH /api/chm/user  — 單一內容可選
-// #[derive(Debug, Deserialize, Clone, Default)]
-// pub struct PatchUserEntry {
-//     #[serde(rename = "Username")]
-//     pub username:       Option<String>,
-//     #[serde(rename = "Group")]
-//     pub group:          Option<Vec<String>>,
-//     #[serde(rename = "Home_directory")]
-//     pub home_directory: Option<String>,
-//     #[serde(rename = "Shell")]
-//     pub shell:          Option<String>,
-// }
+#[derive(Debug, Deserialize, Clone, Default)]
+#[serde()]
+pub struct PatchUserEntry {
+    #[serde(rename = "Password", deserialize_with = "chm_cluster_utils::none_if_string_none")]
+    pub password:       Option<String>,
+    #[serde(rename = "Cn", deserialize_with = "chm_cluster_utils::none_if_string_none")]
+    pub cn:             Option<String>,
+    #[serde(rename = "Sn", deserialize_with = "chm_cluster_utils::none_if_string_none")]
+    pub sn:             Option<String>,
+    #[serde(
+        rename = "Home_directory",
+        deserialize_with = "chm_cluster_utils::none_if_string_none"
+    )]
+    pub home_directory: Option<String>,
+    #[serde(rename = "Shell", deserialize_with = "chm_cluster_utils::none_if_string_none")]
+    pub shell:          Option<String>,
+    #[serde(rename = "Given_name", deserialize_with = "chm_cluster_utils::none_if_string_none")]
+    pub given_name:     Option<String>,
+    #[serde(rename = "Display_name", deserialize_with = "chm_cluster_utils::none_if_string_none")]
+    pub display_name:   Option<String>,
+    #[serde(rename = "Group")]
+    pub group:          Vec<String>,
+    #[serde(rename = "Gecos", deserialize_with = "chm_cluster_utils::none_if_string_none")]
+    pub gecos:          Option<String>,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct PatchUsersRequest {
     // pub uid01: Option<PatchUserEntry>,
     #[serde(flatten)]
-    pub data: HashMap<String, PutUserEntry>,
+    pub data: HashMap<String, PatchUserEntry>,
 }
 
 // DELETE /api/chm/user

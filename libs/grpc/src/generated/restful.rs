@@ -1024,8 +1024,28 @@ pub struct PutUsersResponse {
 /// 更新 User 單一內容  PATCH /api/chm/user
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UserPatch {
-    #[prost(message, optional, tag = "1")]
-    pub user: ::core::option::Option<UserEntry>,
+    #[prost(string, optional, tag = "1")]
+    pub username:       ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "2")]
+    pub password:       ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "3")]
+    pub cn:             ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "4")]
+    pub sn:             ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "5")]
+    pub home_directory: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "6")]
+    pub shell:          ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "7")]
+    pub given_name:     ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "8")]
+    pub display_name:   ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "9")]
+    pub gid_number:     ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, repeated, tag = "10")]
+    pub group:          ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "11")]
+    pub gecos:          ::core::option::Option<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchUsersRequest {
