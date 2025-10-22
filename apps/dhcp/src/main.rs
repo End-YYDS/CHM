@@ -74,7 +74,7 @@ async fn init_data_handler(
                 &carry.cert_info.state,
                 &carry.cert_info.locality,
                 ProjectConst::PROJECT_NAME,
-                &carry.cert_info.cn,
+                format!("{}.chm.com", &carry.cert_info.cn).as_str(),
                 san_extend,
             ) {
                 Ok(csr) => csr,
