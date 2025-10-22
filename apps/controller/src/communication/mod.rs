@@ -23,7 +23,7 @@ pub enum ClientHandle {
     Ca(ca::ClientCA),
     Dns(dns::ClientDNS),
     Ldap(ldap::ClientLdap),
-    // Dhcp(dhcp::ClientDhcp),
+    Dhcp(dhcp::ClientDhcp),
 }
 
 #[allow(dead_code)]
@@ -51,6 +51,12 @@ impl GrpcClients {
     pub fn ldap(&self) -> Option<&ldap::ClientLdap> {
         match self.map.get(&ServiceKind::Ldap) {
             Some(ClientHandle::Ldap(ldap)) => Some(ldap),
+            _ => None,
+        }
+    }
+    pub fn dhcp(&self) -> Option<&dhcp::ClientDhcp> {
+        match self.map.get(&ServiceKind::Dhcp) {
+            Some(ClientHandle::Dhcp(dhcp)) => Some(dhcp),
             _ => None,
         }
     }
@@ -170,7 +176,7 @@ pub async fn init_channels_all(only_ca: bool) -> ConResult<GrpcClients> {
             Mca  => Ca(ca::ClientCA::new),
             Dns  => Dns(dns::ClientDNS::new),
             Ldap => Ldap(ldap::ClientLdap::new),
-            // Dhcp => Dhcp(dhcp::ClientDhcp::new),
+            Dhcp => Dhcp(dhcp::ClientDhcp::new),
         }
     );
     Ok(GrpcClients { map: client_map })

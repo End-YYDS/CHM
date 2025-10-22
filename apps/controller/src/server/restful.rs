@@ -160,8 +160,8 @@ impl RestfulService for ControllerRestfulServer {
         ca.mark_certificate_as_revoked(cert.serial, Some(reason))
             .await
             .map_err(|e| Status::internal(format!("Failed to revoke certificate {name}: {e}")))?;
-        let result = chm_grpc::common::ResponseResult {
-            r#type:  chm_grpc::common::ResponseType::Ok as i32,
+        let result = ResponseResult {
+            r#type:  ResponseType::Ok as i32,
             message: format!("憑證 {name} 已成功註銷"),
         };
         let resp = RevokeCertResponse { result: Some(result) };
@@ -417,7 +417,7 @@ impl RestfulService for ControllerRestfulServer {
                     users.insert(uid, entry);
                 }
                 Err(e) => {
-                    eprintln!("Failed to fetch details for user {}: {}", uid, e);
+                    eprintln!("Failed to fetch details for user {uid}: {e}");
                     continue;
                 }
             }
@@ -444,10 +444,7 @@ impl RestfulService for ControllerRestfulServer {
                     continue;
                 }
                 if let Err(e) = ldap.search_group(group_name.clone()).await {
-                    return Err(Status::not_found(format!(
-                        "Group {} not found: {}",
-                        group_name, e
-                    )));
+                    return Err(Status::not_found(format!("Group {group_name} not found: {e}")));
                 }
             }
         }
@@ -464,21 +461,20 @@ impl RestfulService for ControllerRestfulServer {
             Some(user.gecos),
         )
         .await
-        .map_err(|e| Status::internal(format!("Failed to add user {}: {e}", username)))?;
+        .map_err(|e| Status::internal(format!("Failed to add user {username}: {e}")))?;
         for group_name in user.group.iter() {
             if group_name == &username {
                 continue;
             }
             ldap.add_user_to_group(username.clone(), group_name.clone()).await.map_err(|e| {
                 Status::internal(format!(
-                    "Failed to add user {} to group {}: {e}",
-                    username, group_name
+                    "Failed to add user {username} to group {group_name}: {e}"
                 ))
             })?;
         }
-        let result = chm_grpc::common::ResponseResult {
-            r#type:  chm_grpc::common::ResponseType::Ok as i32,
-            message: format!("使用者 {} 已成功建立", username),
+        let result = ResponseResult {
+            r#type:  ResponseType::Ok as i32,
+            message: format!("使用者 {username} 已成功建立"),
         };
         Ok(Response::new(CreateUserResponse { result: Some(result) }))
     }
@@ -502,7 +498,7 @@ impl RestfulService for ControllerRestfulServer {
             .ok_or_else(|| Status::invalid_argument("At least one user entry is required"))?;
 
         if let Err(e) = ldap.search_user(username.clone()).await {
-            return Err(Status::not_found(format!("User {} not found: {}", username, e)));
+            return Err(Status::not_found(format!("User {username} not found: {e}")));
         }
         if !user.group.is_empty() {
             for group_name in user.group.iter() {
@@ -510,10 +506,7 @@ impl RestfulService for ControllerRestfulServer {
                     continue; // 跳過 primary group
                 }
                 if let Err(e) = ldap.search_group(group_name.clone()).await {
-                    return Err(Status::not_found(format!(
-                        "Group {} not found: {}",
-                        group_name, e
-                    )));
+                    return Err(Status::not_found(format!("Group {group_name} not found: {e}")));
                 }
             }
         }
@@ -528,7 +521,7 @@ impl RestfulService for ControllerRestfulServer {
         attr.insert("gecos".into(), user.gecos.clone());
         ldap.modify_user(username.clone(), attr)
             .await
-            .map_err(|e| Status::internal(format!("Failed to modify user {}: {}", username, e)))?;
+            .map_err(|e| Status::internal(format!("Failed to modify user {username}: {e}")))?;
 
         for group_name in user.group.iter() {
             if group_name == username {
@@ -536,15 +529,14 @@ impl RestfulService for ControllerRestfulServer {
             }
             ldap.add_user_to_group(username.clone(), group_name.clone()).await.map_err(|e| {
                 Status::internal(format!(
-                    "Failed to add user {} to group {}: {}",
-                    username, group_name, e
+                    "Failed to add user {username} to group {group_name}: {e}"
                 ))
             })?;
         }
 
-        let result = chm_grpc::common::ResponseResult {
-            r#type:  chm_grpc::common::ResponseType::Ok as i32,
-            message: format!("使用者 {} 已成功更新", username),
+        let result = ResponseResult {
+            r#type:  ResponseType::Ok as i32,
+            message: format!("使用者 {username} 已成功更新"),
         };
 
         Ok(Response::new(PutUsersResponse { result: Some(result) }))
@@ -569,7 +561,7 @@ impl RestfulService for ControllerRestfulServer {
             .ok_or_else(|| Status::invalid_argument("At least one user entry is required"))?;
 
         if let Err(e) = ldap.search_user(username.clone()).await {
-            return Err(Status::not_found(format!("User {} not found: {}", username, e)));
+            return Err(Status::not_found(format!("User {username} not found: {e}")));
         }
         let mut attr: HashMap<String, String> = HashMap::new();
         if let Some(u) = &user.password {
@@ -602,19 +594,16 @@ impl RestfulService for ControllerRestfulServer {
                     continue; // 跳過 primary group
                 }
                 if let Err(e) = ldap.search_group(group_name.clone()).await {
-                    return Err(Status::not_found(format!(
-                        "Group {} not found: {}",
-                        group_name, e
-                    )));
+                    return Err(Status::not_found(format!("Group {group_name} not found: {e}")));
                 }
             }
         }
         ldap.modify_user(username.clone(), attr)
             .await
-            .map_err(|e| Status::internal(format!("Failed to modify user {}: {}", username, e)))?;
-        let result = chm_grpc::common::ResponseResult {
-            r#type:  chm_grpc::common::ResponseType::Ok as i32,
-            message: format!("使用者 {} 已成功更新", username),
+            .map_err(|e| Status::internal(format!("Failed to modify user {username}: {e}")))?;
+        let result = ResponseResult {
+            r#type:  ResponseType::Ok as i32,
+            message: format!("使用者 {username} 已成功更新"),
         };
         Ok(Response::new(PatchUsersResponse { result: Some(result) }))
     }
@@ -630,14 +619,14 @@ impl RestfulService for ControllerRestfulServer {
             .ldap()
             .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
         if let Err(e) = ldap.search_user(uid.clone()).await {
-            return Err(Status::not_found(format!("User {} not found: {}", uid, e)));
+            return Err(Status::not_found(format!("User {uid} not found: {e}")));
         }
         ldap.delete_user(uid.clone())
             .await
-            .map_err(|e| Status::internal(format!("Failed to delete user {}: {}", uid, e)))?;
+            .map_err(|e| Status::internal(format!("Failed to delete user {uid}: {e}")))?;
         let result = ResponseResult {
             r#type:  ResponseType::Ok as i32,
-            message: format!("使用者 {} 已成功刪除", uid),
+            message: format!("使用者 {uid} 已成功刪除"),
         };
         Ok(Response::new(DeleteUserResponse { result: Some(result) }))
     }
