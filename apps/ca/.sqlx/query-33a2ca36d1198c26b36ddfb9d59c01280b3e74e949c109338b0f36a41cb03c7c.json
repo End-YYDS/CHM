@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n            SELECT\n                serial,\n                subject_cn,\n                subject_dn,\n                issuer,\n                issued_date as \"issued_date: DateTime<Utc>\",\n                expiration as \"expiration: DateTime<Utc>\",\n                thumbprint,\n                status as \"status: CertStatus\",\n                cert_der\n            FROM certs\n            WHERE subject_cn = ?\n            ",
+  "query": "\n            SELECT\n                serial,\n                subject_cn,\n                subject_dn,\n                issuer,\n                issued_date as \"issued_date: DateTime<Utc>\",\n                expiration as \"expiration: DateTime<Utc>\",\n                thumbprint,\n                status as \"status: CertStatus\",\n                cert_der\n            FROM certs\n            WHERE subject_cn = ? AND status = 'valid'\n            ",
   "describe": {
     "columns": [
       {
@@ -64,5 +64,5 @@
       false
     ]
   },
-  "hash": "5b177b984ff7fd3ebb69943afc43af0026f5ed20f4adc131fc3ee18a5b019304"
+  "hash": "33a2ca36d1198c26b36ddfb9d59c01280b3e74e949c109338b0f36a41cb03c7c"
 }

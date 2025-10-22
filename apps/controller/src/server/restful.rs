@@ -160,6 +160,20 @@ impl RestfulService for ControllerRestfulServer {
         ca.mark_certificate_as_revoked(cert.serial, Some(reason))
             .await
             .map_err(|e| Status::internal(format!("Failed to revoke certificate {name}: {e}")))?;
+        // TODO: 等到後面Agent成功合併之後，需要修改
+        let (pri_key, same_name_csr) = CertUtils::generate_csr_with_new_key(
+            4096,
+            "TW",
+            "Taipei",
+            "Taipei",
+            "CHM.com",
+            &name,
+            ["127.0.0.1", &name],
+        )
+        .map_err(|e| Status::internal(e.to_string()))?;
+        ca.sign_certificate(same_name_csr, 10)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to sign certificate: {e}")))?;
         let result = ResponseResult {
             r#type:  ResponseType::Ok as i32,
             message: format!("憑證 {name} 已成功註銷"),
