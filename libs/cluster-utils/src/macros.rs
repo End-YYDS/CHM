@@ -474,14 +474,14 @@ macro_rules! server_init {
 }
 #[macro_export]
 macro_rules! software_init {
-    () => {
+    ($args_ty:ty) => {{
         #[cfg(debug_assertions)]
         let filter = tracing_subscriber::EnvFilter::from_default_env()
             .add_directive("info".parse().unwrap());
         #[cfg(not(debug_assertions))]
         let filter = tracing_subscriber::EnvFilter::from_default_env();
         tracing_subscriber::fmt().with_env_filter(filter).init();
-        let args: Args = argh::from_env();
+        let args: $args_ty = argh::from_env();
         if args.init_config {
             NEED_EXAMPLE.store(true, Relaxed);
             tracing::info!("初始化配置檔案...");
@@ -491,5 +491,6 @@ macro_rules! software_init {
         }
         config().await?;
         tracing::info!("配置檔案加載完成");
-    };
+        args
+    }};
 }

@@ -39,7 +39,7 @@ software_init_define!(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    software_init!();
+    software_init!(Args);
     let (addr, rootca, key_path, cert_path, check_is_controller) = server_init!();
     tracing::info!("正在啟動{ID}...");
     let (_reload_tx, mut reload_rx) = watch::channel(());

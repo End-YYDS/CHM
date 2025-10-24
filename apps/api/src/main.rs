@@ -55,7 +55,7 @@ software_init_define!(
 
 #[actix_web::main]
 async fn main() -> ApiResult<()> {
-    software_init!();
+    software_init!(Args);
     let (addr, rootca, key_path, cert_path, _check_is_controller) = server_init!();
     let (controller_addr, frontend_origin, cookie_name, secure_key_bytes, same_site, cookie_secure) =
         GlobalConfig::with(|cfg| {

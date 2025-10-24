@@ -58,7 +58,6 @@ impl Ca for MyCa {
     async fn sign_csr(&self, req: Request<CsrRequest>) -> Result<Response<CsrResponse>, Status> {
         let temp = req.into_parts();
         #[cfg(debug_assertions)]
-        dbg!(&temp);
         let CsrRequest { csr, days } = temp.2;
         let csr = X509Req::from_der(&csr)
             .or_else(|_| X509Req::from_pem(&csr))
