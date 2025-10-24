@@ -376,7 +376,7 @@ macro_rules! software_init_define {
 #[cfg(feature = "server")]
 #[macro_export]
 #[allow(clippy::crate_in_macro_def)]
-macro_rules! software_init {
+macro_rules! server_init {
     () => {{
         use chm_cert_utils::CertUtils;
         use chm_grpc::tonic::{Request, Status};
@@ -406,22 +406,6 @@ macro_rules! software_init {
                 Ok(req)
             }
         }
-        #[cfg(debug_assertions)]
-        let filter = tracing_subscriber::EnvFilter::from_default_env()
-            .add_directive("info".parse().unwrap());
-        #[cfg(not(debug_assertions))]
-        let filter = tracing_subscriber::EnvFilter::from_default_env();
-        tracing_subscriber::fmt().with_env_filter(filter).init();
-        let args: Args = argh::from_env();
-        if args.init_config {
-            NEED_EXAMPLE.store(true, Relaxed);
-            tracing::info!("初始化配置檔案...");
-            config().await?;
-            tracing::info!("配置檔案已生成，請檢查 {ID}_config.toml.example");
-            return Ok(());
-        }
-        config().await?;
-        tracing::info!("配置檔案加載完成");
         let (addr, rootca, cert_info, otp_len, otp_time, self_uuid, key_path, cert_path) =
             GlobalConfig::with(|cfg| {
                 let host: Ipv4Addr = cfg.server.host.clone().parse().unwrap_or(Ipv4Addr::LOCALHOST);
@@ -487,4 +471,25 @@ macro_rules! software_init {
         tracing::info!("初始化 Server 已結束，繼續啟動正式服務...");
         (addr, rootca, key_path, cert_path, check_is_controller)
     }};
+}
+#[macro_export]
+macro_rules! software_init {
+    () => {
+        #[cfg(debug_assertions)]
+        let filter = tracing_subscriber::EnvFilter::from_default_env()
+            .add_directive("info".parse().unwrap());
+        #[cfg(not(debug_assertions))]
+        let filter = tracing_subscriber::EnvFilter::from_default_env();
+        tracing_subscriber::fmt().with_env_filter(filter).init();
+        let args: Args = argh::from_env();
+        if args.init_config {
+            NEED_EXAMPLE.store(true, Relaxed);
+            tracing::info!("初始化配置檔案...");
+            config().await?;
+            tracing::info!("配置檔案已生成，請檢查 {ID}_config.toml.example");
+            return Ok(());
+        }
+        config().await?;
+        tracing::info!("配置檔案加載完成");
+    };
 }

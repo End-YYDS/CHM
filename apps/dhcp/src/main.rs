@@ -1,8 +1,8 @@
 use argh::FromArgs;
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{
-    api_resp, atomic_write, declare_init_route, software_init, software_init_define, BootstrapResp,
-    InitData, ServiceDescriptor, ServiceKind,
+    api_resp, atomic_write, declare_init_route, server_init, software_init, software_init_define,
+    BootstrapResp, InitData, ServiceDescriptor, ServiceKind,
 };
 
 use chm_grpc::{
@@ -39,7 +39,8 @@ software_init_define!(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let (addr, rootca, key_path, cert_path, check_is_controller) = software_init!();
+    software_init!();
+    let (addr, rootca, key_path, cert_path, check_is_controller) = server_init!();
     tracing::info!("正在啟動{ID}...");
     let (_reload_tx, mut reload_rx) = watch::channel(());
     loop {

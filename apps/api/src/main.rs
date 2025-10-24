@@ -20,8 +20,8 @@ use api_server::{
 use argh::FromArgs;
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{
-    api_resp, atomic_write, declare_init_route, software_init, software_init_define, BootstrapResp,
-    InitData, ServiceDescriptor, ServiceKind,
+    api_resp, atomic_write, declare_init_route, server_init, software_init, software_init_define,
+    BootstrapResp, InitData, ServiceDescriptor, ServiceKind,
 };
 use chm_grpc::{
     restful::restful_service_client::RestfulServiceClient,
@@ -55,7 +55,8 @@ software_init_define!(
 
 #[actix_web::main]
 async fn main() -> ApiResult<()> {
-    let (addr, rootca, key_path, cert_path, _check_is_controller) = software_init!();
+    software_init!();
+    let (addr, rootca, key_path, cert_path, _check_is_controller) = server_init!();
     let (controller_addr, frontend_origin, cookie_name, secure_key_bytes, same_site, cookie_secure) =
         GlobalConfig::with(|cfg| {
             let controller_addr = cfg.extend.controller.clone();

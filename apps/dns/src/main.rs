@@ -33,13 +33,13 @@ use std::{
     env,
     net::{IpAddr, SocketAddrV4},
     ops::ControlFlow,
+    path::PathBuf,
     sync::{
         atomic::{AtomicBool, Ordering::Relaxed},
         Arc,
     },
     task::{Context, Poll},
 };
-use std::path::PathBuf;
 use thiserror::Error;
 use tokio::sync::watch;
 use tonic::{
