@@ -18,7 +18,9 @@ use chm_project_const::ProjectConst;
 use dhcp::{config, service::DhcpServiceImpl, CertInfo, GlobalConfig, ID, NEED_EXAMPLE};
 use std::{
     net::{Ipv4Addr, SocketAddrV4},
-    sync::atomic::Ordering::Relaxed,
+    ops::ControlFlow,
+    path::PathBuf,
+    sync::{atomic::Ordering::Relaxed, Arc},
 };
 use tokio::sync::watch;
 #[derive(FromArgs, Debug, Clone)]
@@ -28,8 +30,12 @@ pub struct Args {
     #[argh(switch, short = 'i')]
     pub init_config: bool,
 }
-
-software_init_define!();
+software_init_define!(
+    kind = ServiceKind::Dhcp,
+    health_name = Some("dhcp.DhcpService".to_string()),
+    server = true,
+    need_controller = true
+);
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
