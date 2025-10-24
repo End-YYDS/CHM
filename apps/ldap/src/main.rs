@@ -22,7 +22,6 @@ use std::{
     sync::{atomic::Ordering::Relaxed, Arc},
 };
 use tokio::sync::watch;
-
 #[derive(FromArgs, Debug, Clone)]
 /// Ldap 主程式參數
 pub struct Args {
@@ -30,110 +29,6 @@ pub struct Args {
     #[argh(switch, short = 'i')]
     pub init_config: bool,
 }
-// TODO: 添加叢集交換的FN
-
-// #[derive(Debug)]
-// pub struct InitCarry {
-//     pub root_ca_path:    PathBuf,
-//     pub uuid:            Uuid,
-//     pub server_hostname: String,
-//     pub server_addr:     SocketAddrV4,
-//     pub private_key:     Vec<u8>,
-//     pub cert_info:       CertInfo,
-// }
-//
-// impl InitCarry {
-//     pub fn new(
-//         root_ca_path: PathBuf,
-//         uuid: Uuid,
-//         server_hostname: String,
-//         server_addr: SocketAddrV4,
-//         private_key: Vec<u8>,
-//         cert_info: CertInfo,
-//     ) -> Arc<Self> {
-//         Arc::new(Self { root_ca_path, uuid, server_hostname, server_addr,
-// private_key, cert_info })     }
-// }
-//
-// async fn init_data_handler(
-//     _req: &HttpRequest,
-//     Json(data): Json<InitData>,
-//     carry: Data<Arc<InitCarry>>,
-// ) -> ControlFlow<HttpResponse, ()> {
-//     match data {
-//         InitData::Bootstrap { root_ca_pem, .. } => {
-//             if let Err(e) = atomic_write(&carry.root_ca_path,
-// &root_ca_pem).await {                 tracing::error!("寫入 RootCA 憑證失敗:
-// {:?}", e);                 return
-// ControlFlow::Break(api_resp!(InternalServerError "寫入 RootCA 憑證失敗"));
-//             }
-//             let mut san_extend = carry.cert_info.san.clone();
-//             san_extend.push(carry.uuid.to_string());
-//             let csr_pem = match CertUtils::generate_csr(
-//                 carry.private_key.clone(),
-//                 &carry.cert_info.country,
-//                 &carry.cert_info.state,
-//                 &carry.cert_info.locality,
-//                 ProjectConst::PROJECT_NAME,
-//                 format!("{}.chm.com", &carry.cert_info.cn).as_str(),
-//                 san_extend,
-//             ) {
-//                 Ok(csr) => csr,
-//                 Err(e) => {
-//                     tracing::error!("生成 CSR 失敗: {:?}", e);
-//                     return ControlFlow::Break(api_resp!(InternalServerError
-// "生成 CSR 失敗"));                 }
-//             };
-//             let service_desp = ServiceDescriptor {
-//                 kind:        ServiceKind::Ldap,
-//                 uri:         format!("https://{}:{}", carry.uuid, carry.server_addr.port()),
-//                 health_name: Some("ldap.LdapService".to_string()),
-//                 is_server:   true,
-//                 hostname:    ID.to_string(),
-//                 uuid:        carry.uuid,
-//             };
-//             let resp = BootstrapResp { csr_pem, socket: carry.server_addr,
-// service_desp };             return ControlFlow::Break(api_resp!(ok
-// "初始化交換成功", resp));         }
-//         InitData::Finalize { id, cert_pem, controller_pem, controller_uuid,
-// .. } => {             if id != carry.uuid {
-//                 tracing::warn!("收到的 UUID 與預期不符，拒絕接收憑證");
-//                 return ControlFlow::Break(api_resp!(BadRequest "UUID 不符"));
-//             }
-//             if let Err(e) = CertUtils::save_cert(ID, &carry.private_key,
-// &cert_pem) {                 tracing::error!("保存憑證失敗: {:?}", e);
-//                 return ControlFlow::Break(api_resp!(InternalServerError
-// "保存憑證失敗"));             }
-//             GlobalConfig::update_with(|cfg| {
-//                 let cert =
-//
-// CertUtils::load_cert_from_bytes(&controller_pem).expect("
-// 無法載入剛接收的憑證");                 cfg.extend.controller.serial =
-//
-// CertUtils::cert_serial_sha256(&cert).expect("無法計算Serial");
-// cfg.extend.controller.fingerprint = CertUtils::cert_fingerprint_sha256(&cert)
-//                     .expect(
-//                         "
-//             無法計算fingerprint",
-//                     );
-//                 cfg.extend.controller.uuid = controller_uuid;
-//             });
-//             if let Err(e) = GlobalConfig::save_config().await {
-//                 tracing::error!("保存配置檔案失敗: {:?}", e);
-//                 return ControlFlow::Break(api_resp!(InternalServerError
-// "保存配置檔案失敗"));             }
-//             if let Err(e) = GlobalConfig::reload_config().await {
-//                 tracing::error!("重新載入配置檔案失敗: {:?}", e);
-//                 return ControlFlow::Break(api_resp!(InternalServerError
-// "重新載入配置檔案失敗"));             }
-//             tracing::info!("初始化完成，已接收憑證");
-//         }
-//     }
-//     ControlFlow::Continue(())
-// }
-// declare_init_route!(init_data_handler, data = InitData,extras = (carry:
-// Arc<InitCarry>));
-
 software_init_define!(
     kind = ServiceKind::Ldap,
     health_name = Some("ldap.LdapService".to_string()),
@@ -154,7 +49,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     });
     tracing::info!("正在啟動Ldap...");
     let (_cert_update_tx, mut cert_update_rx) = watch::channel(());
-
     loop {
         let (key, cert) = CertUtils::cert_from_path(&cert_path, &key_path, None)?;
         let identity = Identity::from_pem(cert, key);
