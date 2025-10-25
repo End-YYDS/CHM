@@ -221,6 +221,9 @@ pub struct PcSimple {
     pub hostname: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub ip:       ::prost::alloc::string::String,
+    /// true: online, false: offline
+    #[prost(bool, tag = "3")]
+    pub status:   bool,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetAllPcsResponse {
@@ -272,8 +275,9 @@ pub struct RebootPcsRequest {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RebootPcsResponse {
-    #[prost(message, optional, tag = "1")]
-    pub result: ::core::option::Option<super::common::ResponseResult>,
+    #[prost(map = "string, message", tag = "1")]
+    pub results:
+        ::std::collections::HashMap<::prost::alloc::string::String, super::common::ResponseResult>,
 }
 /// Shutdown POST /api/chm/pc/shutdown
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -283,8 +287,9 @@ pub struct ShutdownPcsRequest {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ShutdownPcsResponse {
-    #[prost(message, optional, tag = "1")]
-    pub result: ::core::option::Option<super::common::ResponseResult>,
+    #[prost(map = "string, message", tag = "1")]
+    pub results:
+        ::std::collections::HashMap<::prost::alloc::string::String, super::common::ResponseResult>,
 }
 /// 取得所有 PC 群組資訊 GET /api/chm/pcgroup
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]

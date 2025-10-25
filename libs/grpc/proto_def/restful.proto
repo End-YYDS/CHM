@@ -169,6 +169,7 @@ message GetAllPcsRequest {}
 message PcSimple {
   string hostname = 1;
   string ip = 2;
+  bool status = 3; // true: online, false: offline
 }
 message GetAllPcsResponse {
   map<string, PcSimple> pcs = 1; // key = uuid
@@ -199,7 +200,7 @@ message RebootPcsRequest {
   repeated string uuids = 1;
 }
 message RebootPcsResponse {
-  common.ResponseResult result = 1;
+  map<string, common.ResponseResult> results = 1;
 }
 
 // Shutdown POST /api/chm/pc/shutdown
@@ -207,7 +208,7 @@ message ShutdownPcsRequest {
   repeated string uuids = 1;
 }
 message ShutdownPcsResponse {
-  common.ResponseResult result = 1;
+  map<string, common.ResponseResult> results = 1;
 }
 
 // ================= PC Group =================

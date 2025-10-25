@@ -48,7 +48,10 @@ pub struct DeletePcRequest {
 }
 #[derive(Debug, Serialize)]
 pub struct DeletePcResponse {
-    pub uuids: HashMap<String, ResponseResult>,
+    #[serde(rename = "Pcs")]
+    pub pcs:    HashMap<String, ResponseResult>,
+    #[serde(rename = "Length")]
+    pub length: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -73,16 +76,16 @@ pub struct Vxlanid {
     pub pcs:       Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct Groups {
-    #[serde(rename = "vxlanid")]
-    pub vxlanid: Vxlanid,
-}
+// #[derive(Debug, Serialize)]
+// pub struct Groups {
+//     #[serde(rename = "vxlanid")]
+//     pub vxlanid: Vxlanid,
+// }
 
 #[derive(Debug, Serialize)]
 pub struct GetPcgroupResponseResult {
     #[serde(rename = "Groups")]
-    pub groups: Groups,
+    pub groups: HashMap<String, Vxlanid>,
     #[serde(rename = "Length")]
     pub length: usize,
 }
@@ -115,4 +118,20 @@ pub struct PatchPcgroupRequest {
 pub struct DeletePcGroupRequest {
     #[serde(rename = "Vxlanid")]
     pub vxlanid: i64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RebootPcResponse {
+    #[serde(rename = "Pcs")]
+    pub pcs:    HashMap<String, ResponseResult>,
+    #[serde(rename = "Length")]
+    pub length: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ShutdownPcResponse {
+    #[serde(rename = "Pcs")]
+    pub pcs:    HashMap<String, ResponseResult>,
+    #[serde(rename = "Length")]
+    pub length: usize,
 }
