@@ -242,11 +242,17 @@ message PutPcGroupResponse {
   common.ResponseResult result = 1;
 }
 
+message Pcs {
+  repeated string pcs = 1;
+}
+
 // 更新 Group 單一內容 PATCH /api/chm/pcgroup
 message PatchPcGroupRequest {
   int64 vxlanid = 1;
-  // 只更改單一欄位：目前文件僅示範 Groupname
-  string groupname = 2;
+  oneof kind {
+    string groupname = 2;
+    Pcs pcs = 3;
+  }
 }
 message PatchPcGroupResponse {
   common.ResponseResult result = 1;

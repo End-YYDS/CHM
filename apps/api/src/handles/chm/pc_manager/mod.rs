@@ -1,5 +1,5 @@
 use crate::{
-    commons::{ResponseResult, ResponseType},
+    commons::ResponseResult,
     handles::chm::pc_manager::types::{
         DeletePcGroupRequest, DeletePcRequest, DeletePcResponse, GetPcgroupResponseResult,
         PCManagerRequest, PatchPcgroupRequest, PcInformation, PostPcgroupRequest,
@@ -227,19 +227,76 @@ async fn get_pcgroup(
 }
 
 #[put("")]
-async fn put_pcgroup(data: web::Json<PutPcgroupRequest>) -> web::Json<ResponseResult> {
-    println!("{data:#?}");
-    web::Json(ResponseResult { r#type: ResponseType::Ok, message: "Put PC Group".to_string() })
+async fn put_pcgroup(
+    app_state: web::Data<AppState>,
+    web::Json(data): web::Json<PutPcgroupRequest>,
+) -> actix_web::Result<web::Json<ResponseResult>> {
+    dbg!(&data);
+    let mut client = app_state.gclient.clone();
+    let data: chm_grpc::restful::PutPcGroupRequest = data.into();
+    let resp = client
+        .put_pc_group(data)
+        .await
+        .map_err(|status| match status.code() {
+            tonic::Code::Cancelled | tonic::Code::Unavailable => {
+                actix_web::error::ErrorBadGateway(format!("gRPC 連線中斷: {}", status.message()))
+            }
+            _ => actix_web::error::ErrorInternalServerError(format!(
+                "gRPC 失敗: {}",
+                status.message()
+            )),
+        })?
+        .into_inner()
+        .into();
+    Ok(web::Json(resp))
 }
 
 #[patch("")]
-async fn patch_pcgroup(data: web::Json<PatchPcgroupRequest>) -> web::Json<ResponseResult> {
-    println!("{data:#?}");
-    web::Json(ResponseResult { r#type: ResponseType::Ok, message: "Patch PC Group".to_string() })
+async fn patch_pcgroup(
+    app_state: web::Data<AppState>,
+    web::Json(data): web::Json<PatchPcgroupRequest>,
+) -> actix_web::Result<web::Json<ResponseResult>> {
+    dbg!(&data);
+    let mut client = app_state.gclient.clone();
+    let data: chm_grpc::restful::PatchPcGroupRequest = data.into();
+    let resp = client
+        .patch_pc_group(data)
+        .await
+        .map_err(|status| match status.code() {
+            tonic::Code::Cancelled | tonic::Code::Unavailable => {
+                actix_web::error::ErrorBadGateway(format!("gRPC 連線中斷: {}", status.message()))
+            }
+            _ => actix_web::error::ErrorInternalServerError(format!(
+                "gRPC 失敗: {}",
+                status.message()
+            )),
+        })?
+        .into_inner()
+        .into();
+    Ok(web::Json(resp))
 }
 
 #[delete("")]
-async fn delete_pcgroup(data: web::Json<DeletePcGroupRequest>) -> web::Json<ResponseResult> {
+async fn delete_pcgroup(
+    app_state: web::Data<AppState>,
+    web::Json(data): web::Json<DeletePcGroupRequest>,
+) -> actix_web::Result<web::Json<ResponseResult>> {
     dbg!(&data);
-    web::Json(ResponseResult { r#type: ResponseType::Ok, message: "Delete PC Group".to_string() })
+    let mut client = app_state.gclient.clone();
+    let data: chm_grpc::restful::DeletePcGroupRequest = data.into();
+    let resp = client
+        .delete_pc_group(data)
+        .await
+        .map_err(|status| match status.code() {
+            tonic::Code::Cancelled | tonic::Code::Unavailable => {
+                actix_web::error::ErrorBadGateway(format!("gRPC 連線中斷: {}", status.message()))
+            }
+            _ => actix_web::error::ErrorInternalServerError(format!(
+                "gRPC 失敗: {}",
+                status.message()
+            )),
+        })?
+        .into_inner()
+        .into();
+    Ok(web::Json(resp))
 }

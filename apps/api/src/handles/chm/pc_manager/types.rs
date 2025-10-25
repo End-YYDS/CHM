@@ -100,18 +100,27 @@ pub struct DePutVxlanid {
 
 #[derive(Debug, Deserialize)]
 pub struct PutPcgroupRequest {
-    pub vxlanid: DePutVxlanid,
+    #[serde(flatten)]
+    pub data: HashMap<String, DePutVxlanid>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct DePatchVxlanid {
-    #[serde(rename = "Groupname")]
-    pub groupname: String,
+#[serde(untagged)]
+pub enum DePatchVxlanid {
+    Groupname {
+        #[serde(rename = "Groupname")]
+        groupname: String,
+    },
+    Pcs {
+        #[serde(rename = "Pcs")]
+        pcs: Vec<String>,
+    },
 }
 
 #[derive(Debug, Deserialize)]
 pub struct PatchPcgroupRequest {
-    pub vxlanid: DePatchVxlanid,
+    #[serde(flatten)]
+    pub data: HashMap<String, DePatchVxlanid>,
 }
 
 #[derive(Debug, Deserialize)]
