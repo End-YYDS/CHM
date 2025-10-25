@@ -266,7 +266,7 @@ pub async fn entry(args: Args) -> ConResult<()> {
         Command::Init(Init { .. }) => Ok(()),
         Command::Serve(Serve {}) => {
             tracing::info!("正在啟動Controller...");
-            supervisor::run_supervised(gclient.clone()).await?;
+            supervisor::run_supervised(gclient.clone(), config.clone()).await?;
             Ok(())
         }
     }
@@ -357,7 +357,7 @@ impl Node {
         Ok(())
     }
     pub async fn _remove(&self) -> ConResult<()> {
-        Ok(())
+        todo!("刪除服務尚未實作");
     }
 }
 

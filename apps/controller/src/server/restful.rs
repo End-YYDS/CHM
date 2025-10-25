@@ -8,12 +8,13 @@ use chm_grpc::{
     tonic,
     tonic::{Request, Response, Status},
 };
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
 // TODO: 由RestFul Server 為Client 調用Controller RestFul gRPC介面
 #[derive(Debug)]
 pub struct ControllerRestfulServer {
     pub grpc_clients: Arc<GrpcClients>,
+    pub config:       (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
 }
 
 #[tonic::async_trait]
@@ -186,7 +187,22 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<AddPcRequest>,
     ) -> Result<Response<AddPcResponse>, Status> {
-        todo!()
+        use crate::Node;
+        let req = request.into_inner();
+        let node_h = Node::new(
+            Some(req.ip),
+            Some(req.password),
+            self.grpc_clients.clone(),
+            self.config.clone(),
+        );
+        node_h.add(false).await.map_err(|e| Status::internal(e.to_string()))?;
+        let resp = AddPcResponse {
+            result: Some(ResponseResult {
+                r#type:  ResponseType::Ok as i32,
+                message: "添加主機成功".to_string(),
+            }),
+        };
+        Ok(Response::new(resp))
     }
 
     async fn get_all_pcs(

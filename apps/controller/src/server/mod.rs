@@ -12,6 +12,7 @@ use chm_grpc::{
 };
 use std::{
     net::{IpAddr, SocketAddr},
+    path::PathBuf,
     sync::Arc,
 };
 use tokio_util::sync::CancellationToken;
@@ -20,6 +21,7 @@ pub mod restful;
 pub async fn start_grpc(
     cancel: CancellationToken,
     grpc_clients: Arc<GrpcClients>,
+    config: (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
 ) -> ConResult<()> {
     let (ca_path, host, port, hostname) = GlobalConfig::with(|cfg| {
         (
@@ -43,7 +45,7 @@ pub async fn start_grpc(
     let (health_reporter, health_service) = health_reporter();
     health_reporter.set_serving::<RestfulServiceServer<ControllerRestfulServer>>().await;
     // TODO: 添加CRL 攔截器
-    let rest_svc = RestfulServiceServer::new(ControllerRestfulServer { grpc_clients })
+    let rest_svc = RestfulServiceServer::new(ControllerRestfulServer { grpc_clients, config })
         .send_compressed(CompressionEncoding::Zstd)
         .accept_compressed(CompressionEncoding::Zstd);
     let shutdown_signal = {
