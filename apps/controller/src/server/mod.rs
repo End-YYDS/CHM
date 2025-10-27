@@ -38,10 +38,13 @@ pub async fn start_grpc(
     let (key, cert) = CertUtils::cert_from_name(&hostname, None)?;
     let ident = Identity::from_pem(cert, key);
     let ca_cert = CertUtils::load_cert(ca_path)?.to_pem()?;
-    let tls = ServerTlsConfig::new()
+    let mut tls = ServerTlsConfig::new()
         .identity(ident)
         .client_ca_root(Certificate::from_pem(ca_cert))
         .client_auth_optional(true);
+    if cfg!(debug_assertions) {
+        tls = tls.use_key_log();
+    }
     let (health_reporter, health_service) = health_reporter();
     health_reporter.set_serving::<RestfulServiceServer<ControllerRestfulServer>>().await;
     // TODO: 添加CRL 攔截器

@@ -189,6 +189,7 @@ impl RestfulService for ControllerRestfulServer {
     ) -> Result<Response<AddPcResponse>, Status> {
         use crate::Node;
         let req = request.into_inner();
+        // Todo: 檢查IP格式及預先檢查是否已經存在於Config中
         let node_h = Node::new(
             Some(req.ip),
             Some(req.password),
@@ -209,6 +210,7 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetAllPcsRequest>,
     ) -> Result<Response<GetAllPcsResponse>, Status> {
+        // Todo: 只輸出Agent其他基礎Service不列出
         todo!()
     }
 
@@ -216,6 +218,7 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetSpecificPcsRequest>,
     ) -> Result<Response<GetSpecificPcsResponse>, Status> {
+        // Todo: 只有特定要抓Base Service的需求才會用到
         todo!()
     }
 
@@ -223,6 +226,7 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<DeletePcsRequest>,
     ) -> Result<Response<DeletePcsResponse>, Status> {
+        // Todo: lib.rs: 裡面的remove實作
         todo!()
     }
 
@@ -230,6 +234,7 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<RebootPcsRequest>,
     ) -> Result<Response<RebootPcsResponse>, Status> {
+        // 調用Agent的grpc fn
         todo!()
     }
 
@@ -237,6 +242,7 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<ShutdownPcsRequest>,
     ) -> Result<Response<ShutdownPcsResponse>, Status> {
+        // Todo: 調用Agent的grpc fn
         todo!()
     }
 

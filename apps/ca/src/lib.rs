@@ -256,9 +256,12 @@ pub async fn start_grpc(addr: SocketAddrV4, cert_handler: Arc<CertificateProcess
 
         let (key, cert) = CertUtils::cert_from_path(&cert, &key, None)?;
         let identity = Identity::from_pem(cert, key);
-        let tls = ServerTlsConfig::new().identity(identity).client_ca_root(
+        let mut tls = ServerTlsConfig::new().identity(identity).client_ca_root(
             tonic::transport::Certificate::from_pem(cert_handler.get_ca_cert().to_pem()?),
         );
+        if cfg!(debug_assertions) {
+            tls = tls.use_key_log();
+        }
         // 啟動健康檢查服務
         let (health_reporter, health_service) = health_reporter();
         health_reporter.set_serving::<CaServer<MyCa>>().await;

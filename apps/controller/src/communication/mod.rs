@@ -142,9 +142,12 @@ pub async fn init_channels_all(only_ca: bool) -> ConResult<GrpcClients> {
     let client_cert = tokio::fs::read(cert).await.map_err(|_| "無法讀取客戶端憑證")?;
     let client_key = tokio::fs::read(key).await.map_err(|_| "無法讀取客戶端金鑰")?;
 
-    let tls = ClientTlsConfig::new()
+    let mut tls = ClientTlsConfig::new()
         .ca_certificate(Certificate::from_pem(root_cert))
         .identity(Identity::from_pem(client_cert, client_key));
+    if cfg!(debug_assertions) {
+        tls = tls.use_key_log();
+    }
     let backoff = ExponentialBackoff {
         max_elapsed_time: Some(Duration::from_secs(15)),
         ..Default::default()
