@@ -67,7 +67,7 @@ impl FirstStart {
             &certinfo.state,
             &certinfo.locality,
             ProjectConst::PROJECT_NAME,
-            &certinfo.cn,
+            format!("{}.chm.com", &certinfo.cn).as_str(),
             san_extend,
         )?;
         let payload = InitData { csr_cert, days: 365, uuid: self.self_uuid };

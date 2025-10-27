@@ -54,7 +54,7 @@ reset-ldap: (reset-db LDAP_DATABASE_URL LDAP_FOLDER_MIGRATE)
 
 reset-dhcp: (reset-db DHCP_DATABASE_URL DHCP_FOLDER_MIGRATE)
 
-reset-all: reset-ca reset-dns reset-ldap
+reset-all: reset-ca reset-dns reset-ldap reset-dhcp
 
 migrate-ca: (migrate CA_DATABASE_URL CA_FOLDER_MIGRATE)
 
@@ -64,7 +64,7 @@ migrate-ldap: (migrate LDAP_DATABASE_URL LDAP_FOLDER_MIGRATE)
 
 migrate-dhcp: (migrate DHCP_DATABASE_URL DHCP_FOLDER_MIGRATE)
 
-migrate-all: migrate-ca migrate-dns migrate-ldap
+migrate-all: migrate-ca migrate-dns migrate-ldap reset-dhcp
 
 # 開發環境
 run-ca args="":
@@ -90,11 +90,11 @@ run-hostd args="":
 
 run-ldap args="":
     @[[ ! -f "{{ DB_FOLDER }}/ids.db" ]] && just create-ldap-db || true
-    @RUST_LOG=trace,ldap=debug,CHM_ldapd=debug cargo run -p ldap --bin CHM_ldapd -- {{ args }}
+    @DATABASE_URL={{ LDAP_DATABASE_URL }} RUST_LOG=trace,ldap=debug,CHM_ldapd=debug cargo run -p ldap --bin CHM_ldapd -- {{ args }}
 
 run-dhcp args="":
     @[[ ! -f "{{ DB_FOLDER }}/dhcp.db" ]] && just create-dhcp-db || true
-    @RUST_LOG=dhcp=debug,CHM_dhcpd=debug cargo run -p dhcp --bin CHM_dhcpd -- {{ args }}
+    @DATABASE_URL={{ DHCP_DATABASE_URL }} RUST_LOG=dhcp=debug,CHM_dhcpd=debug cargo run -p dhcp --bin CHM_dhcpd -- {{ args }}
 
 run-api-client args="":
     @RUST_LOG=CHM_API=debug,api_server=debug,chm_cluster_utils=debug cargo run -p api_server --bin client -- {{ args }}
@@ -134,11 +134,11 @@ run-r-api args="":
 
 run-r-ldap args="":
     @[[ ! -f "{{ DB_FOLDER }}/ids.db" ]] && just create-ldap-db || true
-    @RUST_LOG=trace,ldap=info,CHM_ldapd=info cargo run -p ldap --bin CHM_ldapd -r -- {{ args }}
+    @DATABASE_URL={{ LDAP_DATABASE_URL }} RUST_LOG=trace,ldap=info,CHM_ldapd=info cargo run -p ldap --bin CHM_ldapd -r -- {{ args }}
 
 run-r-dhcp args="":
     @[[ ! -f "{{ DB_FOLDER }}/dhcp.db" ]] && just create-dhcp-db || true
-    @RUST_LOG=dhcp=info,CHM_dhcpd=info cargo run -p dhcp --bin CHM_dhcpd -r -- {{ args }}
+    @DATABASE_URL={{ DHCP_DATABASE_URL }} RUST_LOG=dhcp=info,CHM_dhcpd=info cargo run -p dhcp --bin CHM_dhcpd -r -- {{ args }}
 
 run-r-agentd args="":
     @RUST_LOG=agent=info,CHM_agentd=info cargo run -p agent --bin CHM_agentd -r -- {{ args }}

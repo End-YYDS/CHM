@@ -962,15 +962,27 @@ pub struct UserEntry {
     /// Username
     #[prost(string, tag = "1")]
     pub username:       ::prost::alloc::string::String,
-    /// Group
-    #[prost(string, repeated, tag = "2")]
-    pub group:          ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    /// Home_directory
+    #[prost(string, tag = "2")]
+    pub password:       ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub home_directory: ::prost::alloc::string::String,
-    /// Shell
+    pub cn:             ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
+    pub sn:             ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub home_directory: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
     pub shell:          ::prost::alloc::string::String,
+    #[prost(string, tag = "7")]
+    pub given_name:     ::prost::alloc::string::String,
+    #[prost(string, tag = "8")]
+    pub display_name:   ::prost::alloc::string::String,
+    #[prost(string, tag = "9")]
+    pub gid_number:     ::prost::alloc::string::String,
+    /// Group
+    #[prost(string, repeated, tag = "10")]
+    pub group:          ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, tag = "11")]
+    pub gecos:          ::prost::alloc::string::String,
 }
 /// 取得所有使用者資訊  GET /api/chm/user
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -987,14 +999,8 @@ pub struct GetUsersResponse {
 /// 新增 User  POST /api/chm/user
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateUserRequest {
-    #[prost(string, tag = "1")]
-    pub username:       ::prost::alloc::string::String,
-    #[prost(string, repeated, tag = "2")]
-    pub group:          ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    #[prost(string, tag = "3")]
-    pub home_directory: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub shell:          ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "1")]
+    pub user: ::core::option::Option<UserEntry>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateUserResponse {
@@ -1020,13 +1026,26 @@ pub struct PutUsersResponse {
 pub struct UserPatch {
     #[prost(string, optional, tag = "1")]
     pub username:       ::core::option::Option<::prost::alloc::string::String>,
-    /// 若只改 Username，其餘欄位可不帶
-    #[prost(string, repeated, tag = "2")]
-    pub group:          ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "2")]
+    pub password:       ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "3")]
-    pub home_directory: ::core::option::Option<::prost::alloc::string::String>,
+    pub cn:             ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "4")]
+    pub sn:             ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "5")]
+    pub home_directory: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "6")]
     pub shell:          ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "7")]
+    pub given_name:     ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "8")]
+    pub display_name:   ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "9")]
+    pub gid_number:     ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, repeated, tag = "10")]
+    pub group:          ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "11")]
+    pub gecos:          ::core::option::Option<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchUsersRequest {
