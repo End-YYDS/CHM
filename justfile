@@ -82,6 +82,12 @@ run-controller args="":
 run-api args="":
     @RUST_LOG=CHM_API=debug,api_server=debug,chm_cluster_utils=debug cargo run -p api_server --bin CHM_API -- {{ args }}
 
+run-agentd args="":
+    @RUST_LOG=agent=debug,CHM_agentd=debug cargo run -p agent --bin CHM_agentd -- {{ args }}
+
+run-hostd args="":
+    @RUST_LOG=agent=debug,CHM_hostd=debug cargo run -p agent --bin CHM_hostd -- {{ args }}
+
 run-ldap args="":
     @[[ ! -f "{{ DB_FOLDER }}/ids.db" ]] && just create-ldap-db || true
     @RUST_LOG=trace,ldap=debug,CHM_ldapd=debug cargo run -p ldap --bin CHM_ldapd -- {{ args }}
@@ -133,6 +139,12 @@ run-r-ldap args="":
 run-r-dhcp args="":
     @[[ ! -f "{{ DB_FOLDER }}/dhcp.db" ]] && just create-dhcp-db || true
     @RUST_LOG=dhcp=info,CHM_dhcpd=info cargo run -p dhcp --bin CHM_dhcpd -r -- {{ args }}
+
+run-r-agentd args="":
+    @RUST_LOG=agent=info,CHM_agentd=info cargo run -p agent --bin CHM_agentd -r -- {{ args }}
+
+run-r-hostd args="":
+    @RUST_LOG=agent=info,CHM_hostd=info cargo run -p agent --bin CHM_hostd -r -- {{ args }}
 
 # Todo: 添加release編譯
 sqlx-prepare:

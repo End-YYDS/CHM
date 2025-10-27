@@ -3,12 +3,34 @@ name = "agent"
 version = { workspace = true }
 edition = { workspace = true }
 
-[dependencies]
-prost = "0.13.4"
-tokio = { version = "1.43.0", features = ["macros", "rt-multi-thread"] }
-tonic = "0.12.3"
-grpc = { path = "../../libs/grpc", features = ["client"] }
-config = { path = "../../libs/config" }
+[[bin]]
+name = "CHM_agentd"
+path = "src/agentd/main.rs"
 
-[build-dependencies]
-tonic-build = "0.12.3"
+[[bin]]
+name = "CHM_hostd"
+path = "src/hostd/main.rs"
+
+[dependencies]
+anyhow = "1.0"
+argh = { workspace = true }
+base64 = { workspace = true }
+caps = "0.5"
+chm-cert-utils = { workspace = true }
+chm-cluster-utils = { workspace = true, features = ["server", "grpc-server"], default-features = true }
+chm-config_bus = { workspace = true }
+chm-grpc = { workspace = true, features = ["agent-server"] }
+chm-project_const = { workspace = true }
+chrono = { workspace = true }
+ipnetwork = "0.21.1"
+pnet_datalink = "0.34"
+prost = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sysinfo = { workspace = true }
+tempfile = "3"
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal", "sync"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+users = "0.11"
+uuid = { workspace = true, features = ["v4"] }

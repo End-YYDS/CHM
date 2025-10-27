@@ -1,20 +1,21 @@
 [workspace]
 members = [
-  "apps/api",
-  "apps/ca",
-  "apps/controller",
-  "apps/dns",
-  "apps/ldap",
-  "apps/dhcp",
-  "libs/cert-utils",
-  "libs/cluster-utils",
-  "libs/config-bus",
-  "libs/config_loader",
-  "libs/crl_cache",
-  "libs/dns_resolver",
-  "libs/grpc",
-  "libs/password",
-  "libs/project_const",
+    "apps/agent",
+    "apps/api",
+    "apps/ca",
+    "apps/controller",
+    "apps/dhcp",
+    "apps/dns",
+    "apps/ldap",
+    "libs/cert-utils",
+    "libs/cluster-utils",
+    "libs/config-bus",
+    "libs/config_loader",
+    "libs/crl_cache",
+    "libs/dns_resolver",
+    "libs/grpc",
+    "libs/password",
+    "libs/project_const",
 ]
 resolver = "2"
 [workspace.package]
@@ -59,7 +60,7 @@ reqwest = { version = "0.12.20", features = ["json", "rustls-tls"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.142"
 sqlx = { version = "0.8.6", features = ["sqlite", "postgres", "uuid", "ipnetwork", "macros", "chrono", "runtime-tokio", "migrate"] }
-sysinfo = "0.37.1"
+sysinfo = "0.37.2"
 thiserror = "2.0.12"
 tokio = { version = "1.43.0", default-features = false }
 tokio-util = "0.7.16"

@@ -8,21 +8,21 @@ name = "CHM_dhcpd"
 path = "src/main.rs"
 
 [dependencies]
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-ipnetwork = "0.21.1"
-sqlx = { workspace = true }
-thiserror = { workspace = true }
-serde_json = { workspace = true }
-chm-grpc = { workspace = true, features = ["dhcp"] }
-chm-dns_resolver = { workspace = true }
-chm-project_const = { workspace = true }
-chm-config_bus = { workspace = true }
 argh = { workspace = true }
+chm-cert-utils = { workspace = true }
 chm-cluster-utils = { workspace = true, features = [
   "server",
   "grpc-server",
 ], default-features = true }
+chm-config_bus = { workspace = true }
+chm-dns_resolver = { workspace = true }
+chm-grpc = { workspace = true, features = ["dhcp"] }
+chm-project_const = { workspace = true }
+ipnetwork = "0.21.1"
 serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-chm-cert-utils = { workspace = true }

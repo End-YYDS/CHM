@@ -1,0 +1,218 @@
+syntax = "proto3";
+
+package agent;
+
+message CommandResponse {
+  oneof payload {
+    AgentInfo agent_info = 1;
+    ProcessInfo process_info = 2;
+    CronJobs cron_jobs = 3;
+    FirewallStatus firewall_status = 4;
+    ReturnInfo return_info = 5;
+    RawResponse raw = 6;
+    NetworkInterfaces network_interfaces = 7;
+    RouteTable route_table = 8;
+    DnsInfo dns_info = 9;
+    ParentDirectory parent_directory = 10;
+    SoftwareInventory software_inventory = 11;
+    Logs logs = 12;
+  }
+}
+
+message CommandRequest {
+  string command = 1;
+  optional string argument = 2;
+}
+
+service AgentService {
+  rpc ExecuteCommand(CommandRequest) returns (CommandResponse);
+}
+
+service AgentInfoService {
+  rpc GetInfo(GetInfoRequest) returns (AgentInfo);
+}
+
+message GetInfoRequest {}
+
+message FileUploadRequest {
+  string path = 1;
+  string file = 2;
+}
+
+message FileDownloadRequest {
+  string path = 1;
+  string filename = 2;
+}
+
+message FileDownloadResponse {
+  oneof result {
+    string file = 1;
+    ReturnInfo return_info = 2;
+  }
+}
+
+service AgentFileService {
+  rpc FilePdirUpload(FileUploadRequest) returns (ReturnInfo);
+  rpc FilePdirDownload(FileDownloadRequest) returns (FileDownloadResponse);
+}
+
+message AgentInfo {
+  float cpu = 1;
+  float mem = 2;
+  float disk = 3;
+}
+
+message ProcessStatus {
+  bool status = 1;
+  bool boot = 2;
+}
+
+message ProcessEntry {
+  string name = 1;
+  ProcessStatus status = 2;
+}
+
+message ProcessInfo {
+  repeated ProcessEntry entries = 1;
+  uint32 length = 2;
+}
+
+message CronSchedule {
+  int32 minute = 1;
+  int32 hour = 2;
+  int32 date = 3;
+  int32 month = 4;
+  int32 week = 5;
+}
+
+message CronJob {
+  string id = 1;
+  string name = 2;
+  string command = 3;
+  CronSchedule schedule = 4;
+  string username = 5;
+}
+
+message CronJobs {
+  repeated CronJob jobs = 1;
+  uint32 length = 2;
+}
+
+message ReturnInfo {
+  string type = 1;
+  string message = 2;
+}
+
+message RawResponse {
+  string data = 1;
+}
+
+message FirewallRule {
+  string id = 1;
+  string target = 2;
+  string protocol = 3;
+  string in = 4;
+  string out = 5;
+  string source = 6;
+  string destination = 7;
+  string options = 8;
+}
+
+message FirewallChain {
+  string name = 1;
+  string policy = 2;
+  repeated FirewallRule rules = 3;
+  uint32 rules_length = 4;
+}
+
+message FirewallStatus {
+  string status = 1;
+  repeated FirewallChain chains = 2;
+}
+
+message NetworkInterface {
+  string id = 1;
+  string type = 2;
+  string ipv4 = 3;
+  string netmask = 4;
+  string mac = 5;
+  string broadcast = 6;
+  uint32 mtu = 7;
+  string status = 8;
+}
+
+message NetworkInterfaces {
+  repeated NetworkInterface interfaces = 1;
+  uint32 length = 2;
+}
+
+enum DirectorySizeUnit {
+  DIRECTORY_SIZE_UNSPECIFIED = 0;
+  B = 1;
+  KB = 2;
+  MB = 3;
+  GB = 4;
+}
+
+message DirectoryEntry {
+  double size = 1;
+  DirectorySizeUnit unit = 2;
+  string owner = 3;
+  string mode = 4;
+  string modified = 5;
+}
+
+message ParentDirectory {
+  map<string, DirectoryEntry> files = 1;
+  uint32 length = 2;
+}
+
+enum PackageStatus {
+  PACKAGE_STATUS_UNSPECIFIED = 0;
+  INSTALLED = 1;
+  NOTINSTALL = 2;
+}
+
+message SoftwarePackage {
+  string version = 1;
+  PackageStatus status = 2;
+}
+
+message SoftwareInventory {
+  map<string, SoftwarePackage> packages = 1;
+}
+
+message LogEntry {
+  string month = 1;
+  int32 day = 2;
+  string time = 3;
+  string hostname = 4;
+  string type = 5;
+  string messages = 6;
+}
+
+message Logs {
+  map<string, LogEntry> logs = 1;
+  uint32 length = 2;
+}
+
+message RouteEntry {
+  string destination = 1;
+  string via = 2;
+  string dev = 3;
+  string proto = 4;
+  int32 metric = 5;
+  string scope = 6;
+  string src = 7;
+}
+
+message RouteTable {
+  map<string, RouteEntry> routes = 1;
+  uint32 length = 2;
+}
+
+message DnsInfo {
+  string hostname = 1;
+  string primary = 2;
+  string secondary = 3;
+}
