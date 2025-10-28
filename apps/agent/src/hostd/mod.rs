@@ -1,1 +1,1553 @@
-mod error;
+#![cfg(target_family = "unix")]
+
+use base64::{engine::general_purpose, Engine as _};
+use chrono::{DateTime, Datelike, Local};
+use pnet::{
+    datalink::{interfaces, NetworkInterface},
+    ipnetwork::IpNetwork,
+};
+use serde::{Deserialize, Serialize};
+use serde_json;
+use std::{
+    collections::{BTreeMap, BTreeSet, VecDeque},
+    fs,
+    io::{self, BufRead, BufReader},
+    os::unix::fs::{FileTypeExt, MetadataExt},
+    path::Path,
+    process::{Command, Output},
+};
+use sysinfo::{
+    DiskRefreshKind, Disks, MemoryRefreshKind, ProcessRefreshKind, ProcessStatus, System,
+};
+use users::get_user_by_uid;
+
+const META_PREFIX: &str = "# agent_meta:";
+const SYSLOG_CANDIDATES: [&str; 2] = ["/var/log/syslog", "/var/log/messages"];
+const LOG_ENTRY_LIMIT: usize = 20;
+
+fn is_allowed_script(command: &str) -> bool {
+    let trimmed = command.trim();
+    trimmed.starts_with("printf '")
+        && trimmed.contains("| base64 -d | sh")
+        && !trimmed.contains(';')
+}
+
+/// Run a shell command and return stdout/stderr
+pub fn execute_command(command: &str) -> io::Result<Output> {
+    if !is_allowed_script(command) {
+        tracing::warn!("拒絕執行未授權指令: {command}");
+        return Err(io::Error::new(io::ErrorKind::PermissionDenied, "command pattern not allowed"));
+    }
+    Command::new("sh").arg("-c").arg(command).output()
+}
+
+/// Execute sysinfo-oriented requests
+pub fn execute_sysinfo(command: &str) -> Result<String, String> {
+    let trimmed = command.trim();
+    if trimmed.is_empty() {
+        return Err("no sysinfo request provided".to_string());
+    }
+
+    let mut parts = trimmed.splitn(2, ' ');
+    let keyword = parts.next().ok_or_else(|| "no sysinfo request provided".to_string())?;
+    let argument = parts.next().map(str::trim);
+
+    let mut sys = System::new_all();
+    sys.refresh_all();
+
+    match keyword {
+        "cpu_status" => {
+            sys.refresh_cpu_usage();
+            let cpu_usage = sys.global_cpu_usage();
+            Ok(format!("{:.2}", cpu_usage))
+        }
+        "memory_status" => {
+            sys.refresh_memory_specifics(MemoryRefreshKind::nothing().with_ram());
+            let memory_usage = sys.used_memory();
+            Ok(format!("{:.2}", memory_usage))
+        }
+        "disk_status" => {
+            let disk_usage = Disks::new_with_refreshed_list_specifics(
+                DiskRefreshKind::nothing().with_io_usage(),
+            )
+            .iter()
+            .map(|disk| disk.total_space() - disk.available_space())
+            .sum::<u64>();
+            Ok(format!("{:.2}", disk_usage))
+        }
+        "process_list" => collect_process_info(&mut sys).and_then(|dto| {
+            serde_json::to_string(&dto).map_err(|e| format!("failed to encode process info: {}", e))
+        }),
+        "firewall_status" => firewall_status().and_then(|status| {
+            serde_json::to_string(&status)
+                .map_err(|e| format!("failed to encode firewall status: {}", e))
+        }),
+        "netif_status" => collect_network_interfaces().and_then(|dto| {
+            serde_json::to_string(&dto)
+                .map_err(|e| format!("failed to encode network interfaces: {}", e))
+        }),
+        "route_status" => collect_route_table().and_then(|dto| {
+            serde_json::to_string(&dto).map_err(|e| format!("failed to encode route table: {}", e))
+        }),
+        "dns_status" => collect_dns_info().and_then(|dto| {
+            serde_json::to_string(&dto).map_err(|e| format!("failed to encode dns info: {}", e))
+        }),
+        "cron_jobs" => {
+            serialize_cron_jobs().map_err(|e| format!("failed to collect cron jobs: {}", e))
+        }
+        "software_status" => collect_software_inventory().and_then(|dto| {
+            serde_json::to_string(&dto)
+                .map_err(|e| format!("failed to encode software inventory: {}", e))
+        }),
+        "log_status" => collect_log_entries(None).and_then(|dto| {
+            serde_json::to_string(&dto).map_err(|e| format!("failed to encode log entries: {}", e))
+        }),
+        "log_query" => {
+            let encoded = argument.ok_or_else(|| "log_query requires an argument".to_string())?;
+            let query = decode_log_query_argument(encoded)?;
+            collect_log_entries(Some((query.search, query.parameter))).and_then(|dto| {
+                serde_json::to_string(&dto)
+                    .map_err(|e| format!("failed to encode log entries: {}", e))
+            })
+        }
+        "pdir_status" => {
+            let directory = match argument {
+                Some(encoded) if !encoded.is_empty() => decode_directory_argument(encoded)?,
+                _ => "/".to_string(),
+            };
+
+            collect_parent_directory(&directory).and_then(|dto| {
+                serde_json::to_string(&dto)
+                    .map_err(|e| format!("failed to encode directory info: {}", e))
+            })
+        }
+        other => Err(format!("unknown sysinfo command: {}", other)),
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "PascalCase")]
+struct CronScheduleDto {
+    minute: i32,
+    hour:   i32,
+    date:   i32,
+    month:  i32,
+    week:   i32,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "PascalCase")]
+struct CronJobDto {
+    id:       String,
+    name:     String,
+    command:  String,
+    schedule: CronScheduleDto,
+    username: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct CronJobsDto {
+    jobs:   Vec<CronJobDto>,
+    length: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+struct CronMeta {
+    id:   String,
+    name: String,
+}
+
+#[derive(Deserialize)]
+struct DirectoryArgumentDto {
+    #[serde(rename = "Directory")]
+    directory: Option<String>,
+}
+
+#[derive(Serialize)]
+struct ParentDirectoryDto {
+    #[serde(rename = "Files")]
+    files:  BTreeMap<String, DirectoryEntryDto>,
+    #[serde(rename = "Length")]
+    length: usize,
+}
+
+#[derive(Serialize)]
+struct DirectoryEntryDto {
+    #[serde(rename = "Size")]
+    size:     f64,
+    #[serde(rename = "Unit")]
+    unit:     String,
+    #[serde(rename = "Owner")]
+    owner:    String,
+    #[serde(rename = "Mode")]
+    mode:     String,
+    #[serde(rename = "Modified")]
+    modified: String,
+}
+
+#[derive(Serialize)]
+struct SoftwareInventoryDto {
+    #[serde(rename = "Packages")]
+    packages: BTreeMap<String, SoftwarePackageDto>,
+}
+
+#[derive(Serialize)]
+struct SoftwarePackageDto {
+    #[serde(rename = "Version")]
+    version: String,
+    #[serde(rename = "Status")]
+    status:  String,
+}
+
+#[derive(Serialize)]
+struct LogsDto {
+    #[serde(rename = "Logs")]
+    logs:   BTreeMap<String, LogEntryDto>,
+    #[serde(rename = "Length")]
+    length: usize,
+}
+
+#[derive(Serialize, Clone)]
+struct LogEntryDto {
+    #[serde(rename = "Month")]
+    month:    String,
+    #[serde(rename = "Day")]
+    day:      i32,
+    #[serde(rename = "Time")]
+    time:     String,
+    #[serde(rename = "Hostname")]
+    hostname: String,
+    #[serde(rename = "Type")]
+    r#type:   String,
+    #[serde(rename = "Messages")]
+    messages: String,
+}
+
+#[derive(Deserialize)]
+struct LogQueryDto {
+    #[serde(rename = "Search")]
+    search:    LogSearchField,
+    #[serde(rename = "Parameter")]
+    parameter: String,
+}
+
+#[derive(Deserialize, Clone, Copy)]
+#[serde(rename_all = "PascalCase")]
+enum LogSearchField {
+    Month,
+    Day,
+    Time,
+    Hostname,
+    Type,
+}
+
+#[derive(Serialize)]
+pub struct FirewallStatusDto {
+    #[serde(rename = "Status")]
+    status: String,
+    #[serde(rename = "Chains")]
+    chains: Vec<FirewallChainDto>,
+}
+
+#[derive(Serialize)]
+pub struct ProcessInfoDto {
+    #[serde(rename = "Entries")]
+    entries: Vec<ProcessEntryDto>,
+    #[serde(rename = "Length")]
+    length:  usize,
+}
+
+#[derive(Serialize)]
+pub struct ProcessEntryDto {
+    #[serde(rename = "Name")]
+    name:   String,
+    #[serde(rename = "Status")]
+    status: ProcessStatusDto,
+}
+
+#[derive(Serialize)]
+pub struct ProcessStatusDto {
+    #[serde(rename = "Status")]
+    status: bool,
+    #[serde(rename = "Boot")]
+    boot:   bool,
+}
+
+#[derive(Serialize)]
+pub struct FirewallChainDto {
+    #[serde(rename = "Name")]
+    name:         String,
+    #[serde(rename = "Policy")]
+    policy:       String,
+    #[serde(rename = "Rules")]
+    rules:        Vec<FirewallRuleDto>,
+    #[serde(rename = "Rules_Length")]
+    rules_length: usize,
+}
+
+#[derive(Serialize)]
+pub struct FirewallRuleDto {
+    #[serde(rename = "Id")]
+    id:            String,
+    #[serde(rename = "Target")]
+    target:        String,
+    #[serde(rename = "Protocol")]
+    protocol:      String,
+    #[serde(rename = "In")]
+    in_interface:  String,
+    #[serde(rename = "Out")]
+    out_interface: String,
+    #[serde(rename = "Source")]
+    source:        String,
+    #[serde(rename = "Destination")]
+    destination:   String,
+    #[serde(rename = "Options")]
+    options:       String,
+}
+
+#[derive(Serialize)]
+pub struct NetworkInterfacesDto {
+    #[serde(rename = "Networks")]
+    networks: BTreeMap<String, NetworkInterfaceDto>,
+    #[serde(rename = "Length")]
+    length:   usize,
+}
+
+#[derive(Serialize)]
+pub struct NetworkInterfaceDto {
+    #[serde(rename = "Name")]
+    name:       String,
+    #[serde(rename = "Type")]
+    iface_type: String,
+    #[serde(rename = "Ipv4")]
+    ipv4:       String,
+    #[serde(rename = "Netmask")]
+    netmask:    String,
+    #[serde(rename = "Mac")]
+    mac:        String,
+    #[serde(rename = "Broadcast")]
+    broadcast:  String,
+    #[serde(rename = "Mtu")]
+    mtu:        u32,
+    #[serde(rename = "Status")]
+    status:     String,
+}
+
+#[derive(Serialize)]
+pub struct RouteTableDto {
+    #[serde(rename = "Routes")]
+    routes: BTreeMap<String, RouteEntryDto>,
+    #[serde(rename = "Length")]
+    length: usize,
+}
+
+#[derive(Serialize)]
+pub struct RouteEntryDto {
+    #[serde(rename = "Destination")]
+    destination: String,
+    #[serde(rename = "Via")]
+    via:         String,
+    #[serde(rename = "Dev")]
+    dev:         String,
+    #[serde(rename = "Proto")]
+    proto:       String,
+    #[serde(rename = "Metric")]
+    metric:      i32,
+    #[serde(rename = "Scope")]
+    scope:       String,
+    #[serde(rename = "Src")]
+    src:         String,
+}
+
+#[derive(Deserialize)]
+struct IpRouteJsonEntry {
+    dst:      Option<String>,
+    gateway:  Option<String>,
+    dev:      Option<String>,
+    protocol: Option<String>,
+    metric:   Option<i64>,
+    scope:    Option<String>,
+    prefsrc:  Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct DnsInfoDto {
+    #[serde(rename = "Hostname")]
+    hostname: String,
+    #[serde(rename = "DNS")]
+    dns:      DnsServersDto,
+}
+
+#[derive(Serialize)]
+pub struct DnsServersDto {
+    #[serde(rename = "Primary")]
+    primary:   String,
+    #[serde(rename = "Secondary")]
+    secondary: String,
+}
+
+pub fn firewall_status() -> Result<FirewallStatusDto, String> {
+    let mut errors = Vec::new();
+
+    if let Some(status) = run_iptables_variant("iptables", &mut errors)? {
+        return Ok(status);
+    }
+
+    if let Some(status) = run_iptables_variant("iptables-nft", &mut errors)? {
+        return Ok(status);
+    }
+
+    if let Some(status) = run_nft_fallback(&mut errors)? {
+        return Ok(status);
+    }
+
+    if errors.is_empty() {
+        Err("no firewall inspection commands available".to_string())
+    } else {
+        Err(format!("firewall inspection failed: {}", errors.join("; ")))
+    }
+}
+
+fn collect_network_interfaces() -> Result<NetworkInterfacesDto, String> {
+    let mut networks = BTreeMap::new();
+    for interface in interfaces() {
+        networks.insert(interface.name.clone(), build_network_interface_dto(&interface));
+    }
+
+    Ok(NetworkInterfacesDto { length: networks.len(), networks })
+}
+
+fn build_network_interface_dto(interface: &NetworkInterface) -> NetworkInterfaceDto {
+    let (ipv4, netmask, broadcast) = extract_ipv4_details(interface);
+    let mac = interface.mac.map(|mac| mac.to_string()).unwrap_or_default();
+    let mtu = read_interface_mtu(&interface.name);
+
+    NetworkInterfaceDto {
+        name: interface.name.clone(),
+        iface_type: classify_interface_type(interface),
+        ipv4,
+        netmask,
+        mac,
+        broadcast,
+        mtu,
+        status: interface_status(interface),
+    }
+}
+
+fn extract_ipv4_details(interface: &NetworkInterface) -> (String, String, String) {
+    for ip in &interface.ips {
+        if let IpNetwork::V4(v4) = ip {
+            return (v4.ip().to_string(), v4.mask().to_string(), v4.broadcast().to_string());
+        }
+    }
+    (String::new(), String::new(), String::new())
+}
+
+fn classify_interface_type(interface: &NetworkInterface) -> String {
+    let name = interface.name.to_lowercase();
+    if interface.is_loopback()
+        || name.starts_with("veth")
+        || name.starts_with("vir")
+        || name.starts_with("br")
+        || name.starts_with("docker")
+        || name.contains("tun")
+        || name.contains("tap")
+        || name.starts_with("lo")
+    {
+        "Virtual".to_string()
+    } else {
+        "Physical".to_string()
+    }
+}
+
+fn interface_status(interface: &NetworkInterface) -> String {
+    if interface.is_up() {
+        "Up".to_string()
+    } else {
+        "Down".to_string()
+    }
+}
+
+fn read_interface_mtu(name: &str) -> u32 {
+    let path = format!("/sys/class/net/{}/mtu", name);
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|content| content.trim().parse::<u32>().ok())
+        .unwrap_or(0)
+}
+
+fn decode_directory_argument(encoded: &str) -> Result<String, String> {
+    let bytes = general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|e| format!("invalid directory argument encoding: {}", e))?;
+    let dto: DirectoryArgumentDto = serde_json::from_slice(&bytes)
+        .map_err(|e| format!("invalid directory argument payload: {}", e))?;
+    let directory = dto.directory.unwrap_or_else(|| "/".to_string());
+    let normalized = directory.trim();
+    if normalized.is_empty() {
+        Ok("/".to_string())
+    } else {
+        Ok(normalized.to_string())
+    }
+}
+
+fn collect_parent_directory(directory: &str) -> Result<ParentDirectoryDto, String> {
+    let target = if directory.trim().is_empty() { "/" } else { directory.trim() };
+
+    let path = Path::new(target);
+    let metadata = fs::metadata(path).map_err(|e| format!("failed to access {}: {}", target, e))?;
+    if !metadata.is_dir() {
+        return Err(format!("{} is not a directory", target));
+    }
+
+    let mut files = BTreeMap::new();
+    let entries =
+        fs::read_dir(path).map_err(|e| format!("failed to read directory {}: {}", target, e))?;
+
+    for entry in entries {
+        let entry = match entry {
+            Ok(value) => value,
+            Err(_) => continue,
+        };
+
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let file_type = match entry.file_type() {
+            Ok(ft) => ft,
+            Err(_) => continue,
+        };
+        let metadata = match entry.metadata() {
+            Ok(meta) => meta,
+            Err(_) => continue,
+        };
+
+        let (size, unit) = human_readable_size(metadata.len());
+        let owner = format_owner(metadata.uid());
+        let mode = format_mode(metadata.mode(), &file_type);
+        let modified = format_modified_time(&metadata);
+
+        files.insert(name, DirectoryEntryDto { size, unit, owner, mode, modified });
+    }
+
+    Ok(ParentDirectoryDto { length: files.len(), files })
+}
+
+fn human_readable_size(size: u64) -> (f64, String) {
+    const UNITS: [(&str, f64); 4] =
+        [("GB", 1024.0 * 1024.0 * 1024.0), ("MB", 1024.0 * 1024.0), ("KB", 1024.0), ("B", 1.0)];
+
+    let size_value = size as f64;
+    for (unit, divisor) in UNITS.iter() {
+        if size_value >= *divisor || *unit == "B" {
+            let value = if *divisor == 0.0 {
+                0.0
+            } else {
+                ((size_value / divisor) * 100.0).round() / 100.0
+            };
+            return (value, (*unit).to_string());
+        }
+    }
+
+    (0.0, "B".to_string())
+}
+
+fn format_owner(uid: u32) -> String {
+    get_user_by_uid(uid)
+        .map(|user| user.name().to_string_lossy().into_owned())
+        .unwrap_or_else(|| uid.to_string())
+}
+
+fn format_mode(mode: u32, file_type: &fs::FileType) -> String {
+    fn perms(bits: u32) -> [char; 3] {
+        [
+            if bits & 0o4 != 0 { 'r' } else { '-' },
+            if bits & 0o2 != 0 { 'w' } else { '-' },
+            if bits & 0o1 != 0 { 'x' } else { '-' },
+        ]
+    }
+
+    let mut result = String::with_capacity(10);
+    result.push(file_type_char(file_type));
+
+    let permissions = mode & 0o777;
+    let mut user = perms((permissions >> 6) & 0o7);
+    let mut group = perms((permissions >> 3) & 0o7);
+    let mut other = perms(permissions & 0o7);
+
+    if mode & 0o4000 != 0 {
+        user[2] = if user[2] == 'x' { 's' } else { 'S' };
+    }
+    if mode & 0o2000 != 0 {
+        group[2] = if group[2] == 'x' { 's' } else { 'S' };
+    }
+    if mode & 0o1000 != 0 {
+        other[2] = if other[2] == 'x' { 't' } else { 'T' };
+    }
+
+    for ch in user.into_iter().chain(group).chain(other) {
+        result.push(ch);
+    }
+
+    result
+}
+
+fn file_type_char(file_type: &fs::FileType) -> char {
+    if file_type.is_dir() {
+        'd'
+    } else if file_type.is_symlink() {
+        'l'
+    } else if file_type.is_block_device() {
+        'b'
+    } else if file_type.is_char_device() {
+        'c'
+    } else if file_type.is_fifo() {
+        'p'
+    } else if file_type.is_socket() {
+        's'
+    } else {
+        '-'
+    }
+}
+
+fn format_modified_time(metadata: &fs::Metadata) -> String {
+    match metadata.modified() {
+        Ok(time) => {
+            let datetime: DateTime<Local> = DateTime::from(time);
+            datetime.format("%Y-%m-%d %H:%M:%S").to_string()
+        }
+        Err(_) => String::new(),
+    }
+}
+
+fn collect_software_inventory() -> Result<SoftwareInventoryDto, String> {
+    if let Some(dto) = collect_dpkg_packages()? {
+        return Ok(dto);
+    }
+
+    if let Some(dto) = collect_rpm_packages()? {
+        return Ok(dto);
+    }
+
+    Err("no supported package manager detected".to_string())
+}
+
+fn collect_dpkg_packages() -> Result<Option<SoftwareInventoryDto>, String> {
+    let output = match Command::new("dpkg-query")
+        .args(["-W", "-f=${Package}\t${Version}\t${db:Status-Status}\n"])
+        .output()
+    {
+        Ok(output) => output,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => {
+            return Err(format!("failed to execute dpkg-query: {}", e));
+        }
+    };
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!(
+            "dpkg-query exited with status {}: {}",
+            output.status.code().unwrap_or(-1),
+            stderr.trim()
+        ));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut packages = BTreeMap::new();
+
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+
+        let mut parts = trimmed.splitn(3, '\t');
+        let name = parts.next().unwrap_or("").trim();
+        let version = parts.next().unwrap_or("").trim();
+        let status_raw = parts.next().unwrap_or("").trim().to_lowercase();
+
+        if name.is_empty() {
+            continue;
+        }
+
+        let status = if status_raw == "installed" { "Installed" } else { "Notinstall" };
+
+        packages.insert(
+            name.to_string(),
+            SoftwarePackageDto { version: version.to_string(), status: status.to_string() },
+        );
+    }
+
+    Ok(Some(SoftwareInventoryDto { packages }))
+}
+
+fn collect_rpm_packages() -> Result<Option<SoftwareInventoryDto>, String> {
+    let output = match Command::new("rpm")
+        .args(["-qa", "--queryformat", "%{NAME}\t%{VERSION}-%{RELEASE}\\n"])
+        .output()
+    {
+        Ok(output) => output,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => {
+            return Err(format!("failed to execute rpm: {}", e));
+        }
+    };
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!(
+            "rpm exited with status {}: {}",
+            output.status.code().unwrap_or(-1),
+            stderr.trim()
+        ));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if stdout.trim().is_empty() {
+        return Ok(Some(SoftwareInventoryDto { packages: BTreeMap::new() }));
+    }
+
+    let mut packages = BTreeMap::new();
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let mut parts = trimmed.splitn(2, '\t');
+        let name = parts.next().unwrap_or("").trim();
+        let version = parts.next().unwrap_or("").trim();
+        if name.is_empty() {
+            continue;
+        }
+
+        packages.insert(
+            name.to_string(),
+            SoftwarePackageDto { version: version.to_string(), status: "Installed".to_string() },
+        );
+    }
+
+    Ok(Some(SoftwareInventoryDto { packages }))
+}
+
+fn collect_route_table() -> Result<RouteTableDto, String> {
+    match Command::new("ip").args(["-j", "route", "show"]).output() {
+        Err(e) => Err(format!("failed to execute ip route: {}", e)),
+        Ok(output) if !output.status.success() => {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            Err(format!(
+                "ip route exited with status {}: {}",
+                output.status.code().unwrap_or(-1),
+                stderr.trim()
+            ))
+        }
+        Ok(output) => {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let entries: Vec<IpRouteJsonEntry> = serde_json::from_str(&stdout)
+                .map_err(|e| format!("failed to parse ip route json: {}", e))?;
+
+            let mut routes = BTreeMap::new();
+            for entry in entries {
+                let destination = entry.dst.unwrap_or_else(|| "default".to_string());
+                let route = RouteEntryDto {
+                    destination: destination.clone(),
+                    via:         entry.gateway.unwrap_or_default(),
+                    dev:         entry.dev.unwrap_or_default(),
+                    proto:       entry.protocol.unwrap_or_default(),
+                    metric:      entry.metric.unwrap_or(0) as i32,
+                    scope:       entry.scope.unwrap_or_default(),
+                    src:         entry.prefsrc.unwrap_or_default(),
+                };
+                routes.insert(destination, route);
+            }
+
+            Ok(RouteTableDto { length: routes.len(), routes })
+        }
+    }
+}
+
+fn collect_log_entries(filter: Option<(LogSearchField, String)>) -> Result<LogsDto, String> {
+    let file = open_syslog_file().map_err(|e| format!("failed to open syslog: {}", e))?;
+    let mut reader = BufReader::new(file);
+    let mut entries: VecDeque<LogEntryDto> = VecDeque::with_capacity(LOG_ENTRY_LIMIT);
+
+    let mut buffer = String::new();
+    loop {
+        buffer.clear();
+        match reader.read_line(&mut buffer) {
+            Ok(0) => break,
+            Ok(_) => {
+                let line = buffer.trim_end_matches(['\n', '\r']);
+                let entry =
+                    parse_syslog_line(line).or_else(|| Some(build_fallback_log_entry(line)));
+                if let Some(entry) = entry {
+                    if matches_log_filter(&entry, filter.as_ref()) {
+                        if entries.len() == LOG_ENTRY_LIMIT {
+                            entries.pop_front();
+                        }
+                        entries.push_back(entry);
+                    }
+                }
+            }
+            Err(e) => {
+                return Err(format!("failed to read syslog: {}", e));
+            }
+        }
+    }
+
+    let mut logs = BTreeMap::new();
+    for (idx, entry) in entries.into_iter().enumerate() {
+        logs.insert(format!("Log{}", idx + 1), entry);
+    }
+
+    Ok(LogsDto { length: logs.len(), logs })
+}
+
+fn open_syslog_file() -> Result<fs::File, io::Error> {
+    for path in SYSLOG_CANDIDATES {
+        if let Ok(file) = fs::File::open(path) {
+            return Ok(file);
+        }
+    }
+    Err(io::Error::new(io::ErrorKind::NotFound, "no syslog file available in known locations"))
+}
+
+fn decode_log_query_argument(encoded: &str) -> Result<LogQueryDto, String> {
+    let bytes = general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|e| format!("invalid log query argument encoding: {}", e))?;
+    let mut dto: LogQueryDto = serde_json::from_slice(&bytes)
+        .map_err(|e| format!("invalid log query argument payload: {}", e))?;
+    dto.parameter = dto.parameter.trim().to_string();
+    Ok(dto)
+}
+
+fn matches_log_filter(entry: &LogEntryDto, filter: Option<&(LogSearchField, String)>) -> bool {
+    let Some((field, raw)) = filter else {
+        return true;
+    };
+
+    if raw.is_empty() {
+        return true;
+    }
+
+    match field {
+        LogSearchField::Month => entry.month.eq_ignore_ascii_case(raw),
+        LogSearchField::Day => raw.parse::<i32>().map(|value| entry.day == value).unwrap_or(false),
+        LogSearchField::Time => entry.time.starts_with(raw),
+        LogSearchField::Hostname => entry.hostname.eq_ignore_ascii_case(raw),
+        LogSearchField::Type => entry.r#type.eq_ignore_ascii_case(raw),
+    }
+}
+
+fn parse_syslog_line(line: &str) -> Option<LogEntryDto> {
+    parse_traditional_syslog_line(line).or_else(|| parse_iso_syslog_line(line))
+}
+
+fn parse_traditional_syslog_line(line: &str) -> Option<LogEntryDto> {
+    fn next_token(line: &str, mut idx: usize) -> Option<(&str, usize)> {
+        let bytes = line.as_bytes();
+        let len = bytes.len();
+        while idx < len && bytes[idx].is_ascii_whitespace() {
+            idx += 1;
+        }
+        if idx >= len {
+            return None;
+        }
+        let start = idx;
+        while idx < len && !bytes[idx].is_ascii_whitespace() {
+            idx += 1;
+        }
+        Some((&line[start..idx], idx))
+    }
+
+    let mut idx = 0;
+    let (month, next_idx) = next_token(line, idx)?;
+    idx = next_idx;
+    let (day_str, next_idx) = next_token(line, idx)?;
+    idx = next_idx;
+    let (time, next_idx) = next_token(line, idx)?;
+    idx = next_idx;
+    let (hostname, next_idx) = next_token(line, idx)?;
+    idx = next_idx;
+
+    let day = day_str.parse::<i32>().ok()?;
+    let rest = line.get(idx..)?.trim_start();
+    if rest.is_empty() {
+        return None;
+    }
+
+    let (log_type, messages) = split_type_and_message(rest);
+
+    Some(LogEntryDto {
+        month: month.to_string(),
+        day,
+        time: time.to_string(),
+        hostname: hostname.to_string(),
+        r#type: log_type,
+        messages,
+    })
+}
+
+fn parse_iso_syslog_line(line: &str) -> Option<LogEntryDto> {
+    let mut parts = line.splitn(3, ' ');
+    let timestamp = parts.next()?;
+    let hostname = parts.next()?;
+    let rest = parts.next().unwrap_or("").trim_start();
+
+    let datetime = chrono::DateTime::parse_from_rfc3339(timestamp).ok()?;
+    let month = datetime.format("%b").to_string();
+    let day = datetime.day() as i32;
+    let time = datetime.format("%H:%M:%S").to_string();
+
+    let (log_type, messages) = split_type_and_message(rest);
+
+    Some(LogEntryDto {
+        month,
+        day,
+        time,
+        hostname: hostname.to_string(),
+        r#type: log_type,
+        messages,
+    })
+}
+
+fn split_type_and_message(rest: &str) -> (String, String) {
+    if let Some(pos) = rest.find(':') {
+        let log_type = rest[..pos].trim().to_string();
+        let messages = rest[pos + 1..].trim().to_string();
+        (log_type, messages)
+    } else {
+        (rest.to_string(), String::new())
+    }
+}
+
+fn build_fallback_log_entry(line: &str) -> LogEntryDto {
+    LogEntryDto {
+        month:    String::new(),
+        day:      0,
+        time:     String::new(),
+        hostname: String::new(),
+        r#type:   "raw".to_string(),
+        messages: line.trim().to_string(),
+    }
+}
+
+fn run_iptables_variant(
+    cmd: &str,
+    errors: &mut Vec<String>,
+) -> Result<Option<FirewallStatusDto>, String> {
+    match Command::new(cmd).args(["-L", "-n", "-v"]).output() {
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {
+            errors.push(format!("{} not found", cmd));
+            Ok(None)
+        }
+        Err(e) => {
+            errors.push(format!("{} execution error: {}", cmd, e));
+            Ok(None)
+        }
+        Ok(output) => {
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                errors.push(format!(
+                    "{} exited with status {}: {}",
+                    cmd,
+                    output.status.code().unwrap_or(-1),
+                    stderr.trim()
+                ));
+                Ok(None)
+            } else {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                match parse_iptables_output(&stdout) {
+                    Ok(status) => Ok(Some(status)),
+                    Err(e) => {
+                        errors.push(format!("{} output parse error: {}", cmd, e));
+                        Ok(None)
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn collect_dns_info() -> Result<DnsInfoDto, String> {
+    let hostname = fs::read_to_string("/etc/hostname").unwrap_or_default().trim().to_string();
+
+    let file = fs::File::open("/etc/resolv.conf")
+        .map_err(|e| format!("failed to open resolv.conf: {}", e))?;
+    let reader = io::BufReader::new(file);
+
+    let mut nameservers = Vec::new();
+    for line in reader.lines() {
+        if let Ok(line) = line {
+            let trimmed = line.trim();
+            if trimmed.starts_with("nameserver") {
+                let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    nameservers.push(parts[1].to_string());
+                }
+            }
+        }
+        if nameservers.len() >= 2 {
+            break;
+        }
+    }
+
+    let primary = nameservers.first().cloned().unwrap_or_default();
+    let secondary = nameservers.get(1).cloned().unwrap_or_default();
+
+    Ok(DnsInfoDto { hostname, dns: DnsServersDto { primary, secondary } })
+}
+
+fn collect_process_info(sys: &mut System) -> Result<ProcessInfoDto, String> {
+    match collect_systemd_processes() {
+        Ok(dto) => Ok(dto),
+        Err(_) => collect_fallback_processes(sys),
+    }
+}
+
+fn collect_systemd_processes() -> Result<ProcessInfoDto, String> {
+    let mut enabled_map = BTreeMap::new();
+    let enabled = Command::new("systemctl")
+        .args(["list-unit-files", "--type=service", "--no-legend", "--no-pager"])
+        .output()
+        .map_err(|e| format!("failed to run systemctl list-unit-files: {}", e))?;
+
+    if !enabled.status.success() {
+        let stderr = String::from_utf8_lossy(&enabled.stderr).trim().to_string();
+        return Err(format!("systemctl list-unit-files failed: {}", stderr));
+    }
+
+    for line in String::from_utf8_lossy(&enabled.stdout).lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let mut parts = trimmed.split_whitespace();
+        if let (Some(unit), Some(state)) = (parts.next(), parts.next()) {
+            enabled_map.insert(unit.to_string(), state.to_string());
+        }
+    }
+
+    let mut active_map = BTreeMap::new();
+    let active = Command::new("systemctl")
+        .args(["list-units", "--type=service", "--no-legend", "--no-pager", "--all"])
+        .output()
+        .map_err(|e| format!("failed to run systemctl list-units: {}", e))?;
+
+    if !active.status.success() {
+        let stderr = String::from_utf8_lossy(&active.stderr).trim().to_string();
+        return Err(format!("systemctl list-units failed: {}", stderr));
+    }
+
+    for line in String::from_utf8_lossy(&active.stdout).lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let mut parts = trimmed.split_whitespace();
+        if let (Some(unit), Some(_load), Some(active_state)) =
+            (parts.next(), parts.next(), parts.next())
+        {
+            active_map.insert(unit.to_string(), active_state.to_string());
+        }
+    }
+
+    if enabled_map.is_empty() && active_map.is_empty() {
+        return Err("systemctl returned no process entries".to_string());
+    }
+
+    let mut names: BTreeSet<String> = enabled_map.keys().cloned().collect();
+    names.extend(active_map.keys().cloned());
+
+    let mut entries = Vec::new();
+    for unit in names {
+        let enabled_state = enabled_map.get(&unit).map(|s| s.as_str()).unwrap_or("");
+        let active_state = active_map.get(&unit).map(|s| s.as_str()).unwrap_or("");
+
+        let name = unit.strip_suffix(".service").unwrap_or(&unit).to_string();
+        let status = matches!(active_state, "active" | "activating" | "reloading");
+        let boot =
+            matches!(enabled_state, "enabled" | "enabled-runtime" | "linked" | "linked-runtime");
+
+        entries.push(ProcessEntryDto { name, status: ProcessStatusDto { status, boot } });
+    }
+
+    Ok(ProcessInfoDto { length: entries.len(), entries })
+}
+
+fn collect_fallback_processes(sys: &mut System) -> Result<ProcessInfoDto, String> {
+    sys.refresh_processes_specifics(
+        sysinfo::ProcessesToUpdate::All,
+        true,
+        ProcessRefreshKind::everything(),
+    );
+    let processes = sys
+        .processes()
+        .values()
+        .map(|process| {
+            let name = process.name().to_string_lossy().to_string();
+            let status = matches!(process.status(), ProcessStatus::Run | ProcessStatus::Idle);
+            let boot = true;
+            ProcessEntryDto { name, status: ProcessStatusDto { status, boot } }
+        })
+        .collect::<Vec<ProcessEntryDto>>();
+
+    Ok(ProcessInfoDto { length: processes.len(), entries: processes })
+}
+
+fn run_nft_fallback(errors: &mut Vec<String>) -> Result<Option<FirewallStatusDto>, String> {
+    match Command::new("nft").args(["list", "ruleset"]).output() {
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {
+            errors.push("nft not found".to_string());
+            Ok(None)
+        }
+        Err(e) => {
+            errors.push(format!("nft execution error: {}", e));
+            Ok(None)
+        }
+        Ok(output) => {
+            if !output.status.success() {
+                let stderr = String::from_utf8_lossy(&output.stderr);
+                errors.push(format!(
+                    "nft exited with status {}: {}",
+                    output.status.code().unwrap_or(-1),
+                    stderr.trim()
+                ));
+                Ok(None)
+            } else {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                match parse_nft_output(&stdout) {
+                    Ok(status) => Ok(Some(status)),
+                    Err(e) => {
+                        errors.push(format!("nft output parse error: {}", e));
+                        Ok(None)
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn parse_iptables_output(output: &str) -> Result<FirewallStatusDto, String> {
+    let mut chains: Vec<FirewallChainDto> = Vec::new();
+    let mut current: Option<FirewallChainDto> = None;
+
+    for raw_line in output.lines() {
+        let line = raw_line.trim_end();
+        if line.is_empty() {
+            continue;
+        }
+
+        if line.starts_with("Chain ") {
+            if let Some(mut chain) = current.take() {
+                chain.rules_length = chain.rules.len();
+                chains.push(chain);
+            }
+
+            if let Some((name, policy)) = parse_iptables_chain_header(line) {
+                current =
+                    Some(FirewallChainDto { name, policy, rules: Vec::new(), rules_length: 0 });
+            }
+            continue;
+        }
+
+        if let Some(chain) = current.as_mut() {
+            let trimmed = line.trim_start();
+            if trimmed.starts_with("pkts ")
+                || trimmed.starts_with("num ")
+                || trimmed.starts_with("target ")
+            {
+                continue;
+            }
+
+            if let Some(rule) = parse_iptables_rule_line(&chain.name, chain.rules.len(), trimmed) {
+                chain.rules.push(rule);
+            }
+        }
+    }
+
+    if let Some(mut chain) = current.take() {
+        chain.rules_length = chain.rules.len();
+        chains.push(chain);
+    }
+
+    let status = if chains.is_empty() { "inactive".to_string() } else { "active".to_string() };
+
+    Ok(FirewallStatusDto { status, chains })
+}
+
+fn parse_nft_output(output: &str) -> Result<FirewallStatusDto, String> {
+    let mut chains: Vec<FirewallChainDto> = Vec::new();
+    let mut current: Option<FirewallChainDto> = None;
+
+    for raw_line in output.lines() {
+        let line = raw_line.trim();
+        if line.is_empty() {
+            continue;
+        }
+
+        if line.starts_with("table ") {
+            // reset current when table changes
+            if let Some(mut chain) = current.take() {
+                chain.rules_length = chain.rules.len();
+                chains.push(chain);
+            }
+            continue;
+        }
+
+        if line.starts_with("chain ") && line.ends_with('{') {
+            if let Some(mut chain) = current.take() {
+                chain.rules_length = chain.rules.len();
+                chains.push(chain);
+            }
+            let name_token = line.trim_end_matches('{').trim();
+            let name = name_token["chain ".len()..].trim().to_uppercase();
+            current = Some(FirewallChainDto {
+                name,
+                policy: "UNKNOWN".to_string(),
+                rules: Vec::new(),
+                rules_length: 0,
+            });
+            continue;
+        }
+
+        if line == "}" {
+            if let Some(mut chain) = current.take() {
+                chain.rules_length = chain.rules.len();
+                chains.push(chain);
+            }
+            continue;
+        }
+
+        if let Some(chain) = current.as_mut() {
+            if line.starts_with("type ") && line.contains("policy") {
+                if let Some(policy) = extract_policy_from_nft(line) {
+                    chain.policy = policy;
+                }
+                continue;
+            }
+
+            if let Some(rule) = parse_nft_rule(&chain.name, chain.rules.len(), line) {
+                chain.rules.push(rule);
+            }
+        }
+    }
+
+    if let Some(mut chain) = current.take() {
+        chain.rules_length = chain.rules.len();
+        chains.push(chain);
+    }
+
+    let status = if chains.is_empty() { "inactive".to_string() } else { "active".to_string() };
+
+    Ok(FirewallStatusDto { status, chains })
+}
+
+fn extract_policy_from_nft(line: &str) -> Option<String> {
+    if let Some(start) = line.find("policy") {
+        let tail = &line[start + "policy".len()..];
+        let token =
+            tail.split(|c: char| c.is_whitespace() || c == ';').find(|s| !s.is_empty())?;
+        Some(token.to_uppercase())
+    } else {
+        None
+    }
+}
+
+fn parse_nft_rule(chain_name: &str, index: usize, line: &str) -> Option<FirewallRuleDto> {
+    let lower = line.to_ascii_lowercase();
+    let target = if lower.contains(" accept") || lower.starts_with("accept") {
+        "ACCEPT".to_string()
+    } else if lower.contains(" drop") || lower.starts_with("drop") {
+        "DROP".to_string()
+    } else if lower.contains(" reject") || lower.starts_with("reject") {
+        "REJECT".to_string()
+    } else {
+        "OTHER".to_string()
+    };
+
+    let protocol = if lower.contains(" tcp") || lower.starts_with("tcp ") {
+        "tcp"
+    } else if lower.contains(" udp") || lower.starts_with("udp ") {
+        "udp"
+    } else if lower.contains(" icmp") || lower.contains(" icmpv6") {
+        "icmp"
+    } else {
+        "*"
+    }
+    .to_string();
+
+    let in_interface = extract_interface(&lower, "iifname");
+    let out_interface = extract_interface(&lower, "oifname");
+    let source = extract_address(&lower, "saddr").unwrap_or_else(|| "*".to_string());
+    let destination = extract_address(&lower, "daddr").unwrap_or_else(|| "*".to_string());
+
+    let options = line.to_string();
+    let id = format!("{}{:02}", chain_name.to_lowercase(), index + 1);
+
+    Some(FirewallRuleDto {
+        id,
+        target,
+        protocol,
+        in_interface,
+        out_interface,
+        source,
+        destination,
+        options,
+    })
+}
+
+fn extract_interface(text: &str, key: &str) -> String {
+    if let Some(idx) = text.find(key) {
+        let rest = text[idx + key.len()..].trim_start();
+        let token = rest
+            .trim_start_matches('"')
+            .split(|c: char| c == '"' || c.is_whitespace())
+            .find(|s| !s.is_empty())
+            .unwrap_or("*");
+        token.to_string()
+    } else {
+        "*".to_string()
+    }
+}
+
+fn extract_address(text: &str, key: &str) -> Option<String> {
+    if let Some(idx) = text.find(key) {
+        let rest = &text[idx + key.len()..];
+        let token =
+            rest.split(|c: char| c.is_whitespace() || c == '"').find(|s| !s.is_empty())?;
+        Some(token.to_string())
+    } else {
+        None
+    }
+}
+
+fn parse_iptables_chain_header(line: &str) -> Option<(String, String)> {
+    let mut parts = line.split_whitespace();
+    if parts.next()? != "Chain" {
+        return None;
+    }
+    let name = parts.next()?.to_string();
+
+    if let Some(start) = line.find("(policy ") {
+        let tail = &line[start + "(policy ".len()..];
+        let policy_token = tail.split_whitespace().next().unwrap_or("UNKNOWN");
+        let policy = policy_token.trim_end_matches([')', ',']).to_uppercase();
+        Some((name, policy))
+    } else {
+        Some((name, "UNKNOWN".to_string()))
+    }
+}
+
+fn parse_iptables_rule_line(chain_name: &str, index: usize, line: &str) -> Option<FirewallRuleDto> {
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    if parts.len() < 7 {
+        return None;
+    }
+
+    let has_number = parts[0].chars().all(|c| c.is_ascii_digit());
+    let offset = if has_number {
+        if parts.len() < 10 {
+            return None;
+        }
+        3
+    } else {
+        0
+    };
+
+    if parts.len() <= offset + 6 {
+        return None;
+    }
+
+    let target = parts[offset].to_uppercase();
+    let protocol = parts[offset + 1].to_string();
+    let in_interface = parts[offset + 3].to_string();
+    let out_interface = parts[offset + 4].to_string();
+    let source = parts[offset + 5].to_string();
+    let destination = parts[offset + 6].to_string();
+    let options =
+        if parts.len() > offset + 7 { parts[offset + 7..].join(" ") } else { String::new() };
+
+    let id = format!("{}{:02}", chain_name.to_lowercase(), index + 1);
+
+    Some(FirewallRuleDto {
+        id,
+        target,
+        protocol,
+        in_interface,
+        out_interface,
+        source,
+        destination,
+        options,
+    })
+}
+
+fn serialize_cron_jobs() -> Result<String, io::Error> {
+    let mut jobs = Vec::new();
+    collect_cron_jobs(&mut jobs)?;
+    let length = jobs.len();
+
+    serde_json::to_string(&CronJobsDto { jobs, length }).map_err(io::Error::other)
+}
+
+fn collect_cron_jobs(target: &mut Vec<CronJobDto>) -> Result<(), io::Error> {
+    parse_cron_file(Path::new("/etc/crontab"), None, target)?;
+    parse_cron_directory(Path::new("/etc/cron.d"), target)?;
+    parse_user_cron_directory(Path::new("/var/spool/cron"), target)?;
+    parse_user_cron_directory(Path::new("/var/spool/cron/crontabs"), target)?;
+    Ok(())
+}
+
+fn parse_cron_directory(dir: &Path, target: &mut Vec<CronJobDto>) -> Result<(), io::Error> {
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) if matches!(e.kind(), io::ErrorKind::NotFound | io::ErrorKind::PermissionDenied) => {
+            return Ok(())
+        }
+        Err(e) => return Err(e),
+    };
+
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() {
+            match parse_cron_file(&path, None, target) {
+                Ok(_) => {}
+                Err(e) if e.kind() == io::ErrorKind::PermissionDenied => continue,
+                Err(e) => return Err(e),
+            }
+        }
+    }
+    Ok(())
+}
+
+fn parse_user_cron_directory(dir: &Path, target: &mut Vec<CronJobDto>) -> Result<(), io::Error> {
+    let entries = match fs::read_dir(dir) {
+        Ok(entries) => entries,
+        Err(e) if matches!(e.kind(), io::ErrorKind::NotFound | io::ErrorKind::PermissionDenied) => {
+            return Ok(())
+        }
+        Err(e) => return Err(e),
+    };
+
+    for entry in entries {
+        let entry = entry?;
+        let path = entry.path();
+        if path.is_file() {
+            if let Some(user) = path.file_name().and_then(|n| n.to_str()) {
+                match parse_cron_file(&path, Some(user), target) {
+                    Ok(_) => {}
+                    Err(e) if e.kind() == io::ErrorKind::PermissionDenied => continue,
+                    Err(e) => return Err(e),
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+fn parse_cron_file(
+    path: &Path,
+    default_user: Option<&str>,
+    target: &mut Vec<CronJobDto>,
+) -> Result<(), io::Error> {
+    let file = match fs::File::open(path) {
+        Ok(file) => file,
+        Err(e) if matches!(e.kind(), io::ErrorKind::NotFound | io::ErrorKind::PermissionDenied) => {
+            return Ok(())
+        }
+        Err(e) => return Err(e),
+    };
+
+    let reader = io::BufReader::new(file);
+    for (idx, line) in reader.lines().enumerate() {
+        let line = match line {
+            Ok(line) => line,
+            Err(e) if e.kind() == io::ErrorKind::PermissionDenied => continue,
+            Err(e) => return Err(e),
+        };
+        if let Some(job) = parse_cron_line(&line, default_user, path, idx + 1) {
+            target.push(job);
+        }
+    }
+    Ok(())
+}
+
+fn parse_cron_line(
+    line: &str,
+    default_user: Option<&str>,
+    path: &Path,
+    line_no: usize,
+) -> Option<CronJobDto> {
+    let trimmed = line.trim();
+    if trimmed.is_empty() || trimmed.starts_with('@') {
+        return None;
+    }
+
+    if trimmed.starts_with('#') {
+        // Ignore pure comment lines.
+        return None;
+    }
+
+    let mut body = trimmed;
+    let mut meta: Option<CronMeta> = None;
+
+    if let Some(idx) = trimmed.find(META_PREFIX) {
+        let meta_str = &trimmed[idx + META_PREFIX.len()..];
+        if let Ok(parsed) = serde_json::from_str::<CronMeta>(meta_str.trim()) {
+            meta = Some(parsed);
+        }
+        body = trimmed[..idx].trim_end();
+    }
+
+    let tokens: Vec<&str> = body.split_whitespace().collect();
+    if tokens.len() < 5 {
+        return None;
+    }
+
+    let (minute, hour, date, month, week) = (tokens[0], tokens[1], tokens[2], tokens[3], tokens[4]);
+    let (username, command_start) = if let Some(user) = default_user {
+        if tokens.len() < 6 {
+            return None;
+        }
+        (user.to_string(), 5)
+    } else {
+        if tokens.len() < 7 {
+            return None;
+        }
+        (tokens[5].to_string(), 6)
+    };
+
+    let command_tokens = &tokens[command_start..];
+    if command_tokens.is_empty() {
+        return None;
+    }
+
+    let command = command_tokens.join(" ");
+
+    let schedule = CronScheduleDto {
+        minute: parse_cron_field(minute),
+        hour:   parse_cron_field(hour),
+        date:   parse_cron_field(date),
+        month:  parse_cron_field(month),
+        week:   parse_cron_field(week),
+    };
+
+    let (id, name) = if let Some(meta) = meta {
+        (meta.id, meta.name)
+    } else {
+        let generated_id = format!("sys:{}:{}", path.display(), line_no);
+        let default_name = format!("{}:{}", path.display(), line_no);
+        (generated_id, default_name)
+    };
+
+    Some(CronJobDto { id, name, command, schedule, username })
+}
+
+fn parse_cron_field(field: &str) -> i32 {
+    if field == "*" {
+        -1
+    } else {
+        field.parse::<i32>().unwrap_or(-1)
+    }
+}

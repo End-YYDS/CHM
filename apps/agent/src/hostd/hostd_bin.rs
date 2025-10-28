@@ -1,16 +1,9 @@
-#[cfg(not(target_family = "unix"))]
-fn main() {
-    eprintln!("HostD 僅支援 Unix-like 平台。");
-}
-
 #[cfg(target_family = "unix")]
 mod unix_main {
+    use agent::{config, GlobalConfig, ID, NEED_EXAMPLE};
     use anyhow::{Context, Result};
     use argh::FromArgs;
     use caps::{CapSet, Capability};
-    use hostd::{
-        command_timeout_secs, config, max_concurrency_limit, socket_path, ID, NEED_EXAMPLE,
-    };
     use std::{
         os::unix::fs::PermissionsExt,
         sync::{atomic::Ordering::Relaxed, Arc},
@@ -42,24 +35,25 @@ mod unix_main {
         let _ = tracing_subscriber::fmt().with_env_filter(filter).try_init();
     }
 
-    pub async fn run() -> Result<()> {
+    pub async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         init_tracing();
 
         let args: Args = argh::from_env();
         if args.init_config {
             NEED_EXAMPLE.store(true, Relaxed);
-            config().await.context("建立預設設定檔")?;
+            config().await?;
             info!("預設設定檔已建立，請檢查 {ID}_config.toml.example");
             return Ok(());
         }
 
-        config().await.context("載入 HostD 設定")?;
+        config().await?;
         ensure_firewall_capabilities().context("設定防火牆能力")?;
 
-        let socket_path = socket_path();
+        let socket_path =
+            GlobalConfig::with(|cfg| cfg.extend.socket_path.clone()).display().to_string();
         if let Err(err) = fs::remove_file(&socket_path).await {
             if err.kind() != std::io::ErrorKind::NotFound {
-                return Err(err).context("移除既有 socket 失敗");
+                return Err(err.into());
             }
         }
 
@@ -68,9 +62,11 @@ mod unix_main {
         std::fs::set_permissions(&socket_path, std::fs::Permissions::from_mode(0o770))
             .with_context(|| format!("設定 socket 權限失敗 {}", socket_path))?;
 
-        let concurrency = max_concurrency_limit().max(1);
+        let concurrency = GlobalConfig::with(|cfg| cfg.extend.file_concurrency).max(1);
         let semaphore = Arc::new(Semaphore::new(concurrency));
-        let command_timeout = Duration::from_secs(command_timeout_secs());
+        let command_timeout = Duration::from_secs(
+            GlobalConfig::with(|cfg| cfg.extend.info_concurrency).max(1) as u64,
+        );
 
         info!(
             "[HostD] 已啟動，等待 AgentD 連線 (socket: {}, max_concurrency: {}, timeout: {:?})",
@@ -153,17 +149,18 @@ mod unix_main {
 
     async fn handle_sysinfo(argument: &str) -> Result<String, String> {
         let payload = argument.to_string();
-        tokio::task::spawn_blocking(move || hostd::execute_sysinfo(&payload))
+        tokio::task::spawn_blocking(move || agent::hostd::execute_sysinfo(&payload))
             .await
             .map_err(|err| format!("sysinfo worker panic: {err}"))?
     }
 
     async fn handle_command(command: &str, timeout: Duration) -> Result<String, String> {
         let payload = command.to_string();
-        let task = tokio::task::spawn_blocking(move || hostd::execute_command(&payload));
+        let task = tokio::task::spawn_blocking(move || agent::hostd::execute_command(&payload));
 
+        tokio::pin!(task);
         tokio::select! {
-            result = task => {
+            result = &mut task => {
                 let output = result
                     .map_err(|err| format!("command worker panic: {err}"))?
                     .map_err(|err| err.to_string())?;
@@ -189,10 +186,7 @@ mod unix_main {
         const REQUIRED: [Capability; 2] = [Capability::CAP_NET_ADMIN, Capability::CAP_NET_RAW];
 
         let permitted = caps::read(None, CapSet::Permitted).map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("讀取 permitted capabilities 失敗: {e}"),
-            )
+            std::io::Error::other(format!("讀取 permitted capabilities 失敗: {e}"))
         })?;
 
         let missing: Vec<_> = REQUIRED.iter().filter(|cap| !permitted.contains(cap)).collect();
@@ -203,16 +197,14 @@ mod unix_main {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
                 format!(
-                    "HostD 缺少必要權限: {missing_names}，請為 HostD 設定 cap_net_admin,cap_net_raw"
+                    "HostD 缺少必要權限: {missing_names}，請為 HostD 設定 \
+                     cap_net_admin,cap_net_raw"
                 ),
             ));
         }
 
         let mut inheritable = caps::read(None, CapSet::Inheritable).map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("讀取 inheritable capabilities 失敗: {e}"),
-            )
+            std::io::Error::other(format!("讀取 inheritable capabilities 失敗: {e}"))
         })?;
 
         let mut inheritable_changed = false;
@@ -224,18 +216,12 @@ mod unix_main {
 
         if inheritable_changed {
             caps::set(None, CapSet::Inheritable, &inheritable).map_err(|e| {
-                std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("設定 inheritable capabilities 失敗: {e}"),
-                )
+                std::io::Error::other(format!("設定 inheritable capabilities 失敗: {e}"))
             })?;
         }
 
         let mut ambient = caps::read(None, CapSet::Ambient).map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::Other,
-                format!("讀取 ambient capabilities 失敗: {e}"),
-            )
+            std::io::Error::other(format!("讀取 ambient capabilities 失敗: {e}"))
         })?;
 
         let mut ambient_changed = false;
@@ -247,10 +233,7 @@ mod unix_main {
 
         if ambient_changed {
             caps::set(None, CapSet::Ambient, &ambient).map_err(|e| {
-                std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("設定 ambient capabilities 失敗: {e}"),
-                )
+                std::io::Error::other(format!("設定 ambient capabilities 失敗: {e}"))
             })?;
         }
 
@@ -260,6 +243,6 @@ mod unix_main {
 
 #[cfg(target_family = "unix")]
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     unix_main::run().await
 }

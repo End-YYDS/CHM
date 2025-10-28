@@ -1,4 +1,5 @@
-// Functions: get_firewall, firewall_add, firewall_delete, firewall_edit_status, firewall_edit_policy
+// Functions: get_firewall, firewall_add, firewall_delete, firewall_edit_status,
+// firewall_edit_policy
 
 use std::io;
 
@@ -26,21 +27,21 @@ pub enum FirewallPolicy {
 
 #[derive(Debug)]
 pub struct FirewallRule {
-    pub id: String,
-    pub target: FirewallPolicy,
-    pub protocol: String,
-    pub in_interface: String,
+    pub id:            String,
+    pub target:        FirewallPolicy,
+    pub protocol:      String,
+    pub in_interface:  String,
     pub out_interface: String,
-    pub source: String,
-    pub destination: String,
-    pub options: String,
+    pub source:        String,
+    pub destination:   String,
+    pub options:       String,
 }
 
 #[derive(Debug)]
 pub struct FirewallChain {
-    pub name: String,
-    pub policy: FirewallPolicy,
-    pub rules: Vec<FirewallRule>,
+    pub name:         String,
+    pub policy:       FirewallPolicy,
+    pub rules:        Vec<FirewallRule>,
     pub rules_length: usize,
 }
 
@@ -60,9 +61,9 @@ struct FirewallStatusDto {
 #[derive(Deserialize)]
 #[serde(rename_all = "PascalCase")]
 struct FirewallChainDto {
-    name: String,
-    policy: String,
-    rules: Vec<FirewallRuleDto>,
+    name:         String,
+    policy:       String,
+    rules:        Vec<FirewallRuleDto>,
     #[serde(rename = "Rules_Length")]
     rules_length: usize,
 }
@@ -70,37 +71,37 @@ struct FirewallChainDto {
 #[derive(Deserialize)]
 #[serde(rename_all = "PascalCase")]
 struct FirewallRuleDto {
-    id: String,
-    target: String,
-    protocol: String,
+    id:          String,
+    target:      String,
+    protocol:    String,
     #[serde(rename = "In")]
-    in_field: String,
+    in_field:    String,
     #[serde(rename = "Out")]
-    out_field: String,
-    source: String,
+    out_field:   String,
+    source:      String,
     destination: String,
-    options: String,
+    options:     String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 struct FirewallAddArg {
-    chain: String,
-    target: String,
-    protocol: String,
+    chain:       String,
+    target:      String,
+    protocol:    String,
     #[serde(rename = "In")]
-    in_field: String,
+    in_field:    String,
     #[serde(rename = "Out")]
-    out_field: String,
-    source: String,
+    out_field:   String,
+    source:      String,
     destination: String,
-    options: String,
+    options:     String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 struct FirewallDeleteArg {
-    chain: String,
+    chain:   String,
     #[serde(rename = "RuleId")]
     rule_id: i32,
 }
@@ -114,7 +115,7 @@ struct FirewallEditStatusArg {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 struct FirewallEditPolicyArg {
-    chain: String,
+    chain:  String,
     policy: String,
 }
 
@@ -127,7 +128,7 @@ pub fn firewall_info_structured(_sys: &SystemInfo) -> io::Result<FirewallStatus>
     }
 
     if let Ok(info) = serde_json::from_str::<ReturnInfo>(&output) {
-        return Err(io::Error::new(io::ErrorKind::Other, info.message));
+        return Err(io::Error::other(info.message));
     }
 
     Err(io::Error::new(
@@ -252,14 +253,14 @@ fn convert_firewall_chain(dto: FirewallChainDto) -> FirewallChain {
 
 fn convert_firewall_rule(dto: FirewallRuleDto) -> FirewallRule {
     FirewallRule {
-        id: dto.id,
-        target: parse_firewall_policy(&dto.target),
-        protocol: dto.protocol,
-        in_interface: dto.in_field,
+        id:            dto.id,
+        target:        parse_firewall_policy(&dto.target),
+        protocol:      dto.protocol,
+        in_interface:  dto.in_field,
         out_interface: dto.out_field,
-        source: dto.source,
-        destination: dto.destination,
-        options: dto.options,
+        source:        dto.source,
+        destination:   dto.destination,
+        options:       dto.options,
     }
 }
 
@@ -344,7 +345,7 @@ fn run_firewall_mutation(sys: &SystemInfo, args: &[String]) -> Result<(), String
     let commands = family_commands(sys);
     let mut errors = Vec::new();
 
-    for cmd in commands.iptables_candidates.iter().copied() {
+    for cmd in commands.iptables_candidates.iter() {
         let body = format!("{} {}\n", cmd, joined_args);
         let result = execute_host_body(&body)?;
         if result.status == 0 {

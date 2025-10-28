@@ -5,11 +5,11 @@ edition = { workspace = true }
 
 [[bin]]
 name = "CHM_agentd"
-path = "src/agentd/main.rs"
+path = "src/main.rs"
 
 [[bin]]
 name = "CHM_hostd"
-path = "src/hostd/main.rs"
+path = "src/hostd/hostd_bin.rs"
 
 [dependencies]
 anyhow = "1.0"
@@ -22,8 +22,7 @@ chm-config_bus = { workspace = true }
 chm-grpc = { workspace = true, features = ["agent-server"] }
 chm-project_const = { workspace = true }
 chrono = { workspace = true }
-ipnetwork = "0.21.1"
-pnet_datalink = "0.34"
+pnet = "0.35.0"
 prost = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -34,3 +33,4 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 users = "0.11"
 uuid = { workspace = true, features = ["v4"] }
+chm-password = { workspace = true }

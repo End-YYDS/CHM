@@ -1,7 +1,9 @@
 // Functions: get_cron, cron_add, cron_delete, cron_update
 
-use std::collections::{HashMap, HashSet};
-use std::io;
+use std::{
+    collections::{HashMap, HashSet},
+    io,
+};
 
 use crate::{
     execute_host_body, family_commands, make_sysinfo_command, send_to_hostd, shell_quote,
@@ -16,18 +18,18 @@ use uuid::Uuid;
 #[serde(rename_all = "PascalCase")]
 pub struct CronSchedule {
     pub minute: i32,
-    pub hour: i32,
-    pub date: i32,
-    pub month: i32,
-    pub week: i32,
+    pub hour:   i32,
+    pub date:   i32,
+    pub month:  i32,
+    pub week:   i32,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct CronJob {
-    pub id: String,
-    pub name: String,
-    pub command: String,
+    pub id:       String,
+    pub name:     String,
+    pub command:  String,
     pub schedule: CronSchedule,
     pub username: String,
 }
@@ -35,7 +37,7 @@ pub struct CronJob {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct CronJobs {
-    pub jobs: Vec<CronJob>,
+    pub jobs:   Vec<CronJob>,
     pub length: usize,
 }
 
@@ -43,15 +45,15 @@ const META_PREFIX: &str = "# agent_meta:";
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CronMeta {
-    id: String,
+    id:   String,
     name: String,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "PascalCase")]
 struct CronJobInput {
-    pub name: String,
-    pub command: String,
+    pub name:     String,
+    pub command:  String,
     pub schedule: CronSchedule,
     pub username: String,
 }
@@ -73,7 +75,7 @@ pub fn cron_info_structured(_sys: &SystemInfo) -> io::Result<CronJobs> {
     }
 
     if let Ok(info) = serde_json::from_str::<ReturnInfo>(&output) {
-        return Err(io::Error::new(io::ErrorKind::Other, info.message));
+        return Err(io::Error::other(info.message));
     }
 
     Err(io::Error::new(
@@ -92,9 +94,9 @@ pub fn execute_cron_add(argument: &str, sys: &SystemInfo) -> Result<String, Stri
     let id = format!("id{}", &raw_id[..8]);
 
     let job = CronJob {
-        id: id.clone(),
-        name: job_input.name,
-        command: job_input.command,
+        id:       id.clone(),
+        name:     job_input.name,
+        command:  job_input.command,
         schedule: job_input.schedule,
         username: job_input.username,
     };
@@ -212,7 +214,8 @@ fn save_user_crontab(sys: &SystemInfo, username: &str, lines: &[String]) -> Resu
     let encoded = general_purpose::STANDARD.encode(content.as_bytes());
     let commands = family_commands(sys);
     let body = format!(
-        "TMP_FILE=$(mktemp)\ntrap 'rm -f \"$TMP_FILE\"' EXIT\nprintf '%s' {} | base64 -d >\"$TMP_FILE\"\n{} -u {} \"$TMP_FILE\"\n",
+        "TMP_FILE=$(mktemp)\ntrap 'rm -f \"$TMP_FILE\"' EXIT\nprintf '%s' {} | base64 -d \
+         >\"$TMP_FILE\"\n{} -u {} \"$TMP_FILE\"\n",
         shell_quote(&encoded),
         commands.crontab,
         shell_quote(username)
@@ -259,7 +262,13 @@ fn locate_job_by_id(sys: &SystemInfo, id: &str) -> Result<(String, Vec<String>, 
 }
 
 fn list_candidate_users(_sys: &SystemInfo) -> Result<Vec<String>, String> {
-    let script = "found=0\nfor dir in /var/spool/cron /var/spool/cron/crontabs; do\n  if [ -d \"$dir\" ]; then\n    for file in \"$dir\"/*; do\n      if [ -f \"$file\" ]; then\n        basename \"$file\"\n        found=1\n      fi\n    done\n  fi\ndone\nif [ $found -eq 0 ]; then\n  user_env=\"${USER-}\"\n  if [ -n \"$user_env\" ]; then\n    echo \"$user_env\"\n  fi\n  username_env=\"${USERNAME-}\"\n  if [ -n \"$username_env\" ] && [ \"$username_env\" != \"$user_env\" ]; then\n    echo \"$username_env\"\n  fi\nfi\n";
+    let script =
+        "found=0\nfor dir in /var/spool/cron /var/spool/cron/crontabs; do\n  if [ -d \"$dir\" ]; \
+         then\n    for file in \"$dir\"/*; do\n      if [ -f \"$file\" ]; then\n        basename \
+         \"$file\"\n        found=1\n      fi\n    done\n  fi\ndone\nif [ $found -eq 0 ]; then\n  \
+         user_env=\"${USER-}\"\n  if [ -n \"$user_env\" ]; then\n    echo \"$user_env\"\n  fi\n  \
+         username_env=\"${USERNAME-}\"\n  if [ -n \"$username_env\" ] && [ \"$username_env\" != \
+         \"$user_env\" ]; then\n    echo \"$username_env\"\n  fi\nfi\n";
 
     let result = execute_host_body(script)?;
     if result.status != 0 {
@@ -291,15 +300,15 @@ fn render_cron_line(job: &CronJob) -> Result<String, String> {
         .map_err(|e| format!("failed to encode cron metadata: {}", e))?;
 
     Ok(format!(
-        "{} {} {} {} {} {} {}{}",
-        minute,
-        hour,
-        date,
-        month,
-        week,
-        job.command.trim(),
-        ' ',
-        format!("{}{}", META_PREFIX, meta_json)
+        "{minute} {hour} {date} {month} {week} {command} {meta_prefix}{meta_json}",
+        minute = minute,
+        hour = hour,
+        date = date,
+        month = month,
+        week = week,
+        command = job.command.trim(),
+        meta_prefix = META_PREFIX,
+        meta_json = meta_json,
     ))
 }
 

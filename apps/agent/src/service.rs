@@ -12,22 +12,21 @@ use crate::{
     PackageStatus, ParentDirectory, ProcessInfo, RouteTable, SizeUnit, SoftwareInventory,
     SystemInfo,
 };
-use chm_grpc::tonic::{Request, Response, Status};
+use chm_grpc::tonic::{self, Request, Response, Status};
 use tokio::sync::Semaphore;
 
 /// Generated gRPC bindings provided by the shared `chm-grpc` crate.
 pub mod proto {
-    pub use chm_grpc::agent::agent_file_service_server::{
-        AgentFileService, AgentFileServiceServer,
+    pub use chm_grpc::agent::{
+        agent_file_service_server::{AgentFileService, AgentFileServiceServer},
+        agent_info_service_server::{AgentInfoService, AgentInfoServiceServer},
+        agent_service_server::{AgentService, AgentServiceServer},
+        *,
     };
-    pub use chm_grpc::agent::agent_info_service_server::{
-        AgentInfoService, AgentInfoServiceServer,
-    };
-    pub use chm_grpc::agent::agent_service_server::{AgentService, AgentServiceServer};
-    pub use chm_grpc::agent::*;
 }
 
-/// gRPC service entry point that bridges requests into the existing host communication flow.
+/// gRPC service entry point that bridges requests into the existing host
+/// communication flow.
 #[derive(Clone)]
 pub struct AgentGrpcService {
     system: Arc<SystemInfo>,
@@ -46,7 +45,7 @@ impl AgentGrpcService {
 
 #[derive(Clone)]
 pub struct InfoGrpcService {
-    system: Arc<SystemInfo>,
+    system:      Arc<SystemInfo>,
     concurrency: Arc<Semaphore>,
 }
 
@@ -501,7 +500,7 @@ impl proto::AgentFileService for FileGrpcService {
 
         let response = match file_pdir_upload(path, file_content) {
             Ok(()) => proto::ReturnInfo {
-                r#type: "OK".to_string(),
+                r#type:  "OK".to_string(),
                 message: "upload success".to_string(),
             },
             Err(err) => proto::ReturnInfo { r#type: "ERR".to_string(), message: err },
@@ -531,7 +530,7 @@ impl proto::AgentFileService for FileGrpcService {
         let result = match file_pdir_download(path, filename) {
             Ok(content) => proto::file_download_response::Result::File(content),
             Err(err) => proto::file_download_response::Result::ReturnInfo(proto::ReturnInfo {
-                r#type: "ERR".to_string(),
+                r#type:  "ERR".to_string(),
                 message: err,
             }),
         };
@@ -547,14 +546,14 @@ fn process_info_to_proto(info: ProcessInfo) -> proto::CommandResponse {
                 .entries
                 .into_iter()
                 .map(|entry| proto::ProcessEntry {
-                    name: entry.name,
+                    name:   entry.name,
                     status: Some(proto::ProcessStatus {
                         status: entry.status.status,
-                        boot: entry.status.boot,
+                        boot:   entry.status.boot,
                     }),
                 })
                 .collect(),
-            length: info.length as u32,
+            length:  info.length as u32,
         })),
     }
 }
@@ -568,14 +567,14 @@ fn firewall_info_to_proto(info: FirewallStatus) -> proto::CommandResponse {
                 .rules
                 .into_iter()
                 .map(|rule| proto::FirewallRule {
-                    id: rule.id,
-                    target: rule.target.as_str().to_string(),
-                    protocol: rule.protocol,
-                    r#in: rule.in_interface,
-                    out: rule.out_interface,
-                    source: rule.source,
+                    id:          rule.id,
+                    target:      rule.target.as_str().to_string(),
+                    protocol:    rule.protocol,
+                    r#in:        rule.in_interface,
+                    out:         rule.out_interface,
+                    source:      rule.source,
                     destination: rule.destination,
-                    options: rule.options,
+                    options:     rule.options,
                 })
                 .collect();
 
@@ -599,7 +598,7 @@ fn firewall_info_to_proto(info: FirewallStatus) -> proto::CommandResponse {
 fn build_return_info(status: &str, message: impl Into<String>) -> proto::CommandResponse {
     proto::CommandResponse {
         payload: Some(proto::command_response::Payload::ReturnInfo(proto::ReturnInfo {
-            r#type: status.to_string(),
+            r#type:  status.to_string(),
             message: message.into(),
         })),
     }
@@ -610,14 +609,14 @@ fn netif_info_to_proto(info: NetworkInterfaces) -> proto::CommandResponse {
         .networks
         .into_iter()
         .map(|iface| proto::NetworkInterface {
-            id: iface.id,
-            r#type: iface.iface_type.as_str().to_string(),
-            ipv4: iface.ipv4,
-            netmask: iface.netmask,
-            mac: iface.mac,
+            id:        iface.id,
+            r#type:    iface.iface_type.as_str().to_string(),
+            ipv4:      iface.ipv4,
+            netmask:   iface.netmask,
+            mac:       iface.mac,
             broadcast: iface.broadcast,
-            mtu: iface.mtu,
-            status: iface.status.as_str().to_string(),
+            mtu:       iface.mtu,
+            status:    iface.status.as_str().to_string(),
         })
         .collect();
 
@@ -635,12 +634,12 @@ fn route_info_to_proto(info: RouteTable) -> proto::CommandResponse {
             route.destination.clone(),
             proto::RouteEntry {
                 destination: route.destination,
-                via: route.via,
-                dev: route.dev,
-                proto: route.proto,
-                metric: route.metric,
-                scope: route.scope,
-                src: route.src,
+                via:         route.via,
+                dev:         route.dev,
+                proto:       route.proto,
+                metric:      route.metric,
+                scope:       route.scope,
+                src:         route.src,
             },
         );
     }
@@ -656,8 +655,8 @@ fn route_info_to_proto(info: RouteTable) -> proto::CommandResponse {
 fn dns_info_to_proto(info: DnsInfo) -> proto::CommandResponse {
     proto::CommandResponse {
         payload: Some(proto::command_response::Payload::DnsInfo(proto::DnsInfo {
-            hostname: info.hostname,
-            primary: info.primary,
+            hostname:  info.hostname,
+            primary:   info.primary,
             secondary: info.secondary,
         })),
     }
@@ -669,10 +668,10 @@ fn parent_directory_to_proto(info: ParentDirectory) -> proto::CommandResponse {
         files.insert(
             name,
             proto::DirectoryEntry {
-                size: entry.size,
-                unit: size_unit_to_proto(entry.unit),
-                owner: entry.owner,
-                mode: entry.mode,
+                size:     entry.size,
+                unit:     size_unit_to_proto(entry.unit),
+                owner:    entry.owner,
+                mode:     entry.mode,
                 modified: entry.modified,
             },
         );
@@ -702,7 +701,7 @@ fn software_inventory_to_proto(info: SoftwareInventory) -> proto::CommandRespons
             name,
             proto::SoftwarePackage {
                 version: package.version,
-                status: package_status_to_proto(package.status),
+                status:  package_status_to_proto(package.status),
             },
         );
     }
@@ -720,11 +719,11 @@ fn logs_to_proto(info: Logs) -> proto::CommandResponse {
         logs_map.insert(
             id,
             proto::LogEntry {
-                month: entry.month,
-                day: entry.day,
-                time: entry.time,
+                month:    entry.month,
+                day:      entry.day,
+                time:     entry.time,
                 hostname: entry.hostname,
-                r#type: entry.r#type,
+                r#type:   entry.r#type,
                 messages: entry.messages,
             },
         );
@@ -732,7 +731,7 @@ fn logs_to_proto(info: Logs) -> proto::CommandResponse {
 
     proto::CommandResponse {
         payload: Some(proto::command_response::Payload::Logs(proto::Logs {
-            logs: logs_map,
+            logs:   logs_map,
             length: info.length as u32,
         })),
     }
@@ -750,15 +749,15 @@ fn cron_info_to_proto(info: CronJobs) -> proto::CommandResponse {
         .jobs
         .into_iter()
         .map(|job| proto::CronJob {
-            id: job.id,
-            name: job.name,
-            command: job.command,
+            id:       job.id,
+            name:     job.name,
+            command:  job.command,
             schedule: Some(proto::CronSchedule {
                 minute: job.schedule.minute,
-                hour: job.schedule.hour,
-                date: job.schedule.date,
-                month: job.schedule.month,
-                week: job.schedule.week,
+                hour:   job.schedule.hour,
+                date:   job.schedule.date,
+                month:  job.schedule.month,
+                week:   job.schedule.week,
             }),
             username: job.username,
         })

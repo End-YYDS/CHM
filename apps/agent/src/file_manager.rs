@@ -1,8 +1,10 @@
 // Functions: get_pdir
 
-use std::collections::BTreeMap;
-use std::io;
-use std::path::{Path, PathBuf};
+use std::{
+    collections::BTreeMap,
+    io,
+    path::{Path, PathBuf},
+};
 
 use crate::{
     execute_host_body, make_sysinfo_command_with_argument, send_to_hostd, shell_quote, ReturnInfo,
@@ -33,16 +35,16 @@ impl SizeUnit {
 
 #[derive(Debug)]
 pub struct DirectoryEntry {
-    pub size: f64,
-    pub unit: SizeUnit,
-    pub owner: String,
-    pub mode: String,
+    pub size:     f64,
+    pub unit:     SizeUnit,
+    pub owner:    String,
+    pub mode:     String,
     pub modified: String,
 }
 
 #[derive(Debug)]
 pub struct ParentDirectory {
-    pub files: BTreeMap<String, DirectoryEntry>,
+    pub files:  BTreeMap<String, DirectoryEntry>,
     pub length: usize,
 }
 
@@ -61,7 +63,7 @@ struct GetPdirRequest<'a> {
 #[derive(Deserialize)]
 struct ParentDirectoryDto {
     #[serde(rename = "Files")]
-    files: BTreeMap<String, DirectoryEntryDto>,
+    files:  BTreeMap<String, DirectoryEntryDto>,
     #[serde(rename = "Length")]
     length: usize,
 }
@@ -69,13 +71,13 @@ struct ParentDirectoryDto {
 #[derive(Deserialize)]
 struct DirectoryEntryDto {
     #[serde(rename = "Size")]
-    size: f64,
+    size:     f64,
     #[serde(rename = "Unit")]
-    unit: String,
+    unit:     String,
     #[serde(rename = "Owner")]
-    owner: String,
+    owner:    String,
     #[serde(rename = "Mode")]
-    mode: String,
+    mode:     String,
     #[serde(rename = "Modified")]
     modified: String,
 }
@@ -94,7 +96,7 @@ pub fn pdir_info_structured(argument: Option<&str>) -> io::Result<ParentDirector
     let output = send_to_hostd(&cmd)?;
 
     if let Ok(info) = serde_json::from_str::<ReturnInfo>(&output) {
-        return Err(io::Error::new(io::ErrorKind::Other, info.message));
+        return Err(io::Error::other(info.message));
     }
 
     let dto: ParentDirectoryDto = serde_json::from_str(&output).map_err(|e| {
@@ -214,7 +216,7 @@ pub fn file_pdir_download(path: &str, filename: &str) -> Result<String, String> 
         return Err(message);
     }
 
-    let data = result.output.replace('\n', "").replace('\r', "");
+    let data = result.output.replace(['\n', '\r'], "");
     Ok(data)
 }
 

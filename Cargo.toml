@@ -50,6 +50,7 @@ futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
 humantime = "2.2.0"
 humantime-serde = "1.1.1"
 hyper-util = { version = "0.1.17", features = ["tokio", "client"] }
+ipnetwork = "0.21.1"
 num_cpus = "1.17.0"
 openssl = "0.10.72"
 openssl-sys = "0.9.109"

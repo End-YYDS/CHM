@@ -1,11 +1,11 @@
-// Functions: get_process, process_start, process_stop, process_restart, process_enable, process_disable, process_start_enable, process_stop_disable
+// Functions: get_process, process_start, process_stop, process_restart,
+// process_enable, process_disable, process_start_enable, process_stop_disable
 
-use std::collections::HashMap;
-use std::io;
+use std::{collections::HashMap, io};
 
 use crate::{
-    execute_host_body, last_non_empty_line, make_sysinfo_command, send_to_hostd, shell_quote,
-    SystemInfo,
+    execute_host_body, family_key, last_non_empty_line, make_sysinfo_command, send_to_hostd,
+    shell_quote, SystemInfo,
 };
 use serde::Deserialize;
 use serde_json;
@@ -13,19 +13,19 @@ use serde_json;
 #[derive(Debug)]
 pub struct ProcessStatus {
     pub status: bool,
-    pub boot: bool,
+    pub boot:   bool,
 }
 
 #[derive(Debug)]
 pub struct ProcessEntry {
-    pub name: String,
+    pub name:   String,
     pub status: ProcessStatus,
 }
 
 #[derive(Debug)]
 pub struct ProcessInfo {
     pub entries: Vec<ProcessEntry>,
-    pub length: usize,
+    pub length:  usize,
 }
 
 #[derive(Deserialize)]
@@ -39,7 +39,7 @@ struct ProcessInfoDto {
 #[derive(Deserialize)]
 struct ProcessEntryDto {
     #[serde(rename = "Name")]
-    name: String,
+    name:   String,
     #[serde(rename = "Status")]
     status: ProcessStatusDto,
 }
@@ -49,7 +49,7 @@ struct ProcessStatusDto {
     #[serde(rename = "Status")]
     status: bool,
     #[serde(rename = "Boot")]
-    boot: bool,
+    boot:   bool,
 }
 
 /// Convert HostD response into structured ProcessInfo
@@ -68,7 +68,7 @@ pub fn process_info_structured(_sys: &SystemInfo) -> io::Result<ProcessInfo> {
         .entries
         .into_iter()
         .map(|entry| ProcessEntry {
-            name: entry.name,
+            name:   entry.name,
             status: ProcessStatus { status: entry.status.status, boot: entry.status.boot },
         })
         .collect::<Vec<_>>();
@@ -158,7 +158,7 @@ fn resolve_command_template(action: &str, sys: &SystemInfo) -> Option<String> {
     }
     keys.push(os_id.clone());
 
-    let family_key = crate::family_key(sys);
+    let family_key = family_key(sys);
     if keys.last().map(|last| last.as_str()) != Some(family_key) {
         keys.push(family_key.to_string());
     }

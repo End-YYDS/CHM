@@ -1,8 +1,11 @@
-// Functions: get_netif, netif_add, netif_delete, netif_up, netif_down, get_route, route_add, route_delete, get_dns
+// Functions: get_netif, netif_add, netif_delete, netif_up, netif_down,
+// get_route, route_add, route_delete, get_dns
 
-use std::collections::{BTreeMap, HashMap};
-use std::io;
-use std::net::Ipv4Addr;
+use std::{
+    collections::{BTreeMap, HashMap},
+    io,
+    net::Ipv4Addr,
+};
 
 use crate::{
     execute_host_body, family_commands, join_shell_args, make_sysinfo_command, send_to_hostd,
@@ -27,31 +30,31 @@ pub enum NetworkInterfaceState {
 
 #[derive(Debug)]
 pub struct NetworkInterfaceInfo {
-    pub id: String,
+    pub id:         String,
     pub iface_type: NetworkInterfaceType,
-    pub ipv4: String,
-    pub netmask: String,
-    pub mac: String,
-    pub broadcast: String,
-    pub mtu: u32,
-    pub status: NetworkInterfaceState,
+    pub ipv4:       String,
+    pub netmask:    String,
+    pub mac:        String,
+    pub broadcast:  String,
+    pub mtu:        u32,
+    pub status:     NetworkInterfaceState,
 }
 
 #[derive(Debug)]
 pub struct NetworkInterfaces {
     pub networks: Vec<NetworkInterfaceInfo>,
-    pub length: usize,
+    pub length:   usize,
 }
 
 #[derive(Debug)]
 pub struct RouteEntry {
     pub destination: String,
-    pub via: String,
-    pub dev: String,
-    pub proto: String,
-    pub metric: i32,
-    pub scope: String,
-    pub src: String,
+    pub via:         String,
+    pub dev:         String,
+    pub proto:       String,
+    pub metric:      i32,
+    pub scope:       String,
+    pub src:         String,
 }
 
 #[derive(Debug)]
@@ -62,8 +65,8 @@ pub struct RouteTable {
 
 #[derive(Debug)]
 pub struct DnsInfo {
-    pub hostname: String,
-    pub primary: String,
+    pub hostname:  String,
+    pub primary:   String,
     pub secondary: String,
 }
 
@@ -71,21 +74,21 @@ pub struct DnsInfo {
 #[serde(rename_all = "PascalCase")]
 struct NetworkInterfacesDto {
     networks: HashMap<String, NetworkInterfaceEntryDto>,
-    length: usize,
+    length:   usize,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "PascalCase")]
 struct NetworkInterfaceEntryDto {
-    name: String,
+    name:       String,
     #[serde(rename = "Type")]
     iface_type: String,
-    ipv4: String,
-    netmask: String,
-    mac: String,
-    broadcast: String,
-    mtu: u32,
-    status: String,
+    ipv4:       String,
+    netmask:    String,
+    mac:        String,
+    broadcast:  String,
+    mtu:        u32,
+    status:     String,
 }
 
 #[derive(Deserialize)]
@@ -99,12 +102,12 @@ struct RouteTableDto {
 #[serde(rename_all = "PascalCase")]
 struct RouteEntryDto {
     destination: String,
-    via: String,
-    dev: String,
-    proto: String,
-    metric: i32,
-    scope: String,
-    src: String,
+    via:         String,
+    dev:         String,
+    proto:       String,
+    metric:      i32,
+    scope:       String,
+    src:         String,
 }
 
 #[derive(Deserialize)]
@@ -112,28 +115,28 @@ struct RouteEntryDto {
 struct DnsInfoDto {
     hostname: String,
     #[serde(rename = "DNS")]
-    dns: DnsServersDto,
+    dns:      DnsServersDto,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "PascalCase")]
 struct DnsServersDto {
-    primary: String,
+    primary:   String,
     secondary: String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 struct NetifAddArg {
-    nid: String,
+    nid:        String,
     #[serde(rename = "Type")]
     iface_type: String,
-    ipv4: String,
-    netmask: String,
-    mac: String,
-    broadcast: String,
-    mtu: i32,
-    status: String,
+    ipv4:       String,
+    netmask:    String,
+    mac:        String,
+    broadcast:  String,
+    mtu:        i32,
+    status:     String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -152,12 +155,12 @@ struct NetifToggleArg {
 #[serde(rename_all = "PascalCase")]
 struct RouteAddArg {
     destination: String,
-    via: String,
-    dev: String,
-    proto: String,
-    metric: i32,
-    scope: String,
-    src: String,
+    via:         String,
+    dev:         String,
+    proto:       String,
+    metric:      i32,
+    scope:       String,
+    src:         String,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -175,7 +178,7 @@ pub fn netif_info_structured(_sys: &SystemInfo) -> io::Result<NetworkInterfaces>
     }
 
     if let Ok(info) = serde_json::from_str::<ReturnInfo>(&output) {
-        return Err(io::Error::new(io::ErrorKind::Other, info.message));
+        return Err(io::Error::other(info.message));
     }
 
     Err(io::Error::new(
@@ -193,7 +196,7 @@ pub fn route_info_structured(_sys: &SystemInfo) -> io::Result<RouteTable> {
     }
 
     if let Ok(info) = serde_json::from_str::<ReturnInfo>(&output) {
-        return Err(io::Error::new(io::ErrorKind::Other, info.message));
+        return Err(io::Error::other(info.message));
     }
 
     Err(io::Error::new(
@@ -211,7 +214,7 @@ pub fn dns_info_structured(_sys: &SystemInfo) -> io::Result<DnsInfo> {
     }
 
     if let Ok(info) = serde_json::from_str::<ReturnInfo>(&output) {
-        return Err(io::Error::new(io::ErrorKind::Other, info.message));
+        return Err(io::Error::other(info.message));
     }
 
     Err(io::Error::new(
@@ -443,14 +446,14 @@ fn convert_network_interface(id: String, entry: NetworkInterfaceEntryDto) -> Net
     let resolved_id = if entry.name.is_empty() { id } else { entry.name.clone() };
 
     NetworkInterfaceInfo {
-        id: resolved_id,
+        id:         resolved_id,
         iface_type: parse_network_interface_type(&entry.iface_type),
-        ipv4: entry.ipv4,
-        netmask: entry.netmask,
-        mac: entry.mac,
-        broadcast: entry.broadcast,
-        mtu: entry.mtu,
-        status: parse_network_interface_status(&entry.status),
+        ipv4:       entry.ipv4,
+        netmask:    entry.netmask,
+        mac:        entry.mac,
+        broadcast:  entry.broadcast,
+        mtu:        entry.mtu,
+        status:     parse_network_interface_status(&entry.status),
     }
 }
 
@@ -462,12 +465,12 @@ fn convert_route_table(dto: RouteTableDto) -> RouteTable {
         .into_iter()
         .map(|(destination, entry)| RouteEntry {
             destination: if entry.destination.is_empty() { destination } else { entry.destination },
-            via: entry.via,
-            dev: entry.dev,
-            proto: entry.proto,
-            metric: entry.metric,
-            scope: entry.scope,
-            src: entry.src,
+            via:         entry.via,
+            dev:         entry.dev,
+            proto:       entry.proto,
+            metric:      entry.metric,
+            scope:       entry.scope,
+            src:         entry.src,
         })
         .collect();
 

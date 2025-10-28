@@ -6,8 +6,8 @@ use crate::{make_sysinfo_command, send_to_hostd, SystemInfo};
 
 #[derive(Debug)]
 pub struct AgentInfo {
-    pub cpu: f32,
-    pub mem: f32,
+    pub cpu:  f32,
+    pub mem:  f32,
     pub disk: f32,
 }
 

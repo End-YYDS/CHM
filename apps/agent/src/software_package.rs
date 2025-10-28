@@ -1,7 +1,9 @@
 // Functions: get_software, software_install, software_delete
 
-use std::collections::{BTreeMap, HashSet};
-use std::io;
+use std::{
+    collections::{BTreeMap, HashSet},
+    io,
+};
 
 use crate::{
     execute_host_body, family_key, join_shell_args, last_non_empty_line, make_sysinfo_command,
@@ -29,7 +31,7 @@ impl PackageStatus {
 #[derive(Debug)]
 pub struct SoftwarePackage {
     pub version: String,
-    pub status: PackageStatus,
+    pub status:  PackageStatus,
 }
 
 #[derive(Debug)]
@@ -76,7 +78,7 @@ struct SoftwarePackageDto {
     #[serde(rename = "Version")]
     version: String,
     #[serde(rename = "Status")]
-    status: String,
+    status:  String,
 }
 
 #[derive(Deserialize)]
@@ -96,7 +98,7 @@ pub fn software_info_structured(_sys: &SystemInfo) -> io::Result<SoftwareInvento
     let output = send_to_hostd(&cmd)?;
 
     if let Ok(info) = serde_json::from_str::<ReturnInfo>(&output) {
-        return Err(io::Error::new(io::ErrorKind::Other, info.message));
+        return Err(io::Error::other(info.message));
     }
 
     let dto: SoftwareInventoryDto = serde_json::from_str(&output).map_err(|e| {
@@ -225,13 +227,13 @@ fn build_package_command(
     match manager {
         PackageManagerKind::Debian => match action {
             PackageAction::Install => format!(
-                "DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y {}",
+                "DEBIAN_FRONTEND=noninteractive apt-get update && DEBIAN_FRONTEND=noninteractive \
+                 apt-get install -y {}",
                 quoted
             ),
-            PackageAction::Remove => format!(
-                "DEBIAN_FRONTEND=noninteractive apt-get remove -y {}",
-                quoted
-            ),
+            PackageAction::Remove => {
+                format!("DEBIAN_FRONTEND=noninteractive apt-get remove -y {}", quoted)
+            }
         },
         PackageManagerKind::Redhat => {
             let sub = action.rpm_subcommand();
@@ -301,8 +303,14 @@ fn verify_package_state(
     } else {
         let joined = issues.join(", ");
         let hint = match action {
-            PackageAction::Install => "Packages did not appear after installation. Possible causes: insufficient privileges, read-only filesystem, or missing repositories.",
-            PackageAction::Remove => "Packages still appear after deletion. Possible causes: insufficient privileges, package dependencies, or read-only filesystem.",
+            PackageAction::Install => {
+                "Packages did not appear after installation. Possible causes: insufficient \
+                 privileges, read-only filesystem, or missing repositories."
+            }
+            PackageAction::Remove => {
+                "Packages still appear after deletion. Possible causes: insufficient privileges, \
+                 package dependencies, or read-only filesystem."
+            }
         };
         Err(format!("{} verification failed: {}. {}", action.display_name(), joined, hint))
     }
@@ -318,23 +326,33 @@ fn build_verification_script(
     match manager {
         PackageManagerKind::Debian => match action {
             PackageAction::Install => format!(
-                "set +e\nfor pkg in {packages}; do\n  status=$(dpkg-query -W -f='${{Status}}' \"$pkg\" 2>/dev/null)\n  if printf '%s' \"$status\" | grep -q 'install ok installed'; then\n    :\n  else\n    if [ -z \"$status\" ]; then\n      status='not-installed'\n    fi\n    printf '%s|%s\\n' \"$pkg\" \"$status\"\n  fi\ndone\nexit 0\n",
+                "set +e\nfor pkg in {packages}; do\n  status=$(dpkg-query -W -f='${{Status}}' \
+                 \"$pkg\" 2>/dev/null)\n  if printf '%s' \"$status\" | grep -q 'install ok \
+                 installed'; then\n    :\n  else\n    if [ -z \"$status\" ]; then\n      \
+                 status='not-installed'\n    fi\n    printf '%s|%s\\n' \"$pkg\" \"$status\"\n  \
+                 fi\ndone\nexit 0\n",
                 packages = package_list
             ),
             PackageAction::Remove => format!(
-                "set +e\nfor pkg in {packages}; do\n  status=$(dpkg-query -W -f='${{Status}}' \"$pkg\" 2>/dev/null)\n  if printf '%s' \"$status\" | grep -q 'install ok installed'; then\n    printf '%s|still-installed\\n' \"$pkg\"\n  fi\ndone\nexit 0\n",
+                "set +e\nfor pkg in {packages}; do\n  status=$(dpkg-query -W -f='${{Status}}' \
+                 \"$pkg\" 2>/dev/null)\n  if printf '%s' \"$status\" | grep -q 'install ok \
+                 installed'; then\n    printf '%s|still-installed\\n' \"$pkg\"\n  fi\ndone\nexit \
+                 0\n",
                 packages = package_list
             ),
         },
         PackageManagerKind::Redhat => match action {
             PackageAction::Install => format!(
-                "set +e\nfor pkg in {packages}; do\n  if rpm -q \"$pkg\" >/dev/null 2>&1; then\n    :\n  else\n    printf '%s|not-installed\\n' \"$pkg\"\n  fi\ndone\nexit 0\n",
-                packages = package_list
-            ),
+                    "set +e\nfor pkg in {packages}; do\n  if rpm -q \"$pkg\" >/dev/null 2>&1; \
+                     then\n    :\n  else\n    printf '%s|not-installed\\n' \"$pkg\"\n  \
+                     fi\ndone\nexit 0\n",
+                    packages = package_list
+                ),
             PackageAction::Remove => format!(
-                "set +e\nfor pkg in {packages}; do\n  if rpm -q \"$pkg\" >/dev/null 2>&1; then\n    printf '%s|still-installed\\n' \"$pkg\"\n  fi\ndone\nexit 0\n",
-                packages = package_list
-            ),
+                    "set +e\nfor pkg in {packages}; do\n  if rpm -q \"$pkg\" >/dev/null 2>&1; \
+                     then\n    printf '%s|still-installed\\n' \"$pkg\"\n  fi\ndone\nexit 0\n",
+                    packages = package_list
+                ),
         },
     }
 }
