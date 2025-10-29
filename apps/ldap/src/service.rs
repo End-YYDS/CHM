@@ -10,8 +10,8 @@ use chm_grpc::{
     ldap::{
         ldap_service_server::LdapService, AuthRequest, AuthResponse, Empty, GenericResponse,
         GroupDetailResponse, GroupIdRequest, GroupListResponse, GroupNameResponse, GroupRequest,
-        ModifyUserRequest, ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest,
-        UserIdRequest, UserListResponse, UserRequest, WebRoleDetailResponse, ModifyGroupNameRequest
+        ModifyGroupNameRequest, ModifyUserRequest, ToggleUserStatusRequest, UserDetailResponse,
+        UserGroupRequest, UserIdRequest, UserListResponse, UserRequest, WebRoleDetailResponse,
     },
     tonic::{async_trait, Request, Response, Status},
 };
@@ -307,9 +307,7 @@ impl LdapService for MyLdapService {
         self.ldap
             .with_ldap(move |ldap| {
                 let req_clone = req_for_ldap.clone();
-                Pin::from(Box::new(async move {
-                    modify_group_name_impl(ldap, req_clone).await
-                }))
+                Pin::from(Box::new(async move { modify_group_name_impl(ldap, req_clone).await }))
             })
             .await
             .map_err(|e| Status::internal(format!("Failed to modify group name: {}", e)))?;

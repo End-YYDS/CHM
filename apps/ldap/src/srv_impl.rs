@@ -5,9 +5,9 @@ use crate::{
 };
 use chm_grpc::ldap::{
     AuthRequest, AuthResponse, GenericResponse, GroupDetailResponse, GroupIdRequest,
-    GroupListResponse, GroupNameResponse, GroupRequest, ModifyUserRequest, ToggleUserStatusRequest,
-    UserDetailResponse, UserGroupRequest, UserIdRequest, UserListResponse, UserRequest,
-    WebRoleDetailResponse, ModifyGroupNameRequest
+    GroupListResponse, GroupNameResponse, GroupRequest, ModifyGroupNameRequest, ModifyUserRequest,
+    ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest, UserIdRequest, UserListResponse,
+    UserRequest, WebRoleDetailResponse,
 };
 use ldap3::{Ldap, LdapError, Mod, Scope, SearchEntry};
 use std::collections::{HashMap, HashSet};

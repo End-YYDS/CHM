@@ -4,9 +4,9 @@ use crate::ConResult;
 use chm_grpc::{
     ldap::{
         ldap_service_client::LdapServiceClient, AuthRequest, Empty, GroupDetailResponse,
-        GroupIdRequest, GroupNameResponse, GroupRequest, ModifyUserRequest,
+        GroupIdRequest, GroupNameResponse, GroupRequest, ModifyGroupNameRequest, ModifyUserRequest,
         ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest, UserIdRequest, UserRequest,
-        WebRoleDetailResponse, ModifyGroupNameRequest,
+        WebRoleDetailResponse,
     },
     tonic::transport::Channel,
 };

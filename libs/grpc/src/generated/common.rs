@@ -2,7 +2,7 @@
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResponseResult {
     #[prost(enumeration = "ResponseType", tag = "1")]
-    pub r#type: i32,
+    pub r#type:  i32,
     #[prost(string, tag = "2")]
     pub message: ::prost::alloc::string::String,
 }
@@ -10,16 +10,16 @@ pub struct ResponseResult {
 pub struct Date {
     /// Year
     #[prost(uint64, tag = "1")]
-    pub year: u64,
+    pub year:  u64,
     /// Month
     #[prost(enumeration = "Month", tag = "2")]
     pub month: i32,
     /// Week
     #[prost(enumeration = "Week", tag = "3")]
-    pub week: i32,
+    pub week:  i32,
     /// Time
     #[prost(message, optional, tag = "4")]
-    pub time: ::core::option::Option<date::Time>,
+    pub time:  ::core::option::Option<date::Time>,
 }
 /// Nested message and enum types in `Date`.
 pub mod date {
@@ -30,29 +30,19 @@ pub mod date {
         pub hour: u64,
         /// Min
         #[prost(uint64, tag = "2")]
-        pub min: u64,
+        pub min:  u64,
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ActionResult {
     #[prost(enumeration = "action_result::Type", tag = "1")]
-    pub r#type: i32,
+    pub r#type:  i32,
     #[prost(string, tag = "2")]
     pub message: ::prost::alloc::string::String,
 }
 /// Nested message and enum types in `ActionResult`.
 pub mod action_result {
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
     #[repr(i32)]
     pub enum Type {
         Unspecified = 0,
@@ -60,10 +50,12 @@ pub mod action_result {
         Err = 2,
     }
     impl Type {
-        /// String value of the enum field names used in the ProtoBuf definition.
+        /// String value of the enum field names used in the ProtoBuf
+        /// definition.
         ///
-        /// The values are not transformed in any way and thus are considered stable
-        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        /// The values are not transformed in any way and thus are considered
+        /// stable (if the ProtoBuf definition does not change) and safe
+        /// for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "TYPE_UNSPECIFIED",
@@ -90,31 +82,31 @@ pub struct CommonInfo {
     pub hostname: ::prost::alloc::string::String,
     /// active | stopped
     #[prost(enumeration = "Status", tag = "2")]
-    pub status: i32,
+    pub status:   i32,
     /// CPU usage
     #[prost(double, tag = "3")]
-    pub cpu: f64,
+    pub cpu:      f64,
     /// Memory usage
     #[prost(double, tag = "4")]
-    pub memory: f64,
+    pub memory:   f64,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ErrorLog {
     /// Date block
     #[prost(message, optional, tag = "1")]
-    pub date: ::core::option::Option<Date>,
+    pub date:    ::core::option::Option<Date>,
     /// Module
     #[prost(string, tag = "2")]
-    pub module: ::prost::alloc::string::String,
+    pub module:  ::prost::alloc::string::String,
     /// debug|info|notice|warn|error|crit|alert|emerg
     #[prost(enumeration = "LogLevel", tag = "3")]
-    pub level: i32,
+    pub level:   i32,
     /// Pid
     #[prost(uint64, tag = "4")]
-    pub pid: u64,
+    pub pid:     u64,
     /// IP:Port
     #[prost(string, tag = "5")]
-    pub client: ::prost::alloc::string::String,
+    pub client:  ::prost::alloc::string::String,
     /// Message
     #[prost(string, tag = "6")]
     pub message: ::prost::alloc::string::String,
@@ -130,7 +122,8 @@ impl ResponseType {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic
+    /// use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "RESPONSE_TYPE_UNSPECIFIED",
@@ -164,7 +157,8 @@ impl Week {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic
+    /// use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "WEEK_UNSPECIFIED",
@@ -213,7 +207,8 @@ impl Month {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic
+    /// use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "MONTH_UNSPECIFIED",
@@ -264,7 +259,8 @@ impl Status {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic
+    /// use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "STATUS_UNSPECIFIED",
@@ -300,7 +296,8 @@ impl LogLevel {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic
+    /// use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "LOG_LEVEL_UNSPECIFIED",

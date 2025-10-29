@@ -1,20 +1,22 @@
-mod types;
 mod translate;
+mod types;
 use actix_web::{delete, get, patch, post, put, web, Scope};
 use std::collections::HashMap;
 
-use crate::{commons::{ResponseResult, ResponseType}, AppState};
+use crate::{
+    commons::{ResponseResult, ResponseType},
+    AppState,
+};
 use chm_grpc::{
     restful::{
-        GetGroupsRequest as Grpc_GetGroupsRequest,
-        CreateGroupRequest as Grpc_CreateGroupRequest,
+        CreateGroupRequest as Grpc_CreateGroupRequest, GetGroupsRequest as Grpc_GetGroupsRequest,
     },
     tonic,
 };
 use types::{
-    CreateGroupRequest as Web_CreateUserRequest, DeleteGroupRequest,
+    CreateGroupRequest as Web_CreateUserRequest, DeleteGroupRequest, GroupEntry as Web_GroupEntry,
     GroupsCollection as Web_GroupsCollection, PatchGroupsRequest as Web_PatchGroupsRequest,
-    PutGroupsRequest as Web_PutGroupsRequest, GroupEntry as Web_GroupEntry,
+    PutGroupsRequest as Web_PutGroupsRequest,
 };
 
 pub fn group_scope() -> Scope {
@@ -59,10 +61,7 @@ async fn _post_group_root(
 ) -> actix_web::Result<web::Json<ResponseResult>> {
     let data = payload.into_inner();
     let mut client = app_state.gclient.clone();
-    let grpc_req = Grpc_CreateGroupRequest {
-        groupname: data.groupname,
-        users: data.users,
-    };
+    let grpc_req = Grpc_CreateGroupRequest { groupname: data.groupname, users: data.users };
     let resp = client
         .create_group(grpc_req)
         .await
@@ -101,13 +100,7 @@ async fn _put_group_root(
         .data
         .into_iter()
         .map(|(gid, entry)| {
-            (
-                gid,
-                chm_grpc::restful::GroupInfo {
-                    groupname: entry.groupname,
-                    users: entry.users
-                },
-            )
+            (gid, chm_grpc::restful::GroupInfo { groupname: entry.groupname, users: entry.users })
         })
         .collect();
     let grpc_req = chm_grpc::restful::PutGroupsRequest { groups };
@@ -115,9 +108,9 @@ async fn _put_group_root(
         .put_groups(grpc_req)
         .await
         .map_err(|status| match status.code() {
-            tonic::Code::Cancelled | tonic::Code::Unavailable => {
-                actix_web::error::ErrorBadGateway(format!("gRPC connection lost: {}", status.message()))
-            }
+            tonic::Code::Cancelled | tonic::Code::Unavailable => actix_web::error::ErrorBadGateway(
+                format!("gRPC connection lost: {}", status.message()),
+            ),
             _ => actix_web::error::ErrorInternalServerError(format!(
                 "gRPC failed: {}",
                 status.message()
@@ -137,9 +130,10 @@ async fn _patch_group_root(
     web::Json(data): web::Json<Web_PatchGroupsRequest>,
 ) -> actix_web::Result<web::Json<ResponseResult>> {
     let mut client = app_state.gclient.clone();
-    let (gid, group_entry) = data.groups.iter().next().ok_or_else(|| {
-        actix_web::error::ErrorBadRequest("At least one group entry is required")
-    })?;
+    let (gid, group_entry) =
+        data.groups.iter().next().ok_or_else(|| {
+            actix_web::error::ErrorBadRequest("At least one group entry is required")
+        })?;
     let mut grpc_patch = chm_grpc::restful::GroupPatch::default();
     if let Some(name) = &group_entry.groupname {
         grpc_patch.groupname = Some(name.clone());
@@ -149,7 +143,7 @@ async fn _patch_group_root(
     }
     if grpc_patch.groupname.is_none() && grpc_patch.users.is_empty() {
         return Ok(web::Json(ResponseResult {
-            r#type: ResponseType::Err,
+            r#type:  ResponseType::Err,
             message: "No field provided for update".into(),
         }));
     }
@@ -159,9 +153,9 @@ async fn _patch_group_root(
         .patch_groups(grpc_req)
         .await
         .map_err(|status| match status.code() {
-            tonic::Code::Cancelled | tonic::Code::Unavailable => {
-                actix_web::error::ErrorBadGateway(format!("gRPC connection lost: {}", status.message()))
-            }
+            tonic::Code::Cancelled | tonic::Code::Unavailable => actix_web::error::ErrorBadGateway(
+                format!("gRPC connection lost: {}", status.message()),
+            ),
             _ => actix_web::error::ErrorInternalServerError(format!(
                 "gRPC failed: {}",
                 status.message()
@@ -169,7 +163,7 @@ async fn _patch_group_root(
         })?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
-        r#type: chm_grpc::common::ResponseType::Err as i32,
+        r#type:  chm_grpc::common::ResponseType::Err as i32,
         message: "Unknown error".into(),
     });
     Ok(web::Json(result.into()))
