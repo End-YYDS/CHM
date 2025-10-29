@@ -12,20 +12,20 @@ pub struct InfoCounts {
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct ClusterSummary {
     #[prost(double, tag = "1")]
-    pub cpu:    f64,
+    pub cpu: f64,
     #[prost(double, tag = "2")]
     pub memory: f64,
     #[prost(double, tag = "3")]
-    pub disk:   f64,
+    pub disk: f64,
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct PcMetrics {
     #[prost(double, tag = "1")]
-    pub cpu:    f64,
+    pub cpu: f64,
     #[prost(double, tag = "2")]
     pub memory: f64,
     #[prost(double, tag = "3")]
-    pub disk:   f64,
+    pub disk: f64,
 }
 /// ========== Login ==========
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -46,23 +46,23 @@ pub struct GetAllInfoRequest {}
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct GetAllInfoResponse {
     #[prost(message, optional, tag = "1")]
-    pub info:    ::core::option::Option<InfoCounts>,
+    pub info: ::core::option::Option<InfoCounts>,
     #[prost(message, optional, tag = "2")]
     pub cluster: ::core::option::Option<ClusterSummary>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetInfoRequest {
     #[prost(enumeration = "Zone", tag = "1")]
-    pub zone:   i32,
+    pub zone: i32,
     #[prost(enumeration = "Target", tag = "2")]
     pub target: i32,
     #[prost(string, optional, tag = "3")]
-    pub uuid:   ::core::option::Option<::prost::alloc::string::String>,
+    pub uuid: ::core::option::Option<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetInfoResponse {
     #[prost(map = "string, message", tag = "1")]
-    pub pcs:    ::std::collections::HashMap<::prost::alloc::string::String, PcMetrics>,
+    pub pcs: ::std::collections::HashMap<::prost::alloc::string::String, PcMetrics>,
     #[prost(uint64, tag = "2")]
     pub length: u64,
 }
@@ -83,14 +83,14 @@ pub struct BackupNowRequest {
     #[prost(enumeration = "BackupLocation", tag = "1")]
     pub r#type: i32,
     #[prost(string, tag = "2")]
-    pub name:   ::prost::alloc::string::String,
+    pub name: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BackupNowResponse {
     #[prost(message, optional, tag = "1")]
-    pub result:       ::core::option::Option<super::common::ResponseResult>,
+    pub result: ::core::option::Option<super::common::ResponseResult>,
     #[prost(string, optional, tag = "2")]
-    pub id:           ::core::option::Option<::prost::alloc::string::String>,
+    pub id: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "3")]
     pub download_url: ::core::option::Option<::prost::alloc::string::String>,
 }
@@ -111,7 +111,7 @@ pub struct GetBackupsResponse {
     #[prost(message, repeated, tag = "1")]
     pub backups: ::prost::alloc::vec::Vec<BackupEntry>,
     #[prost(uint64, tag = "2")]
-    pub length:  u64,
+    pub length: u64,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ReductionRequest {
@@ -142,7 +142,7 @@ pub struct GetValidCertsRequest {}
 pub struct ValidCert {
     /// 通用名稱
     #[prost(string, tag = "1")]
-    pub name:   ::prost::alloc::string::String,
+    pub name: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub signer: ::prost::alloc::string::String,
     /// 有效期間
@@ -153,7 +153,7 @@ pub struct ValidCert {
 pub struct GetValidCertsResponse {
     /// 有效憑證清單
     #[prost(message, repeated, tag = "1")]
-    pub valid:  ::prost::alloc::vec::Vec<ValidCert>,
+    pub valid: ::prost::alloc::vec::Vec<ValidCert>,
     /// valid.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -168,7 +168,7 @@ pub struct RevokedCert {
     pub number: ::prost::alloc::string::String,
     /// 吊銷時間
     #[prost(string, tag = "2")]
-    pub time:   ::prost::alloc::string::String,
+    pub time: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub reason: ::prost::alloc::string::String,
 }
@@ -186,7 +186,7 @@ pub struct GetRevokedCertsResponse {
 pub struct RevokeCertRequest {
     /// 通用名稱
     #[prost(string, tag = "1")]
-    pub name:   ::prost::alloc::string::String,
+    pub name: ::prost::alloc::string::String,
     /// 吊銷原因
     #[prost(string, tag = "2")]
     pub reason: ::prost::alloc::string::String,
@@ -202,7 +202,7 @@ pub struct RevokeCertResponse {
 pub struct AddPcRequest {
     /// 實體 IP
     #[prost(string, tag = "1")]
-    pub ip:       ::prost::alloc::string::String,
+    pub ip: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub password: ::prost::alloc::string::String,
 }
@@ -220,13 +220,13 @@ pub struct PcSimple {
     #[prost(string, tag = "1")]
     pub hostname: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub ip:       ::prost::alloc::string::String,
+    pub ip: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetAllPcsResponse {
     /// key = uuid
     #[prost(map = "string, message", tag = "1")]
-    pub pcs:    ::std::collections::HashMap<::prost::alloc::string::String, PcSimple>,
+    pub pcs: ::std::collections::HashMap<::prost::alloc::string::String, PcSimple>,
     /// pcs.len()
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -242,7 +242,7 @@ pub struct GetSpecificPcsRequest {
 pub struct GetSpecificPcsResponse {
     /// key = uuid
     #[prost(map = "string, message", tag = "1")]
-    pub pcs:    ::std::collections::HashMap<::prost::alloc::string::String, PcSimple>,
+    pub pcs: ::std::collections::HashMap<::prost::alloc::string::String, PcSimple>,
     /// pcs.len()
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -251,7 +251,7 @@ pub struct GetSpecificPcsResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeletePcsRequest {
     #[prost(string, repeated, tag = "1")]
-    pub uuids:     ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub uuids: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(string, repeated, tag = "2")]
     pub passwords: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
@@ -261,8 +261,10 @@ pub struct DeletePcsResponse {
     ///
     /// key = uuid
     #[prost(map = "string, message", tag = "1")]
-    pub results:
-        ::std::collections::HashMap<::prost::alloc::string::String, super::common::ResponseResult>,
+    pub results: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        super::common::ResponseResult,
+    >,
 }
 /// Reboot POST /api/chm/pc/reboot
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -295,7 +297,7 @@ pub struct PcGroup {
     pub groupname: ::prost::alloc::string::String,
     /// 以 "uuid.hostname" 字串表示
     #[prost(string, repeated, tag = "2")]
-    pub pcs:       ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub pcs: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetPcGroupsResponse {
@@ -312,7 +314,7 @@ pub struct CreatePcGroupRequest {
     #[prost(string, tag = "1")]
     pub groupname: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub describe:  ::prost::alloc::string::String,
+    pub describe: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreatePcGroupResponse {
@@ -325,7 +327,7 @@ pub struct PutPcGroupRequest {
     #[prost(int64, tag = "1")]
     pub vxlanid: i64,
     #[prost(message, optional, tag = "2")]
-    pub group:   ::core::option::Option<PcGroup>,
+    pub group: ::core::option::Option<PcGroup>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutPcGroupResponse {
@@ -336,7 +338,7 @@ pub struct PutPcGroupResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchPcGroupRequest {
     #[prost(int64, tag = "1")]
-    pub vxlanid:   i64,
+    pub vxlanid: i64,
     /// 只更改單一欄位：目前文件僅示範 Groupname
     #[prost(string, tag = "2")]
     pub groupname: ::prost::alloc::string::String,
@@ -379,18 +381,18 @@ pub mod color {
 pub struct RoleInfo {
     /// RoleName
     #[prost(string, tag = "1")]
-    pub role_name:   ::prost::alloc::string::String,
+    pub role_name: ::prost::alloc::string::String,
     /// bit flags
     #[prost(int64, tag = "2")]
     pub permissions: i64,
     #[prost(message, optional, tag = "3")]
-    pub color:       ::core::option::Option<Color>,
+    pub color: ::core::option::Option<Color>,
     /// uid
     #[prost(int64, repeated, tag = "4")]
-    pub members:     ::prost::alloc::vec::Vec<i64>,
+    pub members: ::prost::alloc::vec::Vec<i64>,
     /// Members.len
     #[prost(uint64, tag = "5")]
-    pub length:      u64,
+    pub length: u64,
 }
 /// 取得所有角色 GET /api/chm/role
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -398,7 +400,7 @@ pub struct GetRolesRequest {}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetRolesResponse {
     #[prost(message, repeated, tag = "1")]
-    pub roles:  ::prost::alloc::vec::Vec<RoleInfo>,
+    pub roles: ::prost::alloc::vec::Vec<RoleInfo>,
     /// roles.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -410,7 +412,7 @@ pub struct GetRoleUsersRequest {}
 pub struct GetRoleUsersResponse {
     /// key: uid, value: name
     #[prost(map = "int64, string", tag = "1")]
-    pub users:  ::std::collections::HashMap<i64, ::prost::alloc::string::String>,
+    pub users: ::std::collections::HashMap<i64, ::prost::alloc::string::String>,
     /// users.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -420,14 +422,14 @@ pub struct GetRoleUsersResponse {
 pub struct CreateRoleRequest {
     /// RoleName
     #[prost(string, tag = "1")]
-    pub role_name:   ::prost::alloc::string::String,
+    pub role_name: ::prost::alloc::string::String,
     #[prost(int64, tag = "2")]
     pub permissions: i64,
     /// 可傳預設或自訂
     #[prost(message, optional, tag = "3")]
-    pub color:       ::core::option::Option<Color>,
+    pub color: ::core::option::Option<Color>,
     #[prost(int64, repeated, tag = "4")]
-    pub members:     ::prost::alloc::vec::Vec<i64>,
+    pub members: ::prost::alloc::vec::Vec<i64>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateRoleResponse {
@@ -455,7 +457,7 @@ pub struct PutRoleMembersRequest {
     pub role_name: ::prost::alloc::string::String,
     /// 新成員清單（覆蓋）
     #[prost(int64, repeated, tag = "2")]
-    pub members:   ::prost::alloc::vec::Vec<i64>,
+    pub members: ::prost::alloc::vec::Vec<i64>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutRoleMembersResponse {
@@ -467,13 +469,13 @@ pub struct PutRoleMembersResponse {
 pub struct PatchRoleRequest {
     /// RoleName
     #[prost(string, tag = "1")]
-    pub role_name:   ::prost::alloc::string::String,
+    pub role_name: ::prost::alloc::string::String,
     /// 若有就更新
     #[prost(int64, optional, tag = "2")]
     pub permissions: ::core::option::Option<i64>,
     /// 若有就更新（message 有 presence）
     #[prost(message, optional, tag = "3")]
-    pub color:       ::core::option::Option<Color>,
+    pub color: ::core::option::Option<Color>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchRoleResponse {
@@ -484,19 +486,19 @@ pub struct PatchRoleResponse {
 pub struct Module {
     /// Name
     #[prost(string, tag = "1")]
-    pub name:          ::prost::alloc::string::String,
+    pub name: ::prost::alloc::string::String,
     /// Version
     #[prost(string, tag = "2")]
-    pub version:       ::prost::alloc::string::String,
+    pub version: ::prost::alloc::string::String,
     /// Description
     #[prost(string, tag = "3")]
-    pub description:   ::prost::alloc::string::String,
+    pub description: ::prost::alloc::string::String,
     /// Author
     #[prost(string, tag = "4")]
-    pub author:        ::prost::alloc::string::String,
+    pub author: ::prost::alloc::string::String,
     /// Loadstatus (Load / Notload)
     #[prost(enumeration = "LoadStatus", tag = "5")]
-    pub load_status:   i32,
+    pub load_status: i32,
     /// Enablestatus (Enable / Disable)
     #[prost(enumeration = "EnableStatus", tag = "6")]
     pub enable_status: i32,
@@ -511,7 +513,7 @@ pub struct GetModulesResponse {
     pub modules: ::std::collections::HashMap<::prost::alloc::string::String, Module>,
     /// modules.len
     #[prost(uint64, tag = "2")]
-    pub length:  u64,
+    pub length: u64,
 }
 /// POST /api/chm/setting/module  (multipart/form-data -> 以檔案陣列抽象化)
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -520,7 +522,7 @@ pub struct ModuleFile {
     pub filename: ::prost::alloc::string::String,
     /// .zip 內容
     #[prost(bytes = "vec", tag = "2")]
-    pub content:  ::prost::alloc::vec::Vec<u8>,
+    pub content: ::prost::alloc::vec::Vec<u8>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UploadModulesRequest {
@@ -530,11 +532,11 @@ pub struct UploadModulesRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ModuleLoadReport {
     #[prost(string, repeated, tag = "1")]
-    pub load:           ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub load: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(string, repeated, tag = "2")]
-    pub notload:        ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub notload: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(uint64, tag = "3")]
-    pub load_length:    u64,
+    pub load_length: u64,
     #[prost(uint64, tag = "4")]
     pub notload_length: u64,
 }
@@ -553,13 +555,13 @@ pub struct UpdateModulesRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ModuleUpdateReport {
     #[prost(string, repeated, tag = "1")]
-    pub success:        ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub success: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(string, repeated, tag = "2")]
-    pub fail:           ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub fail: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(uint64, tag = "3")]
     pub success_length: u64,
     #[prost(uint64, tag = "4")]
-    pub fail_length:    u64,
+    pub fail_length: u64,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UpdateModulesResponse {
@@ -567,8 +569,7 @@ pub struct UpdateModulesResponse {
     #[prost(message, optional, tag = "1")]
     pub module: ::core::option::Option<ModuleUpdateReport>,
 }
-/// PATCH /api/chm/setting/module  (各模組自有設定；內容不定，用檔案/blob
-/// 抽象化)
+/// PATCH /api/chm/setting/module  (各模組自有設定；內容不定，用檔案/blob 抽象化)
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchModuleSettingsRequest {
     #[prost(message, repeated, tag = "1")]
@@ -577,14 +578,24 @@ pub struct PatchModuleSettingsRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchModuleSettingsResponse {
     #[prost(enumeration = "patch_module_settings_response::ResultType", tag = "1")]
-    pub r#type:  i32,
+    pub r#type: i32,
     #[prost(string, tag = "2")]
     pub message: ::prost::alloc::string::String,
 }
 /// Nested message and enum types in `PatchModuleSettingsResponse`.
 pub mod patch_module_settings_response {
     /// 簡單結果：若你的專案已有 common.ResponseResult，改成使用它
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum ResultType {
         Unspecified = 0,
@@ -592,12 +603,10 @@ pub mod patch_module_settings_response {
         Err = 2,
     }
     impl ResultType {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "RESULT_TYPE_UNSPECIFIED",
@@ -626,11 +635,11 @@ pub struct DeleteModulesRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ModuleDeleteReport {
     #[prost(string, repeated, tag = "1")]
-    pub delete:           ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub delete: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(string, repeated, tag = "2")]
-    pub notdelete:        ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub notdelete: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(uint64, tag = "3")]
-    pub delete_length:    u64,
+    pub delete_length: u64,
     #[prost(uint64, tag = "4")]
     pub notdelete_length: u64,
 }
@@ -649,13 +658,13 @@ pub struct EnableModulesRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ModuleActionReport {
     #[prost(string, repeated, tag = "1")]
-    pub success:        ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub success: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(string, repeated, tag = "2")]
-    pub fail:           ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub fail: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(uint64, tag = "3")]
     pub success_length: u64,
     #[prost(uint64, tag = "4")]
-    pub fail_length:    u64,
+    pub fail_length: u64,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EnableModulesResponse {
@@ -677,7 +686,17 @@ pub struct DisableModulesResponse {
 pub struct IpAccessTypes {}
 /// Nested message and enum types in `IpAccessTypes`.
 pub mod ip_access_types {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum IpAclMode {
         Unspecified = 0,
@@ -686,12 +705,10 @@ pub mod ip_access_types {
         Black = 3,
     }
     impl IpAclMode {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "IP_ACL_MODE_UNSPECIFIED",
@@ -719,7 +736,7 @@ pub struct IpEntry {
     pub name: ::prost::alloc::string::String,
     /// Ip
     #[prost(string, tag = "2")]
-    pub ip:   ::prost::alloc::string::String,
+    pub ip: ::prost::alloc::string::String,
 }
 /// GET /api/chm/setting/ip
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -728,7 +745,7 @@ pub struct GetIpAccessRequest {}
 pub struct GetIpAccessResponse {
     /// None / White / Black
     #[prost(enumeration = "ip_access_types::IpAclMode", tag = "1")]
-    pub mode:  i32,
+    pub mode: i32,
     /// key = did（資料庫 id）；若無清單可回空 map
     #[prost(map = "string, message", tag = "2")]
     pub lists: ::std::collections::HashMap<::prost::alloc::string::String, IpEntry>,
@@ -742,18 +759,28 @@ pub struct PostIpRequest {
     #[prost(string, tag = "2")]
     pub name: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub ip:   ::prost::alloc::string::String,
+    pub ip: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PostIpResponse {
     #[prost(enumeration = "post_ip_response::ResultType", tag = "1")]
-    pub r#type:  i32,
+    pub r#type: i32,
     #[prost(string, tag = "2")]
     pub message: ::prost::alloc::string::String,
 }
 /// Nested message and enum types in `PostIpResponse`.
 pub mod post_ip_response {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum ResultType {
         Unspecified = 0,
@@ -761,12 +788,10 @@ pub mod post_ip_response {
         Err = 2,
     }
     impl ResultType {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "RESULT_TYPE_UNSPECIFIED",
@@ -793,18 +818,28 @@ pub struct DeleteIpRequest {
     pub mode: i32,
     /// 資料庫 id
     #[prost(string, tag = "2")]
-    pub did:  ::prost::alloc::string::String,
+    pub did: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeleteIpResponse {
     #[prost(enumeration = "delete_ip_response::ResultType", tag = "1")]
-    pub r#type:  i32,
+    pub r#type: i32,
     #[prost(string, tag = "2")]
     pub message: ::prost::alloc::string::String,
 }
 /// Nested message and enum types in `DeleteIpResponse`.
 pub mod delete_ip_response {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum ResultType {
         Unspecified = 0,
@@ -812,12 +847,10 @@ pub mod delete_ip_response {
         Err = 2,
     }
     impl ResultType {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "RESULT_TYPE_UNSPECIFIED",
@@ -846,13 +879,23 @@ pub struct PutIpModeRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutIpModeResponse {
     #[prost(enumeration = "put_ip_mode_response::ResultType", tag = "1")]
-    pub r#type:  i32,
+    pub r#type: i32,
     #[prost(string, tag = "2")]
     pub message: ::prost::alloc::string::String,
 }
 /// Nested message and enum types in `PutIpModeResponse`.
 pub mod put_ip_mode_response {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum ResultType {
         Unspecified = 0,
@@ -860,12 +903,10 @@ pub mod put_ip_mode_response {
         Err = 2,
     }
     impl ResultType {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "RESULT_TYPE_UNSPECIFIED",
@@ -890,13 +931,13 @@ pub struct GetSettingValuesRequest {}
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct Values {
     #[prost(double, tag = "1")]
-    pub cpu_usage:  f64,
+    pub cpu_usage: f64,
     #[prost(double, tag = "2")]
     pub disk_usage: f64,
     #[prost(double, tag = "3")]
-    pub memory:     f64,
+    pub memory: f64,
     #[prost(double, tag = "4")]
-    pub network:    f64,
+    pub network: f64,
 }
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct GetSettingValuesResponse {
@@ -907,24 +948,34 @@ pub struct GetSettingValuesResponse {
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct PutSettingValuesRequest {
     #[prost(double, optional, tag = "1")]
-    pub cpu_usage:  ::core::option::Option<f64>,
+    pub cpu_usage: ::core::option::Option<f64>,
     #[prost(double, optional, tag = "2")]
     pub disk_usage: ::core::option::Option<f64>,
     #[prost(double, optional, tag = "3")]
-    pub memory:     ::core::option::Option<f64>,
+    pub memory: ::core::option::Option<f64>,
     #[prost(double, optional, tag = "4")]
-    pub network:    ::core::option::Option<f64>,
+    pub network: ::core::option::Option<f64>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutSettingValuesResponse {
     #[prost(enumeration = "put_setting_values_response::ResultType", tag = "1")]
-    pub r#type:  i32,
+    pub r#type: i32,
     #[prost(string, tag = "2")]
     pub message: ::prost::alloc::string::String,
 }
 /// Nested message and enum types in `PutSettingValuesResponse`.
 pub mod put_setting_values_response {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum ResultType {
         Unspecified = 0,
@@ -932,12 +983,10 @@ pub mod put_setting_values_response {
         Err = 2,
     }
     impl ResultType {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "RESULT_TYPE_UNSPECIFIED",
@@ -961,28 +1010,28 @@ pub mod put_setting_values_response {
 pub struct UserEntry {
     /// Username
     #[prost(string, tag = "1")]
-    pub username:       ::prost::alloc::string::String,
+    pub username: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub password:       ::prost::alloc::string::String,
+    pub password: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub cn:             ::prost::alloc::string::String,
+    pub cn: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
-    pub sn:             ::prost::alloc::string::String,
+    pub sn: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
     pub home_directory: ::prost::alloc::string::String,
     #[prost(string, tag = "6")]
-    pub shell:          ::prost::alloc::string::String,
+    pub shell: ::prost::alloc::string::String,
     #[prost(string, tag = "7")]
-    pub given_name:     ::prost::alloc::string::String,
+    pub given_name: ::prost::alloc::string::String,
     #[prost(string, tag = "8")]
-    pub display_name:   ::prost::alloc::string::String,
+    pub display_name: ::prost::alloc::string::String,
     #[prost(string, tag = "9")]
-    pub gid_number:     ::prost::alloc::string::String,
+    pub gid_number: ::prost::alloc::string::String,
     /// Group
     #[prost(string, repeated, tag = "10")]
-    pub group:          ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub group: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(string, tag = "11")]
-    pub gecos:          ::prost::alloc::string::String,
+    pub gecos: ::prost::alloc::string::String,
 }
 /// 取得所有使用者資訊  GET /api/chm/user
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -991,7 +1040,7 @@ pub struct GetUsersRequest {}
 pub struct GetUsersResponse {
     /// key = uid
     #[prost(map = "string, message", tag = "1")]
-    pub users:  ::std::collections::HashMap<::prost::alloc::string::String, UserEntry>,
+    pub users: ::std::collections::HashMap<::prost::alloc::string::String, UserEntry>,
     /// users.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -1025,27 +1074,27 @@ pub struct PutUsersResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UserPatch {
     #[prost(string, optional, tag = "1")]
-    pub username:       ::core::option::Option<::prost::alloc::string::String>,
+    pub username: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "2")]
-    pub password:       ::core::option::Option<::prost::alloc::string::String>,
+    pub password: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "3")]
-    pub cn:             ::core::option::Option<::prost::alloc::string::String>,
+    pub cn: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "4")]
-    pub sn:             ::core::option::Option<::prost::alloc::string::String>,
+    pub sn: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "5")]
     pub home_directory: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "6")]
-    pub shell:          ::core::option::Option<::prost::alloc::string::String>,
+    pub shell: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "7")]
-    pub given_name:     ::core::option::Option<::prost::alloc::string::String>,
+    pub given_name: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "8")]
-    pub display_name:   ::core::option::Option<::prost::alloc::string::String>,
+    pub display_name: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "9")]
-    pub gid_number:     ::core::option::Option<::prost::alloc::string::String>,
+    pub gid_number: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, repeated, tag = "10")]
-    pub group:          ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub group: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "11")]
-    pub gecos:          ::core::option::Option<::prost::alloc::string::String>,
+    pub gecos: ::core::option::Option<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchUsersRequest {
@@ -1077,7 +1126,7 @@ pub struct GroupInfo {
     pub groupname: ::prost::alloc::string::String,
     /// \[ "uid.username", ... \]
     #[prost(string, repeated, tag = "2")]
-    pub users:     ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub users: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 /// 取得所有群組資訊  GET /api/chm/group
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -1095,7 +1144,7 @@ pub struct CreateGroupRequest {
     pub groupname: ::prost::alloc::string::String,
     /// \[ "uid.username", ... \]
     #[prost(string, repeated, tag = "2")]
-    pub users:     ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub users: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateGroupResponse {
@@ -1121,6 +1170,9 @@ pub struct GroupPatch {
     /// 目前只示範可改 Groupname
     #[prost(string, optional, tag = "1")]
     pub groupname: ::core::option::Option<::prost::alloc::string::String>,
+    /// 若未來開放 Users 單獨改，可新增：repeated string users = 2;
+    #[prost(string, repeated, tag = "2")]
+    pub users: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchGroupsRequest {
@@ -1152,26 +1204,26 @@ pub struct Schedule {
     pub minute: i64,
     /// Hour
     #[prost(int64, tag = "2")]
-    pub hour:   i64,
+    pub hour: i64,
     /// Date
     #[prost(int64, tag = "3")]
-    pub date:   i64,
+    pub date: i64,
     /// Month
     #[prost(int64, tag = "4")]
-    pub month:  i64,
+    pub month: i64,
     /// Week
     #[prost(int64, tag = "5")]
-    pub week:   i64,
+    pub week: i64,
 }
 /// 排程工作
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CronJobEntry {
     /// Name
     #[prost(string, tag = "1")]
-    pub name:     ::prost::alloc::string::String,
+    pub name: ::prost::alloc::string::String,
     /// Command
     #[prost(string, tag = "2")]
-    pub command:  ::prost::alloc::string::String,
+    pub command: ::prost::alloc::string::String,
     /// Schedule
     #[prost(message, optional, tag = "3")]
     pub schedule: ::core::option::Option<Schedule>,
@@ -1186,7 +1238,7 @@ pub struct GetCronJobsRequest {}
 pub struct GetCronJobsResponse {
     /// key = id
     #[prost(map = "string, message", tag = "1")]
-    pub jobs:   ::std::collections::HashMap<::prost::alloc::string::String, CronJobEntry>,
+    pub jobs: ::std::collections::HashMap<::prost::alloc::string::String, CronJobEntry>,
     /// jobs.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -1233,7 +1285,7 @@ pub struct CronFile {
     pub filename: ::prost::alloc::string::String,
     /// 檔案內容
     #[prost(bytes = "vec", tag = "2")]
-    pub content:  ::prost::alloc::vec::Vec<u8>,
+    pub content: ::prost::alloc::vec::Vec<u8>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ImportCronRequest {
@@ -1252,7 +1304,7 @@ pub struct ExportCronRequest {}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportCronResponse {
     #[prost(message, optional, tag = "1")]
-    pub result:   ::core::option::Option<super::common::ResponseResult>,
+    pub result: ::core::option::Option<super::common::ResponseResult>,
     /// 規格中的 "Message": file；為了實用性補充實際檔案欄位
     ///
     /// 例如 "crontab.txt"
@@ -1260,7 +1312,7 @@ pub struct ExportCronResponse {
     pub filename: ::prost::alloc::string::String,
     /// 匯出檔案內容
     #[prost(bytes = "vec", tag = "3")]
-    pub file:     ::prost::alloc::vec::Vec<u8>,
+    pub file: ::prost::alloc::vec::Vec<u8>,
 }
 /// 取得所有主機 GET /api/file/pdir/pcs
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -1269,8 +1321,10 @@ pub struct GetPdirPcsRequest {}
 pub struct GetPdirPcsResponse {
     /// key = uuid, value = hostname
     #[prost(map = "string, string", tag = "1")]
-    pub pcs:
-        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
+    pub pcs: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
     /// pcs.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -1280,7 +1334,7 @@ pub struct GetPdirPcsResponse {
 pub struct GetPdirOneRequest {
     /// 目標主機
     #[prost(string, tag = "1")]
-    pub uuid:      ::prost::alloc::string::String,
+    pub uuid: ::prost::alloc::string::String,
     /// 目錄（預設根目錄，可傳空字串代表 root）
     #[prost(string, tag = "2")]
     pub directory: ::prost::alloc::string::String,
@@ -1289,16 +1343,16 @@ pub struct GetPdirOneRequest {
 pub struct FileEntry {
     /// Size
     #[prost(double, tag = "1")]
-    pub size:     f64,
+    pub size: f64,
     /// Unit
     #[prost(enumeration = "FileUnit", tag = "2")]
-    pub unit:     i32,
+    pub unit: i32,
     /// Owner
     #[prost(string, tag = "3")]
-    pub owner:    ::prost::alloc::string::String,
+    pub owner: ::prost::alloc::string::String,
     /// Mode
     #[prost(string, tag = "4")]
-    pub mode:     ::prost::alloc::string::String,
+    pub mode: ::prost::alloc::string::String,
     /// Modified（文字時間）
     #[prost(string, tag = "5")]
     pub modified: ::prost::alloc::string::String,
@@ -1307,7 +1361,7 @@ pub struct FileEntry {
 pub struct GetPdirOneResponse {
     /// key = filename
     #[prost(map = "string, message", tag = "1")]
-    pub files:  ::std::collections::HashMap<::prost::alloc::string::String, FileEntry>,
+    pub files: ::std::collections::HashMap<::prost::alloc::string::String, FileEntry>,
     /// files.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -1319,7 +1373,7 @@ pub struct FileBlob {
     pub filename: ::prost::alloc::string::String,
     /// 檔案內容
     #[prost(bytes = "vec", tag = "2")]
-    pub content:  ::prost::alloc::vec::Vec<u8>,
+    pub content: ::prost::alloc::vec::Vec<u8>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct UploadPdirFilesRequest {
@@ -1340,20 +1394,20 @@ pub struct UploadPdirFilesResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DownloadPdirFileRequest {
     #[prost(string, tag = "1")]
-    pub uuid:     ::prost::alloc::string::String,
+    pub uuid: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub filename: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DownloadPdirFileResponse {
     #[prost(message, optional, tag = "1")]
-    pub result:   ::core::option::Option<super::common::ResponseResult>,
+    pub result: ::core::option::Option<super::common::ResponseResult>,
     /// 便利起見一併回傳檔名
     #[prost(string, tag = "2")]
     pub filename: ::prost::alloc::string::String,
     /// 檔案內容
     #[prost(bytes = "vec", tag = "3")]
-    pub file:     ::prost::alloc::vec::Vec<u8>,
+    pub file: ::prost::alloc::vec::Vec<u8>,
 }
 /// 取得虛擬目錄 GET /api/file/vdir
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -1385,11 +1439,11 @@ pub struct DownloadVdirFileRequest {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DownloadVdirFileResponse {
     #[prost(message, optional, tag = "1")]
-    pub result:   ::core::option::Option<super::common::ResponseResult>,
+    pub result: ::core::option::Option<super::common::ResponseResult>,
     #[prost(string, tag = "2")]
     pub filename: ::prost::alloc::string::String,
     #[prost(bytes = "vec", tag = "3")]
-    pub file:     ::prost::alloc::vec::Vec<u8>,
+    pub file: ::prost::alloc::vec::Vec<u8>,
 }
 /// 時間物件（系統日誌 /all 回傳使用）
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -1399,51 +1453,51 @@ pub struct SysLogTime {
     pub hour: i64,
     /// Min
     #[prost(int64, tag = "2")]
-    pub min:  i64,
+    pub min: i64,
 }
 /// 系統日誌條目（/api/logs/sys，用物件時間）
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SysLogEntry {
     /// Month
     #[prost(string, tag = "1")]
-    pub month:     ::prost::alloc::string::String,
+    pub month: ::prost::alloc::string::String,
     /// Day
     #[prost(int64, tag = "2")]
-    pub day:       i64,
+    pub day: i64,
     /// Time.{Hour, Min}
     #[prost(message, optional, tag = "3")]
-    pub time:      ::core::option::Option<SysLogTime>,
+    pub time: ::core::option::Option<SysLogTime>,
     /// Direction（A to B）
     #[prost(string, tag = "4")]
     pub direction: ::prost::alloc::string::String,
     /// Type
     #[prost(string, tag = "5")]
-    pub r#type:    ::prost::alloc::string::String,
+    pub r#type: ::prost::alloc::string::String,
     /// Messages
     #[prost(string, tag = "6")]
-    pub messages:  ::prost::alloc::string::String,
+    pub messages: ::prost::alloc::string::String,
 }
 /// 系統日誌條目（/api/logs/sys/query，時間為字串）
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SysLogEntryFlat {
     /// Month
     #[prost(string, tag = "1")]
-    pub month:     ::prost::alloc::string::String,
+    pub month: ::prost::alloc::string::String,
     /// Day
     #[prost(int64, tag = "2")]
-    pub day:       i64,
+    pub day: i64,
     /// Time（字串）
     #[prost(string, tag = "3")]
-    pub time:      ::prost::alloc::string::String,
+    pub time: ::prost::alloc::string::String,
     /// Direction
     #[prost(string, tag = "4")]
     pub direction: ::prost::alloc::string::String,
     /// Type
     #[prost(string, tag = "5")]
-    pub r#type:    ::prost::alloc::string::String,
+    pub r#type: ::prost::alloc::string::String,
     /// Messages
     #[prost(string, tag = "6")]
-    pub messages:  ::prost::alloc::string::String,
+    pub messages: ::prost::alloc::string::String,
 }
 /// 取得所有系統日誌  GET /api/logs/sys
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -1452,7 +1506,7 @@ pub struct GetSysLogsRequest {}
 pub struct GetSysLogsResponse {
     /// key = id
     #[prost(map = "string, message", tag = "1")]
-    pub logs:   ::std::collections::HashMap<::prost::alloc::string::String, SysLogEntry>,
+    pub logs: ::std::collections::HashMap<::prost::alloc::string::String, SysLogEntry>,
     /// logs.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -1462,7 +1516,17 @@ pub struct GetSysLogsResponse {
 pub struct SysLogsTypes {}
 /// Nested message and enum types in `SysLogsTypes`.
 pub mod sys_logs_types {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum SysLogSearchField {
         Unspecified = 0,
@@ -1473,12 +1537,10 @@ pub mod sys_logs_types {
         Type = 5,
     }
     impl SysLogSearchField {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "SYS_LOG_SEARCH_FIELD_UNSPECIFIED",
@@ -1508,7 +1570,7 @@ pub mod sys_logs_types {
 pub struct QuerySysLogsRequest {
     /// "Month" | "Day" | "Time" | "Direction" | "Type"
     #[prost(enumeration = "sys_logs_types::SysLogSearchField", tag = "1")]
-    pub search:    i32,
+    pub search: i32,
     /// 對應的參數值（字串）
     #[prost(string, tag = "2")]
     pub parameter: ::prost::alloc::string::String,
@@ -1517,7 +1579,10 @@ pub struct QuerySysLogsRequest {
 pub struct QuerySysLogsResponse {
     /// key = id
     #[prost(map = "string, message", tag = "1")]
-    pub logs:   ::std::collections::HashMap<::prost::alloc::string::String, SysLogEntryFlat>,
+    pub logs: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        SysLogEntryFlat,
+    >,
     /// logs.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -1529,8 +1594,10 @@ pub struct GetPcLogPcsRequest {}
 pub struct GetPcLogPcsResponse {
     /// key = uuid, value = hostname
     #[prost(map = "string, string", tag = "1")]
-    pub pcs:
-        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
+    pub pcs: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
     /// pcs.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -1540,19 +1607,19 @@ pub struct GetPcLogPcsResponse {
 pub struct PcLogEntry {
     /// Month
     #[prost(string, tag = "1")]
-    pub month:    ::prost::alloc::string::String,
+    pub month: ::prost::alloc::string::String,
     /// Day
     #[prost(int64, tag = "2")]
-    pub day:      i64,
+    pub day: i64,
     /// Time（字串）
     #[prost(string, tag = "3")]
-    pub time:     ::prost::alloc::string::String,
+    pub time: ::prost::alloc::string::String,
     /// Hostname
     #[prost(string, tag = "4")]
     pub hostname: ::prost::alloc::string::String,
     /// Type
     #[prost(string, tag = "5")]
-    pub r#type:   ::prost::alloc::string::String,
+    pub r#type: ::prost::alloc::string::String,
     /// Messages
     #[prost(string, tag = "6")]
     pub messages: ::prost::alloc::string::String,
@@ -1568,7 +1635,7 @@ pub struct GetPcLogsRequest {
 pub struct GetPcLogsResponse {
     /// key = id
     #[prost(map = "string, message", tag = "1")]
-    pub logs:   ::std::collections::HashMap<::prost::alloc::string::String, PcLogEntry>,
+    pub logs: ::std::collections::HashMap<::prost::alloc::string::String, PcLogEntry>,
     /// logs.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -1578,7 +1645,17 @@ pub struct GetPcLogsResponse {
 pub struct PcLogsTypes {}
 /// Nested message and enum types in `PcLogsTypes`.
 pub mod pc_logs_types {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum PcLogSearchField {
         Unspecified = 0,
@@ -1589,12 +1666,10 @@ pub mod pc_logs_types {
         Type = 5,
     }
     impl PcLogSearchField {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "PC_LOG_SEARCH_FIELD_UNSPECIFIED",
@@ -1624,10 +1699,10 @@ pub mod pc_logs_types {
 pub struct QueryPcLogsRequest {
     /// 目標主機
     #[prost(string, tag = "1")]
-    pub uuid:      ::prost::alloc::string::String,
+    pub uuid: ::prost::alloc::string::String,
     /// "Month" | "Day" | "Time" | "Hostname" | "Type"
     #[prost(enumeration = "pc_logs_types::PcLogSearchField", tag = "2")]
-    pub search:    i32,
+    pub search: i32,
     /// 對應的參數值（字串）
     #[prost(string, tag = "3")]
     pub parameter: ::prost::alloc::string::String,
@@ -1636,7 +1711,7 @@ pub struct QueryPcLogsRequest {
 pub struct QueryPcLogsResponse {
     /// key = id
     #[prost(map = "string, message", tag = "1")]
-    pub logs:   ::std::collections::HashMap<::prost::alloc::string::String, PcLogEntry>,
+    pub logs: ::std::collections::HashMap<::prost::alloc::string::String, PcLogEntry>,
     /// logs.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -1648,8 +1723,10 @@ pub struct GetFirewallPcsRequest {}
 pub struct GetFirewallPcsResponse {
     /// key = uuid, value = hostname
     #[prost(map = "string, string", tag = "1")]
-    pub pcs:
-        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
+    pub pcs: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ::prost::alloc::string::String,
+    >,
     /// pcs.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -1659,37 +1736,37 @@ pub struct GetFirewallPcsResponse {
 pub struct Rule {
     /// Target
     #[prost(enumeration = "Verdict", tag = "1")]
-    pub target:      i32,
+    pub target: i32,
     /// Protocol
     #[prost(string, tag = "2")]
-    pub protocol:    ::prost::alloc::string::String,
+    pub protocol: ::prost::alloc::string::String,
     /// In
     #[prost(string, tag = "3")]
-    pub in_if:       ::prost::alloc::string::String,
+    pub in_if: ::prost::alloc::string::String,
     /// Out
     #[prost(string, tag = "4")]
-    pub out_if:      ::prost::alloc::string::String,
+    pub out_if: ::prost::alloc::string::String,
     /// Source
     #[prost(string, tag = "5")]
-    pub source:      ::prost::alloc::string::String,
+    pub source: ::prost::alloc::string::String,
     /// Destination
     #[prost(string, tag = "6")]
     pub destination: ::prost::alloc::string::String,
     /// Options
     #[prost(string, tag = "7")]
-    pub options:     ::prost::alloc::string::String,
+    pub options: ::prost::alloc::string::String,
 }
 /// 鏈（含預設策略與規則）
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Chain {
     /// INPUT / FORWARD / OUTPUT
     #[prost(string, tag = "1")]
-    pub name:         ::prost::alloc::string::String,
+    pub name: ::prost::alloc::string::String,
     /// 預設策略
     #[prost(enumeration = "Verdict", tag = "2")]
-    pub policy:       i32,
+    pub policy: i32,
     #[prost(message, repeated, tag = "3")]
-    pub rules:        ::prost::alloc::vec::Vec<Rule>,
+    pub rules: ::prost::alloc::vec::Vec<Rule>,
     /// rules.len
     #[prost(uint64, tag = "4")]
     pub rules_length: u64,
@@ -1714,25 +1791,25 @@ pub struct GetFirewallResponse {
 pub struct AddFirewallRuleRequest {
     /// 主機 ID
     #[prost(string, tag = "1")]
-    pub uuid:        ::prost::alloc::string::String,
+    pub uuid: ::prost::alloc::string::String,
     /// INPUT | FORWARD | OUTPUT
     #[prost(enumeration = "ChainKind", tag = "2")]
-    pub chain:       i32,
+    pub chain: i32,
     /// ACCEPT | DROP | REJECT
     #[prost(enumeration = "Verdict", tag = "3")]
-    pub target:      i32,
+    pub target: i32,
     #[prost(string, tag = "4")]
-    pub protocol:    ::prost::alloc::string::String,
+    pub protocol: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
-    pub in_if:       ::prost::alloc::string::String,
+    pub in_if: ::prost::alloc::string::String,
     #[prost(string, tag = "6")]
-    pub out_if:      ::prost::alloc::string::String,
+    pub out_if: ::prost::alloc::string::String,
     #[prost(string, tag = "7")]
-    pub source:      ::prost::alloc::string::String,
+    pub source: ::prost::alloc::string::String,
     #[prost(string, tag = "8")]
     pub destination: ::prost::alloc::string::String,
     #[prost(string, tag = "9")]
-    pub options:     ::prost::alloc::string::String,
+    pub options: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AddFirewallRuleResponse {
@@ -1745,10 +1822,10 @@ pub struct AddFirewallRuleResponse {
 pub struct DeleteFirewallRuleRequest {
     /// 主機 ID
     #[prost(string, tag = "1")]
-    pub uuid:    ::prost::alloc::string::String,
+    pub uuid: ::prost::alloc::string::String,
     /// INPUT | FORWARD | OUTPUT
     #[prost(enumeration = "ChainKind", tag = "2")]
-    pub chain:   i32,
+    pub chain: i32,
     /// 規則索引
     #[prost(uint64, tag = "3")]
     pub rule_id: u64,
@@ -1762,7 +1839,7 @@ pub struct DeleteFirewallRuleResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutFirewallStatusRequest {
     #[prost(string, tag = "1")]
-    pub uuid:   ::prost::alloc::string::String,
+    pub uuid: ::prost::alloc::string::String,
     /// active / inactive
     #[prost(enumeration = "FirewallStatus", tag = "2")]
     pub status: i32,
@@ -1776,10 +1853,10 @@ pub struct PutFirewallStatusResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutFirewallPolicyRequest {
     #[prost(string, tag = "1")]
-    pub uuid:   ::prost::alloc::string::String,
+    pub uuid: ::prost::alloc::string::String,
     /// INPUT | FORWARD | OUTPUT
     #[prost(enumeration = "ChainKind", tag = "2")]
-    pub chain:  i32,
+    pub chain: i32,
     /// ACCEPT | DROP | REJECT
     #[prost(enumeration = "Verdict", tag = "3")]
     pub policy: i32,
@@ -1793,34 +1870,37 @@ pub struct PutFirewallPolicyResponse {
 pub struct NetworkItem {
     /// Type (Virtual/Physical)
     #[prost(enumeration = "NicType", tag = "1")]
-    pub r#type:    i32,
+    pub r#type: i32,
     /// Ipv4
     #[prost(string, tag = "2")]
-    pub ipv4:      ::prost::alloc::string::String,
+    pub ipv4: ::prost::alloc::string::String,
     /// Netmask
     #[prost(string, tag = "3")]
-    pub netmask:   ::prost::alloc::string::String,
+    pub netmask: ::prost::alloc::string::String,
     /// Mac
     #[prost(string, tag = "4")]
-    pub mac:       ::prost::alloc::string::String,
+    pub mac: ::prost::alloc::string::String,
     /// Broadcast
     #[prost(string, tag = "5")]
     pub broadcast: ::prost::alloc::string::String,
     /// Mtu
     #[prost(int64, tag = "6")]
-    pub mtu:       i64,
+    pub mtu: i64,
     /// Status (Up/Down)
     #[prost(enumeration = "NicStatus", tag = "7")]
-    pub status:    i32,
+    pub status: i32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PcNetworks {
     /// key = nid
     #[prost(map = "string, message", tag = "1")]
-    pub networks: ::std::collections::HashMap<::prost::alloc::string::String, NetworkItem>,
+    pub networks: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        NetworkItem,
+    >,
     /// networks.len
     #[prost(uint64, tag = "2")]
-    pub length:   u64,
+    pub length: u64,
 }
 /// GET /api/network/net
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -1829,7 +1909,7 @@ pub struct GetAllNetRequest {}
 pub struct GetAllNetResponse {
     /// key = uuid
     #[prost(map = "string, message", tag = "1")]
-    pub pcs:    ::std::collections::HashMap<::prost::alloc::string::String, PcNetworks>,
+    pub pcs: ::std::collections::HashMap<::prost::alloc::string::String, PcNetworks>,
     /// pcs.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -1839,28 +1919,28 @@ pub struct GetAllNetResponse {
 pub struct CreateNetRequest {
     /// Nid
     #[prost(string, tag = "1")]
-    pub nid:       ::prost::alloc::string::String,
+    pub nid: ::prost::alloc::string::String,
     /// Type
     #[prost(enumeration = "NicType", tag = "2")]
-    pub r#type:    i32,
+    pub r#type: i32,
     /// Ipv4
     #[prost(string, tag = "3")]
-    pub ipv4:      ::prost::alloc::string::String,
+    pub ipv4: ::prost::alloc::string::String,
     /// Netmask
     #[prost(string, tag = "4")]
-    pub netmask:   ::prost::alloc::string::String,
+    pub netmask: ::prost::alloc::string::String,
     /// Mac
     #[prost(string, tag = "5")]
-    pub mac:       ::prost::alloc::string::String,
+    pub mac: ::prost::alloc::string::String,
     /// Broadcast
     #[prost(string, tag = "6")]
     pub broadcast: ::prost::alloc::string::String,
     /// Mtu
     #[prost(int64, tag = "7")]
-    pub mtu:       i64,
+    pub mtu: i64,
     /// Status
     #[prost(enumeration = "NicStatus", tag = "8")]
-    pub status:    i32,
+    pub status: i32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateNetResponse {
@@ -1882,22 +1962,22 @@ pub struct DeleteNetResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchNetRequest {
     #[prost(string, tag = "1")]
-    pub nid:       ::prost::alloc::string::String,
+    pub nid: ::prost::alloc::string::String,
     /// 任一欄位可選，其餘留白
     #[prost(string, tag = "2")]
-    pub ipv4:      ::prost::alloc::string::String,
+    pub ipv4: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub netmask:   ::prost::alloc::string::String,
+    pub netmask: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
-    pub mac:       ::prost::alloc::string::String,
+    pub mac: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
     pub broadcast: ::prost::alloc::string::String,
     #[prost(int64, tag = "6")]
-    pub mtu:       i64,
+    pub mtu: i64,
     #[prost(enumeration = "NicStatus", tag = "7")]
-    pub status:    i32,
+    pub status: i32,
     #[prost(enumeration = "NicType", tag = "8")]
-    pub r#type:    i32,
+    pub r#type: i32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchNetResponse {
@@ -1908,21 +1988,21 @@ pub struct PatchNetResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutNetRequest {
     #[prost(string, tag = "1")]
-    pub nid:       ::prost::alloc::string::String,
+    pub nid: ::prost::alloc::string::String,
     #[prost(enumeration = "NicType", tag = "2")]
-    pub r#type:    i32,
+    pub r#type: i32,
     #[prost(string, tag = "3")]
-    pub ipv4:      ::prost::alloc::string::String,
+    pub ipv4: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
-    pub netmask:   ::prost::alloc::string::String,
+    pub netmask: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
-    pub mac:       ::prost::alloc::string::String,
+    pub mac: ::prost::alloc::string::String,
     #[prost(string, tag = "6")]
     pub broadcast: ::prost::alloc::string::String,
     #[prost(int64, tag = "7")]
-    pub mtu:       i64,
+    pub mtu: i64,
     #[prost(enumeration = "NicStatus", tag = "8")]
-    pub status:    i32,
+    pub status: i32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutNetResponse {
@@ -1955,22 +2035,22 @@ pub struct NetDownResponse {
 pub struct RouteItem {
     /// Via
     #[prost(string, tag = "1")]
-    pub via:    ::prost::alloc::string::String,
+    pub via: ::prost::alloc::string::String,
     /// Dev
     #[prost(string, tag = "2")]
-    pub dev:    ::prost::alloc::string::String,
+    pub dev: ::prost::alloc::string::String,
     /// Proto
     #[prost(string, tag = "3")]
-    pub proto:  ::prost::alloc::string::String,
+    pub proto: ::prost::alloc::string::String,
     /// Metric
     #[prost(int64, tag = "4")]
     pub metric: i64,
     /// Scope
     #[prost(string, tag = "5")]
-    pub scope:  ::prost::alloc::string::String,
+    pub scope: ::prost::alloc::string::String,
     /// Src
     #[prost(string, tag = "6")]
-    pub src:    ::prost::alloc::string::String,
+    pub src: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PcRoutes {
@@ -1988,7 +2068,7 @@ pub struct GetAllRouteRequest {}
 pub struct GetAllRouteResponse {
     /// key = uuid
     #[prost(map = "string, message", tag = "1")]
-    pub pcs:    ::std::collections::HashMap<::prost::alloc::string::String, PcRoutes>,
+    pub pcs: ::std::collections::HashMap<::prost::alloc::string::String, PcRoutes>,
     /// pcs.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -1999,17 +2079,17 @@ pub struct CreateRouteRequest {
     #[prost(string, tag = "1")]
     pub destination: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub via:         ::prost::alloc::string::String,
+    pub via: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub dev:         ::prost::alloc::string::String,
+    pub dev: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
-    pub proto:       ::prost::alloc::string::String,
+    pub proto: ::prost::alloc::string::String,
     #[prost(int64, tag = "5")]
-    pub metric:      i64,
+    pub metric: i64,
     #[prost(string, tag = "6")]
-    pub scope:       ::prost::alloc::string::String,
+    pub scope: ::prost::alloc::string::String,
     #[prost(string, tag = "7")]
-    pub src:         ::prost::alloc::string::String,
+    pub src: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateRouteResponse {
@@ -2033,20 +2113,20 @@ pub struct PatchRouteRequest {
     pub destination: ::prost::alloc::string::String,
     /// 要更新的欄位
     #[prost(enumeration = "RouteField", tag = "2")]
-    pub field:       i32,
+    pub field: i32,
     /// 值（僅提供對應欄位）
     #[prost(string, tag = "3")]
-    pub via:         ::prost::alloc::string::String,
+    pub via: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
-    pub dev:         ::prost::alloc::string::String,
+    pub dev: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
-    pub proto:       ::prost::alloc::string::String,
+    pub proto: ::prost::alloc::string::String,
     #[prost(int64, tag = "6")]
-    pub metric:      i64,
+    pub metric: i64,
     #[prost(string, tag = "7")]
-    pub scope:       ::prost::alloc::string::String,
+    pub scope: ::prost::alloc::string::String,
     #[prost(string, tag = "8")]
-    pub src:         ::prost::alloc::string::String,
+    pub src: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchRouteResponse {
@@ -2059,17 +2139,17 @@ pub struct PutRouteRequest {
     #[prost(string, tag = "1")]
     pub destination: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub via:         ::prost::alloc::string::String,
+    pub via: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub dev:         ::prost::alloc::string::String,
+    pub dev: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
-    pub proto:       ::prost::alloc::string::String,
+    pub proto: ::prost::alloc::string::String,
     #[prost(int64, tag = "5")]
-    pub metric:      i64,
+    pub metric: i64,
     #[prost(string, tag = "6")]
-    pub scope:       ::prost::alloc::string::String,
+    pub scope: ::prost::alloc::string::String,
     #[prost(string, tag = "7")]
-    pub src:         ::prost::alloc::string::String,
+    pub src: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutRouteResponse {
@@ -2080,7 +2160,7 @@ pub struct PutRouteResponse {
 pub struct DnsPair {
     /// Primary
     #[prost(string, tag = "1")]
-    pub primary:   ::prost::alloc::string::String,
+    pub primary: ::prost::alloc::string::String,
     /// Secondary
     #[prost(string, tag = "2")]
     pub secondary: ::prost::alloc::string::String,
@@ -2092,7 +2172,7 @@ pub struct PcDns {
     pub hostname: ::prost::alloc::string::String,
     /// DNS
     #[prost(message, optional, tag = "2")]
-    pub dns:      ::core::option::Option<DnsPair>,
+    pub dns: ::core::option::Option<DnsPair>,
 }
 /// GET /api/network/dns
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -2119,7 +2199,7 @@ pub struct PatchHostnameResponse {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutDnsRequest {
     #[prost(string, tag = "1")]
-    pub primary:   ::prost::alloc::string::String,
+    pub primary: ::prost::alloc::string::String,
     /// 若未提供，伺服端可沿用舊值
     #[prost(string, tag = "2")]
     pub secondary: ::prost::alloc::string::String,
@@ -2137,7 +2217,7 @@ pub struct ProcessEntry {
     pub status: bool,
     /// 是否開機自動啟動
     #[prost(bool, tag = "2")]
-    pub boot:   bool,
+    pub boot: bool,
 }
 /// /api/process/all ─ 取得所有電腦的 Process
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -2146,19 +2226,22 @@ pub struct GetAllProcessRequest {}
 pub struct PcProcess {
     /// 該台主機的 Hostname
     #[prost(string, tag = "1")]
-    pub hostname:  ::prost::alloc::string::String,
+    pub hostname: ::prost::alloc::string::String,
     /// key = pname
     #[prost(map = "string, message", tag = "2")]
-    pub processes: ::std::collections::HashMap<::prost::alloc::string::String, ProcessEntry>,
+    pub processes: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ProcessEntry,
+    >,
     /// process.len
     #[prost(uint64, tag = "3")]
-    pub length:    u64,
+    pub length: u64,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetAllProcessResponse {
     /// key = uuid
     #[prost(map = "string, message", tag = "1")]
-    pub pcs:    ::std::collections::HashMap<::prost::alloc::string::String, PcProcess>,
+    pub pcs: ::std::collections::HashMap<::prost::alloc::string::String, PcProcess>,
     /// pcs.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -2173,16 +2256,19 @@ pub struct GetOneProcessRequest {
 pub struct GetOneProcessResponse {
     /// key = pname
     #[prost(map = "string, message", tag = "1")]
-    pub processes: ::std::collections::HashMap<::prost::alloc::string::String, ProcessEntry>,
+    pub processes: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        ProcessEntry,
+    >,
     /// process.len
     #[prost(uint64, tag = "2")]
-    pub length:    u64,
+    pub length: u64,
 }
 /// 動作請求共用
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ProcessActionRequest {
     #[prost(string, tag = "1")]
-    pub uuid:    ::prost::alloc::string::String,
+    pub uuid: ::prost::alloc::string::String,
     /// pname
     #[prost(string, tag = "2")]
     pub process: ::prost::alloc::string::String,
@@ -2278,14 +2364,17 @@ pub struct PackageInfo {
     pub version: ::prost::alloc::string::String,
     /// Status
     #[prost(enumeration = "PackageStatus", tag = "2")]
-    pub status:  i32,
+    pub status: i32,
 }
 /// 單一 PC 的套件清單
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PcPackages {
     /// key = package name
     #[prost(map = "string, message", tag = "1")]
-    pub packages: ::std::collections::HashMap<::prost::alloc::string::String, PackageInfo>,
+    pub packages: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        PackageInfo,
+    >,
 }
 /// 取得軟體清單 GET /api/software
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -2301,7 +2390,7 @@ pub struct GetSoftwareResponse {
 pub struct InstallSoftwareRequest {
     /// Uuid
     #[prost(string, repeated, tag = "1")]
-    pub uuids:    ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub uuids: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// Packages
     #[prost(string, repeated, tag = "2")]
     pub packages: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
@@ -2311,7 +2400,7 @@ pub struct InstallSoftwareRequest {
 pub struct DeleteSoftwareRequest {
     /// Uuid
     #[prost(string, repeated, tag = "1")]
-    pub uuids:    ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub uuids: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// Package
     #[prost(string, repeated, tag = "2")]
     pub packages: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
@@ -2321,7 +2410,7 @@ pub struct DeleteSoftwareRequest {
 pub struct PackageActionResult {
     /// Installed: \[uuid\]
     #[prost(string, repeated, tag = "1")]
-    pub installed:    ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub installed: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// Notinstalled: \[uuid\]
     #[prost(string, repeated, tag = "2")]
     pub notinstalled: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
@@ -2330,10 +2419,13 @@ pub struct PackageActionResult {
 pub struct PackageActionResponse {
     /// key = package name
     #[prost(map = "string, message", tag = "1")]
-    pub packages: ::std::collections::HashMap<::prost::alloc::string::String, PackageActionResult>,
+    pub packages: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        PackageActionResult,
+    >,
     /// packages.len
     #[prost(uint64, tag = "2")]
-    pub length:   u64,
+    pub length: u64,
 }
 /// GET /api/server/apache
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -2347,28 +2439,28 @@ pub struct GetApacheRequest {
 pub struct ApacheAccessLog {
     /// Ip
     #[prost(string, tag = "1")]
-    pub ip:         ::prost::alloc::string::String,
+    pub ip: ::prost::alloc::string::String,
     /// Date（含 Year / Month / Week / Time{Hour,Min}）
     #[prost(message, optional, tag = "2")]
-    pub date:       ::core::option::Option<super::common::Date>,
+    pub date: ::core::option::Option<super::common::Date>,
     /// Method（GET/POST...）
     #[prost(string, tag = "3")]
-    pub method:     ::prost::alloc::string::String,
+    pub method: ::prost::alloc::string::String,
     /// URL
     #[prost(string, tag = "4")]
-    pub url:        ::prost::alloc::string::String,
+    pub url: ::prost::alloc::string::String,
     /// Protocol
     #[prost(string, tag = "5")]
-    pub protocol:   ::prost::alloc::string::String,
+    pub protocol: ::prost::alloc::string::String,
     /// HTTP 狀態碼
     #[prost(int64, tag = "6")]
-    pub status:     i64,
+    pub status: i64,
     /// 回應大小
     #[prost(int64, tag = "7")]
-    pub byte:       i64,
+    pub byte: i64,
     /// Referer
     #[prost(string, tag = "8")]
-    pub referer:    ::prost::alloc::string::String,
+    pub referer: ::prost::alloc::string::String,
     /// User_Agent
     #[prost(string, tag = "9")]
     pub user_agent: ::prost::alloc::string::String,
@@ -2378,16 +2470,16 @@ pub struct ApacheAccessLog {
 pub struct ApacheLogs {
     /// Error_log\[\]
     #[prost(message, repeated, tag = "1")]
-    pub error_log:  ::prost::alloc::vec::Vec<super::common::ErrorLog>,
+    pub error_log: ::prost::alloc::vec::Vec<super::common::ErrorLog>,
     /// Error_log.len
     #[prost(uint64, tag = "2")]
-    pub errlength:  u64,
+    pub errlength: u64,
     /// Access_log\[\]
     #[prost(message, repeated, tag = "3")]
     pub access_log: ::prost::alloc::vec::Vec<ApacheAccessLog>,
     /// Access_log.len
     #[prost(uint64, tag = "4")]
-    pub acclength:  u64,
+    pub acclength: u64,
 }
 /// 回傳（以 common.CommonInfo 承載 Hostname/Status/Cpu/Memory）
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -2400,7 +2492,7 @@ pub struct GetApacheResponse {
     pub connections: i64,
     /// 錯誤與存取日誌
     #[prost(message, optional, tag = "3")]
-    pub logs:        ::core::option::Option<ApacheLogs>,
+    pub logs: ::core::option::Option<ApacheLogs>,
 }
 /// 動作請求
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -2457,38 +2549,38 @@ pub struct GetBindRequest {
 pub struct BindQueries {
     /// Total：總查詢次數
     #[prost(int64, tag = "1")]
-    pub total:    i64,
+    pub total: i64,
     /// Success：成功解析次數
     #[prost(int64, tag = "2")]
-    pub success:  i64,
+    pub success: i64,
     /// NXDOMAIN：無此網域次數
     #[prost(int64, tag = "3")]
     pub nxdomain: i64,
     /// REFUSED：拒絕回應次數
     #[prost(int64, tag = "4")]
-    pub refused:  i64,
+    pub refused: i64,
 }
 /// 單筆 Query_log
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BindQueryLog {
     /// Client（IP:Port）
     #[prost(string, tag = "1")]
-    pub client:   ::prost::alloc::string::String,
+    pub client: ::prost::alloc::string::String,
     /// Date
     #[prost(message, optional, tag = "2")]
-    pub date:     ::core::option::Option<super::common::Date>,
+    pub date: ::core::option::Option<super::common::Date>,
     /// 查詢網域
     #[prost(string, tag = "3")]
-    pub query:    ::prost::alloc::string::String,
+    pub query: ::prost::alloc::string::String,
     /// 查詢類型
     #[prost(enumeration = "DnsQueryType", tag = "4")]
-    pub r#type:   i32,
+    pub r#type: i32,
     /// 回應（IP/紀錄）
     #[prost(string, tag = "5")]
     pub response: ::prost::alloc::string::String,
     /// 回應狀態
     #[prost(enumeration = "DnsQueryStatus", tag = "6")]
-    pub status:   i32,
+    pub status: i32,
     /// 查詢時間（毫秒）
     #[prost(double, tag = "7")]
     pub duration: f64,
@@ -2520,10 +2612,10 @@ pub struct GetBindResponse {
     pub connections: i64,
     /// 統計
     #[prost(message, optional, tag = "3")]
-    pub queries:     ::core::option::Option<BindQueries>,
+    pub queries: ::core::option::Option<BindQueries>,
     /// 日誌
     #[prost(message, optional, tag = "4")]
-    pub logs:        ::core::option::Option<BindLogs>,
+    pub logs: ::core::option::Option<BindLogs>,
 }
 /// 動作請求
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -2582,25 +2674,25 @@ pub struct GetLdapRequest {
 pub struct LdapAccessLog {
     /// Ip
     #[prost(string, tag = "1")]
-    pub ip:               ::prost::alloc::string::String,
+    pub ip: ::prost::alloc::string::String,
     /// Date
     #[prost(message, optional, tag = "2")]
-    pub date:             ::core::option::Option<super::common::Date>,
+    pub date: ::core::option::Option<super::common::Date>,
     /// BIND/SEARCH/...
     #[prost(enumeration = "LdapMethod", tag = "3")]
-    pub method:           i32,
+    pub method: i32,
     /// Base_DN
     #[prost(string, tag = "4")]
-    pub base_dn:          ::prost::alloc::string::String,
+    pub base_dn: ::prost::alloc::string::String,
     /// Filter（SEARCH 相關）
     #[prost(string, tag = "5")]
-    pub filter:           ::prost::alloc::string::String,
+    pub filter: ::prost::alloc::string::String,
     /// LDAPv2/LDAPv3
     #[prost(enumeration = "LdapProtocol", tag = "6")]
-    pub protocol:         i32,
+    pub protocol: i32,
     /// Success/AuthFailed/NotFound/Error
     #[prost(enumeration = "LdapOpStatus", tag = "7")]
-    pub status:           i32,
+    pub status: i32,
     /// 操作耗時（毫秒）
     #[prost(int64, tag = "8")]
     pub response_time_ms: i64,
@@ -2610,16 +2702,16 @@ pub struct LdapAccessLog {
 pub struct LdapLogs {
     /// Error_log\[\]
     #[prost(message, repeated, tag = "1")]
-    pub error_log:  ::prost::alloc::vec::Vec<super::common::ErrorLog>,
+    pub error_log: ::prost::alloc::vec::Vec<super::common::ErrorLog>,
     /// Error_log.len
     #[prost(uint64, tag = "2")]
-    pub errlength:  u64,
+    pub errlength: u64,
     /// Access_log\[\]
     #[prost(message, repeated, tag = "3")]
     pub access_log: ::prost::alloc::vec::Vec<LdapAccessLog>,
     /// Access_log.len
     #[prost(uint64, tag = "4")]
-    pub acclength:  u64,
+    pub acclength: u64,
 }
 /// 狀態回應（flatten 共用資訊）
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -2632,10 +2724,10 @@ pub struct GetLdapResponse {
     pub connections: i64,
     /// 目前 LDAP 內條目數
     #[prost(int64, tag = "3")]
-    pub entries:     i64,
+    pub entries: i64,
     /// 日誌
     #[prost(message, optional, tag = "4")]
-    pub logs:        ::core::option::Option<LdapLogs>,
+    pub logs: ::core::option::Option<LdapLogs>,
 }
 /// 動作請求
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -2694,7 +2786,17 @@ pub struct GetMySqlRequest {
 pub struct MySqlTypes {}
 /// Nested message and enum types in `MySqlTypes`.
 pub mod my_sql_types {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum MySqlQueryType {
         MysqlQueryTypeUnspecified = 0,
@@ -2707,12 +2809,10 @@ pub mod my_sql_types {
         Alter = 7,
     }
     impl MySqlQueryType {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::MysqlQueryTypeUnspecified => "MYSQL_QUERY_TYPE_UNSPECIFIED",
@@ -2740,7 +2840,17 @@ pub mod my_sql_types {
             }
         }
     }
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum MySqlQueryStatus {
         MysqlQueryStatusUnspecified = 0,
@@ -2749,12 +2859,10 @@ pub mod my_sql_types {
         Timeout = 3,
     }
     impl MySqlQueryStatus {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::MysqlQueryStatusUnspecified => "MYSQL_QUERY_STATUS_UNSPECIFIED",
@@ -2766,7 +2874,9 @@ pub mod my_sql_types {
         /// Creates an enum from field names used in the ProtoBuf definition.
         pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
             match value {
-                "MYSQL_QUERY_STATUS_UNSPECIFIED" => Some(Self::MysqlQueryStatusUnspecified),
+                "MYSQL_QUERY_STATUS_UNSPECIFIED" => {
+                    Some(Self::MysqlQueryStatusUnspecified)
+                }
                 "SUCCESS" => Some(Self::Success),
                 "ERROR" => Some(Self::Error),
                 "TIMEOUT" => Some(Self::Timeout),
@@ -2780,28 +2890,28 @@ pub mod my_sql_types {
 pub struct MySqlQueryLog {
     /// Ip
     #[prost(string, tag = "1")]
-    pub ip:            ::prost::alloc::string::String,
+    pub ip: ::prost::alloc::string::String,
     /// Date（含 Week/Month/Day/Time{Hour,Min}）
     #[prost(message, optional, tag = "2")]
-    pub date:          ::core::option::Option<super::common::Date>,
+    pub date: ::core::option::Option<super::common::Date>,
     /// 執行查詢的使用者
     #[prost(string, tag = "3")]
-    pub user:          ::prost::alloc::string::String,
+    pub user: ::prost::alloc::string::String,
     /// 資料庫名稱
     #[prost(string, tag = "4")]
-    pub database:      ::prost::alloc::string::String,
+    pub database: ::prost::alloc::string::String,
     /// SQL
     #[prost(string, tag = "5")]
-    pub query:         ::prost::alloc::string::String,
+    pub query: ::prost::alloc::string::String,
     /// SELECT/INSERT/...
     #[prost(enumeration = "my_sql_types::MySqlQueryType", tag = "6")]
-    pub query_type:    i32,
+    pub query_type: i32,
     /// 毫秒
     #[prost(int64, tag = "7")]
-    pub duration_ms:   i64,
+    pub duration_ms: i64,
     /// Success/Error/Timeout
     #[prost(enumeration = "my_sql_types::MySqlQueryStatus", tag = "8")]
-    pub status:        i32,
+    pub status: i32,
     /// 影響列數
     #[prost(int64, tag = "9")]
     pub affected_rows: i64,
@@ -2811,13 +2921,13 @@ pub struct MySqlQueryLog {
 pub struct MySqlLogs {
     /// Error_log\[\]
     #[prost(message, repeated, tag = "1")]
-    pub error_log:   ::prost::alloc::vec::Vec<super::common::ErrorLog>,
+    pub error_log: ::prost::alloc::vec::Vec<super::common::ErrorLog>,
     /// Error_log.len
     #[prost(uint64, tag = "2")]
-    pub errlength:   u64,
+    pub errlength: u64,
     /// Query_log\[\]
     #[prost(message, repeated, tag = "3")]
-    pub query_log:   ::prost::alloc::vec::Vec<MySqlQueryLog>,
+    pub query_log: ::prost::alloc::vec::Vec<MySqlQueryLog>,
     /// Query_log.len
     #[prost(uint64, tag = "4")]
     pub querylength: u64,
@@ -2827,19 +2937,19 @@ pub struct MySqlLogs {
 pub struct GetMySqlResponse {
     /// {Hostname, Status(active|stopped), Cpu, Memory}
     #[prost(message, optional, tag = "1")]
-    pub common_info:     ::core::option::Option<super::common::CommonInfo>,
+    pub common_info: ::core::option::Option<super::common::CommonInfo>,
     /// 活躍連線數
     #[prost(int64, tag = "2")]
-    pub connections:     i64,
+    pub connections: i64,
     /// 資料庫數量
     #[prost(int64, tag = "3")]
-    pub databases:       i64,
+    pub databases: i64,
     /// QPS
     #[prost(double, tag = "4")]
     pub queries_per_sec: f64,
     /// 日誌
     #[prost(message, optional, tag = "5")]
-    pub logs:            ::core::option::Option<MySqlLogs>,
+    pub logs: ::core::option::Option<MySqlLogs>,
 }
 /// 動作請求
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -2898,20 +3008,19 @@ pub struct GetNginxRequest {
 pub struct NginxConnections {
     /// Active：當前活動連線數
     #[prost(int64, tag = "1")]
-    pub active:   i64,
+    pub active: i64,
     /// Accepted：累計接受連線數
     #[prost(int64, tag = "2")]
     pub accepted: i64,
     /// Handled：實際處理連線數
     #[prost(int64, tag = "3")]
-    pub handled:  i64,
+    pub handled: i64,
     /// Requests：總請求數
     #[prost(int64, tag = "4")]
     pub requests: i64,
 }
 /// Nginx Error Log（擴充：包含 Worker_Id）
-/// 備註：為了保留通用欄位定義，這裡以巢狀承載 common.ErrorLog；若要與前端 JSON
-/// 扁平鍵一一對應，實作端可在序列化時展開。
+/// 備註：為了保留通用欄位定義，這裡以巢狀承載 common.ErrorLog；若要與前端 JSON 扁平鍵一一對應，實作端可在序列化時展開。
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct NginxErrorLog {
     /// Worker_Id
@@ -2919,44 +3028,44 @@ pub struct NginxErrorLog {
     pub worker_id: i64,
     /// 原本的 {Date, Module, Level, Pid, Client, Message}
     #[prost(message, optional, tag = "2")]
-    pub base:      ::core::option::Option<super::common::ErrorLog>,
+    pub base: ::core::option::Option<super::common::ErrorLog>,
 }
 /// Access_log 條目
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct NginxAccessLog {
     /// Ip
     #[prost(string, tag = "1")]
-    pub ip:                     ::prost::alloc::string::String,
+    pub ip: ::prost::alloc::string::String,
     /// Date（含 Week/Month/Day/Time{Hour,Min}）
     #[prost(message, optional, tag = "2")]
-    pub date:                   ::core::option::Option<super::common::Date>,
+    pub date: ::core::option::Option<super::common::Date>,
     /// 請求方法（GET/POST…）
     #[prost(string, tag = "3")]
-    pub method:                 ::prost::alloc::string::String,
+    pub method: ::prost::alloc::string::String,
     /// 請求 URL
     #[prost(string, tag = "4")]
-    pub url:                    ::prost::alloc::string::String,
+    pub url: ::prost::alloc::string::String,
     /// 協議版本
     #[prost(string, tag = "5")]
-    pub protocol:               ::prost::alloc::string::String,
+    pub protocol: ::prost::alloc::string::String,
     /// HTTP 狀態碼
     #[prost(int64, tag = "6")]
-    pub status:                 i64,
+    pub status: i64,
     /// 回應大小
     #[prost(int64, tag = "7")]
-    pub byte:                   i64,
+    pub byte: i64,
     /// 來源網站
     #[prost(string, tag = "8")]
-    pub referer:                ::prost::alloc::string::String,
+    pub referer: ::prost::alloc::string::String,
     /// 使用者代理
     #[prost(string, tag = "9")]
-    pub user_agent:             ::prost::alloc::string::String,
+    pub user_agent: ::prost::alloc::string::String,
     /// 反向代理後端位址
     #[prost(string, tag = "10")]
-    pub upstream:               ::prost::alloc::string::String,
+    pub upstream: ::prost::alloc::string::String,
     /// 處理請求時間（秒）
     #[prost(double, tag = "11")]
-    pub request_time:           f64,
+    pub request_time: f64,
     /// 後端回應時間（秒）
     #[prost(double, tag = "12")]
     pub upstream_response_time: f64,
@@ -2966,16 +3075,16 @@ pub struct NginxAccessLog {
 pub struct NginxLogs {
     /// Error_log\[\]
     #[prost(message, repeated, tag = "1")]
-    pub error_log:  ::prost::alloc::vec::Vec<NginxErrorLog>,
+    pub error_log: ::prost::alloc::vec::Vec<NginxErrorLog>,
     /// Error_log.len
     #[prost(uint64, tag = "2")]
-    pub errlength:  u64,
+    pub errlength: u64,
     /// Access_log\[\]
     #[prost(message, repeated, tag = "3")]
     pub access_log: ::prost::alloc::vec::Vec<NginxAccessLog>,
     /// Access_log.len
     #[prost(uint64, tag = "4")]
-    pub acclength:  u64,
+    pub acclength: u64,
 }
 /// 狀態回應（flatten 共用資訊）
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -2988,7 +3097,7 @@ pub struct GetNginxResponse {
     pub connections: ::core::option::Option<NginxConnections>,
     /// 日誌
     #[prost(message, optional, tag = "3")]
-    pub logs:        ::core::option::Option<NginxLogs>,
+    pub logs: ::core::option::Option<NginxLogs>,
 }
 /// 動作請求
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -3047,7 +3156,17 @@ pub struct GetFtpRequest {
 pub struct FtpTypes {}
 /// Nested message and enum types in `FtpTypes`.
 pub mod ftp_types {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum FtpSessionStatus {
         Unspecified = 0,
@@ -3057,12 +3176,10 @@ pub mod ftp_types {
         Disconnected = 4,
     }
     impl FtpSessionStatus {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "FTP_SESSION_STATUS_UNSPECIFIED",
@@ -3084,7 +3201,17 @@ pub mod ftp_types {
             }
         }
     }
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum FtpTransferType {
         Unspecified = 0,
@@ -3092,12 +3219,10 @@ pub mod ftp_types {
         Download = 2,
     }
     impl FtpTransferType {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "FTP_TRANSFER_TYPE_UNSPECIFIED",
@@ -3115,7 +3240,17 @@ pub mod ftp_types {
             }
         }
     }
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum FtpAccessAction {
         Unspecified = 0,
@@ -3127,12 +3262,10 @@ pub mod ftp_types {
         Rename = 6,
     }
     impl FtpAccessAction {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "FTP_ACCESS_ACTION_UNSPECIFIED",
@@ -3158,7 +3291,17 @@ pub mod ftp_types {
             }
         }
     }
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum FtpAccessStatus {
         Unspecified = 0,
@@ -3166,12 +3309,10 @@ pub mod ftp_types {
         Failed = 2,
     }
     impl FtpAccessStatus {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "FTP_ACCESS_STATUS_UNSPECIFIED",
@@ -3195,24 +3336,34 @@ pub mod ftp_types {
 pub struct FtpLoginTime {
     /// Year
     #[prost(int64, tag = "1")]
-    pub year:  i64,
+    pub year: i64,
     /// Month
     #[prost(enumeration = "ftp_login_time::Month", tag = "2")]
     pub month: i32,
     /// Day
     #[prost(int64, tag = "3")]
-    pub day:   i64,
+    pub day: i64,
     /// Hour
     #[prost(int64, tag = "4")]
-    pub hour:  i64,
+    pub hour: i64,
     /// Min
     #[prost(int64, tag = "5")]
-    pub min:   i64,
+    pub min: i64,
 }
 /// Nested message and enum types in `FtpLoginTime`.
 pub mod ftp_login_time {
     /// Month / Day / Hour / Min 與前端 JSON 對應
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum Month {
         Unspecified = 0,
@@ -3230,12 +3381,10 @@ pub mod ftp_login_time {
         Dec = 12,
     }
     impl Month {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "MONTH_UNSPECIFIED",
@@ -3282,76 +3431,76 @@ pub struct FtpTransfer {
     pub r#type: i32,
     /// File（檔名）
     #[prost(string, tag = "2")]
-    pub file:   ::prost::alloc::string::String,
+    pub file: ::prost::alloc::string::String,
     /// Size (Bytes)
     #[prost(int64, tag = "3")]
-    pub size:   i64,
+    pub size: i64,
     /// Speed (Bytes/s)
     #[prost(int64, tag = "4")]
-    pub speed:  i64,
+    pub speed: i64,
 }
 /// 單一 Session 條目
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FtpSession {
     /// 連線客戶端 IP
     #[prost(string, tag = "1")]
-    pub ip:          ::prost::alloc::string::String,
+    pub ip: ::prost::alloc::string::String,
     /// 已認證使用者
     #[prost(string, tag = "2")]
-    pub username:    ::prost::alloc::string::String,
+    pub username: ::prost::alloc::string::String,
     /// 登入時間
     #[prost(message, optional, tag = "3")]
-    pub login_time:  ::core::option::Option<FtpLoginTime>,
+    pub login_time: ::core::option::Option<FtpLoginTime>,
     /// 當前工作目錄
     #[prost(string, tag = "4")]
     pub current_dir: ::prost::alloc::string::String,
     /// 狀態
     #[prost(enumeration = "ftp_types::FtpSessionStatus", tag = "5")]
-    pub status:      i32,
+    pub status: i32,
     /// 進行中的傳輸
     #[prost(message, optional, tag = "6")]
-    pub transfer:    ::core::option::Option<FtpTransfer>,
+    pub transfer: ::core::option::Option<FtpTransfer>,
 }
 /// Access_log 條目
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FtpAccessLog {
     /// Ip
     #[prost(string, tag = "1")]
-    pub ip:       ::prost::alloc::string::String,
+    pub ip: ::prost::alloc::string::String,
     /// Date（含 Week/Month/Day/Time{Hour,Min}）
     #[prost(message, optional, tag = "2")]
-    pub date:     ::core::option::Option<super::common::Date>,
+    pub date: ::core::option::Option<super::common::Date>,
     /// 使用者
     #[prost(string, tag = "3")]
     pub username: ::prost::alloc::string::String,
     /// 行為
     #[prost(enumeration = "ftp_types::FtpAccessAction", tag = "4")]
-    pub action:   i32,
+    pub action: i32,
     /// 檔名（若適用）
     #[prost(string, tag = "5")]
-    pub file:     ::prost::alloc::string::String,
+    pub file: ::prost::alloc::string::String,
     /// 檔案大小（Bytes；若適用）
     #[prost(int64, tag = "6")]
-    pub size:     i64,
+    pub size: i64,
     /// 成功/失敗
     #[prost(enumeration = "ftp_types::FtpAccessStatus", tag = "7")]
-    pub status:   i32,
+    pub status: i32,
 }
 /// Logs 區塊
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FtpLogs {
     /// Error_log\[\]
     #[prost(message, repeated, tag = "1")]
-    pub error_log:  ::prost::alloc::vec::Vec<super::common::ErrorLog>,
+    pub error_log: ::prost::alloc::vec::Vec<super::common::ErrorLog>,
     /// Error_log.len
     #[prost(uint64, tag = "2")]
-    pub errlength:  u64,
+    pub errlength: u64,
     /// Access_log\[\]
     #[prost(message, repeated, tag = "3")]
     pub access_log: ::prost::alloc::vec::Vec<FtpAccessLog>,
     /// Access_log.len
     #[prost(uint64, tag = "4")]
-    pub acclength:  u64,
+    pub acclength: u64,
 }
 /// 狀態回應（flatten 共用資訊）
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -3364,10 +3513,10 @@ pub struct GetFtpResponse {
     pub connections: i64,
     /// 目前 Session 列表
     #[prost(message, repeated, tag = "3")]
-    pub sessions:    ::prost::alloc::vec::Vec<FtpSession>,
+    pub sessions: ::prost::alloc::vec::Vec<FtpSession>,
     /// 日誌
     #[prost(message, optional, tag = "4")]
-    pub logs:        ::core::option::Option<FtpLogs>,
+    pub logs: ::core::option::Option<FtpLogs>,
 }
 /// 動作請求
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -3426,7 +3575,17 @@ pub struct GetSambaRequest {
 pub struct SambaTypes {}
 /// Nested message and enum types in `SambaTypes`.
 pub mod samba_types {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum ShareStatus {
         Unspecified = 0,
@@ -3434,12 +3593,10 @@ pub mod samba_types {
         Inactive = 2,
     }
     impl ShareStatus {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "SHARE_STATUS_UNSPECIFIED",
@@ -3457,7 +3614,17 @@ pub mod samba_types {
             }
         }
     }
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum SambaLogLevel {
         Unspecified = 0,
@@ -3466,12 +3633,10 @@ pub mod samba_types {
         Error = 3,
     }
     impl SambaLogLevel {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "SAMBA_LOG_LEVEL_UNSPECIFIED",
@@ -3497,35 +3662,35 @@ pub mod samba_types {
 pub struct SambaShare {
     /// Name
     #[prost(string, tag = "1")]
-    pub name:        ::prost::alloc::string::String,
+    pub name: ::prost::alloc::string::String,
     /// Path
     #[prost(string, tag = "2")]
-    pub path:        ::prost::alloc::string::String,
+    pub path: ::prost::alloc::string::String,
     /// Users（目前訪問人數）
     #[prost(int64, tag = "3")]
-    pub users:       i64,
+    pub users: i64,
     /// Permissions（如 "read", "write"...）
     #[prost(string, tag = "4")]
     pub permissions: ::prost::alloc::string::String,
     /// Status
     #[prost(enumeration = "samba_types::ShareStatus", tag = "5")]
-    pub status:      i32,
+    pub status: i32,
 }
 /// Samba 單筆日誌
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SambaLog {
     /// Date
     #[prost(message, optional, tag = "1")]
-    pub date:    ::core::option::Option<super::common::Date>,
+    pub date: ::core::option::Option<super::common::Date>,
     /// 客戶端 IP:Port
     #[prost(string, tag = "2")]
-    pub client:  ::prost::alloc::string::String,
+    pub client: ::prost::alloc::string::String,
     /// 事件描述
     #[prost(string, tag = "3")]
-    pub event:   ::prost::alloc::string::String,
+    pub event: ::prost::alloc::string::String,
     /// 記錄等級
     #[prost(enumeration = "samba_types::SambaLogLevel", tag = "4")]
-    pub level:   i32,
+    pub level: i32,
     /// 訊息
     #[prost(string, tag = "5")]
     pub message: ::prost::alloc::string::String,
@@ -3535,7 +3700,7 @@ pub struct SambaLog {
 pub struct SambaLogs {
     /// Samba_log\[\]
     #[prost(message, repeated, tag = "1")]
-    pub samba_log:        ::prost::alloc::vec::Vec<SambaLog>,
+    pub samba_log: ::prost::alloc::vec::Vec<SambaLog>,
     /// Samba_log_Length
     #[prost(uint64, tag = "2")]
     pub samba_log_length: u64,
@@ -3551,10 +3716,10 @@ pub struct GetSambaResponse {
     pub connections: i64,
     /// Shares\[\]
     #[prost(message, repeated, tag = "3")]
-    pub shares:      ::prost::alloc::vec::Vec<SambaShare>,
+    pub shares: ::prost::alloc::vec::Vec<SambaShare>,
     /// Logs
     #[prost(message, optional, tag = "4")]
-    pub logs:        ::core::option::Option<SambaLogs>,
+    pub logs: ::core::option::Option<SambaLogs>,
 }
 /// 動作請求
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -3612,7 +3777,10 @@ pub struct GetServerInstalledPcsRequest {
 pub struct GetServerInstalledPcsResponse {
     /// key = uuid, value = { Hostname, Status(active|stopped), Cpu, Memory }
     #[prost(map = "string, message", tag = "1")]
-    pub pcs: ::std::collections::HashMap<::prost::alloc::string::String, super::common::CommonInfo>,
+    pub pcs: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        super::common::CommonInfo,
+    >,
     /// pcs.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -3628,7 +3796,10 @@ pub struct GetServerNotInstalledPcsRequest {
 pub struct GetServerNotInstalledPcsResponse {
     /// key = uuid
     #[prost(map = "string, message", tag = "1")]
-    pub pcs: ::std::collections::HashMap<::prost::alloc::string::String, super::common::CommonInfo>,
+    pub pcs: ::std::collections::HashMap<
+        ::prost::alloc::string::String,
+        super::common::CommonInfo,
+    >,
     /// pcs.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -3640,7 +3811,7 @@ pub struct InstallServerRequest {
     pub server: ::prost::alloc::string::String,
     /// target machines
     #[prost(string, repeated, tag = "2")]
-    pub uuids:  ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub uuids: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct InstallServerResponse {
@@ -3659,34 +3830,34 @@ pub struct GetSquidRequest {
 pub struct SquidAccessLog {
     /// Ip
     #[prost(string, tag = "1")]
-    pub ip:           ::prost::alloc::string::String,
+    pub ip: ::prost::alloc::string::String,
     /// Date {Year, Week, Month, Day, Time{Hour, Min}}
     #[prost(message, optional, tag = "2")]
-    pub date:         ::core::option::Option<super::common::Date>,
+    pub date: ::core::option::Option<super::common::Date>,
     /// Method
     #[prost(string, tag = "3")]
-    pub method:       ::prost::alloc::string::String,
+    pub method: ::prost::alloc::string::String,
     /// URL
     #[prost(string, tag = "4")]
-    pub url:          ::prost::alloc::string::String,
+    pub url: ::prost::alloc::string::String,
     /// Status
     #[prost(int64, tag = "5")]
-    pub status:       i64,
+    pub status: i64,
     /// Bytes_Served
     #[prost(int64, tag = "6")]
     pub bytes_served: i64,
     /// Referer
     #[prost(string, tag = "7")]
-    pub referer:      ::prost::alloc::string::String,
+    pub referer: ::prost::alloc::string::String,
     /// User_Agent
     #[prost(string, tag = "8")]
-    pub user_agent:   ::prost::alloc::string::String,
+    pub user_agent: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SquidLogs {
     /// Access_log
     #[prost(message, repeated, tag = "1")]
-    pub access_log:        ::prost::alloc::vec::Vec<SquidAccessLog>,
+    pub access_log: ::prost::alloc::vec::Vec<SquidAccessLog>,
     /// Access_log_Length
     #[prost(uint64, tag = "2")]
     pub access_log_length: u64,
@@ -3695,22 +3866,22 @@ pub struct SquidLogs {
 pub struct GetSquidResponse {
     /// {Hostname, Status(active|stopped), Cpu, Memory}
     #[prost(message, optional, tag = "1")]
-    pub common:             ::core::option::Option<super::common::CommonInfo>,
+    pub common: ::core::option::Option<super::common::CommonInfo>,
     /// 當前活躍代理連線數
     #[prost(int64, tag = "2")]
-    pub connections:        i64,
+    pub connections: i64,
     /// 緩存命中數
     #[prost(int64, tag = "3")]
-    pub cache_hits:         i64,
+    pub cache_hits: i64,
     /// 緩存未命中數
     #[prost(int64, tag = "4")]
-    pub cache_misses:       i64,
+    pub cache_misses: i64,
     /// 總請求數量
     #[prost(int64, tag = "5")]
     pub requests_processed: i64,
     /// 存取日誌
     #[prost(message, optional, tag = "6")]
-    pub logs:               ::core::option::Option<SquidLogs>,
+    pub logs: ::core::option::Option<SquidLogs>,
 }
 /// POST /api/server/squid/action/start
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -3764,14 +3935,24 @@ pub struct LastLogin {
     pub date: ::core::option::Option<super::common::Date>,
     /// Ip
     #[prost(string, tag = "3")]
-    pub ip:   ::prost::alloc::string::String,
+    pub ip: ::prost::alloc::string::String,
 }
 /// Auth log enums
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct SshTypes {}
 /// Nested message and enum types in `SshTypes`.
 pub mod ssh_types {
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum SshAction {
         Unspecified = 0,
@@ -3780,12 +3961,10 @@ pub mod ssh_types {
         FailedLogin = 3,
     }
     impl SshAction {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "SSH_ACTION_UNSPECIFIED",
@@ -3805,7 +3984,17 @@ pub mod ssh_types {
             }
         }
     }
-    #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
     #[repr(i32)]
     pub enum SshResult {
         Unspecified = 0,
@@ -3813,12 +4002,10 @@ pub mod ssh_types {
         Failure = 2,
     }
     impl SshResult {
-        /// String value of the enum field names used in the ProtoBuf
-        /// definition.
+        /// String value of the enum field names used in the ProtoBuf definition.
         ///
-        /// The values are not transformed in any way and thus are considered
-        /// stable (if the ProtoBuf definition does not change) and safe
-        /// for programmatic use.
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
         pub fn as_str_name(&self) -> &'static str {
             match self {
                 Self::Unspecified => "SSH_RESULT_UNSPECIFIED",
@@ -3842,19 +4029,19 @@ pub mod ssh_types {
 pub struct SshAuthLog {
     /// Date
     #[prost(message, optional, tag = "1")]
-    pub date:    ::core::option::Option<super::common::Date>,
+    pub date: ::core::option::Option<super::common::Date>,
     /// User
     #[prost(string, tag = "2")]
-    pub user:    ::prost::alloc::string::String,
+    pub user: ::prost::alloc::string::String,
     /// Action
     #[prost(enumeration = "ssh_types::SshAction", tag = "3")]
-    pub action:  i32,
+    pub action: i32,
     /// Result
     #[prost(enumeration = "ssh_types::SshResult", tag = "4")]
-    pub result:  i32,
+    pub result: i32,
     /// Ip
     #[prost(string, tag = "5")]
-    pub ip:      ::prost::alloc::string::String,
+    pub ip: ::prost::alloc::string::String,
     /// Message
     #[prost(string, tag = "6")]
     pub message: ::prost::alloc::string::String,
@@ -3864,7 +4051,7 @@ pub struct SshAuthLog {
 pub struct SshLogs {
     /// Auth_log
     #[prost(message, repeated, tag = "1")]
-    pub auth_log:        ::prost::alloc::vec::Vec<SshAuthLog>,
+    pub auth_log: ::prost::alloc::vec::Vec<SshAuthLog>,
     /// Auth_log_Length
     #[prost(uint64, tag = "2")]
     pub auth_log_length: u64,
@@ -3874,16 +4061,16 @@ pub struct SshLogs {
 pub struct GetSshResponse {
     /// {Hostname, Status(active|stopped), Cpu, Memory}
     #[prost(message, optional, tag = "1")]
-    pub common:      ::core::option::Option<super::common::CommonInfo>,
+    pub common: ::core::option::Option<super::common::CommonInfo>,
     /// 當前活躍的 SSH 連線數
     #[prost(int64, tag = "2")]
     pub connections: i64,
     /// 最後登入資訊
     #[prost(message, optional, tag = "3")]
-    pub last_login:  ::core::option::Option<LastLogin>,
+    pub last_login: ::core::option::Option<LastLogin>,
     /// 認證日誌
     #[prost(message, optional, tag = "4")]
-    pub logs:        ::core::option::Option<SshLogs>,
+    pub logs: ::core::option::Option<SshLogs>,
 }
 /// POST /api/server/ssh/action/start
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -3930,8 +4117,7 @@ impl Zone {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "ZONE_UNSPECIFIED",
@@ -3964,8 +4150,7 @@ impl Target {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "TARGET_UNSPECIFIED",
@@ -4003,8 +4188,7 @@ impl BackupLocation {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "BACKUP_LOCATION_UNSPECIFIED",
@@ -4041,8 +4225,7 @@ impl PredefinedColor {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "PREDEFINED_COLOR_UNSPECIFIED",
@@ -4087,8 +4270,7 @@ impl LoadStatus {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "LOAD_STATUS_UNSPECIFIED",
@@ -4117,8 +4299,7 @@ impl EnableStatus {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "ENABLE_STATUS_UNSPECIFIED",
@@ -4149,8 +4330,7 @@ impl FileUnit {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "FILE_UNIT_UNSPECIFIED",
@@ -4184,8 +4364,7 @@ impl FirewallStatus {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "FIREWALL_STATUS_UNSPECIFIED",
@@ -4215,8 +4394,7 @@ impl ChainKind {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "CHAIN_KIND_UNSPECIFIED",
@@ -4248,8 +4426,7 @@ impl Verdict {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "VERDICT_UNSPECIFIED",
@@ -4280,8 +4457,7 @@ impl NicType {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "NIC_TYPE_UNSPECIFIED",
@@ -4310,8 +4486,7 @@ impl NicStatus {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "NIC_STATUS_UNSPECIFIED",
@@ -4345,8 +4520,7 @@ impl RouteField {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "ROUTE_FIELD_UNSPECIFIED",
@@ -4386,8 +4560,7 @@ impl PackageStatus {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "PACKAGE_STATUS_UNSPECIFIED",
@@ -4425,8 +4598,7 @@ impl DnsQueryType {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "DNS_QUERY_TYPE_UNSPECIFIED",
@@ -4473,8 +4645,7 @@ impl DnsQueryStatus {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "DNS_QUERY_STATUS_UNSPECIFIED",
@@ -4515,8 +4686,7 @@ impl LdapMethod {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "LDAP_METHOD_UNSPECIFIED",
@@ -4559,8 +4729,7 @@ impl LdapProtocol {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "LDAP_PROTOCOL_UNSPECIFIED",
@@ -4591,8 +4760,7 @@ impl LdapOpStatus {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "LDAP_OP_STATUS_UNSPECIFIED",
@@ -4622,9 +4790,10 @@ pub mod restful_service_client {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value
+        clippy::let_unit_value,
     )]
-    use tonic::codegen::{http::Uri, *};
+    use tonic::codegen::*;
+    use tonic::codegen::http::Uri;
     /// ========== Service ==========
     #[derive(Debug, Clone)]
     pub struct RestfulServiceClient<T> {
@@ -4669,15 +4838,16 @@ pub mod restful_service_client {
                     <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
                 >,
             >,
-            <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
-                Into<StdError> + std::marker::Send + std::marker::Sync,
+            <T as tonic::codegen::Service<
+                http::Request<tonic::body::Body>,
+            >>::Error: Into<StdError> + std::marker::Send + std::marker::Sync,
         {
             RestfulServiceClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
-        /// This requires the server to support it otherwise it might respond
-        /// with an error.
+        /// This requires the server to support it otherwise it might respond with an
+        /// error.
         #[must_use]
         pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
             self.inner = self.inner.send_compressed(encoding);
@@ -4710,124 +4880,213 @@ pub mod restful_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::LoginRequest>,
         ) -> std::result::Result<tonic::Response<super::LoginResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/Login");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/Login",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "Login"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "Login"));
             self.inner.unary(req, path, codec).await
         }
         /// Dashboard
         pub async fn get_all_info(
             &mut self,
             request: impl tonic::IntoRequest<super::GetAllInfoRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetAllInfoResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetAllInfoResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetAllInfo");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetAllInfo",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetAllInfo"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetAllInfo"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_info(
             &mut self,
             request: impl tonic::IntoRequest<super::GetInfoRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetInfoResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetInfoResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetInfo");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetInfo",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetInfo"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetInfo"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_config(
             &mut self,
             request: impl tonic::IntoRequest<super::GetConfigRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetConfigResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetConfigResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetConfig");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetConfig",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetConfig"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetConfig"));
             self.inner.unary(req, path, codec).await
         }
         /// Backup
         pub async fn backup_now(
             &mut self,
             request: impl tonic::IntoRequest<super::BackupNowRequest>,
-        ) -> std::result::Result<tonic::Response<super::BackupNowResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::BackupNowResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/BackupNow");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/BackupNow",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "BackupNow"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "BackupNow"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_backups(
             &mut self,
             request: impl tonic::IntoRequest<super::GetBackupsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetBackupsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetBackupsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetBackups");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetBackups",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetBackups"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetBackups"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn reduce_backup(
             &mut self,
             request: impl tonic::IntoRequest<super::ReductionRequest>,
-        ) -> std::result::Result<tonic::Response<super::ReductionResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::ReductionResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/ReduceBackup");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/ReduceBackup",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "ReduceBackup"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "ReduceBackup"));
             self.inner.unary(req, path, codec).await
         }
         /// Mca
         pub async fn get_valid_certs(
             &mut self,
             request: impl tonic::IntoRequest<super::GetValidCertsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetValidCertsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetValidCertsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/GetValidCerts");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetValidCerts",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetValidCerts"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetValidCerts"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_revoked_certs(
             &mut self,
             request: impl tonic::IntoRequest<super::GetRevokedCertsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetRevokedCertsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetRevokedCertsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/GetRevokedCerts");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetRevokedCerts",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "GetRevokedCerts"));
@@ -4836,15 +5095,25 @@ pub mod restful_service_client {
         pub async fn revoke_cert(
             &mut self,
             request: impl tonic::IntoRequest<super::RevokeCertRequest>,
-        ) -> std::result::Result<tonic::Response<super::RevokeCertResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::RevokeCertResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/RevokeCert");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/RevokeCert",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "RevokeCert"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "RevokeCert"));
             self.inner.unary(req, path, codec).await
         }
         /// PC
@@ -4852,39 +5121,66 @@ pub mod restful_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::AddPcRequest>,
         ) -> std::result::Result<tonic::Response<super::AddPcResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/AddPc");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/AddPc",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "AddPc"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "AddPc"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_all_pcs(
             &mut self,
             request: impl tonic::IntoRequest<super::GetAllPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetAllPcsResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetAllPcsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetAllPcs");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetAllPcs",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetAllPcs"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetAllPcs"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_specific_pcs(
             &mut self,
             request: impl tonic::IntoRequest<super::GetSpecificPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetSpecificPcsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetSpecificPcsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/GetSpecificPcs");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetSpecificPcs",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "GetSpecificPcs"));
@@ -4893,183 +5189,312 @@ pub mod restful_service_client {
         pub async fn delete_pcs(
             &mut self,
             request: impl tonic::IntoRequest<super::DeletePcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeletePcsResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DeletePcsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/DeletePcs");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DeletePcs",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "DeletePcs"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "DeletePcs"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn reboot_pcs(
             &mut self,
             request: impl tonic::IntoRequest<super::RebootPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::RebootPcsResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::RebootPcsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/RebootPcs");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/RebootPcs",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "RebootPcs"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "RebootPcs"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn shutdown_pcs(
             &mut self,
             request: impl tonic::IntoRequest<super::ShutdownPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::ShutdownPcsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::ShutdownPcsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/ShutdownPcs");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/ShutdownPcs",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "ShutdownPcs"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "ShutdownPcs"));
             self.inner.unary(req, path, codec).await
         }
         /// PC Group
         pub async fn get_pc_groups(
             &mut self,
             request: impl tonic::IntoRequest<super::GetPcGroupsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetPcGroupsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetPcGroupsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetPcGroups");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetPcGroups",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetPcGroups"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetPcGroups"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn create_pc_group(
             &mut self,
             request: impl tonic::IntoRequest<super::CreatePcGroupRequest>,
-        ) -> std::result::Result<tonic::Response<super::CreatePcGroupResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::CreatePcGroupResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/CreatePcGroup");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/CreatePcGroup",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "CreatePcGroup"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "CreatePcGroup"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn put_pc_group(
             &mut self,
             request: impl tonic::IntoRequest<super::PutPcGroupRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutPcGroupResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PutPcGroupResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PutPcGroup");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PutPcGroup",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PutPcGroup"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PutPcGroup"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn patch_pc_group(
             &mut self,
             request: impl tonic::IntoRequest<super::PatchPcGroupRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchPcGroupResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchPcGroupResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PatchPcGroup");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PatchPcGroup",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PatchPcGroup"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PatchPcGroup"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn delete_pc_group(
             &mut self,
             request: impl tonic::IntoRequest<super::DeletePcGroupRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeletePcGroupResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DeletePcGroupResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/DeletePcGroup");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DeletePcGroup",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "DeletePcGroup"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "DeletePcGroup"));
             self.inner.unary(req, path, codec).await
         }
         /// Role
         pub async fn get_roles(
             &mut self,
             request: impl tonic::IntoRequest<super::GetRolesRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetRolesResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetRolesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetRoles");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetRoles",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetRoles"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetRoles"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_role_users(
             &mut self,
             request: impl tonic::IntoRequest<super::GetRoleUsersRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetRoleUsersResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetRoleUsersResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetRoleUsers");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetRoleUsers",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetRoleUsers"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetRoleUsers"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn create_role(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateRoleRequest>,
-        ) -> std::result::Result<tonic::Response<super::CreateRoleResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::CreateRoleResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/CreateRole");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/CreateRole",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "CreateRole"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "CreateRole"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn delete_role(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteRoleRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteRoleResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteRoleResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/DeleteRole");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DeleteRole",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "DeleteRole"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "DeleteRole"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn put_role_members(
             &mut self,
             request: impl tonic::IntoRequest<super::PutRoleMembersRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutRoleMembersResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PutRoleMembersResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/PutRoleMembers");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PutRoleMembers",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "PutRoleMembers"));
@@ -5078,118 +5503,193 @@ pub mod restful_service_client {
         pub async fn patch_role(
             &mut self,
             request: impl tonic::IntoRequest<super::PatchRoleRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchRoleResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchRoleResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PatchRole");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PatchRole",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PatchRole"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PatchRole"));
             self.inner.unary(req, path, codec).await
         }
         /// Module
         pub async fn get_modules(
             &mut self,
             request: impl tonic::IntoRequest<super::GetModulesRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetModulesResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetModulesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetModules");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetModules",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetModules"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetModules"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn upload_modules(
             &mut self,
             request: impl tonic::IntoRequest<super::UploadModulesRequest>,
-        ) -> std::result::Result<tonic::Response<super::UploadModulesResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::UploadModulesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/UploadModules");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/UploadModules",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "UploadModules"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "UploadModules"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn update_modules(
             &mut self,
             request: impl tonic::IntoRequest<super::UpdateModulesRequest>,
-        ) -> std::result::Result<tonic::Response<super::UpdateModulesResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::UpdateModulesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/UpdateModules");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/UpdateModules",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "UpdateModules"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "UpdateModules"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn patch_module_settings(
             &mut self,
             request: impl tonic::IntoRequest<super::PatchModuleSettingsRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchModuleSettingsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchModuleSettingsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/PatchModuleSettings");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PatchModuleSettings",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("restful.RestfulService", "PatchModuleSettings"));
+                .insert(
+                    GrpcMethod::new("restful.RestfulService", "PatchModuleSettings"),
+                );
             self.inner.unary(req, path, codec).await
         }
         pub async fn delete_modules(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteModulesRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteModulesResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteModulesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/DeleteModules");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DeleteModules",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "DeleteModules"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "DeleteModules"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn enable_modules(
             &mut self,
             request: impl tonic::IntoRequest<super::EnableModulesRequest>,
-        ) -> std::result::Result<tonic::Response<super::EnableModulesResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::EnableModulesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/EnableModules");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/EnableModules",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "EnableModules"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "EnableModules"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn disable_modules(
             &mut self,
             request: impl tonic::IntoRequest<super::DisableModulesRequest>,
-        ) -> std::result::Result<tonic::Response<super::DisableModulesResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DisableModulesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/DisableModules");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DisableModules",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "DisableModules"));
@@ -5199,68 +5699,116 @@ pub mod restful_service_client {
         pub async fn get_ip_access(
             &mut self,
             request: impl tonic::IntoRequest<super::GetIpAccessRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetIpAccessResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetIpAccessResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetIpAccess");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetIpAccess",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetIpAccess"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetIpAccess"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn post_ip(
             &mut self,
             request: impl tonic::IntoRequest<super::PostIpRequest>,
         ) -> std::result::Result<tonic::Response<super::PostIpResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PostIp");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PostIp",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PostIp"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PostIp"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn delete_ip(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteIpRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteIpResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteIpResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/DeleteIp");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DeleteIp",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "DeleteIp"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "DeleteIp"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn put_ip_mode(
             &mut self,
             request: impl tonic::IntoRequest<super::PutIpModeRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutIpModeResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PutIpModeResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PutIpMode");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PutIpMode",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PutIpMode"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PutIpMode"));
             self.inner.unary(req, path, codec).await
         }
         /// Setting Values
         pub async fn get_setting_values(
             &mut self,
             request: impl tonic::IntoRequest<super::GetSettingValuesRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetSettingValuesResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetSettingValuesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/GetSettingValues");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetSettingValues",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "GetSettingValues"));
@@ -5269,14 +5817,22 @@ pub mod restful_service_client {
         pub async fn put_setting_values(
             &mut self,
             request: impl tonic::IntoRequest<super::PutSettingValuesRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutSettingValuesResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PutSettingValuesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/PutSettingValues");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PutSettingValues",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "PutSettingValues"));
@@ -5286,264 +5842,457 @@ pub mod restful_service_client {
         pub async fn get_users(
             &mut self,
             request: impl tonic::IntoRequest<super::GetUsersRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetUsersResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetUsersResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetUsers");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetUsers",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetUsers"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetUsers"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn create_user(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateUserRequest>,
-        ) -> std::result::Result<tonic::Response<super::CreateUserResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::CreateUserResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/CreateUser");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/CreateUser",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "CreateUser"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "CreateUser"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn put_users(
             &mut self,
             request: impl tonic::IntoRequest<super::PutUsersRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutUsersResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PutUsersResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PutUsers");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PutUsers",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PutUsers"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PutUsers"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn patch_users(
             &mut self,
             request: impl tonic::IntoRequest<super::PatchUsersRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchUsersResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchUsersResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PatchUsers");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PatchUsers",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PatchUsers"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PatchUsers"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn delete_user(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteUserRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteUserResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteUserResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/DeleteUser");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DeleteUser",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "DeleteUser"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "DeleteUser"));
             self.inner.unary(req, path, codec).await
         }
         /// Groups
         pub async fn get_groups(
             &mut self,
             request: impl tonic::IntoRequest<super::GetGroupsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetGroupsResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetGroupsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetGroups");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetGroups",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetGroups"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetGroups"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn create_group(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateGroupRequest>,
-        ) -> std::result::Result<tonic::Response<super::CreateGroupResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::CreateGroupResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/CreateGroup");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/CreateGroup",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "CreateGroup"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "CreateGroup"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn put_groups(
             &mut self,
             request: impl tonic::IntoRequest<super::PutGroupsRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutGroupsResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PutGroupsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PutGroups");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PutGroups",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PutGroups"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PutGroups"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn patch_groups(
             &mut self,
             request: impl tonic::IntoRequest<super::PatchGroupsRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchGroupsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchGroupsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PatchGroups");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PatchGroups",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PatchGroups"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PatchGroups"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn delete_group(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteGroupRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteGroupResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteGroupResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/DeleteGroup");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DeleteGroup",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "DeleteGroup"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "DeleteGroup"));
             self.inner.unary(req, path, codec).await
         }
         /// Cron
         pub async fn get_cron_jobs(
             &mut self,
             request: impl tonic::IntoRequest<super::GetCronJobsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetCronJobsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetCronJobsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetCronJobs");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetCronJobs",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetCronJobs"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetCronJobs"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn create_cron(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateCronRequest>,
-        ) -> std::result::Result<tonic::Response<super::CreateCronResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::CreateCronResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/CreateCron");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/CreateCron",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "CreateCron"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "CreateCron"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn delete_cron(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteCronRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteCronResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteCronResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/DeleteCron");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DeleteCron",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "DeleteCron"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "DeleteCron"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn put_cron(
             &mut self,
             request: impl tonic::IntoRequest<super::PutCronRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutCronResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PutCronResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PutCron");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PutCron",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PutCron"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PutCron"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn import_cron(
             &mut self,
             request: impl tonic::IntoRequest<super::ImportCronRequest>,
-        ) -> std::result::Result<tonic::Response<super::ImportCronResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::ImportCronResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/ImportCron");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/ImportCron",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "ImportCron"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "ImportCron"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn export_cron(
             &mut self,
             request: impl tonic::IntoRequest<super::ExportCronRequest>,
-        ) -> std::result::Result<tonic::Response<super::ExportCronResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::ExportCronResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/ExportCron");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/ExportCron",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "ExportCron"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "ExportCron"));
             self.inner.unary(req, path, codec).await
         }
         /// pdir
         pub async fn get_pdir_pcs(
             &mut self,
             request: impl tonic::IntoRequest<super::GetPdirPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetPdirPcsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetPdirPcsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetPdirPcs");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetPdirPcs",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetPdirPcs"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetPdirPcs"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_pdir_one(
             &mut self,
             request: impl tonic::IntoRequest<super::GetPdirOneRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetPdirOneResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetPdirOneResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetPdirOne");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetPdirOne",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetPdirOne"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetPdirOne"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn upload_pdir_files(
             &mut self,
             request: impl tonic::IntoRequest<super::UploadPdirFilesRequest>,
-        ) -> std::result::Result<tonic::Response<super::UploadPdirFilesResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::UploadPdirFilesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/UploadPdirFiles");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/UploadPdirFiles",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "UploadPdirFiles"));
@@ -5552,14 +6301,22 @@ pub mod restful_service_client {
         pub async fn download_pdir_file(
             &mut self,
             request: impl tonic::IntoRequest<super::DownloadPdirFileRequest>,
-        ) -> std::result::Result<tonic::Response<super::DownloadPdirFileResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DownloadPdirFileResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/DownloadPdirFile");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DownloadPdirFile",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "DownloadPdirFile"));
@@ -5569,28 +6326,46 @@ pub mod restful_service_client {
         pub async fn get_vdir_path(
             &mut self,
             request: impl tonic::IntoRequest<super::GetVdirPathRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetVdirPathResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetVdirPathResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetVdirPath");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetVdirPath",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetVdirPath"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetVdirPath"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn upload_vdir_files(
             &mut self,
             request: impl tonic::IntoRequest<super::UploadVdirFilesRequest>,
-        ) -> std::result::Result<tonic::Response<super::UploadVdirFilesResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::UploadVdirFilesResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/UploadVdirFiles");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/UploadVdirFiles",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "UploadVdirFiles"));
@@ -5599,14 +6374,22 @@ pub mod restful_service_client {
         pub async fn download_vdir_file(
             &mut self,
             request: impl tonic::IntoRequest<super::DownloadVdirFileRequest>,
-        ) -> std::result::Result<tonic::Response<super::DownloadVdirFileResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DownloadVdirFileResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/DownloadVdirFile");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DownloadVdirFile",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "DownloadVdirFile"));
@@ -5616,85 +6399,144 @@ pub mod restful_service_client {
         pub async fn get_sys_logs(
             &mut self,
             request: impl tonic::IntoRequest<super::GetSysLogsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetSysLogsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetSysLogsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetSysLogs");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetSysLogs",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetSysLogs"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetSysLogs"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn query_sys_logs(
             &mut self,
             request: impl tonic::IntoRequest<super::QuerySysLogsRequest>,
-        ) -> std::result::Result<tonic::Response<super::QuerySysLogsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::QuerySysLogsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/QuerySysLogs");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/QuerySysLogs",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "QuerySysLogs"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "QuerySysLogs"));
             self.inner.unary(req, path, codec).await
         }
         /// PC logs
         pub async fn get_pc_log_pcs(
             &mut self,
             request: impl tonic::IntoRequest<super::GetPcLogPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetPcLogPcsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetPcLogPcsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetPcLogPcs");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetPcLogPcs",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetPcLogPcs"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetPcLogPcs"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_pc_logs(
             &mut self,
             request: impl tonic::IntoRequest<super::GetPcLogsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetPcLogsResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetPcLogsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetPcLogs");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetPcLogs",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetPcLogs"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetPcLogs"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn query_pc_logs(
             &mut self,
             request: impl tonic::IntoRequest<super::QueryPcLogsRequest>,
-        ) -> std::result::Result<tonic::Response<super::QueryPcLogsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::QueryPcLogsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/QueryPcLogs");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/QueryPcLogs",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "QueryPcLogs"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "QueryPcLogs"));
             self.inner.unary(req, path, codec).await
         }
         /// Firewall
         pub async fn get_firewall_pcs(
             &mut self,
             request: impl tonic::IntoRequest<super::GetFirewallPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetFirewallPcsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetFirewallPcsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/GetFirewallPcs");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetFirewallPcs",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "GetFirewallPcs"));
@@ -5703,28 +6545,46 @@ pub mod restful_service_client {
         pub async fn get_firewall(
             &mut self,
             request: impl tonic::IntoRequest<super::GetFirewallRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetFirewallResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetFirewallResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetFirewall");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetFirewall",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetFirewall"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetFirewall"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn add_firewall_rule(
             &mut self,
             request: impl tonic::IntoRequest<super::AddFirewallRuleRequest>,
-        ) -> std::result::Result<tonic::Response<super::AddFirewallRuleResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::AddFirewallRuleResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/AddFirewallRule");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/AddFirewallRule",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "AddFirewallRule"));
@@ -5733,14 +6593,22 @@ pub mod restful_service_client {
         pub async fn delete_firewall_rule(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteFirewallRuleRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteFirewallRuleResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteFirewallRuleResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/DeleteFirewallRule");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DeleteFirewallRule",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "DeleteFirewallRule"));
@@ -5749,14 +6617,22 @@ pub mod restful_service_client {
         pub async fn put_firewall_status(
             &mut self,
             request: impl tonic::IntoRequest<super::PutFirewallStatusRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutFirewallStatusResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PutFirewallStatusResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/PutFirewallStatus");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PutFirewallStatus",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "PutFirewallStatus"));
@@ -5765,14 +6641,22 @@ pub mod restful_service_client {
         pub async fn put_firewall_policy(
             &mut self,
             request: impl tonic::IntoRequest<super::PutFirewallPolicyRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutFirewallPolicyResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PutFirewallPolicyResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/PutFirewallPolicy");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PutFirewallPolicy",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "PutFirewallPolicy"));
@@ -5782,277 +6666,473 @@ pub mod restful_service_client {
         pub async fn get_all_net(
             &mut self,
             request: impl tonic::IntoRequest<super::GetAllNetRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetAllNetResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetAllNetResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetAllNet");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetAllNet",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetAllNet"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetAllNet"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn create_net(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateNetRequest>,
-        ) -> std::result::Result<tonic::Response<super::CreateNetResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::CreateNetResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/CreateNet");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/CreateNet",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "CreateNet"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "CreateNet"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn delete_net(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteNetRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteNetResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteNetResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/DeleteNet");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DeleteNet",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "DeleteNet"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "DeleteNet"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn patch_net(
             &mut self,
             request: impl tonic::IntoRequest<super::PatchNetRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchNetResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchNetResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PatchNet");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PatchNet",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PatchNet"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PatchNet"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn put_net(
             &mut self,
             request: impl tonic::IntoRequest<super::PutNetRequest>,
         ) -> std::result::Result<tonic::Response<super::PutNetResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PutNet");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PutNet",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PutNet"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PutNet"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn net_up(
             &mut self,
             request: impl tonic::IntoRequest<super::NetUpRequest>,
         ) -> std::result::Result<tonic::Response<super::NetUpResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/NetUp");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/NetUp",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "NetUp"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "NetUp"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn net_down(
             &mut self,
             request: impl tonic::IntoRequest<super::NetDownRequest>,
-        ) -> std::result::Result<tonic::Response<super::NetDownResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::NetDownResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/NetDown");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/NetDown",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "NetDown"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "NetDown"));
             self.inner.unary(req, path, codec).await
         }
         /// Routing
         pub async fn get_all_route(
             &mut self,
             request: impl tonic::IntoRequest<super::GetAllRouteRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetAllRouteResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetAllRouteResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetAllRoute");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetAllRoute",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetAllRoute"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetAllRoute"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn create_route(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateRouteRequest>,
-        ) -> std::result::Result<tonic::Response<super::CreateRouteResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::CreateRouteResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/CreateRoute");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/CreateRoute",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "CreateRoute"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "CreateRoute"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn delete_route(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteRouteRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteRouteResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteRouteResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/DeleteRoute");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DeleteRoute",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "DeleteRoute"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "DeleteRoute"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn patch_route(
             &mut self,
             request: impl tonic::IntoRequest<super::PatchRouteRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchRouteResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchRouteResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PatchRoute");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PatchRoute",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PatchRoute"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PatchRoute"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn put_route(
             &mut self,
             request: impl tonic::IntoRequest<super::PutRouteRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutRouteResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PutRouteResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PutRoute");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PutRoute",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PutRoute"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PutRoute"));
             self.inner.unary(req, path, codec).await
         }
         /// DNS / Hostname
         pub async fn get_all_dns(
             &mut self,
             request: impl tonic::IntoRequest<super::GetAllDnsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetAllDnsResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetAllDnsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetAllDns");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetAllDns",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetAllDns"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetAllDns"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn patch_hostname(
             &mut self,
             request: impl tonic::IntoRequest<super::PatchHostnameRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchHostnameResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchHostnameResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/PatchHostname");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PatchHostname",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PatchHostname"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PatchHostname"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn put_dns(
             &mut self,
             request: impl tonic::IntoRequest<super::PutDnsRequest>,
         ) -> std::result::Result<tonic::Response<super::PutDnsResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/PutDns");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/PutDns",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "PutDns"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "PutDns"));
             self.inner.unary(req, path, codec).await
         }
         /// Process
         pub async fn get_all_process(
             &mut self,
             request: impl tonic::IntoRequest<super::GetAllProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetAllProcessResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetAllProcessResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/GetAllProcess");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetAllProcess",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetAllProcess"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetAllProcess"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_one_process(
             &mut self,
             request: impl tonic::IntoRequest<super::GetOneProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetOneProcessResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetOneProcessResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/GetOneProcess");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetOneProcess",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetOneProcess"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetOneProcess"));
             self.inner.unary(req, path, codec).await
         }
         /// Process
         pub async fn start_process(
             &mut self,
             request: impl tonic::IntoRequest<super::StartProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartProcessResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StartProcessResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StartProcess");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StartProcess",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StartProcess"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StartProcess"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn stop_process(
             &mut self,
             request: impl tonic::IntoRequest<super::StopProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopProcessResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StopProcessResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StopProcess");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StopProcess",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StopProcess"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StopProcess"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn restart_process(
             &mut self,
             request: impl tonic::IntoRequest<super::RestartProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartProcessResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartProcessResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/RestartProcess");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/RestartProcess",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "RestartProcess"));
@@ -6061,29 +7141,46 @@ pub mod restful_service_client {
         pub async fn enable_process(
             &mut self,
             request: impl tonic::IntoRequest<super::EnableProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::EnableProcessResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::EnableProcessResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/EnableProcess");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/EnableProcess",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "EnableProcess"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "EnableProcess"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn disable_process(
             &mut self,
             request: impl tonic::IntoRequest<super::DisableProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::DisableProcessResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::DisableProcessResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/DisableProcess");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DisableProcess",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "DisableProcess"));
@@ -6092,14 +7189,22 @@ pub mod restful_service_client {
         pub async fn start_enable_process(
             &mut self,
             request: impl tonic::IntoRequest<super::StartEnableProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartEnableProcessResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StartEnableProcessResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/StartEnableProcess");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StartEnableProcess",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "StartEnableProcess"));
@@ -6108,14 +7213,22 @@ pub mod restful_service_client {
         pub async fn stop_disable_process(
             &mut self,
             request: impl tonic::IntoRequest<super::StopDisableProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopDisableProcessResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StopDisableProcessResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/StopDisableProcess");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StopDisableProcess",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "StopDisableProcess"));
@@ -6125,28 +7238,46 @@ pub mod restful_service_client {
         pub async fn get_software(
             &mut self,
             request: impl tonic::IntoRequest<super::GetSoftwareRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetSoftwareResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetSoftwareResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetSoftware");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetSoftware",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetSoftware"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetSoftware"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn install_software(
             &mut self,
             request: impl tonic::IntoRequest<super::InstallSoftwareRequest>,
-        ) -> std::result::Result<tonic::Response<super::PackageActionResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PackageActionResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/InstallSoftware");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/InstallSoftware",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "InstallSoftware"));
@@ -6155,14 +7286,22 @@ pub mod restful_service_client {
         pub async fn delete_software(
             &mut self,
             request: impl tonic::IntoRequest<super::DeleteSoftwareRequest>,
-        ) -> std::result::Result<tonic::Response<super::PackageActionResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::PackageActionResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/DeleteSoftware");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/DeleteSoftware",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "DeleteSoftware"));
@@ -6172,13 +7311,22 @@ pub mod restful_service_client {
         pub async fn get_apache_status(
             &mut self,
             request: impl tonic::IntoRequest<super::GetApacheRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetApacheResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetApacheResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/GetApacheStatus");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetApacheStatus",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "GetApacheStatus"));
@@ -6187,167 +7335,289 @@ pub mod restful_service_client {
         pub async fn start_apache(
             &mut self,
             request: impl tonic::IntoRequest<super::StartApacheRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartApacheResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StartApacheResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StartApache");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StartApache",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StartApache"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StartApache"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn stop_apache(
             &mut self,
             request: impl tonic::IntoRequest<super::StopApacheRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopApacheResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StopApacheResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StopApache");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StopApache",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StopApache"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StopApache"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn restart_apache(
             &mut self,
             request: impl tonic::IntoRequest<super::RestartApacheRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartApacheResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartApacheResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/RestartApache");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/RestartApache",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "RestartApache"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "RestartApache"));
             self.inner.unary(req, path, codec).await
         }
         /// BIND DNS Server
         pub async fn get_bind_status(
             &mut self,
             request: impl tonic::IntoRequest<super::GetBindRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetBindResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetBindResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/GetBindStatus");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetBindStatus",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetBindStatus"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetBindStatus"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn start_bind(
             &mut self,
             request: impl tonic::IntoRequest<super::StartBindRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartBindResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StartBindResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StartBind");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StartBind",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StartBind"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StartBind"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn stop_bind(
             &mut self,
             request: impl tonic::IntoRequest<super::StopBindRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopBindResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StopBindResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StopBind");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StopBind",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StopBind"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StopBind"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn restart_bind(
             &mut self,
             request: impl tonic::IntoRequest<super::RestartBindRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartBindResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartBindResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/RestartBind");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/RestartBind",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "RestartBind"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "RestartBind"));
             self.inner.unary(req, path, codec).await
         }
         /// LDAP Server
         pub async fn get_ldap_status(
             &mut self,
             request: impl tonic::IntoRequest<super::GetLdapRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetLdapResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetLdapResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/GetLdapStatus");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetLdapStatus",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetLdapStatus"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetLdapStatus"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn start_ldap(
             &mut self,
             request: impl tonic::IntoRequest<super::StartLdapRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartLdapResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StartLdapResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StartLdap");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StartLdap",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StartLdap"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StartLdap"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn stop_ldap(
             &mut self,
             request: impl tonic::IntoRequest<super::StopLdapRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopLdapResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StopLdapResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StopLdap");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StopLdap",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StopLdap"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StopLdap"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn restart_ldap(
             &mut self,
             request: impl tonic::IntoRequest<super::RestartLdapRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartLdapResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartLdapResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/RestartLdap");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/RestartLdap",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "RestartLdap"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "RestartLdap"));
             self.inner.unary(req, path, codec).await
         }
         /// MySQL Server
         pub async fn get_my_sql_status(
             &mut self,
             request: impl tonic::IntoRequest<super::GetMySqlRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetMySqlResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetMySqlResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/GetMySqlStatus");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetMySqlStatus",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "GetMySqlStatus"));
@@ -6356,55 +7626,95 @@ pub mod restful_service_client {
         pub async fn start_my_sql(
             &mut self,
             request: impl tonic::IntoRequest<super::StartMySqlRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartMySqlResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StartMySqlResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StartMySql");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StartMySql",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StartMySql"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StartMySql"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn stop_my_sql(
             &mut self,
             request: impl tonic::IntoRequest<super::StopMySqlRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopMySqlResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StopMySqlResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StopMySql");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StopMySql",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StopMySql"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StopMySql"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn restart_my_sql(
             &mut self,
             request: impl tonic::IntoRequest<super::RestartMySqlRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartMySqlResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartMySqlResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/RestartMySql");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/RestartMySql",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "RestartMySql"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "RestartMySql"));
             self.inner.unary(req, path, codec).await
         }
         /// Nginx Server
         pub async fn get_nginx_status(
             &mut self,
             request: impl tonic::IntoRequest<super::GetNginxRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetNginxResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetNginxResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/GetNginxStatus");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetNginxStatus",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "GetNginxStatus"));
@@ -6413,42 +7723,73 @@ pub mod restful_service_client {
         pub async fn start_nginx(
             &mut self,
             request: impl tonic::IntoRequest<super::StartNginxRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartNginxResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StartNginxResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StartNginx");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StartNginx",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StartNginx"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StartNginx"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn stop_nginx(
             &mut self,
             request: impl tonic::IntoRequest<super::StopNginxRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopNginxResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StopNginxResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StopNginx");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StopNginx",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StopNginx"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StopNginx"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn restart_nginx(
             &mut self,
             request: impl tonic::IntoRequest<super::RestartNginxRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartNginxResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartNginxResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/RestartNginx");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/RestartNginx",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "RestartNginx"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "RestartNginx"));
             self.inner.unary(req, path, codec).await
         }
         /// FTP Server
@@ -6456,66 +7797,115 @@ pub mod restful_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetFtpRequest>,
         ) -> std::result::Result<tonic::Response<super::GetFtpResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetFtpStatus");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetFtpStatus",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetFtpStatus"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetFtpStatus"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn start_ftp(
             &mut self,
             request: impl tonic::IntoRequest<super::StartFtpRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartFtpResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StartFtpResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StartFtp");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StartFtp",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StartFtp"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StartFtp"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn stop_ftp(
             &mut self,
             request: impl tonic::IntoRequest<super::StopFtpRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopFtpResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StopFtpResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StopFtp");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StopFtp",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StopFtp"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StopFtp"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn restart_ftp(
             &mut self,
             request: impl tonic::IntoRequest<super::RestartFtpRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartFtpResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartFtpResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/RestartFtp");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/RestartFtp",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "RestartFtp"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "RestartFtp"));
             self.inner.unary(req, path, codec).await
         }
         /// Samba Server
         pub async fn get_samba_status(
             &mut self,
             request: impl tonic::IntoRequest<super::GetSambaRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetSambaResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetSambaResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/GetSambaStatus");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetSambaStatus",
+            );
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("restful.RestfulService", "GetSambaStatus"));
@@ -6524,60 +7914,100 @@ pub mod restful_service_client {
         pub async fn start_samba(
             &mut self,
             request: impl tonic::IntoRequest<super::StartSambaRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartSambaResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StartSambaResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StartSamba");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StartSamba",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StartSamba"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StartSamba"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn stop_samba(
             &mut self,
             request: impl tonic::IntoRequest<super::StopSambaRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopSambaResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StopSambaResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StopSamba");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StopSamba",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StopSamba"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StopSamba"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn restart_samba(
             &mut self,
             request: impl tonic::IntoRequest<super::RestartSambaRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartSambaResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartSambaResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/RestartSamba");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/RestartSamba",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "RestartSamba"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "RestartSamba"));
             self.inner.unary(req, path, codec).await
         }
         /// Server Installed/Not Installed Lists & Install
         pub async fn get_server_installed_pcs(
             &mut self,
             request: impl tonic::IntoRequest<super::GetServerInstalledPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetServerInstalledPcsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetServerInstalledPcsResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/restful.RestfulService/GetServerInstalledPcs",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("restful.RestfulService", "GetServerInstalledPcs"));
+                .insert(
+                    GrpcMethod::new("restful.RestfulService", "GetServerInstalledPcs"),
+                );
             self.inner.unary(req, path, codec).await
         }
         pub async fn get_server_not_installed_pcs(
@@ -6587,86 +8017,144 @@ pub mod restful_service_client {
             tonic::Response<super::GetServerNotInstalledPcsResponse>,
             tonic::Status,
         > {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
                 "/restful.RestfulService/GetServerNotInstalledPcs",
             );
             let mut req = request.into_request();
             req.extensions_mut()
-                .insert(GrpcMethod::new("restful.RestfulService", "GetServerNotInstalledPcs"));
+                .insert(
+                    GrpcMethod::new("restful.RestfulService", "GetServerNotInstalledPcs"),
+                );
             self.inner.unary(req, path, codec).await
         }
         pub async fn install_server(
             &mut self,
             request: impl tonic::IntoRequest<super::InstallServerRequest>,
-        ) -> std::result::Result<tonic::Response<super::InstallServerResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::InstallServerResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/InstallServer");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/InstallServer",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "InstallServer"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "InstallServer"));
             self.inner.unary(req, path, codec).await
         }
         /// Squid
         pub async fn get_squid(
             &mut self,
             request: impl tonic::IntoRequest<super::GetSquidRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetSquidResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::GetSquidResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetSquid");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetSquid",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetSquid"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetSquid"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn start_squid(
             &mut self,
             request: impl tonic::IntoRequest<super::StartSquidRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartSquidResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StartSquidResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StartSquid");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StartSquid",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StartSquid"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StartSquid"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn stop_squid(
             &mut self,
             request: impl tonic::IntoRequest<super::StopSquidRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopSquidResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StopSquidResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StopSquid");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StopSquid",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StopSquid"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StopSquid"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn restart_squid(
             &mut self,
             request: impl tonic::IntoRequest<super::RestartSquidRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartSquidResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartSquidResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/RestartSquid");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/RestartSquid",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "RestartSquid"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "RestartSquid"));
             self.inner.unary(req, path, codec).await
         }
         /// SSH
@@ -6674,53 +8162,93 @@ pub mod restful_service_client {
             &mut self,
             request: impl tonic::IntoRequest<super::GetSshRequest>,
         ) -> std::result::Result<tonic::Response<super::GetSshResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/GetSsh");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetSsh",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "GetSsh"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetSsh"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn start_ssh(
             &mut self,
             request: impl tonic::IntoRequest<super::StartSshRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartSshResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StartSshResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StartSsh");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StartSsh",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StartSsh"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StartSsh"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn stop_ssh(
             &mut self,
             request: impl tonic::IntoRequest<super::StopSshRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopSshResponse>, tonic::Status> {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::StopSshResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/StopSsh");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/StopSsh",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "StopSsh"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "StopSsh"));
             self.inner.unary(req, path, codec).await
         }
         pub async fn restart_ssh(
             &mut self,
             request: impl tonic::IntoRequest<super::RestartSshRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartSshResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartSshResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::unknown(
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/RestartSsh");
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/RestartSsh",
+            );
             let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "RestartSsh"));
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "RestartSsh"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -6733,11 +8261,10 @@ pub mod restful_service_server {
         dead_code,
         missing_docs,
         clippy::wildcard_imports,
-        clippy::let_unit_value
+        clippy::let_unit_value,
     )]
     use tonic::codegen::*;
-    /// Generated trait containing gRPC methods that should be implemented for
-    /// use with RestfulServiceServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with RestfulServiceServer.
     #[async_trait]
     pub trait RestfulService: std::marker::Send + std::marker::Sync + 'static {
         /// Login
@@ -6749,7 +8276,10 @@ pub mod restful_service_server {
         async fn get_all_info(
             &self,
             request: tonic::Request<super::GetAllInfoRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetAllInfoResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetAllInfoResponse>,
+            tonic::Status,
+        >;
         async fn get_info(
             &self,
             request: tonic::Request<super::GetInfoRequest>,
@@ -6757,33 +8287,54 @@ pub mod restful_service_server {
         async fn get_config(
             &self,
             request: tonic::Request<super::GetConfigRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetConfigResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetConfigResponse>,
+            tonic::Status,
+        >;
         /// Backup
         async fn backup_now(
             &self,
             request: tonic::Request<super::BackupNowRequest>,
-        ) -> std::result::Result<tonic::Response<super::BackupNowResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::BackupNowResponse>,
+            tonic::Status,
+        >;
         async fn get_backups(
             &self,
             request: tonic::Request<super::GetBackupsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetBackupsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetBackupsResponse>,
+            tonic::Status,
+        >;
         async fn reduce_backup(
             &self,
             request: tonic::Request<super::ReductionRequest>,
-        ) -> std::result::Result<tonic::Response<super::ReductionResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::ReductionResponse>,
+            tonic::Status,
+        >;
         /// Mca
         async fn get_valid_certs(
             &self,
             request: tonic::Request<super::GetValidCertsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetValidCertsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetValidCertsResponse>,
+            tonic::Status,
+        >;
         async fn get_revoked_certs(
             &self,
             request: tonic::Request<super::GetRevokedCertsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetRevokedCertsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetRevokedCertsResponse>,
+            tonic::Status,
+        >;
         async fn revoke_cert(
             &self,
             request: tonic::Request<super::RevokeCertRequest>,
-        ) -> std::result::Result<tonic::Response<super::RevokeCertResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::RevokeCertResponse>,
+            tonic::Status,
+        >;
         /// PC
         async fn add_pc(
             &self,
@@ -6792,103 +8343,175 @@ pub mod restful_service_server {
         async fn get_all_pcs(
             &self,
             request: tonic::Request<super::GetAllPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetAllPcsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetAllPcsResponse>,
+            tonic::Status,
+        >;
         async fn get_specific_pcs(
             &self,
             request: tonic::Request<super::GetSpecificPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetSpecificPcsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetSpecificPcsResponse>,
+            tonic::Status,
+        >;
         async fn delete_pcs(
             &self,
             request: tonic::Request<super::DeletePcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeletePcsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DeletePcsResponse>,
+            tonic::Status,
+        >;
         async fn reboot_pcs(
             &self,
             request: tonic::Request<super::RebootPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::RebootPcsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::RebootPcsResponse>,
+            tonic::Status,
+        >;
         async fn shutdown_pcs(
             &self,
             request: tonic::Request<super::ShutdownPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::ShutdownPcsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::ShutdownPcsResponse>,
+            tonic::Status,
+        >;
         /// PC Group
         async fn get_pc_groups(
             &self,
             request: tonic::Request<super::GetPcGroupsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetPcGroupsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetPcGroupsResponse>,
+            tonic::Status,
+        >;
         async fn create_pc_group(
             &self,
             request: tonic::Request<super::CreatePcGroupRequest>,
-        ) -> std::result::Result<tonic::Response<super::CreatePcGroupResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::CreatePcGroupResponse>,
+            tonic::Status,
+        >;
         async fn put_pc_group(
             &self,
             request: tonic::Request<super::PutPcGroupRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutPcGroupResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PutPcGroupResponse>,
+            tonic::Status,
+        >;
         async fn patch_pc_group(
             &self,
             request: tonic::Request<super::PatchPcGroupRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchPcGroupResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchPcGroupResponse>,
+            tonic::Status,
+        >;
         async fn delete_pc_group(
             &self,
             request: tonic::Request<super::DeletePcGroupRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeletePcGroupResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DeletePcGroupResponse>,
+            tonic::Status,
+        >;
         /// Role
         async fn get_roles(
             &self,
             request: tonic::Request<super::GetRolesRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetRolesResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetRolesResponse>,
+            tonic::Status,
+        >;
         async fn get_role_users(
             &self,
             request: tonic::Request<super::GetRoleUsersRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetRoleUsersResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetRoleUsersResponse>,
+            tonic::Status,
+        >;
         async fn create_role(
             &self,
             request: tonic::Request<super::CreateRoleRequest>,
-        ) -> std::result::Result<tonic::Response<super::CreateRoleResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::CreateRoleResponse>,
+            tonic::Status,
+        >;
         async fn delete_role(
             &self,
             request: tonic::Request<super::DeleteRoleRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteRoleResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteRoleResponse>,
+            tonic::Status,
+        >;
         async fn put_role_members(
             &self,
             request: tonic::Request<super::PutRoleMembersRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutRoleMembersResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PutRoleMembersResponse>,
+            tonic::Status,
+        >;
         async fn patch_role(
             &self,
             request: tonic::Request<super::PatchRoleRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchRoleResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchRoleResponse>,
+            tonic::Status,
+        >;
         /// Module
         async fn get_modules(
             &self,
             request: tonic::Request<super::GetModulesRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetModulesResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetModulesResponse>,
+            tonic::Status,
+        >;
         async fn upload_modules(
             &self,
             request: tonic::Request<super::UploadModulesRequest>,
-        ) -> std::result::Result<tonic::Response<super::UploadModulesResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::UploadModulesResponse>,
+            tonic::Status,
+        >;
         async fn update_modules(
             &self,
             request: tonic::Request<super::UpdateModulesRequest>,
-        ) -> std::result::Result<tonic::Response<super::UpdateModulesResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::UpdateModulesResponse>,
+            tonic::Status,
+        >;
         async fn patch_module_settings(
             &self,
             request: tonic::Request<super::PatchModuleSettingsRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchModuleSettingsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchModuleSettingsResponse>,
+            tonic::Status,
+        >;
         async fn delete_modules(
             &self,
             request: tonic::Request<super::DeleteModulesRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteModulesResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteModulesResponse>,
+            tonic::Status,
+        >;
         async fn enable_modules(
             &self,
             request: tonic::Request<super::EnableModulesRequest>,
-        ) -> std::result::Result<tonic::Response<super::EnableModulesResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::EnableModulesResponse>,
+            tonic::Status,
+        >;
         async fn disable_modules(
             &self,
             request: tonic::Request<super::DisableModulesRequest>,
-        ) -> std::result::Result<tonic::Response<super::DisableModulesResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DisableModulesResponse>,
+            tonic::Status,
+        >;
         /// IP Access Control
         async fn get_ip_access(
             &self,
             request: tonic::Request<super::GetIpAccessRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetIpAccessResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetIpAccessResponse>,
+            tonic::Status,
+        >;
         async fn post_ip(
             &self,
             request: tonic::Request<super::PostIpRequest>,
@@ -6896,75 +8519,126 @@ pub mod restful_service_server {
         async fn delete_ip(
             &self,
             request: tonic::Request<super::DeleteIpRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteIpResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteIpResponse>,
+            tonic::Status,
+        >;
         async fn put_ip_mode(
             &self,
             request: tonic::Request<super::PutIpModeRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutIpModeResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PutIpModeResponse>,
+            tonic::Status,
+        >;
         /// Setting Values
         async fn get_setting_values(
             &self,
             request: tonic::Request<super::GetSettingValuesRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetSettingValuesResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetSettingValuesResponse>,
+            tonic::Status,
+        >;
         async fn put_setting_values(
             &self,
             request: tonic::Request<super::PutSettingValuesRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutSettingValuesResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PutSettingValuesResponse>,
+            tonic::Status,
+        >;
         /// Users
         async fn get_users(
             &self,
             request: tonic::Request<super::GetUsersRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetUsersResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetUsersResponse>,
+            tonic::Status,
+        >;
         async fn create_user(
             &self,
             request: tonic::Request<super::CreateUserRequest>,
-        ) -> std::result::Result<tonic::Response<super::CreateUserResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::CreateUserResponse>,
+            tonic::Status,
+        >;
         async fn put_users(
             &self,
             request: tonic::Request<super::PutUsersRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutUsersResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PutUsersResponse>,
+            tonic::Status,
+        >;
         async fn patch_users(
             &self,
             request: tonic::Request<super::PatchUsersRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchUsersResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchUsersResponse>,
+            tonic::Status,
+        >;
         async fn delete_user(
             &self,
             request: tonic::Request<super::DeleteUserRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteUserResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteUserResponse>,
+            tonic::Status,
+        >;
         /// Groups
         async fn get_groups(
             &self,
             request: tonic::Request<super::GetGroupsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetGroupsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetGroupsResponse>,
+            tonic::Status,
+        >;
         async fn create_group(
             &self,
             request: tonic::Request<super::CreateGroupRequest>,
-        ) -> std::result::Result<tonic::Response<super::CreateGroupResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::CreateGroupResponse>,
+            tonic::Status,
+        >;
         async fn put_groups(
             &self,
             request: tonic::Request<super::PutGroupsRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutGroupsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PutGroupsResponse>,
+            tonic::Status,
+        >;
         async fn patch_groups(
             &self,
             request: tonic::Request<super::PatchGroupsRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchGroupsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchGroupsResponse>,
+            tonic::Status,
+        >;
         async fn delete_group(
             &self,
             request: tonic::Request<super::DeleteGroupRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteGroupResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteGroupResponse>,
+            tonic::Status,
+        >;
         /// Cron
         async fn get_cron_jobs(
             &self,
             request: tonic::Request<super::GetCronJobsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetCronJobsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetCronJobsResponse>,
+            tonic::Status,
+        >;
         async fn create_cron(
             &self,
             request: tonic::Request<super::CreateCronRequest>,
-        ) -> std::result::Result<tonic::Response<super::CreateCronResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::CreateCronResponse>,
+            tonic::Status,
+        >;
         async fn delete_cron(
             &self,
             request: tonic::Request<super::DeleteCronRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteCronResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteCronResponse>,
+            tonic::Status,
+        >;
         async fn put_cron(
             &self,
             request: tonic::Request<super::PutCronRequest>,
@@ -6972,105 +8646,177 @@ pub mod restful_service_server {
         async fn import_cron(
             &self,
             request: tonic::Request<super::ImportCronRequest>,
-        ) -> std::result::Result<tonic::Response<super::ImportCronResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::ImportCronResponse>,
+            tonic::Status,
+        >;
         async fn export_cron(
             &self,
             request: tonic::Request<super::ExportCronRequest>,
-        ) -> std::result::Result<tonic::Response<super::ExportCronResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::ExportCronResponse>,
+            tonic::Status,
+        >;
         /// pdir
         async fn get_pdir_pcs(
             &self,
             request: tonic::Request<super::GetPdirPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetPdirPcsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetPdirPcsResponse>,
+            tonic::Status,
+        >;
         async fn get_pdir_one(
             &self,
             request: tonic::Request<super::GetPdirOneRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetPdirOneResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetPdirOneResponse>,
+            tonic::Status,
+        >;
         async fn upload_pdir_files(
             &self,
             request: tonic::Request<super::UploadPdirFilesRequest>,
-        ) -> std::result::Result<tonic::Response<super::UploadPdirFilesResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::UploadPdirFilesResponse>,
+            tonic::Status,
+        >;
         async fn download_pdir_file(
             &self,
             request: tonic::Request<super::DownloadPdirFileRequest>,
-        ) -> std::result::Result<tonic::Response<super::DownloadPdirFileResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DownloadPdirFileResponse>,
+            tonic::Status,
+        >;
         /// vdir
         async fn get_vdir_path(
             &self,
             request: tonic::Request<super::GetVdirPathRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetVdirPathResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetVdirPathResponse>,
+            tonic::Status,
+        >;
         async fn upload_vdir_files(
             &self,
             request: tonic::Request<super::UploadVdirFilesRequest>,
-        ) -> std::result::Result<tonic::Response<super::UploadVdirFilesResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::UploadVdirFilesResponse>,
+            tonic::Status,
+        >;
         async fn download_vdir_file(
             &self,
             request: tonic::Request<super::DownloadVdirFileRequest>,
-        ) -> std::result::Result<tonic::Response<super::DownloadVdirFileResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DownloadVdirFileResponse>,
+            tonic::Status,
+        >;
         /// System logs
         async fn get_sys_logs(
             &self,
             request: tonic::Request<super::GetSysLogsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetSysLogsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetSysLogsResponse>,
+            tonic::Status,
+        >;
         async fn query_sys_logs(
             &self,
             request: tonic::Request<super::QuerySysLogsRequest>,
-        ) -> std::result::Result<tonic::Response<super::QuerySysLogsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::QuerySysLogsResponse>,
+            tonic::Status,
+        >;
         /// PC logs
         async fn get_pc_log_pcs(
             &self,
             request: tonic::Request<super::GetPcLogPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetPcLogPcsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetPcLogPcsResponse>,
+            tonic::Status,
+        >;
         async fn get_pc_logs(
             &self,
             request: tonic::Request<super::GetPcLogsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetPcLogsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetPcLogsResponse>,
+            tonic::Status,
+        >;
         async fn query_pc_logs(
             &self,
             request: tonic::Request<super::QueryPcLogsRequest>,
-        ) -> std::result::Result<tonic::Response<super::QueryPcLogsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::QueryPcLogsResponse>,
+            tonic::Status,
+        >;
         /// Firewall
         async fn get_firewall_pcs(
             &self,
             request: tonic::Request<super::GetFirewallPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetFirewallPcsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetFirewallPcsResponse>,
+            tonic::Status,
+        >;
         async fn get_firewall(
             &self,
             request: tonic::Request<super::GetFirewallRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetFirewallResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetFirewallResponse>,
+            tonic::Status,
+        >;
         async fn add_firewall_rule(
             &self,
             request: tonic::Request<super::AddFirewallRuleRequest>,
-        ) -> std::result::Result<tonic::Response<super::AddFirewallRuleResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::AddFirewallRuleResponse>,
+            tonic::Status,
+        >;
         async fn delete_firewall_rule(
             &self,
             request: tonic::Request<super::DeleteFirewallRuleRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteFirewallRuleResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteFirewallRuleResponse>,
+            tonic::Status,
+        >;
         async fn put_firewall_status(
             &self,
             request: tonic::Request<super::PutFirewallStatusRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutFirewallStatusResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PutFirewallStatusResponse>,
+            tonic::Status,
+        >;
         async fn put_firewall_policy(
             &self,
             request: tonic::Request<super::PutFirewallPolicyRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutFirewallPolicyResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PutFirewallPolicyResponse>,
+            tonic::Status,
+        >;
         /// Network Interface
         async fn get_all_net(
             &self,
             request: tonic::Request<super::GetAllNetRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetAllNetResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetAllNetResponse>,
+            tonic::Status,
+        >;
         async fn create_net(
             &self,
             request: tonic::Request<super::CreateNetRequest>,
-        ) -> std::result::Result<tonic::Response<super::CreateNetResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::CreateNetResponse>,
+            tonic::Status,
+        >;
         async fn delete_net(
             &self,
             request: tonic::Request<super::DeleteNetRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteNetResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteNetResponse>,
+            tonic::Status,
+        >;
         async fn patch_net(
             &self,
             request: tonic::Request<super::PatchNetRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchNetResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchNetResponse>,
+            tonic::Status,
+        >;
         async fn put_net(
             &self,
             request: tonic::Request<super::PutNetRequest>,
@@ -7087,32 +8833,53 @@ pub mod restful_service_server {
         async fn get_all_route(
             &self,
             request: tonic::Request<super::GetAllRouteRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetAllRouteResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetAllRouteResponse>,
+            tonic::Status,
+        >;
         async fn create_route(
             &self,
             request: tonic::Request<super::CreateRouteRequest>,
-        ) -> std::result::Result<tonic::Response<super::CreateRouteResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::CreateRouteResponse>,
+            tonic::Status,
+        >;
         async fn delete_route(
             &self,
             request: tonic::Request<super::DeleteRouteRequest>,
-        ) -> std::result::Result<tonic::Response<super::DeleteRouteResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DeleteRouteResponse>,
+            tonic::Status,
+        >;
         async fn patch_route(
             &self,
             request: tonic::Request<super::PatchRouteRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchRouteResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchRouteResponse>,
+            tonic::Status,
+        >;
         async fn put_route(
             &self,
             request: tonic::Request<super::PutRouteRequest>,
-        ) -> std::result::Result<tonic::Response<super::PutRouteResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PutRouteResponse>,
+            tonic::Status,
+        >;
         /// DNS / Hostname
         async fn get_all_dns(
             &self,
             request: tonic::Request<super::GetAllDnsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetAllDnsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetAllDnsResponse>,
+            tonic::Status,
+        >;
         async fn patch_hostname(
             &self,
             request: tonic::Request<super::PatchHostnameRequest>,
-        ) -> std::result::Result<tonic::Response<super::PatchHostnameResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PatchHostnameResponse>,
+            tonic::Status,
+        >;
         async fn put_dns(
             &self,
             request: tonic::Request<super::PutDnsRequest>,
@@ -7121,70 +8888,118 @@ pub mod restful_service_server {
         async fn get_all_process(
             &self,
             request: tonic::Request<super::GetAllProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetAllProcessResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetAllProcessResponse>,
+            tonic::Status,
+        >;
         async fn get_one_process(
             &self,
             request: tonic::Request<super::GetOneProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetOneProcessResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetOneProcessResponse>,
+            tonic::Status,
+        >;
         /// Process
         async fn start_process(
             &self,
             request: tonic::Request<super::StartProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartProcessResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StartProcessResponse>,
+            tonic::Status,
+        >;
         async fn stop_process(
             &self,
             request: tonic::Request<super::StopProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopProcessResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StopProcessResponse>,
+            tonic::Status,
+        >;
         async fn restart_process(
             &self,
             request: tonic::Request<super::RestartProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartProcessResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartProcessResponse>,
+            tonic::Status,
+        >;
         async fn enable_process(
             &self,
             request: tonic::Request<super::EnableProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::EnableProcessResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::EnableProcessResponse>,
+            tonic::Status,
+        >;
         async fn disable_process(
             &self,
             request: tonic::Request<super::DisableProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::DisableProcessResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::DisableProcessResponse>,
+            tonic::Status,
+        >;
         async fn start_enable_process(
             &self,
             request: tonic::Request<super::StartEnableProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartEnableProcessResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StartEnableProcessResponse>,
+            tonic::Status,
+        >;
         async fn stop_disable_process(
             &self,
             request: tonic::Request<super::StopDisableProcessRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopDisableProcessResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StopDisableProcessResponse>,
+            tonic::Status,
+        >;
         /// Software Inventory
         async fn get_software(
             &self,
             request: tonic::Request<super::GetSoftwareRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetSoftwareResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetSoftwareResponse>,
+            tonic::Status,
+        >;
         async fn install_software(
             &self,
             request: tonic::Request<super::InstallSoftwareRequest>,
-        ) -> std::result::Result<tonic::Response<super::PackageActionResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PackageActionResponse>,
+            tonic::Status,
+        >;
         async fn delete_software(
             &self,
             request: tonic::Request<super::DeleteSoftwareRequest>,
-        ) -> std::result::Result<tonic::Response<super::PackageActionResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::PackageActionResponse>,
+            tonic::Status,
+        >;
         /// Apache Webserver
         async fn get_apache_status(
             &self,
             request: tonic::Request<super::GetApacheRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetApacheResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetApacheResponse>,
+            tonic::Status,
+        >;
         async fn start_apache(
             &self,
             request: tonic::Request<super::StartApacheRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartApacheResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StartApacheResponse>,
+            tonic::Status,
+        >;
         async fn stop_apache(
             &self,
             request: tonic::Request<super::StopApacheRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopApacheResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StopApacheResponse>,
+            tonic::Status,
+        >;
         async fn restart_apache(
             &self,
             request: tonic::Request<super::RestartApacheRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartApacheResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartApacheResponse>,
+            tonic::Status,
+        >;
         /// BIND DNS Server
         async fn get_bind_status(
             &self,
@@ -7193,15 +9008,24 @@ pub mod restful_service_server {
         async fn start_bind(
             &self,
             request: tonic::Request<super::StartBindRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartBindResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StartBindResponse>,
+            tonic::Status,
+        >;
         async fn stop_bind(
             &self,
             request: tonic::Request<super::StopBindRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopBindResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StopBindResponse>,
+            tonic::Status,
+        >;
         async fn restart_bind(
             &self,
             request: tonic::Request<super::RestartBindRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartBindResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartBindResponse>,
+            tonic::Status,
+        >;
         /// LDAP Server
         async fn get_ldap_status(
             &self,
@@ -7210,49 +9034,82 @@ pub mod restful_service_server {
         async fn start_ldap(
             &self,
             request: tonic::Request<super::StartLdapRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartLdapResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StartLdapResponse>,
+            tonic::Status,
+        >;
         async fn stop_ldap(
             &self,
             request: tonic::Request<super::StopLdapRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopLdapResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StopLdapResponse>,
+            tonic::Status,
+        >;
         async fn restart_ldap(
             &self,
             request: tonic::Request<super::RestartLdapRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartLdapResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartLdapResponse>,
+            tonic::Status,
+        >;
         /// MySQL Server
         async fn get_my_sql_status(
             &self,
             request: tonic::Request<super::GetMySqlRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetMySqlResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetMySqlResponse>,
+            tonic::Status,
+        >;
         async fn start_my_sql(
             &self,
             request: tonic::Request<super::StartMySqlRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartMySqlResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StartMySqlResponse>,
+            tonic::Status,
+        >;
         async fn stop_my_sql(
             &self,
             request: tonic::Request<super::StopMySqlRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopMySqlResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StopMySqlResponse>,
+            tonic::Status,
+        >;
         async fn restart_my_sql(
             &self,
             request: tonic::Request<super::RestartMySqlRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartMySqlResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartMySqlResponse>,
+            tonic::Status,
+        >;
         /// Nginx Server
         async fn get_nginx_status(
             &self,
             request: tonic::Request<super::GetNginxRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetNginxResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetNginxResponse>,
+            tonic::Status,
+        >;
         async fn start_nginx(
             &self,
             request: tonic::Request<super::StartNginxRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartNginxResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StartNginxResponse>,
+            tonic::Status,
+        >;
         async fn stop_nginx(
             &self,
             request: tonic::Request<super::StopNginxRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopNginxResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StopNginxResponse>,
+            tonic::Status,
+        >;
         async fn restart_nginx(
             &self,
             request: tonic::Request<super::RestartNginxRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartNginxResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartNginxResponse>,
+            tonic::Status,
+        >;
         /// FTP Server
         async fn get_ftp_status(
             &self,
@@ -7261,7 +9118,10 @@ pub mod restful_service_server {
         async fn start_ftp(
             &self,
             request: tonic::Request<super::StartFtpRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartFtpResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StartFtpResponse>,
+            tonic::Status,
+        >;
         async fn stop_ftp(
             &self,
             request: tonic::Request<super::StopFtpRequest>,
@@ -7269,29 +9129,47 @@ pub mod restful_service_server {
         async fn restart_ftp(
             &self,
             request: tonic::Request<super::RestartFtpRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartFtpResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartFtpResponse>,
+            tonic::Status,
+        >;
         /// Samba Server
         async fn get_samba_status(
             &self,
             request: tonic::Request<super::GetSambaRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetSambaResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetSambaResponse>,
+            tonic::Status,
+        >;
         async fn start_samba(
             &self,
             request: tonic::Request<super::StartSambaRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartSambaResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StartSambaResponse>,
+            tonic::Status,
+        >;
         async fn stop_samba(
             &self,
             request: tonic::Request<super::StopSambaRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopSambaResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StopSambaResponse>,
+            tonic::Status,
+        >;
         async fn restart_samba(
             &self,
             request: tonic::Request<super::RestartSambaRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartSambaResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartSambaResponse>,
+            tonic::Status,
+        >;
         /// Server Installed/Not Installed Lists & Install
         async fn get_server_installed_pcs(
             &self,
             request: tonic::Request<super::GetServerInstalledPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetServerInstalledPcsResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetServerInstalledPcsResponse>,
+            tonic::Status,
+        >;
         async fn get_server_not_installed_pcs(
             &self,
             request: tonic::Request<super::GetServerNotInstalledPcsRequest>,
@@ -7302,24 +9180,39 @@ pub mod restful_service_server {
         async fn install_server(
             &self,
             request: tonic::Request<super::InstallServerRequest>,
-        ) -> std::result::Result<tonic::Response<super::InstallServerResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::InstallServerResponse>,
+            tonic::Status,
+        >;
         /// Squid
         async fn get_squid(
             &self,
             request: tonic::Request<super::GetSquidRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetSquidResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::GetSquidResponse>,
+            tonic::Status,
+        >;
         async fn start_squid(
             &self,
             request: tonic::Request<super::StartSquidRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartSquidResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StartSquidResponse>,
+            tonic::Status,
+        >;
         async fn stop_squid(
             &self,
             request: tonic::Request<super::StopSquidRequest>,
-        ) -> std::result::Result<tonic::Response<super::StopSquidResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StopSquidResponse>,
+            tonic::Status,
+        >;
         async fn restart_squid(
             &self,
             request: tonic::Request<super::RestartSquidRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartSquidResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartSquidResponse>,
+            tonic::Status,
+        >;
         /// SSH
         async fn get_ssh(
             &self,
@@ -7328,7 +9221,10 @@ pub mod restful_service_server {
         async fn start_ssh(
             &self,
             request: tonic::Request<super::StartSshRequest>,
-        ) -> std::result::Result<tonic::Response<super::StartSshResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::StartSshResponse>,
+            tonic::Status,
+        >;
         async fn stop_ssh(
             &self,
             request: tonic::Request<super::StopSshRequest>,
@@ -7336,7 +9232,10 @@ pub mod restful_service_server {
         async fn restart_ssh(
             &self,
             request: tonic::Request<super::RestartSshRequest>,
-        ) -> std::result::Result<tonic::Response<super::RestartSshResponse>, tonic::Status>;
+        ) -> std::result::Result<
+            tonic::Response<super::RestartSshResponse>,
+            tonic::Status,
+        >;
     }
     /// ========== Service ==========
     #[derive(Debug)]
@@ -7360,7 +9259,10 @@ pub mod restful_service_server {
                 max_encoding_message_size: None,
             }
         }
-        pub fn with_interceptor<F>(inner: T, interceptor: F) -> InterceptedService<Self, F>
+        pub fn with_interceptor<F>(
+            inner: T,
+            interceptor: F,
+        ) -> InterceptedService<Self, F>
         where
             F: tonic::service::Interceptor,
         {
@@ -7372,8 +9274,7 @@ pub mod restful_service_server {
             self.accept_compression_encodings.enable(encoding);
             self
         }
-        /// Compress responses with the given encoding, if the client supports
-        /// it.
+        /// Compress responses with the given encoding, if the client supports it.
         #[must_use]
         pub fn send_compressed(mut self, encoding: CompressionEncoding) -> Self {
             self.send_compression_encodings.enable(encoding);
@@ -7416,16 +9317,22 @@ pub mod restful_service_server {
                 "/restful.RestfulService/Login" => {
                     #[allow(non_camel_case_types)]
                     struct LoginSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::LoginRequest> for LoginSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::LoginRequest> for LoginSvc<T> {
                         type Response = super::LoginResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::LoginRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut =
-                                async move { <T as RestfulService>::login(&inner, request).await };
+                            let fut = async move {
+                                <T as RestfulService>::login(&inner, request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -7454,9 +9361,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetAllInfo" => {
                     #[allow(non_camel_case_types)]
                     struct GetAllInfoSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetAllInfoRequest> for GetAllInfoSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetAllInfoRequest>
+                    for GetAllInfoSvc<T> {
                         type Response = super::GetAllInfoResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetAllInfoRequest>,
@@ -7493,9 +9406,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetInfo" => {
                     #[allow(non_camel_case_types)]
                     struct GetInfoSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetInfoRequest> for GetInfoSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetInfoRequest>
+                    for GetInfoSvc<T> {
                         type Response = super::GetInfoResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetInfoRequest>,
@@ -7532,9 +9451,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetConfig" => {
                     #[allow(non_camel_case_types)]
                     struct GetConfigSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetConfigRequest> for GetConfigSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetConfigRequest>
+                    for GetConfigSvc<T> {
                         type Response = super::GetConfigResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetConfigRequest>,
@@ -7571,9 +9496,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/BackupNow" => {
                     #[allow(non_camel_case_types)]
                     struct BackupNowSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::BackupNowRequest> for BackupNowSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::BackupNowRequest>
+                    for BackupNowSvc<T> {
                         type Response = super::BackupNowResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::BackupNowRequest>,
@@ -7610,9 +9541,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetBackups" => {
                     #[allow(non_camel_case_types)]
                     struct GetBackupsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetBackupsRequest> for GetBackupsSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetBackupsRequest>
+                    for GetBackupsSvc<T> {
                         type Response = super::GetBackupsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetBackupsRequest>,
@@ -7649,11 +9586,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/ReduceBackup" => {
                     #[allow(non_camel_case_types)]
                     struct ReduceBackupSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::ReductionRequest>
-                        for ReduceBackupSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::ReductionRequest>
+                    for ReduceBackupSvc<T> {
                         type Response = super::ReductionResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ReductionRequest>,
@@ -7690,18 +9631,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetValidCerts" => {
                     #[allow(non_camel_case_types)]
                     struct GetValidCertsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetValidCertsRequest>
-                        for GetValidCertsSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetValidCertsRequest>
+                    for GetValidCertsSvc<T> {
                         type Response = super::GetValidCertsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetValidCertsRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_valid_certs(&inner, request).await
+                                <T as RestfulService>::get_valid_certs(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -7731,19 +9677,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetRevokedCerts" => {
                     #[allow(non_camel_case_types)]
                     struct GetRevokedCertsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::GetRevokedCertsRequest>
-                        for GetRevokedCertsSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetRevokedCertsRequest>
+                    for GetRevokedCertsSvc<T> {
                         type Response = super::GetRevokedCertsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetRevokedCertsRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_revoked_certs(&inner, request).await
+                                <T as RestfulService>::get_revoked_certs(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -7773,9 +9723,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/RevokeCert" => {
                     #[allow(non_camel_case_types)]
                     struct RevokeCertSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::RevokeCertRequest> for RevokeCertSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::RevokeCertRequest>
+                    for RevokeCertSvc<T> {
                         type Response = super::RevokeCertResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RevokeCertRequest>,
@@ -7812,16 +9768,22 @@ pub mod restful_service_server {
                 "/restful.RestfulService/AddPc" => {
                     #[allow(non_camel_case_types)]
                     struct AddPcSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::AddPcRequest> for AddPcSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::AddPcRequest> for AddPcSvc<T> {
                         type Response = super::AddPcResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::AddPcRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut =
-                                async move { <T as RestfulService>::add_pc(&inner, request).await };
+                            let fut = async move {
+                                <T as RestfulService>::add_pc(&inner, request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -7850,9 +9812,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetAllPcs" => {
                     #[allow(non_camel_case_types)]
                     struct GetAllPcsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetAllPcsRequest> for GetAllPcsSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetAllPcsRequest>
+                    for GetAllPcsSvc<T> {
                         type Response = super::GetAllPcsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetAllPcsRequest>,
@@ -7889,19 +9857,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetSpecificPcs" => {
                     #[allow(non_camel_case_types)]
                     struct GetSpecificPcsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::GetSpecificPcsRequest>
-                        for GetSpecificPcsSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetSpecificPcsRequest>
+                    for GetSpecificPcsSvc<T> {
                         type Response = super::GetSpecificPcsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetSpecificPcsRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_specific_pcs(&inner, request).await
+                                <T as RestfulService>::get_specific_pcs(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -7931,9 +9903,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DeletePcs" => {
                     #[allow(non_camel_case_types)]
                     struct DeletePcsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::DeletePcsRequest> for DeletePcsSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DeletePcsRequest>
+                    for DeletePcsSvc<T> {
                         type Response = super::DeletePcsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeletePcsRequest>,
@@ -7970,9 +9948,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/RebootPcs" => {
                     #[allow(non_camel_case_types)]
                     struct RebootPcsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::RebootPcsRequest> for RebootPcsSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::RebootPcsRequest>
+                    for RebootPcsSvc<T> {
                         type Response = super::RebootPcsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RebootPcsRequest>,
@@ -8009,11 +9993,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/ShutdownPcs" => {
                     #[allow(non_camel_case_types)]
                     struct ShutdownPcsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::ShutdownPcsRequest>
-                        for ShutdownPcsSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::ShutdownPcsRequest>
+                    for ShutdownPcsSvc<T> {
                         type Response = super::ShutdownPcsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ShutdownPcsRequest>,
@@ -8050,11 +10038,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetPcGroups" => {
                     #[allow(non_camel_case_types)]
                     struct GetPcGroupsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetPcGroupsRequest>
-                        for GetPcGroupsSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetPcGroupsRequest>
+                    for GetPcGroupsSvc<T> {
                         type Response = super::GetPcGroupsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetPcGroupsRequest>,
@@ -8091,18 +10083,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/CreatePcGroup" => {
                     #[allow(non_camel_case_types)]
                     struct CreatePcGroupSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::CreatePcGroupRequest>
-                        for CreatePcGroupSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::CreatePcGroupRequest>
+                    for CreatePcGroupSvc<T> {
                         type Response = super::CreatePcGroupResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreatePcGroupRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::create_pc_group(&inner, request).await
+                                <T as RestfulService>::create_pc_group(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -8132,9 +10129,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PutPcGroup" => {
                     #[allow(non_camel_case_types)]
                     struct PutPcGroupSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PutPcGroupRequest> for PutPcGroupSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PutPcGroupRequest>
+                    for PutPcGroupSvc<T> {
                         type Response = super::PutPcGroupResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PutPcGroupRequest>,
@@ -8171,11 +10174,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PatchPcGroup" => {
                     #[allow(non_camel_case_types)]
                     struct PatchPcGroupSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PatchPcGroupRequest>
-                        for PatchPcGroupSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PatchPcGroupRequest>
+                    for PatchPcGroupSvc<T> {
                         type Response = super::PatchPcGroupResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PatchPcGroupRequest>,
@@ -8212,18 +10219,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DeletePcGroup" => {
                     #[allow(non_camel_case_types)]
                     struct DeletePcGroupSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::DeletePcGroupRequest>
-                        for DeletePcGroupSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DeletePcGroupRequest>
+                    for DeletePcGroupSvc<T> {
                         type Response = super::DeletePcGroupResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeletePcGroupRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::delete_pc_group(&inner, request).await
+                                <T as RestfulService>::delete_pc_group(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -8253,9 +10265,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetRoles" => {
                     #[allow(non_camel_case_types)]
                     struct GetRolesSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetRolesRequest> for GetRolesSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetRolesRequest>
+                    for GetRolesSvc<T> {
                         type Response = super::GetRolesResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetRolesRequest>,
@@ -8292,11 +10310,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetRoleUsers" => {
                     #[allow(non_camel_case_types)]
                     struct GetRoleUsersSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetRoleUsersRequest>
-                        for GetRoleUsersSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetRoleUsersRequest>
+                    for GetRoleUsersSvc<T> {
                         type Response = super::GetRoleUsersResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetRoleUsersRequest>,
@@ -8333,9 +10355,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/CreateRole" => {
                     #[allow(non_camel_case_types)]
                     struct CreateRoleSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::CreateRoleRequest> for CreateRoleSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::CreateRoleRequest>
+                    for CreateRoleSvc<T> {
                         type Response = super::CreateRoleResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateRoleRequest>,
@@ -8372,9 +10400,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DeleteRole" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteRoleSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::DeleteRoleRequest> for DeleteRoleSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DeleteRoleRequest>
+                    for DeleteRoleSvc<T> {
                         type Response = super::DeleteRoleResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteRoleRequest>,
@@ -8411,19 +10445,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PutRoleMembers" => {
                     #[allow(non_camel_case_types)]
                     struct PutRoleMembersSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::PutRoleMembersRequest>
-                        for PutRoleMembersSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PutRoleMembersRequest>
+                    for PutRoleMembersSvc<T> {
                         type Response = super::PutRoleMembersResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PutRoleMembersRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::put_role_members(&inner, request).await
+                                <T as RestfulService>::put_role_members(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -8453,9 +10491,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PatchRole" => {
                     #[allow(non_camel_case_types)]
                     struct PatchRoleSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PatchRoleRequest> for PatchRoleSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PatchRoleRequest>
+                    for PatchRoleSvc<T> {
                         type Response = super::PatchRoleResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PatchRoleRequest>,
@@ -8492,9 +10536,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetModules" => {
                     #[allow(non_camel_case_types)]
                     struct GetModulesSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetModulesRequest> for GetModulesSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetModulesRequest>
+                    for GetModulesSvc<T> {
                         type Response = super::GetModulesResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetModulesRequest>,
@@ -8531,11 +10581,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/UploadModules" => {
                     #[allow(non_camel_case_types)]
                     struct UploadModulesSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::UploadModulesRequest>
-                        for UploadModulesSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::UploadModulesRequest>
+                    for UploadModulesSvc<T> {
                         type Response = super::UploadModulesResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::UploadModulesRequest>,
@@ -8572,11 +10626,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/UpdateModules" => {
                     #[allow(non_camel_case_types)]
                     struct UpdateModulesSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::UpdateModulesRequest>
-                        for UpdateModulesSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::UpdateModulesRequest>
+                    for UpdateModulesSvc<T> {
                         type Response = super::UpdateModulesResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::UpdateModulesRequest>,
@@ -8613,19 +10671,26 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PatchModuleSettings" => {
                     #[allow(non_camel_case_types)]
                     struct PatchModuleSettingsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::PatchModuleSettingsRequest>
-                        for PatchModuleSettingsSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PatchModuleSettingsRequest>
+                    for PatchModuleSettingsSvc<T> {
                         type Response = super::PatchModuleSettingsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PatchModuleSettingsRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::patch_module_settings(&inner, request).await
+                                <T as RestfulService>::patch_module_settings(
+                                        &inner,
+                                        request,
+                                    )
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -8655,11 +10720,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DeleteModules" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteModulesSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::DeleteModulesRequest>
-                        for DeleteModulesSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DeleteModulesRequest>
+                    for DeleteModulesSvc<T> {
                         type Response = super::DeleteModulesResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteModulesRequest>,
@@ -8696,11 +10765,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/EnableModules" => {
                     #[allow(non_camel_case_types)]
                     struct EnableModulesSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::EnableModulesRequest>
-                        for EnableModulesSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::EnableModulesRequest>
+                    for EnableModulesSvc<T> {
                         type Response = super::EnableModulesResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::EnableModulesRequest>,
@@ -8737,19 +10810,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DisableModules" => {
                     #[allow(non_camel_case_types)]
                     struct DisableModulesSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::DisableModulesRequest>
-                        for DisableModulesSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DisableModulesRequest>
+                    for DisableModulesSvc<T> {
                         type Response = super::DisableModulesResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DisableModulesRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::disable_modules(&inner, request).await
+                                <T as RestfulService>::disable_modules(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -8779,11 +10856,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetIpAccess" => {
                     #[allow(non_camel_case_types)]
                     struct GetIpAccessSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetIpAccessRequest>
-                        for GetIpAccessSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetIpAccessRequest>
+                    for GetIpAccessSvc<T> {
                         type Response = super::GetIpAccessResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetIpAccessRequest>,
@@ -8820,9 +10901,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PostIp" => {
                     #[allow(non_camel_case_types)]
                     struct PostIpSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PostIpRequest> for PostIpSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PostIpRequest>
+                    for PostIpSvc<T> {
                         type Response = super::PostIpResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PostIpRequest>,
@@ -8859,9 +10946,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DeleteIp" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteIpSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::DeleteIpRequest> for DeleteIpSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DeleteIpRequest>
+                    for DeleteIpSvc<T> {
                         type Response = super::DeleteIpResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteIpRequest>,
@@ -8898,9 +10991,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PutIpMode" => {
                     #[allow(non_camel_case_types)]
                     struct PutIpModeSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PutIpModeRequest> for PutIpModeSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PutIpModeRequest>
+                    for PutIpModeSvc<T> {
                         type Response = super::PutIpModeResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PutIpModeRequest>,
@@ -8937,19 +11036,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetSettingValues" => {
                     #[allow(non_camel_case_types)]
                     struct GetSettingValuesSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::GetSettingValuesRequest>
-                        for GetSettingValuesSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetSettingValuesRequest>
+                    for GetSettingValuesSvc<T> {
                         type Response = super::GetSettingValuesResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetSettingValuesRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_setting_values(&inner, request).await
+                                <T as RestfulService>::get_setting_values(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -8979,19 +11082,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PutSettingValues" => {
                     #[allow(non_camel_case_types)]
                     struct PutSettingValuesSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::PutSettingValuesRequest>
-                        for PutSettingValuesSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PutSettingValuesRequest>
+                    for PutSettingValuesSvc<T> {
                         type Response = super::PutSettingValuesResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PutSettingValuesRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::put_setting_values(&inner, request).await
+                                <T as RestfulService>::put_setting_values(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -9021,9 +11128,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetUsers" => {
                     #[allow(non_camel_case_types)]
                     struct GetUsersSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetUsersRequest> for GetUsersSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetUsersRequest>
+                    for GetUsersSvc<T> {
                         type Response = super::GetUsersResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetUsersRequest>,
@@ -9060,9 +11173,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/CreateUser" => {
                     #[allow(non_camel_case_types)]
                     struct CreateUserSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::CreateUserRequest> for CreateUserSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::CreateUserRequest>
+                    for CreateUserSvc<T> {
                         type Response = super::CreateUserResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateUserRequest>,
@@ -9099,9 +11218,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PutUsers" => {
                     #[allow(non_camel_case_types)]
                     struct PutUsersSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PutUsersRequest> for PutUsersSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PutUsersRequest>
+                    for PutUsersSvc<T> {
                         type Response = super::PutUsersResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PutUsersRequest>,
@@ -9138,9 +11263,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PatchUsers" => {
                     #[allow(non_camel_case_types)]
                     struct PatchUsersSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PatchUsersRequest> for PatchUsersSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PatchUsersRequest>
+                    for PatchUsersSvc<T> {
                         type Response = super::PatchUsersResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PatchUsersRequest>,
@@ -9177,9 +11308,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DeleteUser" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteUserSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::DeleteUserRequest> for DeleteUserSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DeleteUserRequest>
+                    for DeleteUserSvc<T> {
                         type Response = super::DeleteUserResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteUserRequest>,
@@ -9216,9 +11353,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetGroups" => {
                     #[allow(non_camel_case_types)]
                     struct GetGroupsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetGroupsRequest> for GetGroupsSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetGroupsRequest>
+                    for GetGroupsSvc<T> {
                         type Response = super::GetGroupsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetGroupsRequest>,
@@ -9255,11 +11398,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/CreateGroup" => {
                     #[allow(non_camel_case_types)]
                     struct CreateGroupSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::CreateGroupRequest>
-                        for CreateGroupSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::CreateGroupRequest>
+                    for CreateGroupSvc<T> {
                         type Response = super::CreateGroupResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateGroupRequest>,
@@ -9296,9 +11443,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PutGroups" => {
                     #[allow(non_camel_case_types)]
                     struct PutGroupsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PutGroupsRequest> for PutGroupsSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PutGroupsRequest>
+                    for PutGroupsSvc<T> {
                         type Response = super::PutGroupsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PutGroupsRequest>,
@@ -9335,11 +11488,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PatchGroups" => {
                     #[allow(non_camel_case_types)]
                     struct PatchGroupsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PatchGroupsRequest>
-                        for PatchGroupsSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PatchGroupsRequest>
+                    for PatchGroupsSvc<T> {
                         type Response = super::PatchGroupsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PatchGroupsRequest>,
@@ -9376,11 +11533,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DeleteGroup" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteGroupSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::DeleteGroupRequest>
-                        for DeleteGroupSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DeleteGroupRequest>
+                    for DeleteGroupSvc<T> {
                         type Response = super::DeleteGroupResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteGroupRequest>,
@@ -9417,11 +11578,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetCronJobs" => {
                     #[allow(non_camel_case_types)]
                     struct GetCronJobsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetCronJobsRequest>
-                        for GetCronJobsSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetCronJobsRequest>
+                    for GetCronJobsSvc<T> {
                         type Response = super::GetCronJobsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetCronJobsRequest>,
@@ -9458,9 +11623,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/CreateCron" => {
                     #[allow(non_camel_case_types)]
                     struct CreateCronSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::CreateCronRequest> for CreateCronSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::CreateCronRequest>
+                    for CreateCronSvc<T> {
                         type Response = super::CreateCronResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateCronRequest>,
@@ -9497,9 +11668,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DeleteCron" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteCronSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::DeleteCronRequest> for DeleteCronSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DeleteCronRequest>
+                    for DeleteCronSvc<T> {
                         type Response = super::DeleteCronResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteCronRequest>,
@@ -9536,9 +11713,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PutCron" => {
                     #[allow(non_camel_case_types)]
                     struct PutCronSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PutCronRequest> for PutCronSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PutCronRequest>
+                    for PutCronSvc<T> {
                         type Response = super::PutCronResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PutCronRequest>,
@@ -9575,9 +11758,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/ImportCron" => {
                     #[allow(non_camel_case_types)]
                     struct ImportCronSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::ImportCronRequest> for ImportCronSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::ImportCronRequest>
+                    for ImportCronSvc<T> {
                         type Response = super::ImportCronResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ImportCronRequest>,
@@ -9614,9 +11803,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/ExportCron" => {
                     #[allow(non_camel_case_types)]
                     struct ExportCronSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::ExportCronRequest> for ExportCronSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::ExportCronRequest>
+                    for ExportCronSvc<T> {
                         type Response = super::ExportCronResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::ExportCronRequest>,
@@ -9653,9 +11848,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetPdirPcs" => {
                     #[allow(non_camel_case_types)]
                     struct GetPdirPcsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetPdirPcsRequest> for GetPdirPcsSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetPdirPcsRequest>
+                    for GetPdirPcsSvc<T> {
                         type Response = super::GetPdirPcsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetPdirPcsRequest>,
@@ -9692,9 +11893,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetPdirOne" => {
                     #[allow(non_camel_case_types)]
                     struct GetPdirOneSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetPdirOneRequest> for GetPdirOneSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetPdirOneRequest>
+                    for GetPdirOneSvc<T> {
                         type Response = super::GetPdirOneResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetPdirOneRequest>,
@@ -9731,19 +11938,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/UploadPdirFiles" => {
                     #[allow(non_camel_case_types)]
                     struct UploadPdirFilesSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::UploadPdirFilesRequest>
-                        for UploadPdirFilesSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::UploadPdirFilesRequest>
+                    for UploadPdirFilesSvc<T> {
                         type Response = super::UploadPdirFilesResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::UploadPdirFilesRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::upload_pdir_files(&inner, request).await
+                                <T as RestfulService>::upload_pdir_files(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -9773,19 +11984,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DownloadPdirFile" => {
                     #[allow(non_camel_case_types)]
                     struct DownloadPdirFileSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::DownloadPdirFileRequest>
-                        for DownloadPdirFileSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DownloadPdirFileRequest>
+                    for DownloadPdirFileSvc<T> {
                         type Response = super::DownloadPdirFileResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DownloadPdirFileRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::download_pdir_file(&inner, request).await
+                                <T as RestfulService>::download_pdir_file(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -9815,11 +12030,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetVdirPath" => {
                     #[allow(non_camel_case_types)]
                     struct GetVdirPathSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetVdirPathRequest>
-                        for GetVdirPathSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetVdirPathRequest>
+                    for GetVdirPathSvc<T> {
                         type Response = super::GetVdirPathResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetVdirPathRequest>,
@@ -9856,19 +12075,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/UploadVdirFiles" => {
                     #[allow(non_camel_case_types)]
                     struct UploadVdirFilesSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::UploadVdirFilesRequest>
-                        for UploadVdirFilesSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::UploadVdirFilesRequest>
+                    for UploadVdirFilesSvc<T> {
                         type Response = super::UploadVdirFilesResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::UploadVdirFilesRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::upload_vdir_files(&inner, request).await
+                                <T as RestfulService>::upload_vdir_files(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -9898,19 +12121,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DownloadVdirFile" => {
                     #[allow(non_camel_case_types)]
                     struct DownloadVdirFileSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::DownloadVdirFileRequest>
-                        for DownloadVdirFileSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DownloadVdirFileRequest>
+                    for DownloadVdirFileSvc<T> {
                         type Response = super::DownloadVdirFileResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DownloadVdirFileRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::download_vdir_file(&inner, request).await
+                                <T as RestfulService>::download_vdir_file(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -9940,9 +12167,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetSysLogs" => {
                     #[allow(non_camel_case_types)]
                     struct GetSysLogsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetSysLogsRequest> for GetSysLogsSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetSysLogsRequest>
+                    for GetSysLogsSvc<T> {
                         type Response = super::GetSysLogsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetSysLogsRequest>,
@@ -9979,11 +12212,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/QuerySysLogs" => {
                     #[allow(non_camel_case_types)]
                     struct QuerySysLogsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::QuerySysLogsRequest>
-                        for QuerySysLogsSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::QuerySysLogsRequest>
+                    for QuerySysLogsSvc<T> {
                         type Response = super::QuerySysLogsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::QuerySysLogsRequest>,
@@ -10020,11 +12257,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetPcLogPcs" => {
                     #[allow(non_camel_case_types)]
                     struct GetPcLogPcsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetPcLogPcsRequest>
-                        for GetPcLogPcsSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetPcLogPcsRequest>
+                    for GetPcLogPcsSvc<T> {
                         type Response = super::GetPcLogPcsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetPcLogPcsRequest>,
@@ -10061,9 +12302,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetPcLogs" => {
                     #[allow(non_camel_case_types)]
                     struct GetPcLogsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetPcLogsRequest> for GetPcLogsSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetPcLogsRequest>
+                    for GetPcLogsSvc<T> {
                         type Response = super::GetPcLogsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetPcLogsRequest>,
@@ -10100,11 +12347,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/QueryPcLogs" => {
                     #[allow(non_camel_case_types)]
                     struct QueryPcLogsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::QueryPcLogsRequest>
-                        for QueryPcLogsSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::QueryPcLogsRequest>
+                    for QueryPcLogsSvc<T> {
                         type Response = super::QueryPcLogsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::QueryPcLogsRequest>,
@@ -10141,19 +12392,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetFirewallPcs" => {
                     #[allow(non_camel_case_types)]
                     struct GetFirewallPcsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::GetFirewallPcsRequest>
-                        for GetFirewallPcsSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetFirewallPcsRequest>
+                    for GetFirewallPcsSvc<T> {
                         type Response = super::GetFirewallPcsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetFirewallPcsRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_firewall_pcs(&inner, request).await
+                                <T as RestfulService>::get_firewall_pcs(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -10183,11 +12438,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetFirewall" => {
                     #[allow(non_camel_case_types)]
                     struct GetFirewallSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetFirewallRequest>
-                        for GetFirewallSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetFirewallRequest>
+                    for GetFirewallSvc<T> {
                         type Response = super::GetFirewallResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetFirewallRequest>,
@@ -10224,19 +12483,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/AddFirewallRule" => {
                     #[allow(non_camel_case_types)]
                     struct AddFirewallRuleSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::AddFirewallRuleRequest>
-                        for AddFirewallRuleSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::AddFirewallRuleRequest>
+                    for AddFirewallRuleSvc<T> {
                         type Response = super::AddFirewallRuleResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::AddFirewallRuleRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::add_firewall_rule(&inner, request).await
+                                <T as RestfulService>::add_firewall_rule(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -10266,19 +12529,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DeleteFirewallRule" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteFirewallRuleSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::DeleteFirewallRuleRequest>
-                        for DeleteFirewallRuleSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DeleteFirewallRuleRequest>
+                    for DeleteFirewallRuleSvc<T> {
                         type Response = super::DeleteFirewallRuleResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteFirewallRuleRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::delete_firewall_rule(&inner, request).await
+                                <T as RestfulService>::delete_firewall_rule(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -10308,19 +12575,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PutFirewallStatus" => {
                     #[allow(non_camel_case_types)]
                     struct PutFirewallStatusSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::PutFirewallStatusRequest>
-                        for PutFirewallStatusSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PutFirewallStatusRequest>
+                    for PutFirewallStatusSvc<T> {
                         type Response = super::PutFirewallStatusResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PutFirewallStatusRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::put_firewall_status(&inner, request).await
+                                <T as RestfulService>::put_firewall_status(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -10350,19 +12621,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PutFirewallPolicy" => {
                     #[allow(non_camel_case_types)]
                     struct PutFirewallPolicySvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::PutFirewallPolicyRequest>
-                        for PutFirewallPolicySvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PutFirewallPolicyRequest>
+                    for PutFirewallPolicySvc<T> {
                         type Response = super::PutFirewallPolicyResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PutFirewallPolicyRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::put_firewall_policy(&inner, request).await
+                                <T as RestfulService>::put_firewall_policy(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -10392,9 +12667,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetAllNet" => {
                     #[allow(non_camel_case_types)]
                     struct GetAllNetSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetAllNetRequest> for GetAllNetSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetAllNetRequest>
+                    for GetAllNetSvc<T> {
                         type Response = super::GetAllNetResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetAllNetRequest>,
@@ -10431,9 +12712,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/CreateNet" => {
                     #[allow(non_camel_case_types)]
                     struct CreateNetSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::CreateNetRequest> for CreateNetSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::CreateNetRequest>
+                    for CreateNetSvc<T> {
                         type Response = super::CreateNetResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateNetRequest>,
@@ -10470,9 +12757,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DeleteNet" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteNetSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::DeleteNetRequest> for DeleteNetSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DeleteNetRequest>
+                    for DeleteNetSvc<T> {
                         type Response = super::DeleteNetResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteNetRequest>,
@@ -10509,9 +12802,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PatchNet" => {
                     #[allow(non_camel_case_types)]
                     struct PatchNetSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PatchNetRequest> for PatchNetSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PatchNetRequest>
+                    for PatchNetSvc<T> {
                         type Response = super::PatchNetResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PatchNetRequest>,
@@ -10548,9 +12847,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PutNet" => {
                     #[allow(non_camel_case_types)]
                     struct PutNetSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PutNetRequest> for PutNetSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PutNetRequest>
+                    for PutNetSvc<T> {
                         type Response = super::PutNetResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PutNetRequest>,
@@ -10587,16 +12892,22 @@ pub mod restful_service_server {
                 "/restful.RestfulService/NetUp" => {
                     #[allow(non_camel_case_types)]
                     struct NetUpSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::NetUpRequest> for NetUpSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::NetUpRequest> for NetUpSvc<T> {
                         type Response = super::NetUpResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::NetUpRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
-                            let fut =
-                                async move { <T as RestfulService>::net_up(&inner, request).await };
+                            let fut = async move {
+                                <T as RestfulService>::net_up(&inner, request).await
+                            };
                             Box::pin(fut)
                         }
                     }
@@ -10625,9 +12936,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/NetDown" => {
                     #[allow(non_camel_case_types)]
                     struct NetDownSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::NetDownRequest> for NetDownSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::NetDownRequest>
+                    for NetDownSvc<T> {
                         type Response = super::NetDownResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::NetDownRequest>,
@@ -10664,11 +12981,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetAllRoute" => {
                     #[allow(non_camel_case_types)]
                     struct GetAllRouteSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetAllRouteRequest>
-                        for GetAllRouteSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetAllRouteRequest>
+                    for GetAllRouteSvc<T> {
                         type Response = super::GetAllRouteResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetAllRouteRequest>,
@@ -10705,11 +13026,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/CreateRoute" => {
                     #[allow(non_camel_case_types)]
                     struct CreateRouteSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::CreateRouteRequest>
-                        for CreateRouteSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::CreateRouteRequest>
+                    for CreateRouteSvc<T> {
                         type Response = super::CreateRouteResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::CreateRouteRequest>,
@@ -10746,11 +13071,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DeleteRoute" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteRouteSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::DeleteRouteRequest>
-                        for DeleteRouteSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DeleteRouteRequest>
+                    for DeleteRouteSvc<T> {
                         type Response = super::DeleteRouteResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteRouteRequest>,
@@ -10787,9 +13116,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PatchRoute" => {
                     #[allow(non_camel_case_types)]
                     struct PatchRouteSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PatchRouteRequest> for PatchRouteSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PatchRouteRequest>
+                    for PatchRouteSvc<T> {
                         type Response = super::PatchRouteResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PatchRouteRequest>,
@@ -10826,9 +13161,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PutRoute" => {
                     #[allow(non_camel_case_types)]
                     struct PutRouteSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PutRouteRequest> for PutRouteSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PutRouteRequest>
+                    for PutRouteSvc<T> {
                         type Response = super::PutRouteResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PutRouteRequest>,
@@ -10865,9 +13206,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetAllDns" => {
                     #[allow(non_camel_case_types)]
                     struct GetAllDnsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetAllDnsRequest> for GetAllDnsSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetAllDnsRequest>
+                    for GetAllDnsSvc<T> {
                         type Response = super::GetAllDnsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetAllDnsRequest>,
@@ -10904,11 +13251,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PatchHostname" => {
                     #[allow(non_camel_case_types)]
                     struct PatchHostnameSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PatchHostnameRequest>
-                        for PatchHostnameSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PatchHostnameRequest>
+                    for PatchHostnameSvc<T> {
                         type Response = super::PatchHostnameResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PatchHostnameRequest>,
@@ -10945,9 +13296,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/PutDns" => {
                     #[allow(non_camel_case_types)]
                     struct PutDnsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::PutDnsRequest> for PutDnsSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::PutDnsRequest>
+                    for PutDnsSvc<T> {
                         type Response = super::PutDnsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::PutDnsRequest>,
@@ -10984,18 +13341,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetAllProcess" => {
                     #[allow(non_camel_case_types)]
                     struct GetAllProcessSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetAllProcessRequest>
-                        for GetAllProcessSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetAllProcessRequest>
+                    for GetAllProcessSvc<T> {
                         type Response = super::GetAllProcessResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetAllProcessRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_all_process(&inner, request).await
+                                <T as RestfulService>::get_all_process(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -11025,18 +13387,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetOneProcess" => {
                     #[allow(non_camel_case_types)]
                     struct GetOneProcessSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetOneProcessRequest>
-                        for GetOneProcessSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetOneProcessRequest>
+                    for GetOneProcessSvc<T> {
                         type Response = super::GetOneProcessResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetOneProcessRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_one_process(&inner, request).await
+                                <T as RestfulService>::get_one_process(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -11066,11 +13433,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StartProcess" => {
                     #[allow(non_camel_case_types)]
                     struct StartProcessSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StartProcessRequest>
-                        for StartProcessSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StartProcessRequest>
+                    for StartProcessSvc<T> {
                         type Response = super::StartProcessResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StartProcessRequest>,
@@ -11107,11 +13478,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StopProcess" => {
                     #[allow(non_camel_case_types)]
                     struct StopProcessSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StopProcessRequest>
-                        for StopProcessSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StopProcessRequest>
+                    for StopProcessSvc<T> {
                         type Response = super::StopProcessResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StopProcessRequest>,
@@ -11148,19 +13523,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/RestartProcess" => {
                     #[allow(non_camel_case_types)]
                     struct RestartProcessSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::RestartProcessRequest>
-                        for RestartProcessSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::RestartProcessRequest>
+                    for RestartProcessSvc<T> {
                         type Response = super::RestartProcessResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RestartProcessRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::restart_process(&inner, request).await
+                                <T as RestfulService>::restart_process(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -11190,11 +13569,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/EnableProcess" => {
                     #[allow(non_camel_case_types)]
                     struct EnableProcessSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::EnableProcessRequest>
-                        for EnableProcessSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::EnableProcessRequest>
+                    for EnableProcessSvc<T> {
                         type Response = super::EnableProcessResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::EnableProcessRequest>,
@@ -11231,19 +13614,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DisableProcess" => {
                     #[allow(non_camel_case_types)]
                     struct DisableProcessSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::DisableProcessRequest>
-                        for DisableProcessSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DisableProcessRequest>
+                    for DisableProcessSvc<T> {
                         type Response = super::DisableProcessResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DisableProcessRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::disable_process(&inner, request).await
+                                <T as RestfulService>::disable_process(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -11273,19 +13660,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StartEnableProcess" => {
                     #[allow(non_camel_case_types)]
                     struct StartEnableProcessSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::StartEnableProcessRequest>
-                        for StartEnableProcessSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StartEnableProcessRequest>
+                    for StartEnableProcessSvc<T> {
                         type Response = super::StartEnableProcessResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StartEnableProcessRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::start_enable_process(&inner, request).await
+                                <T as RestfulService>::start_enable_process(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -11315,19 +13706,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StopDisableProcess" => {
                     #[allow(non_camel_case_types)]
                     struct StopDisableProcessSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::StopDisableProcessRequest>
-                        for StopDisableProcessSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StopDisableProcessRequest>
+                    for StopDisableProcessSvc<T> {
                         type Response = super::StopDisableProcessResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StopDisableProcessRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::stop_disable_process(&inner, request).await
+                                <T as RestfulService>::stop_disable_process(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -11357,11 +13752,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetSoftware" => {
                     #[allow(non_camel_case_types)]
                     struct GetSoftwareSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetSoftwareRequest>
-                        for GetSoftwareSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetSoftwareRequest>
+                    for GetSoftwareSvc<T> {
                         type Response = super::GetSoftwareResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetSoftwareRequest>,
@@ -11398,19 +13797,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/InstallSoftware" => {
                     #[allow(non_camel_case_types)]
                     struct InstallSoftwareSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::InstallSoftwareRequest>
-                        for InstallSoftwareSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::InstallSoftwareRequest>
+                    for InstallSoftwareSvc<T> {
                         type Response = super::PackageActionResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::InstallSoftwareRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::install_software(&inner, request).await
+                                <T as RestfulService>::install_software(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -11440,19 +13843,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/DeleteSoftware" => {
                     #[allow(non_camel_case_types)]
                     struct DeleteSoftwareSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::DeleteSoftwareRequest>
-                        for DeleteSoftwareSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::DeleteSoftwareRequest>
+                    for DeleteSoftwareSvc<T> {
                         type Response = super::PackageActionResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::DeleteSoftwareRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::delete_software(&inner, request).await
+                                <T as RestfulService>::delete_software(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -11482,18 +13889,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetApacheStatus" => {
                     #[allow(non_camel_case_types)]
                     struct GetApacheStatusSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetApacheRequest>
-                        for GetApacheStatusSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetApacheRequest>
+                    for GetApacheStatusSvc<T> {
                         type Response = super::GetApacheResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetApacheRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_apache_status(&inner, request).await
+                                <T as RestfulService>::get_apache_status(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -11523,11 +13935,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StartApache" => {
                     #[allow(non_camel_case_types)]
                     struct StartApacheSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StartApacheRequest>
-                        for StartApacheSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StartApacheRequest>
+                    for StartApacheSvc<T> {
                         type Response = super::StartApacheResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StartApacheRequest>,
@@ -11564,9 +13980,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StopApache" => {
                     #[allow(non_camel_case_types)]
                     struct StopApacheSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StopApacheRequest> for StopApacheSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StopApacheRequest>
+                    for StopApacheSvc<T> {
                         type Response = super::StopApacheResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StopApacheRequest>,
@@ -11603,11 +14025,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/RestartApache" => {
                     #[allow(non_camel_case_types)]
                     struct RestartApacheSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::RestartApacheRequest>
-                        for RestartApacheSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::RestartApacheRequest>
+                    for RestartApacheSvc<T> {
                         type Response = super::RestartApacheResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RestartApacheRequest>,
@@ -11644,16 +14070,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetBindStatus" => {
                     #[allow(non_camel_case_types)]
                     struct GetBindStatusSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetBindRequest> for GetBindStatusSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetBindRequest>
+                    for GetBindStatusSvc<T> {
                         type Response = super::GetBindResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetBindRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_bind_status(&inner, request).await
+                                <T as RestfulService>::get_bind_status(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -11683,9 +14116,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StartBind" => {
                     #[allow(non_camel_case_types)]
                     struct StartBindSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StartBindRequest> for StartBindSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StartBindRequest>
+                    for StartBindSvc<T> {
                         type Response = super::StartBindResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StartBindRequest>,
@@ -11722,9 +14161,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StopBind" => {
                     #[allow(non_camel_case_types)]
                     struct StopBindSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StopBindRequest> for StopBindSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StopBindRequest>
+                    for StopBindSvc<T> {
                         type Response = super::StopBindResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StopBindRequest>,
@@ -11761,11 +14206,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/RestartBind" => {
                     #[allow(non_camel_case_types)]
                     struct RestartBindSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::RestartBindRequest>
-                        for RestartBindSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::RestartBindRequest>
+                    for RestartBindSvc<T> {
                         type Response = super::RestartBindResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RestartBindRequest>,
@@ -11802,16 +14251,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetLdapStatus" => {
                     #[allow(non_camel_case_types)]
                     struct GetLdapStatusSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetLdapRequest> for GetLdapStatusSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetLdapRequest>
+                    for GetLdapStatusSvc<T> {
                         type Response = super::GetLdapResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetLdapRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_ldap_status(&inner, request).await
+                                <T as RestfulService>::get_ldap_status(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -11841,9 +14297,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StartLdap" => {
                     #[allow(non_camel_case_types)]
                     struct StartLdapSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StartLdapRequest> for StartLdapSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StartLdapRequest>
+                    for StartLdapSvc<T> {
                         type Response = super::StartLdapResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StartLdapRequest>,
@@ -11880,9 +14342,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StopLdap" => {
                     #[allow(non_camel_case_types)]
                     struct StopLdapSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StopLdapRequest> for StopLdapSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StopLdapRequest>
+                    for StopLdapSvc<T> {
                         type Response = super::StopLdapResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StopLdapRequest>,
@@ -11919,11 +14387,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/RestartLdap" => {
                     #[allow(non_camel_case_types)]
                     struct RestartLdapSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::RestartLdapRequest>
-                        for RestartLdapSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::RestartLdapRequest>
+                    for RestartLdapSvc<T> {
                         type Response = super::RestartLdapResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RestartLdapRequest>,
@@ -11960,18 +14432,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetMySqlStatus" => {
                     #[allow(non_camel_case_types)]
                     struct GetMySqlStatusSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetMySqlRequest>
-                        for GetMySqlStatusSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetMySqlRequest>
+                    for GetMySqlStatusSvc<T> {
                         type Response = super::GetMySqlResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetMySqlRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_my_sql_status(&inner, request).await
+                                <T as RestfulService>::get_my_sql_status(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -12001,9 +14478,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StartMySql" => {
                     #[allow(non_camel_case_types)]
                     struct StartMySqlSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StartMySqlRequest> for StartMySqlSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StartMySqlRequest>
+                    for StartMySqlSvc<T> {
                         type Response = super::StartMySqlResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StartMySqlRequest>,
@@ -12040,9 +14523,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StopMySql" => {
                     #[allow(non_camel_case_types)]
                     struct StopMySqlSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StopMySqlRequest> for StopMySqlSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StopMySqlRequest>
+                    for StopMySqlSvc<T> {
                         type Response = super::StopMySqlResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StopMySqlRequest>,
@@ -12079,11 +14568,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/RestartMySql" => {
                     #[allow(non_camel_case_types)]
                     struct RestartMySqlSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::RestartMySqlRequest>
-                        for RestartMySqlSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::RestartMySqlRequest>
+                    for RestartMySqlSvc<T> {
                         type Response = super::RestartMySqlResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RestartMySqlRequest>,
@@ -12120,18 +14613,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetNginxStatus" => {
                     #[allow(non_camel_case_types)]
                     struct GetNginxStatusSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetNginxRequest>
-                        for GetNginxStatusSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetNginxRequest>
+                    for GetNginxStatusSvc<T> {
                         type Response = super::GetNginxResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetNginxRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_nginx_status(&inner, request).await
+                                <T as RestfulService>::get_nginx_status(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -12161,9 +14659,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StartNginx" => {
                     #[allow(non_camel_case_types)]
                     struct StartNginxSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StartNginxRequest> for StartNginxSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StartNginxRequest>
+                    for StartNginxSvc<T> {
                         type Response = super::StartNginxResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StartNginxRequest>,
@@ -12200,9 +14704,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StopNginx" => {
                     #[allow(non_camel_case_types)]
                     struct StopNginxSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StopNginxRequest> for StopNginxSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StopNginxRequest>
+                    for StopNginxSvc<T> {
                         type Response = super::StopNginxResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StopNginxRequest>,
@@ -12239,11 +14749,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/RestartNginx" => {
                     #[allow(non_camel_case_types)]
                     struct RestartNginxSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::RestartNginxRequest>
-                        for RestartNginxSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::RestartNginxRequest>
+                    for RestartNginxSvc<T> {
                         type Response = super::RestartNginxResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RestartNginxRequest>,
@@ -12280,9 +14794,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetFtpStatus" => {
                     #[allow(non_camel_case_types)]
                     struct GetFtpStatusSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetFtpRequest> for GetFtpStatusSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetFtpRequest>
+                    for GetFtpStatusSvc<T> {
                         type Response = super::GetFtpResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetFtpRequest>,
@@ -12319,9 +14839,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StartFtp" => {
                     #[allow(non_camel_case_types)]
                     struct StartFtpSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StartFtpRequest> for StartFtpSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StartFtpRequest>
+                    for StartFtpSvc<T> {
                         type Response = super::StartFtpResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StartFtpRequest>,
@@ -12358,9 +14884,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StopFtp" => {
                     #[allow(non_camel_case_types)]
                     struct StopFtpSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StopFtpRequest> for StopFtpSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StopFtpRequest>
+                    for StopFtpSvc<T> {
                         type Response = super::StopFtpResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StopFtpRequest>,
@@ -12397,9 +14929,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/RestartFtp" => {
                     #[allow(non_camel_case_types)]
                     struct RestartFtpSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::RestartFtpRequest> for RestartFtpSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::RestartFtpRequest>
+                    for RestartFtpSvc<T> {
                         type Response = super::RestartFtpResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RestartFtpRequest>,
@@ -12436,18 +14974,23 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetSambaStatus" => {
                     #[allow(non_camel_case_types)]
                     struct GetSambaStatusSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetSambaRequest>
-                        for GetSambaStatusSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetSambaRequest>
+                    for GetSambaStatusSvc<T> {
                         type Response = super::GetSambaResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetSambaRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_samba_status(&inner, request).await
+                                <T as RestfulService>::get_samba_status(&inner, request)
+                                    .await
                             };
                             Box::pin(fut)
                         }
@@ -12477,9 +15020,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StartSamba" => {
                     #[allow(non_camel_case_types)]
                     struct StartSambaSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StartSambaRequest> for StartSambaSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StartSambaRequest>
+                    for StartSambaSvc<T> {
                         type Response = super::StartSambaResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StartSambaRequest>,
@@ -12516,9 +15065,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StopSamba" => {
                     #[allow(non_camel_case_types)]
                     struct StopSambaSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StopSambaRequest> for StopSambaSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StopSambaRequest>
+                    for StopSambaSvc<T> {
                         type Response = super::StopSambaResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StopSambaRequest>,
@@ -12555,11 +15110,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/RestartSamba" => {
                     #[allow(non_camel_case_types)]
                     struct RestartSambaSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::RestartSambaRequest>
-                        for RestartSambaSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::RestartSambaRequest>
+                    for RestartSambaSvc<T> {
                         type Response = super::RestartSambaResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RestartSambaRequest>,
@@ -12596,19 +15155,25 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetServerInstalledPcs" => {
                     #[allow(non_camel_case_types)]
                     struct GetServerInstalledPcsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::GetServerInstalledPcsRequest>
-                        for GetServerInstalledPcsSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetServerInstalledPcsRequest>
+                    for GetServerInstalledPcsSvc<T> {
                         type Response = super::GetServerInstalledPcsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetServerInstalledPcsRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_server_installed_pcs(&inner, request)
+                                <T as RestfulService>::get_server_installed_pcs(
+                                        &inner,
+                                        request,
+                                    )
                                     .await
                             };
                             Box::pin(fut)
@@ -12639,19 +15204,27 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetServerNotInstalledPcs" => {
                     #[allow(non_camel_case_types)]
                     struct GetServerNotInstalledPcsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::GetServerNotInstalledPcsRequest>
-                        for GetServerNotInstalledPcsSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetServerNotInstalledPcsRequest>
+                    for GetServerNotInstalledPcsSvc<T> {
                         type Response = super::GetServerNotInstalledPcsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::GetServerNotInstalledPcsRequest>,
+                            request: tonic::Request<
+                                super::GetServerNotInstalledPcsRequest,
+                            >,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {
-                                <T as RestfulService>::get_server_not_installed_pcs(&inner, request)
+                                <T as RestfulService>::get_server_not_installed_pcs(
+                                        &inner,
+                                        request,
+                                    )
                                     .await
                             };
                             Box::pin(fut)
@@ -12682,11 +15255,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/InstallServer" => {
                     #[allow(non_camel_case_types)]
                     struct InstallServerSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::InstallServerRequest>
-                        for InstallServerSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::InstallServerRequest>
+                    for InstallServerSvc<T> {
                         type Response = super::InstallServerResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::InstallServerRequest>,
@@ -12723,9 +15300,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetSquid" => {
                     #[allow(non_camel_case_types)]
                     struct GetSquidSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetSquidRequest> for GetSquidSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetSquidRequest>
+                    for GetSquidSvc<T> {
                         type Response = super::GetSquidResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetSquidRequest>,
@@ -12762,9 +15345,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StartSquid" => {
                     #[allow(non_camel_case_types)]
                     struct StartSquidSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StartSquidRequest> for StartSquidSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StartSquidRequest>
+                    for StartSquidSvc<T> {
                         type Response = super::StartSquidResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StartSquidRequest>,
@@ -12801,9 +15390,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StopSquid" => {
                     #[allow(non_camel_case_types)]
                     struct StopSquidSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StopSquidRequest> for StopSquidSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StopSquidRequest>
+                    for StopSquidSvc<T> {
                         type Response = super::StopSquidResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StopSquidRequest>,
@@ -12840,11 +15435,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/RestartSquid" => {
                     #[allow(non_camel_case_types)]
                     struct RestartSquidSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::RestartSquidRequest>
-                        for RestartSquidSvc<T>
-                    {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::RestartSquidRequest>
+                    for RestartSquidSvc<T> {
                         type Response = super::RestartSquidResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RestartSquidRequest>,
@@ -12881,9 +15480,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/GetSsh" => {
                     #[allow(non_camel_case_types)]
                     struct GetSshSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::GetSshRequest> for GetSshSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::GetSshRequest>
+                    for GetSshSvc<T> {
                         type Response = super::GetSshResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::GetSshRequest>,
@@ -12920,9 +15525,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StartSsh" => {
                     #[allow(non_camel_case_types)]
                     struct StartSshSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StartSshRequest> for StartSshSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StartSshRequest>
+                    for StartSshSvc<T> {
                         type Response = super::StartSshResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StartSshRequest>,
@@ -12959,9 +15570,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/StopSsh" => {
                     #[allow(non_camel_case_types)]
                     struct StopSshSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::StopSshRequest> for StopSshSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::StopSshRequest>
+                    for StopSshSvc<T> {
                         type Response = super::StopSshResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::StopSshRequest>,
@@ -12998,9 +15615,15 @@ pub mod restful_service_server {
                 "/restful.RestfulService/RestartSsh" => {
                     #[allow(non_camel_case_types)]
                     struct RestartSshSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::RestartSshRequest> for RestartSshSvc<T> {
+                    impl<
+                        T: RestfulService,
+                    > tonic::server::UnaryService<super::RestartSshRequest>
+                    for RestartSshSvc<T> {
                         type Response = super::RestartSshResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
                         fn call(
                             &mut self,
                             request: tonic::Request<super::RestartSshRequest>,
@@ -13034,16 +15657,25 @@ pub mod restful_service_server {
                     };
                     Box::pin(fut)
                 }
-                _ => Box::pin(async move {
-                    let mut response = http::Response::new(tonic::body::Body::default());
-                    let headers = response.headers_mut();
-                    headers.insert(
-                        tonic::Status::GRPC_STATUS,
-                        (tonic::Code::Unimplemented as i32).into(),
-                    );
-                    headers.insert(http::header::CONTENT_TYPE, tonic::metadata::GRPC_CONTENT_TYPE);
-                    Ok(response)
-                }),
+                _ => {
+                    Box::pin(async move {
+                        let mut response = http::Response::new(
+                            tonic::body::Body::default(),
+                        );
+                        let headers = response.headers_mut();
+                        headers
+                            .insert(
+                                tonic::Status::GRPC_STATUS,
+                                (tonic::Code::Unimplemented as i32).into(),
+                            );
+                        headers
+                            .insert(
+                                http::header::CONTENT_TYPE,
+                                tonic::metadata::GRPC_CONTENT_TYPE,
+                            );
+                        Ok(response)
+                    })
+                }
             }
         }
     }

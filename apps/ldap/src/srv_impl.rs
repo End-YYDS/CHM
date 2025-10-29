@@ -7,7 +7,7 @@ use chm_grpc::ldap::{
     AuthRequest, AuthResponse, GenericResponse, GroupDetailResponse, GroupIdRequest,
     GroupListResponse, GroupNameResponse, GroupRequest, ModifyUserRequest, ToggleUserStatusRequest,
     UserDetailResponse, UserGroupRequest, UserIdRequest, UserListResponse, UserRequest,
-    WebRoleDetailResponse,
+    WebRoleDetailResponse, ModifyGroupNameRequest
 };
 use ldap3::{Ldap, LdapError, Mod, Scope, SearchEntry};
 use std::collections::{HashMap, HashSet};
@@ -404,6 +404,24 @@ pub(crate) async fn get_group_name_impl(
         "Group with gidNumber '{}' not found",
         req.gid_number
     )))
+}
+
+pub(crate) async fn modify_group_name_impl(
+    ldap: &mut Ldap,
+    req: ModifyGroupNameRequest,
+) -> SrvResult<GenericResponse> {
+    let gbase = groups_base();
+    let old_dn = format!("cn={},{}", req.old_name, gbase);
+    let new_rdn = format!("cn={}", req.new_name);
+    let filter = format!("(cn={})", req.new_name);
+    if search_one(ldap, &gbase, Scope::OneLevel, &filter, vec!["dn"]).await?.is_some() {
+        return Err(LdapServiceError::GroupAlreadyExists(req.new_name.clone()));
+    }
+    ldap.modifydn(&old_dn, &new_rdn, true, None).await?.success()?;
+    Ok(GenericResponse {
+        success: true,
+        message: format!("Group name changed from '{}' to '{}'.", req.old_name, req.new_name),
+    })
 }
 
 pub(crate) async fn list_group_impl(ldap: &mut Ldap) -> SrvResult<GroupListResponse> {
