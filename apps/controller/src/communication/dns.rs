@@ -10,19 +10,23 @@ use chm_project_const::uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct ClientDNS {
-    client: DnsServiceClient<Channel>,
+    client:  DnsServiceClient<Channel>,
+    channel: Channel,
 }
 impl ClientDNS {
     pub fn new(channel: Channel) -> Self {
         tracing::debug!("建立 DNS 客戶端...");
-        let client = DnsServiceClient::new(channel)
+        let client = DnsServiceClient::new(channel.clone())
             .accept_compressed(CompressionEncoding::Zstd)
             .send_compressed(CompressionEncoding::Zstd);
         tracing::info!("DNS 客戶端已建立");
-        Self { client }
+        Self { client, channel }
     }
     pub fn get_client(&self) -> DnsServiceClient<Channel> {
         self.client.clone()
+    }
+    pub fn channel(&self) -> Channel {
+        self.channel.clone()
     }
     pub async fn add_host(&self, hostname: String, ip: String, uuid: Uuid) -> ConResult<bool> {
         let mut client = self.client.clone();

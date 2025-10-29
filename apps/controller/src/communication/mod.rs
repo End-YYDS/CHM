@@ -33,6 +33,18 @@ pub(crate) struct GrpcClients {
 }
 
 impl GrpcClients {
+    pub fn channel_for_kind(&self, kind: ServiceKind) -> Option<Channel> {
+        match self.map.get(&kind) {
+            Some(ClientHandle::Ca(ca)) => Some(ca.channel()),
+            Some(ClientHandle::Dns(dns)) => Some(dns.channel()),
+            Some(ClientHandle::Ldap(ldap)) => Some(ldap.channel()),
+            Some(ClientHandle::Dhcp(dhcp)) => Some(dhcp.channel()),
+            _ => None,
+        }
+    }
+}
+
+impl GrpcClients {
     pub async fn connect_all(only_ca: bool) -> ConResult<Self> {
         init_channels_all(only_ca).await
     }

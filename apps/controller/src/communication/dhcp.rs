@@ -7,18 +7,22 @@ use std::net::IpAddr;
 
 #[derive(Debug, Clone)]
 pub struct ClientDhcp {
-    client: DhcpServiceClient<Channel>,
+    client:  DhcpServiceClient<Channel>,
+    channel: Channel,
 }
 
 impl ClientDhcp {
     pub fn new(channel: Channel) -> Self {
         tracing::debug!("建立 DHCP 客戶端...");
-        let client = DhcpServiceClient::new(channel);
+        let client = DhcpServiceClient::new(channel.clone());
         tracing::info!("DHCP 客戶端已建立");
-        Self { client }
+        Self { client, channel }
     }
     pub fn get_client(&self) -> DhcpServiceClient<Channel> {
         self.client.clone()
+    }
+    pub fn channel(&self) -> Channel {
+        self.channel.clone()
     }
     pub async fn create_zone(&self, zone_name: String, vni: i32, cidr: String) -> ConResult<bool> {
         let mut client = self.get_client();

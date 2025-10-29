@@ -8,21 +8,25 @@ type SignedCertificate = Vec<u8>;
 type CertificateChain = Vec<Vec<u8>>;
 #[derive(Debug, Clone)]
 pub struct ClientCA {
-    client: CaClient<Channel>,
+    client:  CaClient<Channel>,
+    channel: Channel,
 }
 #[allow(unused)]
 impl ClientCA {
     pub fn new(channel: Channel) -> Self {
         tracing::debug!("建立 CA 客戶端...");
-        let client = CaClient::new(channel)
+        let client = CaClient::new(channel.clone())
             .accept_compressed(CompressionEncoding::Zstd)
             .send_compressed(CompressionEncoding::Zstd);
         tracing::info!("CA 客戶端已建立");
-        Self { client }
+        Self { client, channel }
     }
 
     pub fn get_client(&self) -> CaClient<Channel> {
         self.client.clone()
+    }
+    pub fn channel(&self) -> Channel {
+        self.channel.clone()
     }
     pub async fn sign_certificate(
         &self,

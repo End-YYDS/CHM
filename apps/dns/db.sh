@@ -26,7 +26,7 @@ echo "==> Using container runtime: $CR"
   -e POSTGRES_DB=dns \
   -v pgdata:/var/lib/postgresql/data \
   -p 5432:5432 \
-  postgres:latest
+  postgres:17
 
 export SQLX_OFFLINE=true
 export DATABASE_URL=postgresql://chm:qpM9CdpdbpF4z6C@127.0.0.1:5432/dns
