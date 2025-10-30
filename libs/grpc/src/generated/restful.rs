@@ -1121,6 +1121,9 @@ pub struct GroupPatch {
     /// 目前只示範可改 Groupname
     #[prost(string, optional, tag = "1")]
     pub groupname: ::core::option::Option<::prost::alloc::string::String>,
+    /// 若未來開放 Users 單獨改，可新增：repeated string users = 2;
+    #[prost(string, repeated, tag = "2")]
+    pub users:     ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchGroupsRequest {

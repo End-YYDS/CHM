@@ -16,6 +16,7 @@ service LdapService {
   rpc ListGroup (Empty) returns (GroupListResponse);
   rpc SearchGroup (GroupRequest) returns (GroupDetailResponse);
   rpc GetGroupName (GroupIdRequest) returns (GroupNameResponse);
+  rpc ModifyGroupName (ModifyGroupNameRequest) returns (GenericResponse);
 
   rpc AddWebRole (GroupRequest) returns (GenericResponse);
   rpc DeleteWebRole (GroupRequest) returns (GenericResponse);
@@ -124,4 +125,9 @@ message GroupIdRequest {
 
 message GroupNameResponse {
   string groupName = 1;
+}
+
+message ModifyGroupNameRequest {
+  string oldName = 1;
+  string newName = 2;
 }

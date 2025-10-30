@@ -8,7 +8,10 @@ use chm_grpc::{
     tonic,
     tonic::{Request, Response, Status},
 };
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 // TODO: 由RestFul Server 為Client 調用Controller RestFul gRPC介面
 #[derive(Debug)]
@@ -649,35 +652,218 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetGroupsRequest>,
     ) -> Result<Response<GetGroupsResponse>, Status> {
-        todo!()
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))
+            .map_err(|e| Status::internal(e.to_string()))?;
+        let gids = ldap
+            .list_groups()
+            .await
+            .map_err(|e| Status::internal(format!("Failed to list groups: {e}")))?;
+        let mut groups: HashMap<String, GroupInfo> = HashMap::new();
+        for gid in gids {
+            match ldap.search_group(gid.clone()).await {
+                Ok(detail) => {
+                    let entry = GroupInfo { groupname: detail.cn, users: detail.member_uid };
+                    groups.insert(gid, entry);
+                }
+                Err(e) => {
+                    eprintln!("Failed to fetch details for group {}: {}", gid, e);
+                    continue;
+                }
+            }
+        }
+        let resp = GetGroupsResponse { groups };
+        Ok(Response::new(resp))
     }
 
     async fn create_group(
         &self,
         request: Request<CreateGroupRequest>,
     ) -> Result<Response<CreateGroupResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
+        let groupname = req.groupname.clone();
+        let users = req.users.clone();
+        ldap.add_group(groupname.clone())
+            .await
+            .map_err(|e| Status::internal(format!("Failed to add group {}: {}", groupname, e)))?;
+        for uid in users {
+            ldap.add_user_to_group(uid.clone(), groupname.clone()).await.map_err(|e| {
+                Status::internal(format!(
+                    "Failed to add user {} to group {}: {}",
+                    uid, groupname, e
+                ))
+            })?;
+        }
+        let result = ResponseResult {
+            r#type:  ResponseType::Ok as i32,
+            message: format!("群組 {} 已成功建立", req.groupname),
+        };
+        Ok(Response::new(CreateGroupResponse { result: Some(result) }))
     }
 
     async fn put_groups(
         &self,
         request: Request<PutGroupsRequest>,
     ) -> Result<Response<PutGroupsResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
+        for (old_name, group_info) in req.groups.iter() {
+            let new_name = &group_info.groupname;
+
+            let group_exists = ldap
+                .search_group(new_name.clone())
+                .await
+                .map(|_| true)
+                .or_else(|_| Ok(false))
+                .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
+                    Status::internal(format!("LDAP search error: {}", e))
+                })?;
+            if old_name != new_name {
+                ldap.modify_group_name(old_name.clone(), new_name.clone()).await.map_err(|e| {
+                    Status::internal(format!(
+                        "Failed to rename group {} -> {}: {}",
+                        old_name, new_name, e
+                    ))
+                })?;
+            }
+            let current_users: Vec<String> =
+                ldap.list_user_in_group(new_name.clone()).await.map_err(|e| {
+                    Status::internal(format!("Failed to list users in group {}: {}", new_name, e))
+                })?;
+            let new_users: HashSet<_> = group_info.users.iter().cloned().collect();
+            let current_users_set: HashSet<_> = current_users.into_iter().collect();
+            for uid in new_users.difference(&current_users_set) {
+                ldap.search_user(uid.clone())
+                    .await
+                    .map_err(|e| Status::not_found(format!("User {} not found: {}", uid, e)))?;
+                ldap.add_user_to_group(uid.clone(), new_name.clone()).await.map_err(|e| {
+                    Status::internal(format!(
+                        "Failed to add user {} to group {}: {}",
+                        uid, new_name, e
+                    ))
+                })?;
+            }
+            for uid in current_users_set.difference(&new_users) {
+                ldap.remove_user_from_group(uid.clone(), new_name.clone()).await.map_err(|e| {
+                    Status::internal(format!(
+                        "Failed to remove user {} from group {}: {}",
+                        uid, new_name, e
+                    ))
+                })?;
+            }
+        }
+        let result = chm_grpc::common::ResponseResult {
+            r#type:  chm_grpc::common::ResponseType::Ok as i32,
+            message: "群組資料已成功更新".to_string(),
+        };
+        Ok(Response::new(PutGroupsResponse { result: Some(result) }))
     }
 
     async fn patch_groups(
         &self,
         request: Request<PatchGroupsRequest>,
     ) -> Result<Response<PatchGroupsResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
+        if req.groups.is_empty() {
+            return Err(Status::invalid_argument("At least one group entry is required"));
+        }
+        for (old_name, patch_info) in req.groups.iter() {
+            if let Some(new_name) = &patch_info.groupname {
+                if old_name != new_name {
+                    let group_exists = ldap
+                        .search_group(new_name.clone())
+                        .await
+                        .map(|_| true)
+                        .or_else(|_| Ok(false))
+                        .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
+                            Status::internal(format!("LDAP search error: {}", e))
+                        })?;
+                    if group_exists {
+                        return Err(Status::already_exists(format!(
+                            "Group '{}' already exists",
+                            new_name
+                        )));
+                    }
+                    ldap.modify_group_name(old_name.clone(), new_name.clone()).await.map_err(
+                        |e| {
+                            Status::internal(format!(
+                                "Failed to rename group {} -> {}: {}",
+                                old_name, new_name, e
+                            ))
+                        },
+                    )?;
+                }
+            }
+            if !patch_info.users.is_empty() {
+                let users = &patch_info.users;
+                let group_name = patch_info.groupname.as_ref().unwrap_or(old_name);
+                let current_users =
+                    ldap.list_user_in_group(group_name.clone()).await.map_err(|e| {
+                        Status::internal(format!(
+                            "Failed to list users in group {}: {}",
+                            group_name, e
+                        ))
+                    })?;
+                let current_set: HashSet<_> = current_users.into_iter().collect();
+                let new_set: HashSet<_> = users.iter().cloned().collect();
+                for uid in new_set.difference(&current_set) {
+                    ldap.add_user_to_group(uid.clone(), group_name.clone()).await.map_err(|e| {
+                        Status::internal(format!("Failed to add user {}: {}", uid, e))
+                    })?;
+                }
+                for uid in current_set.difference(&new_set) {
+                    ldap.remove_user_from_group(uid.clone(), group_name.clone()).await.map_err(
+                        |e| Status::internal(format!("Failed to remove user {}: {}", uid, e)),
+                    )?;
+                }
+            }
+        }
+        let result = chm_grpc::common::ResponseResult {
+            r#type:  chm_grpc::common::ResponseType::Ok as i32,
+            message: "群組已成功更新".to_string(),
+        };
+        Ok(Response::new(PatchGroupsResponse { result: Some(result) }))
     }
 
     async fn delete_group(
         &self,
         request: Request<DeleteGroupRequest>,
     ) -> Result<Response<DeleteGroupResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let group_name = req.gid;
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
+        if let Err(e) = ldap.search_group(group_name.clone()).await {
+            return Err(Status::not_found(format!("Group {} not found: {}", group_name, e)));
+        }
+        ldap.delete_group(group_name.clone()).await.map_err(|e| {
+            Status::internal(format!("Failed to delete group {}: {}", group_name, e))
+        })?;
+
+        let result = chm_grpc::common::ResponseResult {
+            r#type:  chm_grpc::common::ResponseType::Ok as i32,
+            message: format!("群組 {} 已成功刪除", group_name),
+        };
+        Ok(Response::new(DeleteGroupResponse { result: Some(result) }))
     }
 
     async fn get_cron_jobs(
