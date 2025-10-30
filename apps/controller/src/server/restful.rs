@@ -508,6 +508,7 @@ impl RestfulService for ControllerRestfulServer {
         Ok(Response::new(resp))
     }
 
+    // TODO: 添加home directory與shell的預設值
     async fn create_user(
         &self,
         request: Request<CreateUserRequest>,
