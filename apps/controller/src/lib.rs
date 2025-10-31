@@ -9,7 +9,7 @@ use chm_cluster_utils::{
     atomic_write, init_with, Default_ClientCluster, InitData, ServiceDescriptor, ServiceKind,
 };
 use chm_config_bus::{declare_config, declare_config_bus};
-use chm_project_const::ProjectConst;
+use chm_project_const::{uuid::Uuid, ProjectConst};
 use dashmap::DashMap;
 use first::first_run;
 use serde::{Deserialize, Serialize};
@@ -102,6 +102,14 @@ pub struct RemoveService {
     /// OTP 驗證碼
     #[argh(option, short = 'p')]
     pub otp_code: Option<String>,
+
+    /// 服務種類
+    #[argh(option, short = 't')]
+    pub kind: String,
+
+    /// 確認刪除
+    #[argh(switch, short = 'y')]
+    pub confirm: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -253,15 +261,13 @@ pub async fn entry(args: Args) -> ConResult<()> {
             tracing::info!("服務新增完成");
             Ok(())
         }
-        Command::Remove(RemoveService { .. }) => {
+        Command::Remove(RemoveService { hostip, otp_code, kind, confirm }) => {
             // Todo: 刪除Config中的配置，及mca憑證吊銷，data/.CHM_API.done刪除
-
-            // let node = Node::new(hostip, otp_code, clients.clone());
-            // tracing::debug!("準備刪除服務...");
-            // node.remove().await?;
-            // tracing::info!("服務刪除完成");
-            // return Ok(());
-            todo!()
+            let node = Node::new(hostip, otp_code, gclient.clone(), config.clone());
+            tracing::debug!("準備刪除服務...");
+            node.remove(&kind, confirm).await?;
+            tracing::info!("服務刪除完成");
+            Ok(())
         }
         Command::Init(Init { .. }) => Ok(()),
         Command::Serve(Serve {}) => {
@@ -356,8 +362,88 @@ impl Node {
         }
         Ok(())
     }
-    pub async fn _remove(&self) -> ConResult<()> {
-        todo!("刪除服務尚未實作");
+    pub async fn remove(&self, kind: &str, confirm: bool) -> ConResult<()> {
+        // TODO: 檢查是否為[CA] [DNS] 服務中最後一個，如果是就看cli有沒有傳confirm參數，
+        // TODO: 沒有則禁止刪除只有CLI可以刪除基礎服務
+        // 0. 驗證完之後取得服務資訊 (X)
+        // 1. 從配置檔刪除服務資訊 (O)
+        // 2. 向CA請求吊銷憑證 (O)
+        // 3. 刪除data/.{ID}.done標記檔 (X)
+        // 4. 從DNS伺服器刪除服務資訊 (O)
+        // 5. 通知目標服務刪除本身憑證及資料，並重新啟動初始化程序 (X)
+        let kind = kind.parse()?;
+        let (want_delete_hostname, want_delete_uuid, want_delete_uri) = GlobalConfig::with(|cfg| {
+            let d_uuid = cfg
+                .extend
+                .services_pool
+                .services
+                .get(&kind)
+                .and_then(|set| set.iter().find(|desc| desc.uri == self.host).map(|desc| desc.uuid))
+                .unwrap_or_else(Uuid::nil);
+            let d_hostname = cfg
+                .extend
+                .services_pool
+                .services
+                .get(&kind)
+                .and_then(|set| {
+                    set.iter()
+                        .find(|desc| desc.hostname == self.host)
+                        .map(|desc| desc.hostname.clone())
+                })
+                .unwrap_or_else(|| "Unknow".to_string());
+            let d_uri = cfg
+                .extend
+                .services_pool
+                .services
+                .get(&kind)
+                .and_then(|set| {
+                    set.iter().find(|desc| desc.uri == self.host).map(|desc| desc.uri.clone())
+                })
+                .unwrap_or_else(|| "Not found Uri".to_string());
+            let d_hostname = format!("{d_hostname}.chm.com");
+            (d_hostname, d_uuid, d_uri)
+        });
+        GlobalConfig::update_with(|cfg| {
+            if matches!(kind, ServiceKind::Mca | ServiceKind::Dns) {
+                let services_map = &cfg.extend.services_pool.services;
+                if let Some(entry) = services_map.get(&kind) {
+                    if entry.len() <= 1 && !confirm {
+                        panic!("無法刪除最後一個基礎服務，請使用 -y 參數確認刪除");
+                    }
+                }
+            }
+            match cfg.extend.services_pool.services.get_mut(&kind) {
+                Some(mut entry) => {
+                    entry.retain(|desc| desc.uri != want_delete_uri);
+                }
+                None => {
+                    tracing::error!("服務池中找不到指定的服務種類: {kind}");
+                }
+            }
+        });
+        GlobalConfig::save_config().await?;
+        GlobalConfig::send_reload();
+        let ca = self.gclient.ca().ok_or("CA client not initialized")?;
+        tracing::debug!("向 CA 伺服器請求吊銷憑證...");
+        let w_d_cert = ca.get_certificate_by_common_name(want_delete_hostname).await?;
+        if w_d_cert.is_none() {
+            tracing::warn!("未找到欲刪除服務的憑證，跳過憑證吊銷步驟");
+            return Ok(());
+        }
+        let serial_number = w_d_cert.unwrap().serial;
+        if ca.mark_certificate_as_revoked(serial_number, Some("Node Removed!")).await? {
+            tracing::info!("憑證已吊銷");
+        } else {
+            tracing::warn!("憑證吊銷失敗，請確認憑證是否存在");
+        }
+        let dns_client = self.gclient.dns().ok_or("DNS client not initialized")?;
+        tracing::debug!("從 DNS 伺服器刪除服務資訊...");
+        if dns_client.delete_host(want_delete_uuid).await? {
+            tracing::info!("服務資訊已從 DNS 伺服器刪除");
+        } else {
+            tracing::warn!("服務資訊從 DNS 伺服器刪除失敗，請確認服務是否存在");
+        }
+        Ok(())
     }
 }
 
