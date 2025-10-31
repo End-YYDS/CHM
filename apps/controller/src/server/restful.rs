@@ -327,8 +327,49 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<DeletePcsRequest>,
     ) -> Result<Response<DeletePcsResponse>, Status> {
-        // Todo: lib.rs: 裡面的remove實作
-        todo!()
+        // RestFul API
+        // 只能移除Agent，不能移除基礎服務,
+        // 必須透過Controller的Cli或後續grpc介面來移除基礎服務
+        use crate::Node;
+        let req = request.into_inner();
+        let mut results = HashMap::new();
+        for pc in req.uuids {
+            let d_pc = GlobalConfig::with(|cfg| {
+                cfg.extend.services_pool.services.iter().find_map(|entry| {
+                    entry.value().iter().find(|s| s.uuid.to_string() == pc).cloned()
+                })
+            });
+            if d_pc.is_none() {
+                results.insert(
+                    pc,
+                    ResponseResult {
+                        r#type:  ResponseType::Err as i32,
+                        message: "找不到主機資訊".to_string(),
+                    },
+                );
+                continue;
+            }
+            let d_pc = d_pc.unwrap();
+            let d_pc_uuid = d_pc.uuid.to_string();
+            let node_h =
+                Node::new(Some(d_pc_uuid), None, self.grpc_clients.clone(), self.config.clone());
+            if let Err(e) = node_h.remove("agent", false).await {
+                results.insert(
+                    pc,
+                    ResponseResult { r#type: ResponseType::Err as i32, message: format!("{e}") },
+                );
+                continue;
+            }
+            results.insert(
+                pc,
+                ResponseResult {
+                    r#type:  ResponseType::Ok as i32,
+                    message: "刪除主機成功".to_string(),
+                },
+            );
+        }
+        let resp = DeletePcsResponse { results };
+        Ok(Response::new(resp))
     }
 
     async fn reboot_pcs(
