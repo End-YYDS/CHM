@@ -9,7 +9,7 @@ use chm_cluster_utils::{
     atomic_write, init_with, Default_ClientCluster, InitData, ServiceDescriptor, ServiceKind,
 };
 use chm_config_bus::{declare_config, declare_config_bus};
-use chm_project_const::{uuid::Uuid, ProjectConst};
+use chm_project_const::ProjectConst;
 use dashmap::DashMap;
 use first::first_run;
 use serde::{Deserialize, Serialize};
@@ -373,36 +373,25 @@ impl Node {
         // 5. 通知目標服務刪除本身憑證及資料，並重新啟動初始化程序 (X)
         let kind = kind.parse()?;
         let (want_delete_hostname, want_delete_uuid, want_delete_uri) = GlobalConfig::with(|cfg| {
-            let d_uuid = cfg
-                .extend
-                .services_pool
-                .services
-                .get(&kind)
-                .and_then(|set| set.iter().find(|desc| desc.uri == self.host).map(|desc| desc.uuid))
-                .unwrap_or_else(Uuid::nil);
-            let d_hostname = cfg
-                .extend
-                .services_pool
-                .services
-                .get(&kind)
-                .and_then(|set| {
-                    set.iter()
-                        .find(|desc| desc.hostname == self.host)
-                        .map(|desc| desc.hostname.clone())
-                })
-                .unwrap_or_else(|| "Unknow".to_string());
-            let d_uri = cfg
-                .extend
-                .services_pool
-                .services
-                .get(&kind)
-                .and_then(|set| {
-                    set.iter().find(|desc| desc.uri == self.host).map(|desc| desc.uri.clone())
-                })
-                .unwrap_or_else(|| "Not found Uri".to_string());
-            let d_hostname = format!("{d_hostname}.chm.com");
+            let d_uuid = cfg.extend.services_pool.services.get(&kind).and_then(|set| {
+                set.iter().find(|desc| desc.uri == self.host).map(|desc| desc.uuid)
+            });
+            let d_hostname = cfg.extend.services_pool.services.get(&kind).and_then(|set| {
+                set.iter().find(|desc| desc.hostname == self.host).map(|desc| desc.hostname.clone())
+            });
+            let d_uri = cfg.extend.services_pool.services.get(&kind).and_then(|set| {
+                set.iter().find(|desc| desc.uri == self.host).map(|desc| desc.uri.clone())
+            });
             (d_hostname, d_uuid, d_uri)
         });
+        if want_delete_hostname.is_none() || want_delete_uuid.is_none() || want_delete_uri.is_none()
+        {
+            return Err(format!("在服務池中找不到指定的服務: {kind} @ {}", self.host).into());
+        }
+        let want_delete_hostname = want_delete_hostname.unwrap();
+        let want_delete_uuid = want_delete_uuid.unwrap();
+        let want_delete_uri = want_delete_uri.unwrap();
+        let want_delete_hostname = format!("{want_delete_hostname}.chm.com");
         GlobalConfig::update_with(|cfg| {
             if matches!(kind, ServiceKind::Mca | ServiceKind::Dns) {
                 let services_map = &cfg.extend.services_pool.services;

@@ -52,7 +52,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         )
     });
     tracing::info!("正在啟動Ldap...");
-    let _ = get_allocator().await;
+    let db = get_allocator().await;
+    db.pool().await?;
     let (_cert_update_tx, mut cert_update_rx) = watch::channel(());
     loop {
         let (key, cert) = CertUtils::cert_from_path(&cert_path, &key_path, None)?;
