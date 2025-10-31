@@ -39,11 +39,9 @@ async fn add(
     app_state: web::Data<AppState>,
     web::Json(data): web::Json<PCManagerRequest>,
 ) -> RestfulResult<web::Json<ResponseResult>> {
-    dbg!(&data);
     let mut client = app_state.gclient.clone();
     let data: chm_grpc::restful::AddPcRequest = data.into();
     let resp = client.add_pc(data).await?.into_inner().result.unwrap().into();
-
     Ok(web::Json(resp))
 }
 

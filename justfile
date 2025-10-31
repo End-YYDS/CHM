@@ -188,6 +188,12 @@ sqlx-prepare:
     @(cd {{ LDAP_FOLDER }} && cargo sqlx prepare -D "{{ LDAP_DATABASE_URL }}")
     @(cd {{ DHCP_FOLDER }} && cargo sqlx prepare -D "{{ DHCP_DATABASE_URL }}")
 
+sqlx-prepare-only:
+    @(cd {{ CA_FOLDER }} && cargo sqlx prepare  -D "{{ CA_DATABASE_URL }}")
+    @(cd {{ DNS_FOLDER }} && cargo sqlx prepare -D "{{ DNS_DATABASE_URL }}")
+    @(cd {{ LDAP_FOLDER }} && cargo sqlx prepare -D "{{ LDAP_DATABASE_URL }}")
+    @(cd {{ DHCP_FOLDER }} && cargo sqlx prepare -D "{{ DHCP_DATABASE_URL }}")
+
 build-release:
     @[[ ! -f "{{ DB_FOLDER }}/cert_store.db" ]] && just create-ca-db || true
     @[[ ! -f "{{ DB_FOLDER }}/ids.db" ]] && just create-ldap-db || true

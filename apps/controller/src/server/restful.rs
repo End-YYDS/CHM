@@ -13,7 +13,12 @@ use chm_grpc::{
         ServingStatus,
     },
 };
-use std::{collections::HashMap, path::PathBuf, sync::Arc};
+use chm_project_const::uuid::Uuid;
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+    sync::Arc,
+};
 
 // TODO: 由RestFul Server 為Client 調用Controller RestFul gRPC介面
 #[derive(Debug)]
@@ -263,8 +268,59 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetSpecificPcsRequest>,
     ) -> Result<Response<GetSpecificPcsResponse>, Status> {
-        // Todo: 只有特定要抓Base Service的需求才會用到
-        todo!()
+        let data = request.into_inner();
+        let wanted: HashSet<Uuid> = data
+            .uuid
+            .into_iter()
+            .filter_map(|s| match Uuid::parse_str(&s) {
+                Ok(u) => Some(u),
+                Err(e) => {
+                    tracing::warn!("忽略無效的 UUID '{}': {}", s, e);
+                    None
+                }
+            })
+            .collect();
+        let services: HashSet<ServiceDescriptor> = GlobalConfig::with(|cfg| {
+            cfg.extend
+                .services_pool
+                .services
+                .iter()
+                .flat_map(|entry| entry.value().clone().into_iter().filter(|s| s.is_server))
+                .collect()
+        });
+        let filtered = services.into_iter().filter(|s| wanted.contains(&s.uuid));
+        let mut pcs: HashMap<String, PcSimple> = HashMap::new();
+        for service in filtered {
+            let mut status = false;
+            if let Some(health_name) = service.health_name.as_deref() {
+                if let Some(ch) = self.grpc_clients.channel_for_kind(service.kind) {
+                    let mut hc = HealthClient::new(ch);
+                    match hc.check(HealthCheckRequest { service: health_name.to_string() }).await {
+                        Ok(resp) => {
+                            let s = resp.into_inner().status;
+                            status = s == ServingStatus::Serving as i32;
+                        }
+                        Err(e) => {
+                            tracing::warn!("健康檢查失敗: {} ({})", service.hostname, e);
+                        }
+                    }
+                } else {
+                    tracing::warn!(
+                        "找不到 {:?} 的 channel，略過健康檢查（{}）",
+                        service.kind,
+                        service.hostname
+                    );
+                }
+            } else {
+                tracing::info!("{} 未設定 health_name，跳過健康檢查", service.hostname);
+            }
+
+            let pc =
+                PcSimple { ip: service.uri.clone(), hostname: service.hostname.clone(), status };
+            pcs.insert(service.uuid.to_string(), pc);
+        }
+        let length = pcs.len() as u64;
+        Ok(Response::new(GetSpecificPcsResponse { pcs, length }))
     }
 
     async fn delete_pcs(
