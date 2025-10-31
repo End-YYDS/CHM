@@ -44,14 +44,14 @@ pub struct InfoGetRequest {
     pub uuid:   Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Zone {
     info,
     cluster,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 pub enum Target {
     #[serde(rename = "safe")]
     Safe,

@@ -1,6 +1,6 @@
 #![allow(dead_code, unused_variables)]
 
-use crate::communication::GrpcClients;
+use crate::{communication::GrpcClients, GlobalConfig};
 use chm_cert_utils::CertUtils;
 use chm_grpc::{
     common::{ResponseResult, ResponseType},
@@ -52,14 +52,44 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetAllInfoRequest>,
     ) -> Result<Response<GetAllInfoResponse>, Status> {
-        todo!()
+        // TODO: 替換假資料
+        // 調用 CHM/libs/grpc/proto_def/agent.proto:AgentInfoService
+        GlobalConfig::with(|cfg| {
+            let alert_config = cfg.extend.alert_config.clone();
+        });
+        let info = InfoCounts { safe: 1, warn: 1, dang: 1 };
+        let cluster = ClusterSummary { cpu: 23.5, memory: 56.2, disk: 78.9 };
+        let resp = GetAllInfoResponse { info: Some(info), cluster: Some(cluster) };
+        Ok(Response::new(resp))
     }
 
     async fn get_info(
         &self,
         request: Request<GetInfoRequest>,
     ) -> Result<Response<GetInfoResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        // TODO: 替換假資料
+        let all: [(&str, PcMetrics); 3] = [
+            ("uuid-a", PcMetrics { cpu: 12.0, memory: 34.0, disk: 56.0 }),
+            ("uuid-b", PcMetrics { cpu: 78.0, memory: 90.0, disk: 23.0 }),
+            ("uuid-c", PcMetrics { cpu: 45.0, memory: 67.0, disk: 89.0 }),
+        ];
+        let mut pcs: HashMap<String, PcMetrics> = HashMap::new();
+        match &req.uuid {
+            None => {
+                for (id, metrics) in all {
+                    pcs.insert(id.to_string(), metrics);
+                }
+            }
+            Some(target_uuid) => {
+                if let Some((id, metrics)) = all.iter().find(|(id, _)| *id == target_uuid) {
+                    pcs.insert(id.to_string(), *metrics);
+                }
+            }
+        }
+        let length = pcs.len() as u64;
+        let resp = GetInfoResponse { pcs, length };
+        Ok(Response::new(resp))
     }
 
     async fn get_config(

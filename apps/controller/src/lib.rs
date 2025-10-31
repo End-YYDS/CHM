@@ -29,6 +29,8 @@ pub const ID: &str = "CHMcd";
 #[cfg(debug_assertions)]
 const DEFAULT_PORT: u16 = 50051;
 const DEFAULT_OTP_LEN: usize = 6;
+const DEFAULT_WARN_THRESHOLD: f64 = 0.5;
+const DEFAULT_DANG_THRESHOLD: f64 = 0.8;
 
 #[derive(FromArgs, Debug, Clone)]
 /// Controller 主程式參數
@@ -110,17 +112,58 @@ pub struct ControllerExtension {
     #[serde(default)]
     pub services_pool: ServicesPool,
     #[serde(default)]
+    pub alert_config:  AlertConfig,
+    #[serde(default)]
     pub sign_days:     u32,
 }
 impl Default for ControllerExtension {
     fn default() -> Self {
-        Self { services_pool: Default::default(), sign_days: 10 }
+        Self {
+            services_pool: Default::default(),
+            alert_config:  Default::default(),
+            sign_days:     10,
+        }
     }
 }
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
 pub struct ServicesPool {
     #[serde(flatten)]
     pub services: DashMap<ServiceKind, HashSet<ServiceDescriptor>>,
+}
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct AlertConfig {
+    #[serde(default = "AlertConfig::default_warn_threshold")]
+    pub cpu_warn_threshold:  f64,
+    #[serde(default = "AlertConfig::default_dang_threshold")]
+    pub cpu_dang_threshold:  f64,
+    #[serde(default = "AlertConfig::default_warn_threshold")]
+    pub mem_warn_threshold:  f64,
+    #[serde(default = "AlertConfig::default_dang_threshold")]
+    pub mem_dang_threshold:  f64,
+    #[serde(default = "AlertConfig::default_warn_threshold")]
+    pub disk_warn_threshold: f64,
+    #[serde(default = "AlertConfig::default_dang_threshold")]
+    pub disk_dang_threshold: f64,
+}
+impl Default for AlertConfig {
+    fn default() -> Self {
+        AlertConfig {
+            cpu_warn_threshold:  AlertConfig::default_warn_threshold(),
+            cpu_dang_threshold:  AlertConfig::default_dang_threshold(),
+            mem_warn_threshold:  AlertConfig::default_warn_threshold(),
+            mem_dang_threshold:  AlertConfig::default_dang_threshold(),
+            disk_warn_threshold: AlertConfig::default_warn_threshold(),
+            disk_dang_threshold: AlertConfig::default_dang_threshold(),
+        }
+    }
+}
+impl AlertConfig {
+    fn default_warn_threshold() -> f64 {
+        DEFAULT_WARN_THRESHOLD
+    }
+    fn default_dang_threshold() -> f64 {
+        DEFAULT_DANG_THRESHOLD
+    }
 }
 declare_config!(extend = crate::ControllerExtension);
 declare_config_bus!();
