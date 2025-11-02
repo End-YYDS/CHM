@@ -1196,7 +1196,7 @@ impl RestfulService for ControllerRestfulServer {
                     groups.insert(gid, entry);
                 }
                 Err(e) => {
-                    eprintln!("Failed to fetch details for group {}: {}", gid, e);
+                    eprintln!("Failed to fetch details for group {gid}: {e}");
                     continue;
                 }
             }
@@ -1222,13 +1222,10 @@ impl RestfulService for ControllerRestfulServer {
         let users = req.users.clone();
         ldap.add_group(groupname.clone())
             .await
-            .map_err(|e| Status::internal(format!("Failed to add group {}: {}", groupname, e)))?;
+            .map_err(|e| Status::internal(format!("Failed to add group {groupname}: {e}")))?;
         for uid in users {
             ldap.add_user_to_group(uid.clone(), groupname.clone()).await.map_err(|e| {
-                Status::internal(format!(
-                    "Failed to add user {} to group {}: {}",
-                    uid, groupname, e
-                ))
+                Status::internal(format!("Failed to add user {uid} to group {groupname}: {e}"))
             })?;
         }
         let result = ResponseResult {
@@ -1256,44 +1253,39 @@ impl RestfulService for ControllerRestfulServer {
                 .map(|_| true)
                 .or_else(|_| Ok(false))
                 .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
-                    Status::internal(format!("LDAP search error: {}", e))
+                    Status::internal(format!("LDAP search error: {e}"))
                 })?;
             if old_name != new_name {
                 ldap.modify_group_name(old_name.clone(), new_name.clone()).await.map_err(|e| {
                     Status::internal(format!(
-                        "Failed to rename group {} -> {}: {}",
-                        old_name, new_name, e
+                        "Failed to rename group {old_name} -> {new_name}: {e}"
                     ))
                 })?;
             }
             let current_users: Vec<String> =
                 ldap.list_user_in_group(new_name.clone()).await.map_err(|e| {
-                    Status::internal(format!("Failed to list users in group {}: {}", new_name, e))
+                    Status::internal(format!("Failed to list users in group {new_name}: {e}"))
                 })?;
             let new_users: HashSet<_> = group_info.users.iter().cloned().collect();
             let current_users_set: HashSet<_> = current_users.into_iter().collect();
             for uid in new_users.difference(&current_users_set) {
                 ldap.search_user(uid.clone())
                     .await
-                    .map_err(|e| Status::not_found(format!("User {} not found: {}", uid, e)))?;
+                    .map_err(|e| Status::not_found(format!("User {uid} not found: {e}")))?;
                 ldap.add_user_to_group(uid.clone(), new_name.clone()).await.map_err(|e| {
-                    Status::internal(format!(
-                        "Failed to add user {} to group {}: {}",
-                        uid, new_name, e
-                    ))
+                    Status::internal(format!("Failed to add user {uid} to group {new_name}: {e}"))
                 })?;
             }
             for uid in current_users_set.difference(&new_users) {
                 ldap.remove_user_from_group(uid.clone(), new_name.clone()).await.map_err(|e| {
                     Status::internal(format!(
-                        "Failed to remove user {} from group {}: {}",
-                        uid, new_name, e
+                        "Failed to remove user {uid} from group {new_name}: {e}"
                     ))
                 })?;
             }
         }
-        let result = chm_grpc::common::ResponseResult {
-            r#type:  chm_grpc::common::ResponseType::Ok as i32,
+        let result = ResponseResult {
+            r#type:  ResponseType::Ok as i32,
             message: "群組資料已成功更新".to_string(),
         };
         Ok(Response::new(PutGroupsResponse { result: Some(result) }))
@@ -1320,19 +1312,17 @@ impl RestfulService for ControllerRestfulServer {
                         .map(|_| true)
                         .or_else(|_| Ok(false))
                         .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
-                            Status::internal(format!("LDAP search error: {}", e))
+                            Status::internal(format!("LDAP search error: {e}"))
                         })?;
                     if group_exists {
                         return Err(Status::already_exists(format!(
-                            "Group '{}' already exists",
-                            new_name
+                            "Group '{new_name}' already exists"
                         )));
                     }
                     ldap.modify_group_name(old_name.clone(), new_name.clone()).await.map_err(
                         |e| {
                             Status::internal(format!(
-                                "Failed to rename group {} -> {}: {}",
-                                old_name, new_name, e
+                                "Failed to rename group {old_name} -> {new_name}: {e}"
                             ))
                         },
                     )?;
@@ -1343,27 +1333,24 @@ impl RestfulService for ControllerRestfulServer {
                 let group_name = patch_info.groupname.as_ref().unwrap_or(old_name);
                 let current_users =
                     ldap.list_user_in_group(group_name.clone()).await.map_err(|e| {
-                        Status::internal(format!(
-                            "Failed to list users in group {}: {}",
-                            group_name, e
-                        ))
+                        Status::internal(format!("Failed to list users in group {group_name}: {e}"))
                     })?;
                 let current_set: HashSet<_> = current_users.into_iter().collect();
                 let new_set: HashSet<_> = users.iter().cloned().collect();
                 for uid in new_set.difference(&current_set) {
-                    ldap.add_user_to_group(uid.clone(), group_name.clone()).await.map_err(|e| {
-                        Status::internal(format!("Failed to add user {}: {}", uid, e))
-                    })?;
+                    ldap.add_user_to_group(uid.clone(), group_name.clone())
+                        .await
+                        .map_err(|e| Status::internal(format!("Failed to add user {uid}: {e}")))?;
                 }
                 for uid in current_set.difference(&new_set) {
                     ldap.remove_user_from_group(uid.clone(), group_name.clone()).await.map_err(
-                        |e| Status::internal(format!("Failed to remove user {}: {}", uid, e)),
+                        |e| Status::internal(format!("Failed to remove user {uid}: {e}")),
                     )?;
                 }
             }
         }
-        let result = chm_grpc::common::ResponseResult {
-            r#type:  chm_grpc::common::ResponseType::Ok as i32,
+        let result = ResponseResult {
+            r#type:  ResponseType::Ok as i32,
             message: "群組已成功更新".to_string(),
         };
         Ok(Response::new(PatchGroupsResponse { result: Some(result) }))
@@ -1380,15 +1367,15 @@ impl RestfulService for ControllerRestfulServer {
             .ldap()
             .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
         if let Err(e) = ldap.search_group(group_name.clone()).await {
-            return Err(Status::not_found(format!("Group {} not found: {}", group_name, e)));
+            return Err(Status::not_found(format!("Group {group_name} not found: {e}")));
         }
-        ldap.delete_group(group_name.clone()).await.map_err(|e| {
-            Status::internal(format!("Failed to delete group {}: {}", group_name, e))
-        })?;
+        ldap.delete_group(group_name.clone())
+            .await
+            .map_err(|e| Status::internal(format!("Failed to delete group {group_name}: {e}")))?;
 
-        let result = chm_grpc::common::ResponseResult {
-            r#type:  chm_grpc::common::ResponseType::Ok as i32,
-            message: format!("群組 {} 已成功刪除", group_name),
+        let result = ResponseResult {
+            r#type:  ResponseType::Ok as i32,
+            message: format!("群組 {group_name} 已成功刪除"),
         };
         Ok(Response::new(DeleteGroupResponse { result: Some(result) }))
     }
