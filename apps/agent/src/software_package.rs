@@ -343,16 +343,16 @@ fn build_verification_script(
         },
         PackageManagerKind::Redhat => match action {
             PackageAction::Install => format!(
-                    "set +e\nfor pkg in {packages}; do\n  if rpm -q \"$pkg\" >/dev/null 2>&1; \
+                "set +e\nfor pkg in {packages}; do\n  if rpm -q \"$pkg\" >/dev/null 2>&1; \
                      then\n    :\n  else\n    printf '%s|not-installed\\n' \"$pkg\"\n  \
                      fi\ndone\nexit 0\n",
-                    packages = package_list
-                ),
+                packages = package_list
+            ),
             PackageAction::Remove => format!(
-                    "set +e\nfor pkg in {packages}; do\n  if rpm -q \"$pkg\" >/dev/null 2>&1; \
+                "set +e\nfor pkg in {packages}; do\n  if rpm -q \"$pkg\" >/dev/null 2>&1; \
                      then\n    printf '%s|still-installed\\n' \"$pkg\"\n  fi\ndone\nexit 0\n",
-                    packages = package_list
-                ),
+                packages = package_list
+            ),
         },
     }
 }

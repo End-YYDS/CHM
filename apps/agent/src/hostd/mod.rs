@@ -1,6 +1,7 @@
 #![cfg(target_family = "unix")]
 
 use base64::{engine::general_purpose, Engine as _};
+use chm_grpc::tonic::{async_trait, Request, Response, Status};
 use chrono::{DateTime, Datelike, Local};
 use pnet::{
     datalink::{interfaces, NetworkInterface},
@@ -15,16 +16,105 @@ use std::{
     os::unix::fs::{FileTypeExt, MetadataExt},
     path::Path,
     process::{Command, Output},
+    sync::Arc,
+    time::Duration,
 };
 use sysinfo::{
     DiskRefreshKind, Disks, MemoryRefreshKind, ProcessRefreshKind, ProcessStatus, System,
 };
+use tokio::{sync::Semaphore, task};
 use users::get_user_by_uid;
 
 const META_PREFIX: &str = "# agent_meta:";
 const SYSLOG_CANDIDATES: [&str; 2] = ["/var/log/syslog", "/var/log/messages"];
 const LOG_ENTRY_LIMIT: usize = 20;
 
+pub mod proto {
+    pub use chm_grpc::hostd::{
+        hostd_service_server::{HostdService, HostdServiceServer},
+        *,
+    };
+}
+
+#[derive(Clone)]
+pub struct HostdGrpcService {
+    semaphore:       Arc<Semaphore>,
+    command_timeout: Duration,
+}
+
+impl HostdGrpcService {
+    pub fn new(semaphore: Arc<Semaphore>, command_timeout: Duration) -> Self {
+        Self { semaphore, command_timeout }
+    }
+}
+
+#[async_trait]
+impl proto::HostdService for HostdGrpcService {
+    async fn run_sys_info(
+        &self,
+        request: Request<proto::SysInfoRequest>,
+    ) -> Result<Response<proto::SysInfoResponse>, Status> {
+        let payload = request.into_inner();
+        let command = payload.command;
+        if command.trim().is_empty() {
+            return Err(Status::invalid_argument("sysinfo command cannot be empty"));
+        }
+        match execute_sysinfo(&command) {
+            Ok(output) => Ok(Response::new(proto::SysInfoResponse { output })),
+            Err(err) => {
+                tracing::error!("HostD sysinfo command failed: {err}");
+                Err(Status::internal(err))
+            }
+        }
+    }
+
+    async fn run_host_command(
+        &self,
+        request: Request<proto::HostCommandRequest>,
+    ) -> Result<Response<proto::HostCommandResponse>, Status> {
+        let payload = request.into_inner();
+        let command = payload.command;
+        if command.trim().is_empty() {
+            return Err(Status::invalid_argument("host command cannot be empty"));
+        }
+
+        let permit = self
+            .semaphore
+            .clone()
+            .acquire_owned()
+            .await
+            .map_err(|_| Status::resource_exhausted("command semaphore closed"))?;
+
+        let handle = task::spawn_blocking(move || execute_command(&command));
+        tokio::pin!(handle);
+        let join_result = match tokio::time::timeout(self.command_timeout, &mut handle).await {
+            Ok(res) => {
+                res.map_err(|err| Status::internal(format!("command worker panic: {err}")))?
+            }
+            Err(_) => {
+                tracing::error!(
+                    "HostD run_host_command timed out after {:?}",
+                    self.command_timeout
+                );
+                handle.abort();
+                drop(permit);
+                return Err(Status::deadline_exceeded("command execution timed out"));
+            }
+        };
+        drop(permit);
+
+        let output = join_result.map_err(|err| {
+            let message = err.to_string();
+            tracing::error!("HostD run_host_command failed: {message}");
+            Status::internal(message)
+        })?;
+        let status = output.status.code().unwrap_or(-1);
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+        Ok(Response::new(proto::HostCommandResponse { status, stdout, stderr }))
+    }
+}
 fn is_allowed_script(command: &str) -> bool {
     let trimmed = command.trim();
     trimmed.starts_with("printf '")
@@ -1246,8 +1336,7 @@ fn parse_nft_output(output: &str) -> Result<FirewallStatusDto, String> {
 fn extract_policy_from_nft(line: &str) -> Option<String> {
     if let Some(start) = line.find("policy") {
         let tail = &line[start + "policy".len()..];
-        let token =
-            tail.split(|c: char| c.is_whitespace() || c == ';').find(|s| !s.is_empty())?;
+        let token = tail.split(|c: char| c.is_whitespace() || c == ';').find(|s| !s.is_empty())?;
         Some(token.to_uppercase())
     } else {
         None
@@ -1314,8 +1403,7 @@ fn extract_interface(text: &str, key: &str) -> String {
 fn extract_address(text: &str, key: &str) -> Option<String> {
     if let Some(idx) = text.find(key) {
         let rest = &text[idx + key.len()..];
-        let token =
-            rest.split(|c: char| c.is_whitespace() || c == '"').find(|s| !s.is_empty())?;
+        let token = rest.split(|c: char| c.is_whitespace() || c == '"').find(|s| !s.is_empty())?;
         Some(token.to_string())
     } else {
         None

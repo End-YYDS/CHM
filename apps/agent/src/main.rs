@@ -1,5 +1,8 @@
+#[cfg(unix)]
+use agent::drop_privileges;
 use agent::{
     config, detect_linux_info, file_concurrency_limit, info_concurrency_limit,
+    make_sysinfo_command, send_to_hostd_async,
     service::{AgentGrpcService, FileGrpcService, InfoGrpcService},
     CertInfo, GlobalConfig, ID, NEED_EXAMPLE,
 };
@@ -53,6 +56,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (_cert_update_tx, mut cert_update_rx) = watch::channel(());
     let system = Arc::new(detect_linux_info());
     let hostd_path = GlobalConfig::with(|cfg| cfg.extend.socket_path.clone()).display().to_string();
+
+    let health_command = make_sysinfo_command("cpu_status");
+    send_to_hostd_async(&health_command).await.map_err(|err| {
+        tracing::error!("[AgentD] HostD 健康檢查失敗: {err}");
+        err
+    })?;
+    tracing::info!("[AgentD] HostD 健康檢查通過");
+
+    #[cfg(unix)]
+    {
+        let (configured_user, configured_group) = GlobalConfig::with(|cfg| {
+            (cfg.extend.run_as_user.clone(), cfg.extend.run_as_group.clone())
+        });
+        let user = configured_user.trim();
+        let group = configured_group.trim();
+        if !user.is_empty() {
+            if let Err(err) = drop_privileges(user, group) {
+                tracing::error!(
+                    "[AgentD] 降權至 {}:{} 失敗: {err}",
+                    user,
+                    if group.is_empty() { "<primary>" } else { group }
+                );
+                return Err(err.into());
+            }
+            tracing::info!(
+                "[AgentD] 已降權為 {}:{}",
+                user,
+                if group.is_empty() { "<primary>" } else { group }
+            );
+        }
+    }
 
     loop {
         let (client_key, client_cert) = CertUtils::cert_from_path(&cert_path, &key_path, None)?;

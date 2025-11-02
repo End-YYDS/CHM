@@ -22,6 +22,8 @@ pub mod common;
 #[cfg(any(feature = "controller-client", feature = "controller-server"))]
 pub mod controller;
 
+#[cfg(any(feature = "hostd-client", feature = "hostd-server"))]
+pub mod hostd;
+
 #[cfg(any(feature = "dns-client", feature = "dns-server"))]
 pub mod dns;
-

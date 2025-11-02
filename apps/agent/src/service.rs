@@ -4,13 +4,13 @@ use crate::{
     agent_info_structured, cron_info_structured, dns_info_structured, execute_cron_add,
     execute_cron_delete, execute_cron_update, execute_firewall_add, execute_firewall_delete,
     execute_firewall_edit_policy, execute_firewall_edit_status, execute_netif_add,
-    execute_netif_delete, execute_netif_toggle, execute_process_command, execute_route_add,
-    execute_route_delete, execute_software_delete, execute_software_install, file_pdir_download,
-    file_pdir_upload, firewall_info_structured, log_info_structured, log_query_structured,
-    netif_info_structured, pdir_info_structured, process_info_structured, route_info_structured,
-    software_info_structured, CronJobs, DnsInfo, FirewallStatus, Logs, NetworkInterfaces,
-    PackageStatus, ParentDirectory, ProcessInfo, RouteTable, SizeUnit, SoftwareInventory,
-    SystemInfo,
+    execute_netif_delete, execute_netif_toggle, execute_process_command, execute_reboot,
+    execute_route_add, execute_route_delete, execute_shutdown, execute_software_delete,
+    execute_software_install, file_pdir_download, file_pdir_upload, firewall_info_structured,
+    log_info_structured, log_query_structured, netif_info_structured, pdir_info_structured,
+    process_info_structured, route_info_structured, software_info_structured, CronJobs, DnsInfo,
+    FirewallStatus, Logs, NetworkInterfaces, PackageStatus, ParentDirectory, ProcessInfo,
+    RouteTable, SizeUnit, SoftwareInventory, SystemInfo,
 };
 use chm_grpc::tonic::{self, Request, Response, Status};
 use tokio::sync::Semaphore;
@@ -435,6 +435,18 @@ impl proto::AgentService for AgentGrpcService {
                 };
                 Ok(Response::new(response))
             }
+            "reboot" => {
+                let info = tokio::task::spawn_blocking(execute_reboot)
+                    .await
+                    .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                Ok(Response::new(return_info_to_proto(info)))
+            }
+            "shutdown" => {
+                let info = tokio::task::spawn_blocking(execute_shutdown)
+                    .await
+                    .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                Ok(Response::new(return_info_to_proto(info)))
+            }
             _ => Err(Status::unimplemented(format!("unsupported command: {}", command))),
         }
     }
@@ -600,6 +612,15 @@ fn build_return_info(status: &str, message: impl Into<String>) -> proto::Command
         payload: Some(proto::command_response::Payload::ReturnInfo(proto::ReturnInfo {
             r#type:  status.to_string(),
             message: message.into(),
+        })),
+    }
+}
+
+fn return_info_to_proto(info: crate::ReturnInfo) -> proto::CommandResponse {
+    proto::CommandResponse {
+        payload: Some(proto::command_response::Payload::ReturnInfo(proto::ReturnInfo {
+            r#type:  info.type_field,
+            message: info.message,
         })),
     }
 }

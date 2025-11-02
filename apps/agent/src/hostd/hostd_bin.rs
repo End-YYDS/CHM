@@ -1,21 +1,23 @@
 #[cfg(target_family = "unix")]
 mod unix_main {
-    use agent::{config, GlobalConfig, ID, NEED_EXAMPLE};
+    use agent::{
+        config,
+        hostd::{proto::HostdServiceServer, HostdGrpcService},
+        GlobalConfig, ID, NEED_EXAMPLE,
+    };
     use anyhow::{Context, Result};
     use argh::FromArgs;
     use caps::{CapSet, Capability};
+    use chm_grpc::tonic::transport::Server;
+    use libc::geteuid;
     use std::{
         os::unix::fs::PermissionsExt,
         sync::{atomic::Ordering::Relaxed, Arc},
         time::Duration,
     };
-    use tokio::{
-        fs,
-        io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-        net::{UnixListener, UnixStream},
-        sync::{OwnedSemaphorePermit, Semaphore},
-    };
-    use tracing::{error, info};
+    use tokio::{fs, net::UnixListener, signal, sync::Semaphore};
+    use tokio_stream::wrappers::UnixListenerStream;
+    use tracing::{error, info, warn};
     use tracing_subscriber::EnvFilter;
 
     #[derive(FromArgs, Debug, Clone)]
@@ -47,6 +49,7 @@ mod unix_main {
         }
 
         config().await?;
+        ensure_root_user().context("確認 HostD 以 root 權限執行")?;
         ensure_firewall_capabilities().context("設定防火牆能力")?;
 
         let socket_path =
@@ -59,6 +62,7 @@ mod unix_main {
 
         let listener = UnixListener::bind(&socket_path)
             .with_context(|| format!("無法綁定 UNIX socket {}", socket_path))?;
+        let _guard = SocketGuard::new(socket_path.clone());
         std::fs::set_permissions(&socket_path, std::fs::Permissions::from_mode(0o770))
             .with_context(|| format!("設定 socket 權限失敗 {}", socket_path))?;
 
@@ -68,126 +72,47 @@ mod unix_main {
             GlobalConfig::with(|cfg| cfg.extend.info_concurrency).max(1) as u64,
         );
 
+        let incoming = UnixListenerStream::new(listener);
+        let service = HostdGrpcService::new(Arc::clone(&semaphore), command_timeout);
+
         info!(
-            "[HostD] 已啟動，等待 AgentD 連線 (socket: {}, max_concurrency: {}, timeout: {:?})",
-            socket_path, concurrency, command_timeout
+            "[HostD] gRPC 服務啟動於 unix://{socket_path} (max_concurrency: {concurrency}, \
+             timeout: {:?})",
+            command_timeout
         );
 
-        loop {
-            let (stream, _) = match listener.accept().await {
-                Ok(s) => s,
-                Err(err) => {
-                    error!("[HostD] 接受連線失敗: {err}");
-                    continue;
-                }
-            };
-
-            let permit = match semaphore.clone().acquire_owned().await {
-                Ok(permit) => permit,
-                Err(err) => {
-                    error!("[HostD] 取得併發鎖失敗: {err}");
-                    continue;
-                }
-            };
-
-            let timeout = command_timeout;
-            tokio::spawn(async move {
-                if let Err(err) = handle_connection(stream, timeout, permit).await {
-                    error!("[HostD] 處理連線失敗: {err}");
-                }
-            });
-        }
-    }
-
-    async fn handle_connection(
-        stream: UnixStream,
-        timeout: Duration,
-        permit: OwnedSemaphorePermit,
-    ) -> Result<()> {
-        let _permit = permit;
-        let (reader, mut writer) = stream.into_split();
-        let mut reader = BufReader::new(reader);
-        let mut command_line = String::new();
-
-        if reader.read_line(&mut command_line).await? == 0 {
-            return Ok(());
-        }
-
-        let trimmed_cmd = command_line.trim();
-        let (is_get, actual_cmd) = if let Some((prefix, cmd)) = trimmed_cmd.split_once("||") {
-            let flag = prefix.trim_start_matches("GET=").trim().eq_ignore_ascii_case("true");
-            (flag, cmd.trim())
-        } else {
-            (false, trimmed_cmd)
-        };
-
-        info!("[HostD] 收到指令: {} (mode: {})", actual_cmd, if is_get { "GET" } else { "CMD" });
-
-        let outcome = if is_get {
-            match handle_sysinfo(actual_cmd).await {
-                Ok(data) => data,
-                Err(err) => {
-                    error!("[HostD] sysinfo 失敗: {err}");
-                    format!("[HostD] sysinfo execution error: {err}")
-                }
-            }
-        } else {
-            match handle_command(actual_cmd, timeout).await {
-                Ok(data) => data,
-                Err(err) => {
-                    error!("[HostD] command 失敗: {err}");
-                    format!("[HostD] command execution error: {err}")
-                }
+        let shutdown = async {
+            match signal::ctrl_c().await {
+                Ok(()) => info!("[HostD] 收到 Ctrl-C，準備關閉 gRPC 服務..."),
+                Err(err) => error!("[HostD] 等待 Ctrl-C 失敗: {err}"),
             }
         };
 
-        writer.write_all(outcome.as_bytes()).await?;
-        writer.write_all(b"\n").await?;
-        writer.flush().await?;
+        Server::builder()
+            .add_service(HostdServiceServer::new(service))
+            .serve_with_incoming_shutdown(incoming, shutdown)
+            .await
+            .context("HostD gRPC server failed")?;
+
+        info!("[HostD] gRPC 服務已停止");
         Ok(())
     }
 
-    async fn handle_sysinfo(argument: &str) -> Result<String, String> {
-        let payload = argument.to_string();
-        tokio::task::spawn_blocking(move || agent::hostd::execute_sysinfo(&payload))
-            .await
-            .map_err(|err| format!("sysinfo worker panic: {err}"))?
-    }
-
-    async fn handle_command(command: &str, timeout: Duration) -> Result<String, String> {
-        let payload = command.to_string();
-        let task = tokio::task::spawn_blocking(move || agent::hostd::execute_command(&payload));
-
-        tokio::pin!(task);
-        tokio::select! {
-            result = &mut task => {
-                let output = result
-                    .map_err(|err| format!("command worker panic: {err}"))?
-                    .map_err(|err| err.to_string())?;
-
-                let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-                if !stdout.is_empty() {
-                    Ok(stdout)
-                } else if !stderr.is_empty() {
-                    Ok(stderr)
-                } else {
-                    Ok(String::new())
-                }
-            }
-            _ = tokio::time::sleep(timeout) => {
-                task.abort();
-                Err("command execution timed out".to_string())
-            }
+    fn ensure_root_user() -> std::io::Result<()> {
+        if unsafe { geteuid() } != 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                "HostD 必須以 root 權限執行",
+            ));
         }
+        Ok(())
     }
 
     fn ensure_firewall_capabilities() -> std::io::Result<()> {
         const REQUIRED: [Capability; 2] = [Capability::CAP_NET_ADMIN, Capability::CAP_NET_RAW];
 
-        let permitted = caps::read(None, CapSet::Permitted).map_err(|e| {
-            std::io::Error::other(format!("讀取 permitted capabilities 失敗: {e}"))
-        })?;
+        let permitted = caps::read(None, CapSet::Permitted)
+            .map_err(|e| std::io::Error::other(format!("讀取 permitted capabilities 失敗: {e}")))?;
 
         let missing: Vec<_> = REQUIRED.iter().filter(|cap| !permitted.contains(cap)).collect();
 
@@ -220,9 +145,8 @@ mod unix_main {
             })?;
         }
 
-        let mut ambient = caps::read(None, CapSet::Ambient).map_err(|e| {
-            std::io::Error::other(format!("讀取 ambient capabilities 失敗: {e}"))
-        })?;
+        let mut ambient = caps::read(None, CapSet::Ambient)
+            .map_err(|e| std::io::Error::other(format!("讀取 ambient capabilities 失敗: {e}")))?;
 
         let mut ambient_changed = false;
         for cap in REQUIRED.iter() {
@@ -238,6 +162,29 @@ mod unix_main {
         }
 
         Ok(())
+    }
+
+    struct SocketGuard {
+        path: String,
+    }
+
+    impl SocketGuard {
+        fn new(path: String) -> Self {
+            Self { path }
+        }
+    }
+
+    impl Drop for SocketGuard {
+        fn drop(&mut self) {
+            if self.path.is_empty() {
+                return;
+            }
+            if let Err(err) = std::fs::remove_file(&self.path) {
+                if err.kind() != std::io::ErrorKind::NotFound {
+                    warn!("移除 HostD socket 失敗: {}", err);
+                }
+            }
+        }
     }
 }
 

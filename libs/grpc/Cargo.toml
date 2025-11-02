@@ -25,6 +25,9 @@ dhcp = ["dhcp-client", "dhcp-server"]
 agent-client = []
 agent-server = []
 agent = ["agent-client", "agent-server"]
+hostd-client = []
+hostd-server = []
+hostd = ["hostd-client", "hostd-server"]
 restful-server = []
 restful-client = []
 common-server = []
@@ -43,6 +46,7 @@ all = [
     "common",
     "ldap",
     "dhcp",
+    "hostd",
     "agent",
 ]
 [dependencies]
