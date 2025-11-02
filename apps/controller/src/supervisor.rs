@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 use tokio::{
     task::JoinHandle,
     time::{sleep, Duration},
@@ -13,16 +13,21 @@ pub struct GrpcSupervisor {
     handle:   Option<JoinHandle<ConResult<()>>>,
     cancel:   CancellationToken,
     gclients: Arc<GrpcClients>,
+    config:   (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
 }
 
 impl GrpcSupervisor {
-    pub fn new(gclients: Arc<GrpcClients>) -> Self {
-        Self { handle: None, cancel: CancellationToken::new(), gclients }
+    pub fn new(
+        gclients: Arc<GrpcClients>,
+        config: (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
+    ) -> Self {
+        Self { handle: None, cancel: CancellationToken::new(), gclients, config }
     }
 
     pub async fn start(&mut self) {
         let token = self.cancel.child_token();
-        self.handle = Some(tokio::spawn(start_grpc(token, self.gclients.clone())));
+        self.handle =
+            Some(tokio::spawn(start_grpc(token, self.gclients.clone(), self.config.clone())));
         tracing::debug!("gRPC server 已啟動");
     }
 
@@ -45,8 +50,11 @@ impl GrpcSupervisor {
     }
 }
 
-pub async fn run_supervised(grpc_clients: Arc<GrpcClients>) -> ConResult<()> {
-    let mut sup = GrpcSupervisor::new(grpc_clients);
+pub async fn run_supervised(
+    grpc_clients: Arc<GrpcClients>,
+    config: (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
+) -> ConResult<()> {
+    let mut sup = GrpcSupervisor::new(grpc_clients, config);
     sup.start().await;
     let mut rx = GlobalConfig::subscribe_reload();
     tracing::info!("Server running… (Ctrl+C 可關閉)");

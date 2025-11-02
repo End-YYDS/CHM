@@ -409,7 +409,9 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "thiserror 2.0.12",
  "tokio",
+ "tonic",
  "tracing",
  "tracing-subscriber",
 ]
@@ -930,7 +932,6 @@ dependencies = [
  "serde",
  "tokio",
  "tokio-util",
- "tower",
  "tracing",
  "tracing-subscriber",
  "url",

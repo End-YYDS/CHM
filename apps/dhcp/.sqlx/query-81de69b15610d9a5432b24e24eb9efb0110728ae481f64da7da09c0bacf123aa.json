@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM zone_pcs WHERE zone_id = ? AND pc_uuid = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "81de69b15610d9a5432b24e24eb9efb0110728ae481f64da7da09c0bacf123aa"
+}

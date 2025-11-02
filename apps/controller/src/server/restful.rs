@@ -1,22 +1,32 @@
 #![allow(dead_code, unused_variables)]
 
-use crate::communication::GrpcClients;
+use crate::{communication::GrpcClients, GlobalConfig};
 use chm_cert_utils::CertUtils;
+use chm_cluster_utils::ServiceDescriptor;
 use chm_grpc::{
     common::{ResponseResult, ResponseType},
     restful::{restful_service_server::RestfulService, *},
     tonic,
     tonic::{Request, Response, Status},
+    tonic_health::{
+        pb::{health_client::HealthClient, HealthCheckRequest},
+        ServingStatus,
+    },
 };
+use chm_project_const::uuid::Uuid;
+use futures::future::join_all;
 use std::{
     collections::{HashMap, HashSet},
+    path::PathBuf,
     sync::Arc,
 };
+use tokio::{sync::Semaphore, task::JoinSet};
 
 // TODO: 由RestFul Server 為Client 調用Controller RestFul gRPC介面
 #[derive(Debug)]
 pub struct ControllerRestfulServer {
     pub grpc_clients: Arc<GrpcClients>,
+    pub config:       (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
 }
 
 #[tonic::async_trait]
@@ -189,77 +199,593 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<AddPcRequest>,
     ) -> Result<Response<AddPcResponse>, Status> {
-        todo!()
+        use crate::Node;
+        let req = request.into_inner();
+        // Todo: 檢查IP格式及預先檢查是否已經存在於Config中
+        // TODO: 預設PC Group 要先在啟動時創建，添加Agent時直接加入預設Group(vni=1)
+        let node_h = Node::new(
+            Some(req.ip),
+            Some(req.password),
+            self.grpc_clients.clone(),
+            self.config.clone(),
+        );
+        node_h.add(false).await.map_err(|e| Status::internal(e.to_string()))?;
+        let resp = AddPcResponse {
+            result: Some(ResponseResult {
+                r#type:  ResponseType::Ok as i32,
+                message: "添加主機成功".to_string(),
+            }),
+        };
+        Ok(Response::new(resp))
     }
 
     async fn get_all_pcs(
         &self,
-        request: Request<GetAllPcsRequest>,
+        _request: Request<GetAllPcsRequest>,
     ) -> Result<Response<GetAllPcsResponse>, Status> {
-        todo!()
-    }
+        let services: Vec<ServiceDescriptor> = GlobalConfig::with(|cfg| {
+            cfg.extend
+                .services_pool
+                .services
+                .iter()
+                .flat_map(|entry| entry.value().clone().into_iter().filter(|s| s.is_server))
+                .collect()
+        });
+        // TODO: 可能需要檢查API Server 的存活狀態
 
+        let mut pcs: HashMap<String, PcSimple> = HashMap::new();
+        for service in services.iter() {
+            let mut status = false;
+            if let Some(health_name) = service.health_name.as_deref() {
+                if let Some(ch) = self.grpc_clients.channel_for_kind(service.kind) {
+                    let mut hc = HealthClient::new(ch);
+                    match hc.check(HealthCheckRequest { service: health_name.to_string() }).await {
+                        Ok(resp) => {
+                            let s = resp.into_inner().status;
+                            status = s == ServingStatus::Serving as i32;
+                        }
+                        Err(e) => {
+                            tracing::warn!("健康檢查失敗: {} ({})", service.hostname, e);
+                        }
+                    }
+                } else {
+                    tracing::warn!(
+                        "找不到 {:?} 的 channel，略過健康檢查（{}）",
+                        service.kind,
+                        service.hostname
+                    );
+                }
+            } else {
+                tracing::info!("{} 未設定 health_name，跳過健康檢查", service.hostname);
+            }
+            let pc =
+                PcSimple { ip: service.uri.clone(), hostname: service.hostname.clone(), status };
+            pcs.insert(service.uuid.to_string(), pc);
+        }
+
+        let length = pcs.len() as u64;
+        Ok(Response::new(GetAllPcsResponse { pcs, length }))
+    }
+    // TODO: 這裡的status只是先去看healthService的狀態，
+    // 後面需要透過heatbeat機制來更新
     async fn get_specific_pcs(
         &self,
         request: Request<GetSpecificPcsRequest>,
     ) -> Result<Response<GetSpecificPcsResponse>, Status> {
-        todo!()
+        let data = request.into_inner();
+        let wanted: HashSet<Uuid> = data
+            .uuid
+            .into_iter()
+            .filter_map(|s| match Uuid::parse_str(&s) {
+                Ok(u) => Some(u),
+                Err(e) => {
+                    tracing::warn!("忽略無效的 UUID '{s}': {e}");
+                    None
+                }
+            })
+            .collect();
+        let services: HashSet<ServiceDescriptor> = GlobalConfig::with(|cfg| {
+            cfg.extend
+                .services_pool
+                .services
+                .iter()
+                .flat_map(|entry| entry.value().clone().into_iter().filter(|s| s.is_server))
+                .collect()
+        });
+        let filtered = services.into_iter().filter(|s| wanted.contains(&s.uuid));
+        let mut pcs: HashMap<String, PcSimple> = HashMap::new();
+        for service in filtered {
+            let mut status = false;
+            if let Some(health_name) = service.health_name.as_deref() {
+                if let Some(ch) = self.grpc_clients.channel_for_kind(service.kind) {
+                    let mut hc = HealthClient::new(ch);
+                    match hc.check(HealthCheckRequest { service: health_name.to_string() }).await {
+                        Ok(resp) => {
+                            let s = resp.into_inner().status;
+                            status = s == ServingStatus::Serving as i32;
+                        }
+                        Err(e) => {
+                            tracing::warn!("健康檢查失敗: {} ({})", service.hostname, e);
+                        }
+                    }
+                } else {
+                    tracing::warn!(
+                        "找不到 {:?} 的 channel，略過健康檢查（{}）",
+                        service.kind,
+                        service.hostname
+                    );
+                }
+            } else {
+                tracing::info!("{} 未設定 health_name，跳過健康檢查", service.hostname);
+            }
+
+            let pc =
+                PcSimple { ip: service.uri.clone(), hostname: service.hostname.clone(), status };
+            pcs.insert(service.uuid.to_string(), pc);
+        }
+        let length = pcs.len() as u64;
+        Ok(Response::new(GetSpecificPcsResponse { pcs, length }))
     }
 
     async fn delete_pcs(
         &self,
         request: Request<DeletePcsRequest>,
     ) -> Result<Response<DeletePcsResponse>, Status> {
-        todo!()
+        // RestFul API
+        // 只能移除Agent，不能移除基礎服務,
+        // 必須透過Controller的Cli或後續grpc介面來移除基礎服務
+        // TODO: controller lib.rs: Node struct 需要與Agent通訊之後才能移除
+        use crate::Node;
+        let req = request.into_inner();
+        let mut results = HashMap::new();
+        for pc in req.uuids {
+            let d_pc = GlobalConfig::with(|cfg| {
+                cfg.extend.services_pool.services.iter().find_map(|entry| {
+                    entry.value().iter().find(|s| s.uuid.to_string() == pc).cloned()
+                })
+            });
+            if d_pc.is_none() {
+                results.insert(
+                    pc,
+                    ResponseResult {
+                        r#type:  ResponseType::Err as i32,
+                        message: "找不到主機資訊".to_string(),
+                    },
+                );
+                continue;
+            }
+            let d_pc = d_pc.unwrap();
+            let d_pc_uuid = d_pc.uuid.to_string();
+            let node_h =
+                Node::new(Some(d_pc_uuid), None, self.grpc_clients.clone(), self.config.clone());
+            if let Err(e) = node_h.remove("agent", false).await {
+                results.insert(
+                    pc,
+                    ResponseResult { r#type: ResponseType::Err as i32, message: format!("{e}") },
+                );
+                continue;
+            }
+            results.insert(
+                pc,
+                ResponseResult {
+                    r#type:  ResponseType::Ok as i32,
+                    message: "刪除主機成功".to_string(),
+                },
+            );
+        }
+        let resp = DeletePcsResponse { results };
+        Ok(Response::new(resp))
     }
 
     async fn reboot_pcs(
         &self,
         request: Request<RebootPcsRequest>,
     ) -> Result<Response<RebootPcsResponse>, Status> {
-        todo!()
+        // 調用Agent的grpc fn
+        let req = request.into_inner();
+        dbg!(&req);
+        let uuids = req.uuids;
+        let total = uuids.len() as u32;
+        let agent = self
+            .grpc_clients
+            .agent()
+            .ok_or_else(|| Status::internal("Agent client not initialized"))?;
+        let max_concurrent = 5; // TODO: 使用Config中的設定
+        let semaphore = Arc::new(Semaphore::new(max_concurrent));
+        let mut set: JoinSet<Result<(String, ResponseResult), Status>> = JoinSet::new();
+        let mut results = HashMap::new();
+        for uuid in uuids {
+            let r_pc = GlobalConfig::with(|cfg| {
+                cfg.extend.services_pool.services.iter().find_map(|entry| {
+                    entry.value().iter().find(|s| s.uuid.to_string() == uuid).cloned()
+                })
+            });
+            if r_pc.is_none() {
+                results.insert(
+                    uuid,
+                    ResponseResult {
+                        r#type:  ResponseType::Err as i32,
+                        message: "找不到主機資訊".to_string(),
+                    },
+                );
+                continue;
+            }
+            let agent = agent.clone();
+            let sem = semaphore.clone();
+            set.spawn(async move {
+                let _permit =
+                    sem.acquire_owned().await.map_err(|_| Status::internal("Semaphore closed"))?;
+                match agent.reboot_system(&uuid).await {
+                    Ok(true) => Ok((
+                        uuid,
+                        ResponseResult {
+                            r#type:  ResponseType::Ok as i32,
+                            message: "Reboot succeeded".to_string(),
+                        },
+                    )),
+                    Ok(false) => Ok((
+                        uuid,
+                        ResponseResult {
+                            r#type:  ResponseType::Err as i32,
+                            message: "Agent reported failure".to_string(),
+                        },
+                    )),
+                    Err(e) => Ok((
+                        uuid,
+                        ResponseResult {
+                            r#type:  ResponseType::Err as i32,
+                            message: format!("RPC error: {e}"),
+                        },
+                    )),
+                }
+            });
+        }
+
+        while let Some(join_res) = set.join_next().await {
+            match join_res {
+                Ok(Ok((uuid, result))) => {
+                    results.insert(uuid, result);
+                }
+                Ok(Err(status)) => {
+                    results.insert(
+                        "unknown".to_string(),
+                        ResponseResult {
+                            r#type:  ResponseType::Err as i32,
+                            message: format!("Internal status error: {status}"),
+                        },
+                    );
+                }
+                Err(join_err) => {
+                    results.insert(
+                        "unknown".to_string(),
+                        ResponseResult {
+                            r#type:  ResponseType::Err as i32,
+                            message: format!("Join error: {join_err}"),
+                        },
+                    );
+                }
+            }
+        }
+        Ok(Response::new(RebootPcsResponse { results }))
     }
 
     async fn shutdown_pcs(
         &self,
         request: Request<ShutdownPcsRequest>,
     ) -> Result<Response<ShutdownPcsResponse>, Status> {
-        todo!()
+        // 調用Agent的grpc fn
+        let req = request.into_inner();
+        dbg!(&req);
+        let uuids = req.uuids;
+        let total = uuids.len() as u32;
+        let agent = self
+            .grpc_clients
+            .agent()
+            .ok_or_else(|| Status::internal("Agent client not initialized"))?;
+        let max_concurrent = 5; // TODO: 使用Config中的設定
+        let semaphore = Arc::new(Semaphore::new(max_concurrent));
+        let mut set: JoinSet<Result<(String, ResponseResult), Status>> = JoinSet::new();
+        let mut results = HashMap::new();
+        for uuid in uuids {
+            let s_pc = GlobalConfig::with(|cfg| {
+                cfg.extend.services_pool.services.iter().find_map(|entry| {
+                    entry.value().iter().find(|s| s.uuid.to_string() == uuid).cloned()
+                })
+            });
+            if s_pc.is_none() {
+                results.insert(
+                    uuid,
+                    ResponseResult {
+                        r#type:  ResponseType::Err as i32,
+                        message: "找不到主機資訊".to_string(),
+                    },
+                );
+                continue;
+            }
+            let agent = agent.clone();
+            let sem = semaphore.clone();
+            set.spawn(async move {
+                let _permit =
+                    sem.acquire_owned().await.map_err(|_| Status::internal("Semaphore closed"))?;
+                match agent.shutdown_system(&uuid).await {
+                    Ok(true) => Ok((
+                        uuid,
+                        ResponseResult {
+                            r#type:  ResponseType::Ok as i32,
+                            message: "Shutdown succeeded".to_string(),
+                        },
+                    )),
+                    Ok(false) => Ok((
+                        uuid,
+                        ResponseResult {
+                            r#type:  ResponseType::Err as i32,
+                            message: "Agent reported failure".to_string(),
+                        },
+                    )),
+                    Err(e) => Ok((
+                        uuid,
+                        ResponseResult {
+                            r#type:  ResponseType::Err as i32,
+                            message: format!("RPC error: {e}"),
+                        },
+                    )),
+                }
+            });
+        }
+        while let Some(join_res) = set.join_next().await {
+            match join_res {
+                Ok(Ok((uuid, result))) => {
+                    results.insert(uuid, result);
+                }
+                Ok(Err(status)) => {
+                    results.insert(
+                        "unknown".to_string(),
+                        ResponseResult {
+                            r#type:  ResponseType::Err as i32,
+                            message: format!("Internal status error: {status}"),
+                        },
+                    );
+                }
+                Err(join_err) => {
+                    results.insert(
+                        "unknown".to_string(),
+                        ResponseResult {
+                            r#type:  ResponseType::Err as i32,
+                            message: format!("Join error: {join_err}"),
+                        },
+                    );
+                }
+            }
+        }
+        Ok(Response::new(ShutdownPcsResponse { results }))
     }
 
     async fn get_pc_groups(
         &self,
         request: Request<GetPcGroupsRequest>,
     ) -> Result<Response<GetPcGroupsResponse>, Status> {
-        todo!()
+        let dhcp = self
+            .grpc_clients
+            .dhcp()
+            .ok_or_else(|| Status::internal("DHCP client not initialized"))?;
+        let zones = dhcp
+            .list_zones()
+            .await
+            .map_err(|e| Status::internal(format!("Failed to list DHCP zones: {e}")))?;
+        let mut groups: HashMap<i64, PcGroup> = HashMap::new();
+        for zone in zones {
+            dbg!(&zone);
+            let id = zone.vni;
+            let zone_name = zone.name;
+            let pcs = dhcp
+                .list_pcs_in_zone(&zone_name)
+                .await
+                .map_err(|e| Status::internal(e.to_string()))?;
+            let group = PcGroup { groupname: zone_name, pcs };
+            groups.insert(id, group);
+        }
+        let length = groups.len() as u64;
+        let resp = GetPcGroupsResponse { groups, length };
+        Ok(Response::new(resp))
     }
 
     async fn create_pc_group(
         &self,
         request: Request<CreatePcGroupRequest>,
     ) -> Result<Response<CreatePcGroupResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let dhcp = self
+            .grpc_clients
+            .dhcp()
+            .ok_or_else(|| Status::internal("DHCP client not initialized"))?;
+        let vni = dhcp
+            .list_zones()
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?
+            .last()
+            .map(|zone| zone.vni + 1)
+            .unwrap_or(10);
+        let status = dhcp
+            .create_zone(req.groupname, vni, req.cidr)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))?;
+        let result = if !status {
+            Some(ResponseResult {
+                r#type:  ResponseType::Err as i32,
+                message: "Failed to create PC group".to_string(),
+            })
+        } else {
+            Some(ResponseResult {
+                r#type:  ResponseType::Ok as i32,
+                message: "PC group created successfully".to_string(),
+            })
+        };
+        let resp = CreatePcGroupResponse { result };
+        Ok(Response::new(resp))
     }
 
     async fn put_pc_group(
         &self,
         request: Request<PutPcGroupRequest>,
     ) -> Result<Response<PutPcGroupResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let dhcp = self
+            .grpc_clients
+            .dhcp()
+            .ok_or_else(|| Status::internal("DHCP client not initialized"))?;
+        let vxlanid = req.vxlanid;
+        let group = req.group.ok_or_else(|| Status::invalid_argument("PcGroup is required"))?;
+        let detail = dhcp
+            .get_zone_detail_by_vni(vxlanid)
+            .await
+            .map_err(|e| Status::internal(format!("get_zone_detail_by_vni failed: {e}")))?;
+        if !group.groupname.is_empty() && group.groupname != detail.name {
+            dhcp.update_zone_name_by_vni(vxlanid, group.groupname.clone())
+                .await
+                .map_err(|e| Status::internal(format!("update_zone_name_by_vni failed: {e}")))?;
+        }
+        let desired_uuid_set: HashSet<String> =
+            group.pcs.into_iter().map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect();
+        let current_pcs_resp = dhcp
+            .list_pcs_in_zone_by_vni(vxlanid)
+            .await
+            .map_err(|e| Status::internal(format!("list_pcs_in_zone_by_vni failed: {e}")))?;
+        let current_uuid_set: HashSet<String> = current_pcs_resp.into_iter().collect();
+        let to_add: Vec<String> = desired_uuid_set.difference(&current_uuid_set).cloned().collect();
+        let to_remove: Vec<String> =
+            current_uuid_set.difference(&desired_uuid_set).cloned().collect();
+        let add_futs = to_add.iter().map(|uuid| {
+            let c = dhcp.clone();
+            let uuid = uuid.clone();
+            async move { c.add_pc_to_zone_by_vni(vxlanid, uuid).await }
+        });
+        let remove_futs = to_remove.iter().map(|uuid| {
+            let c = dhcp.clone();
+            let uuid = uuid.clone();
+            async move { c.remove_pc_from_zone_by_vni(vxlanid, uuid).await }
+        });
+        let _add_results = join_all(add_futs).await;
+        let _remove_results = join_all(remove_futs).await;
+        let final_pcs_resp = dhcp
+            .list_pcs_in_zone_by_vni(vxlanid)
+            .await
+            .map_err(|e| Status::internal(format!("list_pcs_in_zone_by_vni failed: {e}")))?;
+        let resp = PutPcGroupResponse {
+            result: Some(ResponseResult {
+                r#type:  ResponseType::Ok as i32,
+                message: format!(
+                    "PC group updated successfully, total PCs: {}",
+                    final_pcs_resp.len()
+                ),
+            }),
+        };
+        Ok(Response::new(resp))
     }
 
     async fn patch_pc_group(
         &self,
         request: Request<PatchPcGroupRequest>,
     ) -> Result<Response<PatchPcGroupResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let dhcp = self
+            .grpc_clients
+            .dhcp()
+            .ok_or_else(|| Status::internal("DHCP client not initialized"))?;
+        let vni = req.vxlanid;
+        let result: ResponseResult = match req.kind {
+            Some(patch_pc_group_request::Kind::Groupname(new_name)) => {
+                match dhcp.update_zone_name_by_vni(vni, new_name).await {
+                    Ok(resp) => {
+                        if resp {
+                            ResponseResult {
+                                r#type:  ResponseType::Ok as i32,
+                                message: "Zone name updated successfully".to_string(),
+                            }
+                        } else {
+                            ResponseResult {
+                                r#type:  ResponseType::Err as i32,
+                                message: "Failed to update zone name".to_string(),
+                            }
+                        }
+                    }
+                    Err(e) => ResponseResult {
+                        r#type:  ResponseType::Err as i32,
+                        message: format!("update_zone_name_by_vni failed: {e}"),
+                    },
+                }
+            }
+            Some(patch_pc_group_request::Kind::Pcs(pcs_msg)) => {
+                let current = dhcp.list_pcs_in_zone_by_vni(vni).await.map_err(|e| {
+                    Status::internal(format!("list_pcs_in_zone_by_vni failed: {e}"))
+                })?;
+                let current_set: HashSet<String> = current.into_iter().collect();
+                let desired_set: HashSet<String> = pcs_msg
+                    .pcs
+                    .into_iter()
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect();
+                let to_add: Vec<String> = desired_set.difference(&current_set).cloned().collect();
+                let to_remove: Vec<String> =
+                    current_set.difference(&desired_set).cloned().collect();
+                let mut set = JoinSet::new();
+                for uuid in &to_add {
+                    let c = dhcp.clone();
+                    let uuid = uuid.clone();
+                    set.spawn(async move {
+                        let res = c.add_pc_to_zone_by_vni(vni, uuid.clone()).await;
+                        ("add", uuid, res)
+                    });
+                }
+                for uuid in &to_remove {
+                    let c = dhcp.clone();
+                    let uuid = uuid.clone();
+                    set.spawn(async move {
+                        let res = c.remove_pc_from_zone_by_vni(vni, uuid.clone()).await;
+                        ("remove", uuid, res)
+                    });
+                }
+                while set.join_next().await.is_some() {}
+                ResponseResult {
+                    r#type:  ResponseType::Ok as i32,
+                    message: "PCs updated successfully".into(),
+                }
+            }
+            None => ResponseResult {
+                r#type:  ResponseType::Err as i32,
+                message: "Missing patch kind".into(),
+            },
+        };
+        Ok(Response::new(PatchPcGroupResponse { result: Some(result) }))
     }
 
     async fn delete_pc_group(
         &self,
         request: Request<DeletePcGroupRequest>,
     ) -> Result<Response<DeletePcGroupResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let dhcp = self
+            .grpc_clients
+            .dhcp()
+            .ok_or_else(|| Status::internal("DHCP client not initialized"))?;
+        let vni = req.vxlanid;
+        let zone = dhcp
+            .get_zone_detail_by_vni(vni)
+            .await
+            .map_err(|e| Status::internal(format!("get_zone_detail_by_vni failed: {e}")))?;
+        let res = dhcp.delete_zone(zone.name).await;
+        let result = match res {
+            Ok(_) => ResponseResult {
+                r#type:  ResponseType::Ok as i32,
+                message: "Zone deleted successfully".into(),
+            },
+            Err(e) => ResponseResult {
+                r#type:  ResponseType::Err as i32,
+                message: format!("Failed to delete zone: {e}"),
+            },
+        };
+
+        Ok(Response::new(DeletePcGroupResponse { result: Some(result) }))
     }
 
     async fn get_roles(
@@ -444,6 +970,7 @@ impl RestfulService for ControllerRestfulServer {
         Ok(Response::new(resp))
     }
 
+    // TODO: 添加home directory與shell的預設值
     async fn create_user(
         &self,
         request: Request<CreateUserRequest>,
