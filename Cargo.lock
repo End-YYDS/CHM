@@ -932,7 +932,6 @@ dependencies = [
  "serde",
  "tokio",
  "tokio-util",
- "tower",
  "tracing",
  "tracing-subscriber",
  "url",

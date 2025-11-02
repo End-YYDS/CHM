@@ -5,8 +5,8 @@ pub struct Empty {}
 pub struct CreateZoneRequest {
     #[prost(string, tag = "1")]
     pub zone_name: ::prost::alloc::string::String,
-    #[prost(int32, tag = "2")]
-    pub vni:       i32,
+    #[prost(int64, tag = "2")]
+    pub vni:       i64,
     #[prost(string, tag = "3")]
     pub cidr:      ::prost::alloc::string::String,
 }
@@ -56,8 +56,8 @@ pub struct ZoneList {
 pub struct Zone {
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
-    #[prost(int32, tag = "2")]
-    pub vni:  i32,
+    #[prost(int64, tag = "2")]
+    pub vni:  i64,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ZoneIdentifier {
@@ -68,6 +68,73 @@ pub struct ZoneIdentifier {
 pub struct IpList {
     #[prost(string, repeated, tag = "1")]
     pub ips: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct AddPcToZoneRequest {
+    #[prost(string, tag = "1")]
+    pub zone_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub pc_uuid:   ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RemovePcFromZoneRequest {
+    #[prost(string, tag = "1")]
+    pub zone_name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub pc_uuid:   ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PcIdentifier {
+    #[prost(string, tag = "1")]
+    pub pc_uuid: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PcList {
+    #[prost(string, repeated, tag = "1")]
+    pub pcs: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct VniIdentifier {
+    #[prost(int64, tag = "1")]
+    pub vni: i64,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ZoneDetail {
+    #[prost(string, tag = "1")]
+    pub name:        ::prost::alloc::string::String,
+    #[prost(int64, tag = "2")]
+    pub vni:         i64,
+    #[prost(string, tag = "3")]
+    pub network:     ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub broadcast:   ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub subnet_mask: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "6")]
+    pub ips:         ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, repeated, tag = "7")]
+    pub pcs:         ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct AddPcToZoneByVniRequest {
+    #[prost(int64, tag = "1")]
+    pub vni:     i64,
+    #[prost(string, tag = "2")]
+    pub pc_uuid: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RemovePcFromZoneByVniRequest {
+    #[prost(int64, tag = "1")]
+    pub vni:     i64,
+    #[prost(string, tag = "2")]
+    pub pc_uuid: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct UpdateZoneNameByVniRequest {
+    #[prost(int64, tag = "1")]
+    pub vni:      i64,
+    #[prost(string, tag = "2")]
+    pub new_name: ::prost::alloc::string::String,
 }
 /// Generated client implementations.
 #[cfg(feature = "dhcp-client")]
@@ -240,6 +307,146 @@ pub mod dhcp_service_client {
             req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "ListAvailableIps"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn add_pc_to_zone(
+            &mut self,
+            request: impl tonic::IntoRequest<super::AddPcToZoneRequest>,
+        ) -> std::result::Result<tonic::Response<super::super::common::ResponseResult>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/dhcp.DhcpService/AddPcToZone");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "AddPcToZone"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn remove_pc_from_zone(
+            &mut self,
+            request: impl tonic::IntoRequest<super::RemovePcFromZoneRequest>,
+        ) -> std::result::Result<tonic::Response<super::super::common::ResponseResult>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/dhcp.DhcpService/RemovePcFromZone");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "RemovePcFromZone"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn list_pcs_in_zone(
+            &mut self,
+            request: impl tonic::IntoRequest<super::ZoneIdentifier>,
+        ) -> std::result::Result<tonic::Response<super::PcList>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/dhcp.DhcpService/ListPcsInZone");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "ListPcsInZone"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn list_zones_by_pc(
+            &mut self,
+            request: impl tonic::IntoRequest<super::PcIdentifier>,
+        ) -> std::result::Result<tonic::Response<super::ZoneList>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/dhcp.DhcpService/ListZonesByPc");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "ListZonesByPc"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn get_zone_detail_by_vni(
+            &mut self,
+            request: impl tonic::IntoRequest<super::VniIdentifier>,
+        ) -> std::result::Result<tonic::Response<super::ZoneDetail>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/dhcp.DhcpService/GetZoneDetailByVni");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "GetZoneDetailByVni"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn list_available_ips_by_vni(
+            &mut self,
+            request: impl tonic::IntoRequest<super::VniIdentifier>,
+        ) -> std::result::Result<tonic::Response<super::IpList>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/dhcp.DhcpService/ListAvailableIpsByVni");
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("dhcp.DhcpService", "ListAvailableIpsByVni"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn add_pc_to_zone_by_vni(
+            &mut self,
+            request: impl tonic::IntoRequest<super::AddPcToZoneByVniRequest>,
+        ) -> std::result::Result<tonic::Response<super::super::common::ResponseResult>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/dhcp.DhcpService/AddPcToZoneByVni");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "AddPcToZoneByVni"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn remove_pc_from_zone_by_vni(
+            &mut self,
+            request: impl tonic::IntoRequest<super::RemovePcFromZoneByVniRequest>,
+        ) -> std::result::Result<tonic::Response<super::super::common::ResponseResult>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/dhcp.DhcpService/RemovePcFromZoneByVni");
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("dhcp.DhcpService", "RemovePcFromZoneByVni"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn list_pcs_in_zone_by_vni(
+            &mut self,
+            request: impl tonic::IntoRequest<super::VniIdentifier>,
+        ) -> std::result::Result<tonic::Response<super::PcList>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/dhcp.DhcpService/ListPcsInZoneByVni");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "ListPcsInZoneByVni"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn update_zone_name_by_vni(
+            &mut self,
+            request: impl tonic::IntoRequest<super::UpdateZoneNameByVniRequest>,
+        ) -> std::result::Result<tonic::Response<super::super::common::ResponseResult>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/dhcp.DhcpService/UpdateZoneNameByVni");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("dhcp.DhcpService", "UpdateZoneNameByVni"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -281,6 +488,46 @@ pub mod dhcp_service_server {
             &self,
             request: tonic::Request<super::ZoneIdentifier>,
         ) -> std::result::Result<tonic::Response<super::IpList>, tonic::Status>;
+        async fn add_pc_to_zone(
+            &self,
+            request: tonic::Request<super::AddPcToZoneRequest>,
+        ) -> std::result::Result<tonic::Response<super::super::common::ResponseResult>, tonic::Status>;
+        async fn remove_pc_from_zone(
+            &self,
+            request: tonic::Request<super::RemovePcFromZoneRequest>,
+        ) -> std::result::Result<tonic::Response<super::super::common::ResponseResult>, tonic::Status>;
+        async fn list_pcs_in_zone(
+            &self,
+            request: tonic::Request<super::ZoneIdentifier>,
+        ) -> std::result::Result<tonic::Response<super::PcList>, tonic::Status>;
+        async fn list_zones_by_pc(
+            &self,
+            request: tonic::Request<super::PcIdentifier>,
+        ) -> std::result::Result<tonic::Response<super::ZoneList>, tonic::Status>;
+        async fn get_zone_detail_by_vni(
+            &self,
+            request: tonic::Request<super::VniIdentifier>,
+        ) -> std::result::Result<tonic::Response<super::ZoneDetail>, tonic::Status>;
+        async fn list_available_ips_by_vni(
+            &self,
+            request: tonic::Request<super::VniIdentifier>,
+        ) -> std::result::Result<tonic::Response<super::IpList>, tonic::Status>;
+        async fn add_pc_to_zone_by_vni(
+            &self,
+            request: tonic::Request<super::AddPcToZoneByVniRequest>,
+        ) -> std::result::Result<tonic::Response<super::super::common::ResponseResult>, tonic::Status>;
+        async fn remove_pc_from_zone_by_vni(
+            &self,
+            request: tonic::Request<super::RemovePcFromZoneByVniRequest>,
+        ) -> std::result::Result<tonic::Response<super::super::common::ResponseResult>, tonic::Status>;
+        async fn list_pcs_in_zone_by_vni(
+            &self,
+            request: tonic::Request<super::VniIdentifier>,
+        ) -> std::result::Result<tonic::Response<super::PcList>, tonic::Status>;
+        async fn update_zone_name_by_vni(
+            &self,
+            request: tonic::Request<super::UpdateZoneNameByVniRequest>,
+        ) -> std::result::Result<tonic::Response<super::super::common::ResponseResult>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct DhcpServiceServer<T> {
@@ -572,6 +819,413 @@ pub mod dhcp_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = ListAvailableIpsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/dhcp.DhcpService/AddPcToZone" => {
+                    #[allow(non_camel_case_types)]
+                    struct AddPcToZoneSvc<T: DhcpService>(pub Arc<T>);
+                    impl<T: DhcpService> tonic::server::UnaryService<super::AddPcToZoneRequest> for AddPcToZoneSvc<T> {
+                        type Response = super::super::common::ResponseResult;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::AddPcToZoneRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as DhcpService>::add_pc_to_zone(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = AddPcToZoneSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/dhcp.DhcpService/RemovePcFromZone" => {
+                    #[allow(non_camel_case_types)]
+                    struct RemovePcFromZoneSvc<T: DhcpService>(pub Arc<T>);
+                    impl<T: DhcpService> tonic::server::UnaryService<super::RemovePcFromZoneRequest>
+                        for RemovePcFromZoneSvc<T>
+                    {
+                        type Response = super::super::common::ResponseResult;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::RemovePcFromZoneRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as DhcpService>::remove_pc_from_zone(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = RemovePcFromZoneSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/dhcp.DhcpService/ListPcsInZone" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListPcsInZoneSvc<T: DhcpService>(pub Arc<T>);
+                    impl<T: DhcpService> tonic::server::UnaryService<super::ZoneIdentifier> for ListPcsInZoneSvc<T> {
+                        type Response = super::PcList;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::ZoneIdentifier>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as DhcpService>::list_pcs_in_zone(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ListPcsInZoneSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/dhcp.DhcpService/ListZonesByPc" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListZonesByPcSvc<T: DhcpService>(pub Arc<T>);
+                    impl<T: DhcpService> tonic::server::UnaryService<super::PcIdentifier> for ListZonesByPcSvc<T> {
+                        type Response = super::ZoneList;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::PcIdentifier>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as DhcpService>::list_zones_by_pc(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ListZonesByPcSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/dhcp.DhcpService/GetZoneDetailByVni" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetZoneDetailByVniSvc<T: DhcpService>(pub Arc<T>);
+                    impl<T: DhcpService> tonic::server::UnaryService<super::VniIdentifier>
+                        for GetZoneDetailByVniSvc<T>
+                    {
+                        type Response = super::ZoneDetail;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::VniIdentifier>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as DhcpService>::get_zone_detail_by_vni(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = GetZoneDetailByVniSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/dhcp.DhcpService/ListAvailableIpsByVni" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListAvailableIpsByVniSvc<T: DhcpService>(pub Arc<T>);
+                    impl<T: DhcpService> tonic::server::UnaryService<super::VniIdentifier>
+                        for ListAvailableIpsByVniSvc<T>
+                    {
+                        type Response = super::IpList;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::VniIdentifier>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as DhcpService>::list_available_ips_by_vni(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ListAvailableIpsByVniSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/dhcp.DhcpService/AddPcToZoneByVni" => {
+                    #[allow(non_camel_case_types)]
+                    struct AddPcToZoneByVniSvc<T: DhcpService>(pub Arc<T>);
+                    impl<T: DhcpService> tonic::server::UnaryService<super::AddPcToZoneByVniRequest>
+                        for AddPcToZoneByVniSvc<T>
+                    {
+                        type Response = super::super::common::ResponseResult;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::AddPcToZoneByVniRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as DhcpService>::add_pc_to_zone_by_vni(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = AddPcToZoneByVniSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/dhcp.DhcpService/RemovePcFromZoneByVni" => {
+                    #[allow(non_camel_case_types)]
+                    struct RemovePcFromZoneByVniSvc<T: DhcpService>(pub Arc<T>);
+                    impl<T: DhcpService>
+                        tonic::server::UnaryService<super::RemovePcFromZoneByVniRequest>
+                        for RemovePcFromZoneByVniSvc<T>
+                    {
+                        type Response = super::super::common::ResponseResult;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::RemovePcFromZoneByVniRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as DhcpService>::remove_pc_from_zone_by_vni(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = RemovePcFromZoneByVniSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/dhcp.DhcpService/ListPcsInZoneByVni" => {
+                    #[allow(non_camel_case_types)]
+                    struct ListPcsInZoneByVniSvc<T: DhcpService>(pub Arc<T>);
+                    impl<T: DhcpService> tonic::server::UnaryService<super::VniIdentifier>
+                        for ListPcsInZoneByVniSvc<T>
+                    {
+                        type Response = super::PcList;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::VniIdentifier>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as DhcpService>::list_pcs_in_zone_by_vni(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = ListPcsInZoneByVniSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/dhcp.DhcpService/UpdateZoneNameByVni" => {
+                    #[allow(non_camel_case_types)]
+                    struct UpdateZoneNameByVniSvc<T: DhcpService>(pub Arc<T>);
+                    impl<T: DhcpService>
+                        tonic::server::UnaryService<super::UpdateZoneNameByVniRequest>
+                        for UpdateZoneNameByVniSvc<T>
+                    {
+                        type Response = super::super::common::ResponseResult;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::UpdateZoneNameByVniRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as DhcpService>::update_zone_name_by_vni(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = UpdateZoneNameByVniSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

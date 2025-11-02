@@ -96,7 +96,7 @@ impl From<ShutdownPcsResponse> for ShutdownPcResponse {
 
 impl From<PostPcgroupRequest> for CreatePcGroupRequest {
     fn from(value: PostPcgroupRequest) -> Self {
-        Self { groupname: value.groupname, describe: value.describe }
+        Self { groupname: value.groupname, cidr: value.cidr }
     }
 }
 impl From<CreatePcGroupResponse> for ResponseResult {
@@ -173,7 +173,7 @@ impl From<DeletePcGroupRequest> for chm_grpc::restful::DeletePcGroupRequest {
 }
 
 impl From<DeletePcGroupResponse> for ResponseResult {
-    fn from(resp: chm_grpc::restful::DeletePcGroupResponse) -> Self {
+    fn from(resp: DeletePcGroupResponse) -> Self {
         resp.result.unwrap().into()
     }
 }

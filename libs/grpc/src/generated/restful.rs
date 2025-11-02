@@ -317,7 +317,7 @@ pub struct CreatePcGroupRequest {
     #[prost(string, tag = "1")]
     pub groupname: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub describe:  ::prost::alloc::string::String,
+    pub cidr:      ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreatePcGroupResponse {

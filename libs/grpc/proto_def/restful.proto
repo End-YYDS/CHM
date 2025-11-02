@@ -227,7 +227,7 @@ message GetPcGroupsResponse {
 // 新增 Group POST /api/chm/pcgroup
 message CreatePcGroupRequest {
   string groupname = 1;
-  string describe = 2;
+  string cidr = 2;
 }
 message CreatePcGroupResponse {
   common.ResponseResult result = 1;

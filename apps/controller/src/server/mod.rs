@@ -75,3 +75,29 @@ pub async fn start_grpc(
     }
     Ok(())
 }
+
+// TODO: 後續需要實作心跳檢測
+
+// pub async fn heartbeat_task(
+//     cancel: CancellationToken,
+//     grpc_clients: Arc<GrpcClients>,
+// ) -> ConResult<()> {
+//     let interval = tokio::time::Duration::from_secs(30);
+//     let mut ticker = tokio::time::interval(interval);
+//     loop {
+//         tokio::select! {
+//             _ = cancel.cancelled() => {
+//                 tracing::info!("[Heartbeat] 收到外部取消，結束心跳任務");
+//                 break;
+//             }
+//             _ = ticker.tick() => {
+//                 if let Err(e) =
+// grpc_clients.ca().expect("").clone().send_heartbeat().await {
+// tracing::error!("[Heartbeat] 發送心跳失敗: {e:?}");                 } else {
+//                     tracing::debug!("[Heartbeat] 成功發送心跳");
+//                 }
+//             }
+//         }
+//     }
+//     Ok(())
+// }

@@ -13,6 +13,7 @@ use chm_grpc::{
 use futures::future::try_join_all;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
+mod agent;
 pub(crate) mod ca;
 pub(crate) mod dhcp;
 pub(crate) mod dns;
@@ -24,6 +25,7 @@ pub enum ClientHandle {
     Dns(dns::ClientDNS),
     Ldap(ldap::ClientLdap),
     Dhcp(dhcp::ClientDhcp),
+    Agent(agent::ClientAgent),
 }
 
 #[allow(dead_code)]
@@ -39,6 +41,7 @@ impl GrpcClients {
             Some(ClientHandle::Dns(dns)) => Some(dns.channel()),
             Some(ClientHandle::Ldap(ldap)) => Some(ldap.channel()),
             Some(ClientHandle::Dhcp(dhcp)) => Some(dhcp.channel()),
+            Some(ClientHandle::Agent(agent)) => Some(agent.channel()),
             _ => None,
         }
     }
@@ -69,6 +72,12 @@ impl GrpcClients {
     pub fn dhcp(&self) -> Option<&dhcp::ClientDhcp> {
         match self.map.get(&ServiceKind::Dhcp) {
             Some(ClientHandle::Dhcp(dhcp)) => Some(dhcp),
+            _ => None,
+        }
+    }
+    pub fn agent(&self) -> Option<&agent::ClientAgent> {
+        match self.map.get(&ServiceKind::Agent) {
+            Some(ClientHandle::Agent(agent)) => Some(agent),
             _ => None,
         }
     }
@@ -192,6 +201,7 @@ pub async fn init_channels_all(only_ca: bool) -> ConResult<GrpcClients> {
             Dns  => Dns(dns::ClientDNS::new),
             Ldap => Ldap(ldap::ClientLdap::new),
             Dhcp => Dhcp(dhcp::ClientDhcp::new),
+            Agent => Agent(agent::ClientAgent::new),
         }
     );
     Ok(GrpcClients { map: client_map })

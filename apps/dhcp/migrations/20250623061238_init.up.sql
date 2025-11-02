@@ -11,6 +11,15 @@ CREATE TABLE zones (
     vni          INTEGER NOT NULL UNIQUE
 );
 
+CREATE TABLE zone_pcs (
+    zone_id INTEGER NOT NULL,
+    pc_uuid TEXT NOT NULL,
+    PRIMARY KEY (zone_id, pc_uuid),
+    FOREIGN KEY (zone_id) REFERENCES zones(id) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX idx_zone_pcs_pc_uuid ON zone_pcs(pc_uuid);
+
 CREATE TABLE ip_pools (
     id       INTEGER PRIMARY KEY AUTOINCREMENT,
     zone_id  INTEGER NOT NULL,
@@ -21,3 +30,5 @@ CREATE TABLE ip_pools (
         ON UPDATE CASCADE,
     UNIQUE (zone_id, ip)
 );
+
+CREATE INDEX idx_ip_pools_zone_id ON ip_pools(zone_id);

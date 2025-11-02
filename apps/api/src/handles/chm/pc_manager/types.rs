@@ -64,8 +64,8 @@ pub struct UuidsRequest {
 pub struct PostPcgroupRequest {
     #[serde(rename = "Groupname")]
     pub groupname: String,
-    #[serde(rename = "Describe")]
-    pub describe:  String,
+    #[serde(rename = "Cidr")]
+    pub cidr:      String,
 }
 
 #[derive(Debug, Serialize)]

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT ip FROM ip_pools WHERE zone_id = (SELECT id FROM zones WHERE vni = ?)",
+  "describe": {
+    "columns": [
+      {
+        "name": "ip",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4220a68e75dfb4dab4835b6a679a8fbc126ccf16331c8e9aa63d9a98bb2e0c93"
+}

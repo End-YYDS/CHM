@@ -30,6 +30,9 @@ pub enum DhcpError {
 
     #[error("Invalid IP address format: {0}")]
     InvalidIpFormat(String),
+
+    #[error("Unsupported IPv6 address")]
+    UnsupportedIpv6,
 }
 
 impl From<DhcpError> for Status {
@@ -47,6 +50,7 @@ impl From<DhcpError> for Status {
             DhcpError::InvalidIpFormat(ip) => {
                 Status::invalid_argument(format!("Invalid IP address format: {ip}"))
             }
+            DhcpError::UnsupportedIpv6 => Status::invalid_argument("Unsupported IPv6 address"),
             _ => Status::internal(err.to_string()),
         }
     }
