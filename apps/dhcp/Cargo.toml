@@ -18,7 +18,7 @@ chm-config_bus = { workspace = true }
 chm-dns_resolver = { workspace = true }
 chm-grpc = { workspace = true, features = ["dhcp"] }
 chm-project_const = { workspace = true }
-ipnetwork = "0.21.1"
+ipnetwork = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
