@@ -13,6 +13,7 @@ use chm_grpc::{
 use futures::future::try_join_all;
 use std::{collections::HashMap, sync::Arc, time::Duration};
 
+mod agent;
 pub(crate) mod ca;
 pub(crate) mod dhcp;
 pub(crate) mod dns;
@@ -24,12 +25,26 @@ pub enum ClientHandle {
     Dns(dns::ClientDNS),
     Ldap(ldap::ClientLdap),
     Dhcp(dhcp::ClientDhcp),
+    Agent(agent::ClientAgent),
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) struct GrpcClients {
     pub map: ClientMap,
+}
+
+impl GrpcClients {
+    pub fn channel_for_kind(&self, kind: ServiceKind) -> Option<Channel> {
+        match self.map.get(&kind) {
+            Some(ClientHandle::Ca(ca)) => Some(ca.channel()),
+            Some(ClientHandle::Dns(dns)) => Some(dns.channel()),
+            Some(ClientHandle::Ldap(ldap)) => Some(ldap.channel()),
+            Some(ClientHandle::Dhcp(dhcp)) => Some(dhcp.channel()),
+            Some(ClientHandle::Agent(agent)) => Some(agent.channel()),
+            _ => None,
+        }
+    }
 }
 
 impl GrpcClients {
@@ -57,6 +72,12 @@ impl GrpcClients {
     pub fn dhcp(&self) -> Option<&dhcp::ClientDhcp> {
         match self.map.get(&ServiceKind::Dhcp) {
             Some(ClientHandle::Dhcp(dhcp)) => Some(dhcp),
+            _ => None,
+        }
+    }
+    pub fn agent(&self) -> Option<&agent::ClientAgent> {
+        match self.map.get(&ServiceKind::Agent) {
+            Some(ClientHandle::Agent(agent)) => Some(agent),
             _ => None,
         }
     }
@@ -142,9 +163,12 @@ pub async fn init_channels_all(only_ca: bool) -> ConResult<GrpcClients> {
     let client_cert = tokio::fs::read(cert).await.map_err(|_| "無法讀取客戶端憑證")?;
     let client_key = tokio::fs::read(key).await.map_err(|_| "無法讀取客戶端金鑰")?;
 
-    let tls = ClientTlsConfig::new()
+    let mut tls = ClientTlsConfig::new()
         .ca_certificate(Certificate::from_pem(root_cert))
         .identity(Identity::from_pem(client_cert, client_key));
+    if cfg!(debug_assertions) {
+        tls = tls.use_key_log();
+    }
     let backoff = ExponentialBackoff {
         max_elapsed_time: Some(Duration::from_secs(15)),
         ..Default::default()
@@ -177,6 +201,7 @@ pub async fn init_channels_all(only_ca: bool) -> ConResult<GrpcClients> {
             Dns  => Dns(dns::ClientDNS::new),
             Ldap => Ldap(ldap::ClientLdap::new),
             Dhcp => Dhcp(dhcp::ClientDhcp::new),
+            Agent => Agent(agent::ClientAgent::new),
         }
     );
     Ok(GrpcClients { map: client_map })

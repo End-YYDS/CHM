@@ -75,10 +75,13 @@ async fn main() -> ApiResult<()> {
             )
         });
     let identity = CertUtils::cert_from_path(&cert_path, &key_path, None)?;
-    let tls =
+    let mut tls =
         ClientTlsConfig::new().identity(Identity::from_pem(identity.1, identity.0)).ca_certificate(
             Certificate::from_pem(std::fs::read(&rootca).expect("讀取 RootCA 憑證失敗")),
         );
+    if cfg!(debug_assertions) {
+        tls = tls.use_key_log();
+    }
     // TODO: 將EndPoint需要先查詢DNS
     let endpoint = Endpoint::from_shared(controller_addr.clone())
         .map_err(|e| format!("無效的 Controller 地址: {e}"))

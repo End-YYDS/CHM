@@ -1,6 +1,7 @@
 set shell := ["bash", "-cu"]
 set dotenv-load := true
 
+SED := "gsed"
 CA_DATABASE_URL := env_var('CA_DATABASE_URL')
 DNS_DATABASE_URL := env_var('DNS_DATABASE_URL')
 LDAP_DATABASE_URL := env_var('LDAP_DATABASE_URL')
@@ -66,6 +67,31 @@ migrate-dhcp: (migrate DHCP_DATABASE_URL DHCP_FOLDER_MIGRATE)
 
 migrate-all: migrate-ca migrate-dns migrate-ldap reset-dhcp
 
+replace old new file:
+    @{{ SED }} -i 's/{{ old }}/{{ new }}/g' {{ file }}
+
+rename old new:
+    @if [ -f {{ old }} ]; then \
+        mv {{ old }} {{ new }}; \
+        echo "Renamed {{ old }} -> {{ new }}"; \
+    else \
+        echo "File {{ old }} not found!"; \
+        exit 1; \
+    fi
+
+remove-examples:
+    @set -euo pipefail; \
+    shopt -s nullglob; \
+    files=({{ CONFIG_FOLDER }}/*.example); \
+    if ((${#files[@]})); then \
+      for f in "${files[@]}"; do \
+        mv -- "$f" "${f%.example}"; \
+      done; \
+      echo "Renamed ${#files[@]} file(s)."; \
+    else \
+      echo "No *.example files found under {{ CONFIG_FOLDER }}"; \
+    fi
+
 # 開發環境
 run-ca args="":
     @[[ ! -f "{{ DB_FOLDER }}/cert_store.db" ]] && just create-ca-db || true
@@ -98,6 +124,23 @@ run-dhcp args="":
 
 run-api-client args="":
     @RUST_LOG=CHM_API=debug,api_server=debug,chm_cluster_utils=debug cargo run -p api_server --bin client -- {{ args }}
+
+run-init password="":
+    @just run-dns '-i'
+    @just run-ca '-i'
+    @just run-api '-i'
+    @just run-ldap '-i'
+    @just run-dhcp '-i'
+    @just run-controller '-i'
+    @just remove-examples
+    @files=({{ CONFIG_FOLDER }}/{CHM_API,CHM_dhcpd,CHM_ldapd,CHMcd,CHMmDNS}_config.toml); \
+    for i in $(seq 0 $(( ${#files[@]} - 1 )) ); do \
+        echo "Processing file: ${files[$i]}"; \
+        just replace 'rootCA.pem' "rootCA'$((i+1))'.pem" "${files[$i]}"; \
+    done
+    @just replace "30s" "1h" "{{ CONFIG_FOLDER }}/CHMmCA_config.toml"
+    @just replace "30s" "1h" "{{ CONFIG_FOLDER }}/CHMmDNS_config.toml"
+    @just replace 'bind_password = "admin"' 'bind_password = "{{ password }}"' "{{ CONFIG_FOLDER }}/CHM_ldapd_config.toml"
 
 clean-certs:
     @find {{ CERT_FOLDER }} -mindepth 1 -not -name ".gitkeep" -print0 | xargs -0 rm -rf
@@ -151,7 +194,13 @@ sqlx-prepare:
     @[[ ! -f "{{ DB_FOLDER }}/cert_store.db" ]] && just create-ca-db || true
     @[[ ! -f "{{ DB_FOLDER }}/ids.db" ]] && just create-ldap-db || true
     @[[ ! -f "{{ DB_FOLDER }}/dhcp.db" ]] && just create-dhcp-db || true
-    @just reset-all
+    @just reset-all || true
+    @(cd {{ CA_FOLDER }} && cargo sqlx prepare  -D "{{ CA_DATABASE_URL }}")
+    @(cd {{ DNS_FOLDER }} && cargo sqlx prepare -D "{{ DNS_DATABASE_URL }}")
+    @(cd {{ LDAP_FOLDER }} && cargo sqlx prepare -D "{{ LDAP_DATABASE_URL }}")
+    @(cd {{ DHCP_FOLDER }} && cargo sqlx prepare -D "{{ DHCP_DATABASE_URL }}")
+
+sqlx-prepare-only:
     @(cd {{ CA_FOLDER }} && cargo sqlx prepare  -D "{{ CA_DATABASE_URL }}")
     @(cd {{ DNS_FOLDER }} && cargo sqlx prepare -D "{{ DNS_DATABASE_URL }}")
     @(cd {{ LDAP_FOLDER }} && cargo sqlx prepare -D "{{ LDAP_DATABASE_URL }}")

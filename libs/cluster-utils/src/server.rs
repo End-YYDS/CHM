@@ -240,7 +240,6 @@ impl ServerCluster {
                 }
             }
         }
-
         builder.check_private_key()?;
         builder.set_verify(SslVerifyMode::NONE);
         Ok(builder)

@@ -4,7 +4,7 @@ use crate::ConResult;
 use chm_grpc::{
     ldap::{
         ldap_service_client::LdapServiceClient, AuthRequest, Empty, GroupDetailResponse,
-        GroupIdRequest, GroupNameResponse, GroupRequest, ModifyUserRequest,
+        GroupIdRequest, GroupNameResponse, GroupRequest, ModifyGroupNameRequest, ModifyUserRequest,
         ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest, UserIdRequest, UserRequest,
         WebRoleDetailResponse,
     },
@@ -14,19 +14,23 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct ClientLdap {
-    client: LdapServiceClient<Channel>,
+    client:  LdapServiceClient<Channel>,
+    channel: Channel,
 }
 
 impl ClientLdap {
     pub fn new(channel: Channel) -> Self {
         tracing::debug!("建立 LDAP 客戶端...");
-        let client = LdapServiceClient::new(channel);
+        let client = LdapServiceClient::new(channel.clone());
         tracing::info!("LDAP 客戶端已建立");
-        Self { client }
+        Self { client, channel }
     }
 
     pub fn get_client(&self) -> LdapServiceClient<Channel> {
         self.client.clone()
+    }
+    pub fn channel(&self) -> Channel {
+        self.channel.clone()
     }
     #[allow(clippy::too_many_arguments)]
     pub async fn add_user(
@@ -128,6 +132,12 @@ impl ClientLdap {
         let mut client = self.client.clone();
         let req = GroupIdRequest { gid_number };
         let resp = client.get_group_name(req).await?.into_inner();
+        Ok(resp)
+    }
+    pub async fn modify_group_name(&self, gid_number: String, new_name: String) -> ConResult<bool> {
+        let mut client = self.client.clone();
+        let req = ModifyGroupNameRequest { old_name: gid_number, new_name };
+        let resp = client.modify_group_name(req).await?.into_inner().success;
         Ok(resp)
     }
     pub async fn add_user_to_group(&self, uid: String, group_name: String) -> ConResult<bool> {

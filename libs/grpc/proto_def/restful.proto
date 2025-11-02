@@ -169,6 +169,7 @@ message GetAllPcsRequest {}
 message PcSimple {
   string hostname = 1;
   string ip = 2;
+  bool status = 3; // true: online, false: offline
 }
 message GetAllPcsResponse {
   map<string, PcSimple> pcs = 1; // key = uuid
@@ -199,7 +200,7 @@ message RebootPcsRequest {
   repeated string uuids = 1;
 }
 message RebootPcsResponse {
-  common.ResponseResult result = 1;
+  map<string, common.ResponseResult> results = 1;
 }
 
 // Shutdown POST /api/chm/pc/shutdown
@@ -207,7 +208,7 @@ message ShutdownPcsRequest {
   repeated string uuids = 1;
 }
 message ShutdownPcsResponse {
-  common.ResponseResult result = 1;
+  map<string, common.ResponseResult> results = 1;
 }
 
 // ================= PC Group =================
@@ -226,7 +227,7 @@ message GetPcGroupsResponse {
 // 新增 Group POST /api/chm/pcgroup
 message CreatePcGroupRequest {
   string groupname = 1;
-  string describe = 2;
+  string cidr = 2;
 }
 message CreatePcGroupResponse {
   common.ResponseResult result = 1;
@@ -241,11 +242,17 @@ message PutPcGroupResponse {
   common.ResponseResult result = 1;
 }
 
+message Pcs {
+  repeated string pcs = 1;
+}
+
 // 更新 Group 單一內容 PATCH /api/chm/pcgroup
 message PatchPcGroupRequest {
   int64 vxlanid = 1;
-  // 只更改單一欄位：目前文件僅示範 Groupname
-  string groupname = 2;
+  oneof kind {
+    string groupname = 2;
+    Pcs pcs = 3;
+  }
 }
 message PatchPcGroupResponse {
   common.ResponseResult result = 1;
@@ -657,6 +664,7 @@ message PutGroupsResponse {
 message GroupPatch {
   optional string groupname = 1; // 目前只示範可改 Groupname
   // 若未來開放 Users 單獨改，可新增：repeated string users = 2;
+  repeated string users = 2;
 }
 message PatchGroupsRequest {
   map<string, GroupPatch> groups = 1; // 例如 {"gid01": {"groupname": "..."}}

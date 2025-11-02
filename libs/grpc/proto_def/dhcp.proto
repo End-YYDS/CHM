@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package dhcp;
 
+import "common.proto";
+
 service DhcpService {
   rpc CreateZone (CreateZoneRequest) returns (CreateZoneResponse);
   rpc AllocateIp (AllocateIpRequest) returns (AllocateIpResponse);
@@ -10,13 +12,26 @@ service DhcpService {
 
   rpc ListZones (Empty) returns (ZoneList);
   rpc ListAvailableIps (ZoneIdentifier) returns (IpList);
+
+  rpc AddPcToZone (AddPcToZoneRequest) returns (common.ResponseResult);
+  rpc RemovePcFromZone (RemovePcFromZoneRequest) returns (common.ResponseResult);
+  rpc ListPcsInZone (ZoneIdentifier) returns (PcList);
+  rpc ListZonesByPc (PcIdentifier) returns (ZoneList);
+
+  rpc GetZoneDetailByVni (VniIdentifier) returns (ZoneDetail);
+  rpc ListAvailableIpsByVni (VniIdentifier) returns (IpList);
+  rpc AddPcToZoneByVni (AddPcToZoneByVniRequest) returns (common.ResponseResult);
+  rpc RemovePcFromZoneByVni (RemovePcFromZoneByVniRequest) returns (common.ResponseResult);
+  rpc ListPcsInZoneByVni (VniIdentifier) returns (PcList);
+
+  rpc UpdateZoneNameByVni (UpdateZoneNameByVniRequest) returns (common.ResponseResult);
 }
 
 message Empty {}
 
 message CreateZoneRequest {
   string zone_name = 1;
-  int32 vni = 2;
+  int64 vni = 2;
   string cidr = 3;
 }
 
@@ -55,7 +70,7 @@ message ZoneList {
 
 message Zone {
   string name = 1;
-  int32 vni = 2;
+  int64 vni = 2;
 }
 
 message ZoneIdentifier {
@@ -64,4 +79,52 @@ message ZoneIdentifier {
 
 message IpList {
   repeated string ips = 1;
+}
+
+message AddPcToZoneRequest {
+  string zone_name = 1;
+  string pc_uuid = 2;
+}
+
+message RemovePcFromZoneRequest {
+  string zone_name = 1;
+  string pc_uuid = 2;
+}
+
+message PcIdentifier {
+  string pc_uuid = 1;
+}
+
+message PcList {
+  repeated string pcs = 1;
+}
+
+
+message VniIdentifier {
+  int64 vni = 1;
+}
+
+message ZoneDetail {
+  string name = 1;
+  int64 vni = 2;
+  string network = 3;
+  string broadcast = 4;
+  string subnet_mask = 5;
+  repeated string ips = 6;
+  repeated string pcs = 7;
+}
+
+message AddPcToZoneByVniRequest {
+  int64 vni = 1;
+  string pc_uuid = 2;
+}
+
+message RemovePcFromZoneByVniRequest {
+  int64 vni = 1;
+  string pc_uuid = 2;
+}
+
+message UpdateZoneNameByVniRequest {
+  int64 vni = 1;
+  string new_name = 2;
 }
