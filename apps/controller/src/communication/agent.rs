@@ -1,17 +1,19 @@
 use crate::ConResult;
-use chm_grpc::agent::agent_file_service_client::AgentFileServiceClient;
-use chm_grpc::agent::agent_info_service_client::AgentInfoServiceClient;
-use chm_grpc::agent::agent_service_client::AgentServiceClient;
-use chm_grpc::agent::CommandRequest;
-use chm_grpc::tonic::codec::CompressionEncoding;
-use chm_grpc::tonic::transport::Channel;
+use chm_grpc::{
+    agent::{
+        agent_file_service_client::AgentFileServiceClient,
+        agent_info_service_client::AgentInfoServiceClient,
+        agent_service_client::AgentServiceClient, CommandRequest,
+    },
+    tonic::{codec::CompressionEncoding, transport::Channel},
+};
 
 #[derive(Debug, Clone)]
 pub struct ClientAgent {
     m_client: AgentServiceClient<Channel>,
     f_client: AgentFileServiceClient<Channel>,
     i_client: AgentInfoServiceClient<Channel>,
-    channel: Channel,
+    channel:  Channel,
 }
 
 impl ClientAgent {

@@ -23,7 +23,8 @@ fn run_power_command(command: &str, success_message: &str) -> ReturnInfo {
 }
 
 pub fn execute_reboot() -> ReturnInfo {
-    // ReturnInfo { type_field: "OK".to_string(), message: "reboot 指令已送出".to_string() }
+    // ReturnInfo { type_field: "OK".to_string(), message: "reboot
+    // 指令已送出".to_string() }
     run_power_command("reboot", "reboot 指令已送出")
 }
 
