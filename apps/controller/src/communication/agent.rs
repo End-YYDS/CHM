@@ -46,13 +46,20 @@ impl ClientAgent {
         let mut client = self.get_m_client();
         let resp = client
             .execute_command(CommandRequest { command: "reboot".to_string(), argument: None })
-            .await?.into_inner();
+            .await?
+            .into_inner();
         dbg!(resp);
         dbg!(pc);
         Ok(true)
     }
     pub async fn shutdown_system(&self, pc: &str) -> ConResult<bool> {
         // TODO: 需要實作關閉Agent
+        let mut client = self.get_m_client();
+        let resp = client
+            .execute_command(CommandRequest { command: "shutdown".to_string(), argument: None })
+            .await?
+            .into_inner();
+        dbg!(resp);
         dbg!(pc);
         Ok(true)
     }

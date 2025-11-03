@@ -1,7 +1,7 @@
 set shell := ["bash", "-cu"]
 set dotenv-load := true
 
-SED := "gsed"
+SED := `if command -v gsed &> /dev/null; then echo gsed; else echo sed; fi`
 CA_DATABASE_URL := env_var('CA_DATABASE_URL')
 DNS_DATABASE_URL := env_var('DNS_DATABASE_URL')
 LDAP_DATABASE_URL := env_var('LDAP_DATABASE_URL')

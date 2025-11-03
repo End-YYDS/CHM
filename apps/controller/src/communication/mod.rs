@@ -19,6 +19,7 @@ pub(crate) mod dhcp;
 pub(crate) mod dns;
 pub(crate) mod ldap;
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
 pub enum ClientHandle {
     Ca(ca::ClientCA),
