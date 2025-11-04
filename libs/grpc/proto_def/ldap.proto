@@ -18,7 +18,7 @@ service LdapService {
   rpc GetGroupName (GroupIdRequest) returns (GroupNameResponse);
   rpc ModifyGroupName (ModifyGroupNameRequest) returns (GenericResponse);
 
-  rpc AddWebRole (GroupRequest) returns (GenericResponse);
+  rpc AddWebRole (AddWebRoleRequest) returns (GenericResponse);
   rpc DeleteWebRole (GroupRequest) returns (GenericResponse);
   rpc ListWebRole (Empty) returns (GroupListResponse);
   rpc SearchWebRole (GroupRequest) returns (WebRoleDetailResponse);
@@ -114,9 +114,33 @@ message GroupDetailResponse {
   repeated string memberUid = 3;
 }
 
+enum Color {
+  Red = 0;
+  Green = 1;
+  Blue = 2;
+  Yellow = 3;
+  Purple = 4;
+  Orange = 5;
+  Black = 6;
+  White = 7;
+  Gray = 8;
+  Custom = 9;
+}
+
+message WebRoleDetailRequest {
+  optional string roleName = 1;
+}
+
 message WebRoleDetailResponse {
-  string cn = 1;
-  repeated string memberUid = 3;
+  string roleName = 1;
+  repeated string memberUid = 2;
+}
+
+message AddWebRoleRequest {
+  string roleName = 1;
+  Color color = 2;
+  optional string colorNumber = 3;
+  int32 permission = 4;
 }
 
 message GroupIdRequest {

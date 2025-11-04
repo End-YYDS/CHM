@@ -4,10 +4,10 @@ use crate::{
     globals::GlobalConfig,
 };
 use chm_grpc::ldap::{
-    AuthRequest, AuthResponse, GenericResponse, GroupDetailResponse, GroupIdRequest,
-    GroupListResponse, GroupNameResponse, GroupRequest, ModifyGroupNameRequest, ModifyUserRequest,
-    ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest, UserIdRequest, UserListResponse,
-    UserRequest, WebRoleDetailResponse,
+    AddWebRoleRequest, AuthRequest, AuthResponse, GenericResponse, GroupDetailResponse,
+    GroupIdRequest, GroupListResponse, GroupNameResponse, GroupRequest, ModifyGroupNameRequest,
+    ModifyUserRequest, ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest,
+    UserIdRequest, UserListResponse, UserRequest, WebRoleDetailResponse,
 };
 use ldap3::{Ldap, LdapError, Mod, Scope, SearchEntry};
 use std::collections::{HashMap, HashSet};
@@ -547,23 +547,27 @@ pub(crate) async fn search_user_in_group_impl(
 
 pub(crate) async fn add_web_role_impl(
     ldap: &mut Ldap,
-    req: GroupRequest,
+    req: AddWebRoleRequest,
 ) -> SrvResult<GenericResponse> {
     let wbase = web_base();
-    let filter = format!("(cn={})", req.group_name);
+    let filter = format!("(cn={})", req.role_name);
     if search_one(ldap, &wbase, Scope::OneLevel, &filter, vec!["dn"]).await?.is_some() {
-        return Err(LdapServiceError::GroupAlreadyExists(req.group_name.clone()));
+        return Err(LdapServiceError::GroupAlreadyExists(req.role_name.clone()));
     }
-    let dn = format!("cn={},{}", req.group_name, wbase);
+    let dn = format!("cn={},{}", req.role_name, wbase);
     let mut attrs = HashMap::new();
-    attrs.insert("objectClass", vec!["top", "groupOfNames"]);
-    attrs.insert("cn", vec![req.group_name.as_str()]);
+    attrs.insert("objectClass", vec!["top", "groupOfNames", "webRole"]);
+    attrs.insert("cn", vec![req.role_name.as_str()]);
     attrs.insert("member", vec![dn.as_str()]);
+    let color_string = req.color.to_string();
+    let permissions_string = req.permission.to_string();
+    attrs.insert("color", vec![color_string.as_str()]);
+    attrs.insert("permissions", vec![permissions_string.as_str()]);
     let attributes = map_to_attrs(attrs);
     ldap.add(&dn, attributes).await?.success()?;
     Ok(GenericResponse {
         success: true,
-        message: format!("Web role '{}' has been created.", req.group_name),
+        message: format!("Web role '{}' has been created.", req.role_name),
     })
 }
 
@@ -637,7 +641,7 @@ pub(crate) async fn search_web_role_impl(
         .collect();
 
     let resp = WebRoleDetailResponse {
-        cn:         attrs.get("cn").and_then(|v| v.first()).cloned().unwrap_or_default(),
+        role_name:  attrs.get("cn").and_then(|v| v.first()).cloned().unwrap_or_default(),
         member_uid: members,
     };
     Ok(resp)
@@ -647,6 +651,7 @@ pub(crate) async fn add_user_to_web_role_impl(
     ldap: &mut Ldap,
     req: UserGroupRequest,
 ) -> SrvResult<GenericResponse> {
+    // TODO: 添加保存權限及顏色的屬性
     let wbase = web_base();
     let role_dn = format!("cn={},{}", req.group_name, wbase);
     let filter = format!("(member={})", req.uid);

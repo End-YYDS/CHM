@@ -121,11 +121,27 @@ pub struct GroupDetailResponse {
     pub member_uid: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct WebRoleDetailRequest {
+    #[prost(string, optional, tag = "1")]
+    pub role_name: ::core::option::Option<::prost::alloc::string::String>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct WebRoleDetailResponse {
     #[prost(string, tag = "1")]
-    pub cn:         ::prost::alloc::string::String,
-    #[prost(string, repeated, tag = "3")]
+    pub role_name:  ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "2")]
     pub member_uid: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct AddWebRoleRequest {
+    #[prost(string, tag = "1")]
+    pub role_name:    ::prost::alloc::string::String,
+    #[prost(enumeration = "Color", tag = "2")]
+    pub color:        i32,
+    #[prost(string, optional, tag = "3")]
+    pub color_number: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(int32, tag = "4")]
+    pub permission:   i32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GroupIdRequest {
@@ -143,6 +159,57 @@ pub struct ModifyGroupNameRequest {
     pub old_name: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub new_name: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum Color {
+    Red = 0,
+    Green = 1,
+    Blue = 2,
+    Yellow = 3,
+    Purple = 4,
+    Orange = 5,
+    Black = 6,
+    White = 7,
+    Gray = 8,
+    Custom = 9,
+}
+impl Color {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic
+    /// use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Red => "Red",
+            Self::Green => "Green",
+            Self::Blue => "Blue",
+            Self::Yellow => "Yellow",
+            Self::Purple => "Purple",
+            Self::Orange => "Orange",
+            Self::Black => "Black",
+            Self::White => "White",
+            Self::Gray => "Gray",
+            Self::Custom => "Custom",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "Red" => Some(Self::Red),
+            "Green" => Some(Self::Green),
+            "Blue" => Some(Self::Blue),
+            "Yellow" => Some(Self::Yellow),
+            "Purple" => Some(Self::Purple),
+            "Orange" => Some(Self::Orange),
+            "Black" => Some(Self::Black),
+            "White" => Some(Self::White),
+            "Gray" => Some(Self::Gray),
+            "Custom" => Some(Self::Custom),
+            _ => None,
+        }
+    }
 }
 /// Generated client implementations.
 #[cfg(feature = "ldap-client")]
@@ -407,7 +474,7 @@ pub mod ldap_service_client {
         }
         pub async fn add_web_role(
             &mut self,
-            request: impl tonic::IntoRequest<super::GroupRequest>,
+            request: impl tonic::IntoRequest<super::AddWebRoleRequest>,
         ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status> {
             self.inner.ready().await.map_err(|e| {
                 tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
@@ -637,7 +704,7 @@ pub mod ldap_service_server {
         ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status>;
         async fn add_web_role(
             &self,
-            request: tonic::Request<super::GroupRequest>,
+            request: tonic::Request<super::AddWebRoleRequest>,
         ) -> std::result::Result<tonic::Response<super::GenericResponse>, tonic::Status>;
         async fn delete_web_role(
             &self,
@@ -1263,12 +1330,12 @@ pub mod ldap_service_server {
                 "/ldap.LdapService/AddWebRole" => {
                     #[allow(non_camel_case_types)]
                     struct AddWebRoleSvc<T: LdapService>(pub Arc<T>);
-                    impl<T: LdapService> tonic::server::UnaryService<super::GroupRequest> for AddWebRoleSvc<T> {
+                    impl<T: LdapService> tonic::server::UnaryService<super::AddWebRoleRequest> for AddWebRoleSvc<T> {
                         type Response = super::GenericResponse;
                         type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::GroupRequest>,
+                            request: tonic::Request<super::AddWebRoleRequest>,
                         ) -> Self::Future {
                             let inner = Arc::clone(&self.0);
                             let fut = async move {

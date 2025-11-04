@@ -284,7 +284,7 @@ message RoleInfo {
   string role_name = 1;  // RoleName
   int64 permissions = 2; // bit flags
   Color color = 3;
-  repeated int64 members = 4; // uid
+  repeated string members = 4; // uid
   uint64 length = 5; // Members.len
 }
 
@@ -298,7 +298,7 @@ message GetRolesResponse {
 // 取得所有使用者資訊 GET /api/chm/role/users
 message GetRoleUsersRequest {}
 message GetRoleUsersResponse {
-  map<int64, string> users = 1; // key: uid, value: name
+  map<string, string> users = 1; // key: uid, value: name
   uint64 length = 2;            // users.len
 }
 
@@ -307,7 +307,7 @@ message CreateRoleRequest {
   string role_name = 1;  // RoleName
   int64 permissions = 2;
   Color color = 3;  // 可傳預設或自訂
-  repeated int64 members = 4;
+  repeated string members = 4;
 }
 message CreateRoleResponse {
   common.ResponseResult result = 1; //{Type, Message}
@@ -324,7 +324,7 @@ message DeleteRoleResponse {
 // 角色配置（覆蓋整筆成員） PUT /api/chm/role
 message PutRoleMembersRequest {
   string role_name = 1;        // RoleName
-  repeated int64 members = 2;     // 新成員清單（覆蓋）
+  repeated string members = 2;     // 新成員清單（覆蓋）
 }
 message PutRoleMembersResponse {
   common.ResponseResult result = 1;

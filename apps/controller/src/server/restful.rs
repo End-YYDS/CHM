@@ -266,35 +266,183 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetRolesRequest>,
     ) -> Result<Response<GetRolesResponse>, Status> {
-        todo!()
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))
+            .map_err(|e| Status::internal(e.to_string()))?;
+        let r = ldap
+            .list_web_roles()
+            .await
+            .map_err(|e| Status::internal(format!("Failed to list roles: {e}")))?;
+        let mut roles: Vec<RoleInfo> = Vec::new();
+        for group_name in r {
+            match ldap.search_web_role(group_name.clone()).await {
+                Ok(detail) => {
+                    let members: Vec<String> = detail
+                        .member_uid
+                        .iter()
+                        .map(|dn| {
+                            dn.strip_prefix("uid=")
+                                .unwrap_or(dn)
+                                .split(',')
+                                .next()
+                                .unwrap_or(dn)
+                                .to_string()
+                        })
+                        .collect();
+                    // println!("Role: {}, Members: {:?}", detail.cn, members); // debug
+                    let entry = RoleInfo {
+                        role_name:   detail.role_name,
+                        permissions: 0,                      // TODO: 之後再補
+                        color:       Some(Color::default()), // TODO: 之後再補
+                        members:     members.clone(),
+                        length:      members.len() as u64,
+                    };
+                    roles.push(entry);
+                }
+                Err(e) => {
+                    eprintln!("Failed to fetch details for role {}: {}", group_name, e);
+                    continue;
+                }
+            }
+        }
+
+        let length = roles.len() as u64;
+        let resp = GetRolesResponse { roles, length };
+        Ok(Response::new(resp))
     }
 
     async fn get_role_users(
         &self,
         request: Request<GetRoleUsersRequest>,
     ) -> Result<Response<GetRoleUsersResponse>, Status> {
-        todo!()
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))
+            .map_err(|e| Status::internal(e.to_string()))?;
+        let uids = ldap
+            .list_users()
+            .await
+            .map_err(|e| Status::internal(format!("Failed to list users: {e}")))?;
+
+        let mut users: HashMap<String, String> = HashMap::new();
+        for uid_str in uids {
+            match ldap.search_user(uid_str.clone()).await {
+                Ok(detail) => {
+                    users.insert(uid_str, detail.cn);
+                }
+                Err(e) => {
+                    eprintln!("Failed to fetch details for user {uid_str}: {e}");
+                    continue;
+                }
+            }
+        }
+        let length = users.len() as u64;
+        let resp = GetRoleUsersResponse { users, length };
+        Ok(Response::new(resp))
     }
 
     async fn create_role(
         &self,
         request: Request<CreateRoleRequest>,
     ) -> Result<Response<CreateRoleResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
+        ldap.add_web_role(req.role_name.clone()).await.map_err(|e| {
+            Status::internal(format!("Failed to add role {}: {}", req.role_name, e))
+        })?;
+        for username in &req.members {
+            ldap.add_user_to_web_role(username.to_string(), req.role_name.clone()).await.map_err(
+                |e| {
+                    Status::internal(format!(
+                        "Failed to add user {} to role {}: {}",
+                        username, req.role_name, e
+                    ))
+                },
+            )?;
+        }
+        let result = ResponseResult {
+            r#type:  ResponseType::Ok as i32,
+            message: format!("角色 {} 已成功建立", req.role_name),
+        };
+        let resp = CreateRoleResponse { result: Some(result) };
+        Ok(Response::new(resp))
     }
 
     async fn delete_role(
         &self,
         request: Request<DeleteRoleRequest>,
     ) -> Result<Response<DeleteRoleResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
+        if let Err(e) = ldap.search_web_role(req.role_name.clone()).await {
+            return Err(Status::not_found(format!("Role {} not found: {}", req.role_name, e)));
+        }
+        ldap.delete_web_role(req.role_name.clone()).await.map_err(|e| {
+            Status::internal(format!("Failed to delete role {}: {}", req.role_name, e))
+        })?;
+        let result = ResponseResult {
+            r#type:  ResponseType::Ok as i32,
+            message: format!("角色 {} 已成功刪除", req.role_name),
+        };
+        let resp = DeleteRoleResponse { result: Some(result) };
+        Ok(Response::new(resp))
     }
 
     async fn put_role_members(
         &self,
         request: Request<PutRoleMembersRequest>,
     ) -> Result<Response<PutRoleMembersResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let ldap = self
+            .grpc_clients
+            .ldap()
+            .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
+        let role_name = req.role_name.clone();
+        let current_members_dn = ldap
+            .list_user_in_web_role(role_name.clone())
+            .await
+            .map_err(|e| Status::internal(format!("Failed to list members: {}", e)))?;
+        let current_members_set: std::collections::HashSet<String> = current_members_dn
+            .iter()
+            .map(|dn| {
+                dn.strip_prefix("uid=").unwrap_or(dn).split(',').next().unwrap_or(dn).to_string()
+            })
+            .collect();
+        let new_members_set: std::collections::HashSet<String> =
+            req.members.iter().cloned().collect();
+        for member in current_members_set.difference(&new_members_set) {
+            ldap.remove_user_from_web_role(member.clone(), role_name.clone()).await.map_err(
+                |e| {
+                    Status::internal(format!(
+                        "Failed to remove user {} from role {}: {}",
+                        member, role_name, e
+                    ))
+                },
+            )?;
+        }
+        for member in new_members_set.difference(&current_members_set) {
+            ldap.add_user_to_web_role(member.clone(), role_name.clone()).await.map_err(|e| {
+                Status::internal(format!(
+                    "Failed to add user {} to role {}: {}",
+                    member, role_name, e
+                ))
+            })?;
+        }
+        let result = chm_grpc::common::ResponseResult {
+            r#type:  chm_grpc::common::ResponseType::Ok as i32,
+            message: format!("角色 {} 成員已更新", role_name),
+        };
+        let resp = PutRoleMembersResponse { result: Some(result) };
+        Ok(Response::new(resp))
     }
 
     async fn patch_role(

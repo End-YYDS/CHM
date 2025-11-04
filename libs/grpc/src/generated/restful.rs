@@ -386,8 +386,8 @@ pub struct RoleInfo {
     #[prost(message, optional, tag = "3")]
     pub color:       ::core::option::Option<Color>,
     /// uid
-    #[prost(int64, repeated, tag = "4")]
-    pub members:     ::prost::alloc::vec::Vec<i64>,
+    #[prost(string, repeated, tag = "4")]
+    pub members:     ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     /// Members.len
     #[prost(uint64, tag = "5")]
     pub length:      u64,
@@ -409,8 +409,9 @@ pub struct GetRoleUsersRequest {}
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetRoleUsersResponse {
     /// key: uid, value: name
-    #[prost(map = "int64, string", tag = "1")]
-    pub users:  ::std::collections::HashMap<i64, ::prost::alloc::string::String>,
+    #[prost(map = "string, string", tag = "1")]
+    pub users:
+        ::std::collections::HashMap<::prost::alloc::string::String, ::prost::alloc::string::String>,
     /// users.len
     #[prost(uint64, tag = "2")]
     pub length: u64,
@@ -426,8 +427,8 @@ pub struct CreateRoleRequest {
     /// 可傳預設或自訂
     #[prost(message, optional, tag = "3")]
     pub color:       ::core::option::Option<Color>,
-    #[prost(int64, repeated, tag = "4")]
-    pub members:     ::prost::alloc::vec::Vec<i64>,
+    #[prost(string, repeated, tag = "4")]
+    pub members:     ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateRoleResponse {
@@ -454,8 +455,8 @@ pub struct PutRoleMembersRequest {
     #[prost(string, tag = "1")]
     pub role_name: ::prost::alloc::string::String,
     /// 新成員清單（覆蓋）
-    #[prost(int64, repeated, tag = "2")]
-    pub members:   ::prost::alloc::vec::Vec<i64>,
+    #[prost(string, repeated, tag = "2")]
+    pub members:   ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutRoleMembersResponse {

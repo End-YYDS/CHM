@@ -18,7 +18,7 @@ pub struct RoleInfo {
     #[serde(rename = "Color")]
     pub color:       Color,
     #[serde(rename = "Members")]
-    pub members:     Vec<i64>,
+    pub members:     Vec<String>,
     #[serde(rename = "Length")]
     pub length:      usize,
 }
@@ -40,7 +40,7 @@ pub enum Color {
 #[derive(Debug, Serialize)]
 pub struct UsersResponse {
     #[serde(rename = "Users")]
-    pub users:  HashMap<i64, String>,
+    pub users:  HashMap<String, String>,
     #[serde(rename = "Length")]
     pub length: usize,
 }
@@ -56,7 +56,7 @@ pub struct RolePutResponse {
     #[serde(rename = "RoleName")]
     pub name:    String,
     #[serde(rename = "Members")]
-    pub members: Vec<i64>,
+    pub members: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]

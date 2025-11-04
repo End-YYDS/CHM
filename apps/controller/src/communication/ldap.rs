@@ -160,11 +160,20 @@ impl ClientLdap {
         let resp = client.search_user_in_group(req).await?.into_inner().success;
         Ok(resp)
     }
-    pub async fn add_web_role(&self, group_name: String) -> ConResult<bool> {
-        let mut client = self.client.clone();
-        let req = GroupRequest { group_name };
-        let resp = client.add_web_role(req).await?.into_inner().success;
-        Ok(resp)
+    #[allow(unreachable_code)]
+    #[allow(clippy::diverging_sub_expression)]
+    // TODO: 修改顏色相關參數
+    pub async fn add_web_role(&self, _group_name: String) -> ConResult<bool> {
+        // let client = self.client.clone();
+        // let req = AddWebRoleRequest {
+        //     role_name: group_name,
+        //     color: todo!("Color.RED as i32"),
+        //     color_number: todo!(""),
+        //     permission: todo!("8"),
+        // };
+        // let resp = client.add_web_role(req).await?.into_inner().success;
+        // Ok(resp)
+        todo!()
     }
     pub async fn delete_web_role(&self, group_name: String) -> ConResult<bool> {
         let mut client = self.client.clone();

@@ -8,10 +8,11 @@ use crate::{error::SrvResult, srv_impl::*};
 use arc_swap::ArcSwapOption;
 use chm_grpc::{
     ldap::{
-        ldap_service_server::LdapService, AuthRequest, AuthResponse, Empty, GenericResponse,
-        GroupDetailResponse, GroupIdRequest, GroupListResponse, GroupNameResponse, GroupRequest,
-        ModifyGroupNameRequest, ModifyUserRequest, ToggleUserStatusRequest, UserDetailResponse,
-        UserGroupRequest, UserIdRequest, UserListResponse, UserRequest, WebRoleDetailResponse,
+        ldap_service_server::LdapService, AddWebRoleRequest, AuthRequest, AuthResponse, Empty,
+        GenericResponse, GroupDetailResponse, GroupIdRequest, GroupListResponse, GroupNameResponse,
+        GroupRequest, ModifyGroupNameRequest, ModifyUserRequest, ToggleUserStatusRequest,
+        UserDetailResponse, UserGroupRequest, UserIdRequest, UserListResponse, UserRequest,
+        WebRoleDetailResponse,
     },
     tonic::{async_trait, Request, Response, Status},
 };
@@ -319,7 +320,7 @@ impl LdapService for MyLdapService {
 
     async fn add_web_role(
         &self,
-        request: Request<GroupRequest>,
+        request: Request<AddWebRoleRequest>,
     ) -> Result<Response<GenericResponse>, Status> {
         let req = request.into_inner();
         let resp = self
