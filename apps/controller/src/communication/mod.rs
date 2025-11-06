@@ -144,9 +144,9 @@ pub async fn connect_all_services(
             ConResult::<(ServiceKind, Channel)>::Ok((svc.kind, ch))
         }
     });
-    //TODO: 限制同時連線數量
-    //TODO: 全部失敗才回Err
-    //TODO: 同一個服務多個實例時的處理
+    // TODO: 限制同時連線數量
+    // TODO: 全部失敗才回Err
+    // TODO: 同一個服務多個實例時的處理
     let pairs: Vec<(ServiceKind, Channel)> = try_join_all(futs).await?;
     Ok(pairs.into_iter().collect())
 }
