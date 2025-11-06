@@ -7,18 +7,39 @@ use chm_grpc::{
     },
     tonic::{codec::CompressionEncoding, transport::Channel},
 };
+use chm_project_const::uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct ClientAgent {
     m_client: AgentServiceClient<Channel>,
     f_client: AgentFileServiceClient<Channel>,
     i_client: AgentInfoServiceClient<Channel>,
-    channel:  Channel,
+    channel: Channel,
+    uuid: Uuid,
+    hostname: String,
 }
 
 impl ClientAgent {
-    pub fn new(channel: Channel) -> Self {
-        tracing::debug!("建立 Agent 客戶端...");
+    // pub fn new(channel: Channel, uuid: Uuid, hostname: String) -> Self {
+    //     tracing::debug!("建立 Agent 客戶端...");
+    //     let m_client = AgentServiceClient::new(channel.clone())
+    //         .accept_compressed(CompressionEncoding::Zstd)
+    //         .send_compressed(CompressionEncoding::Zstd);
+    //     let f_client = AgentFileServiceClient::new(channel.clone())
+    //         .accept_compressed(CompressionEncoding::Zstd)
+    //         .send_compressed(CompressionEncoding::Zstd);
+    //     let i_client = AgentInfoServiceClient::new(channel.clone())
+    //         .accept_compressed(CompressionEncoding::Zstd)
+    //         .send_compressed(CompressionEncoding::Zstd);
+    //     tracing::info!("Agent 客戶端已建立");
+    //     Self { m_client, f_client, i_client, channel, uuid, hostname }
+    // }
+    pub fn new_with_meta(
+        channel: Channel,
+        uuid: chm_project_const::uuid::Uuid,
+        hostname: String,
+    ) -> Self {
+        tracing::debug!("建立 Agent-{hostname} 客戶端...");
         let m_client = AgentServiceClient::new(channel.clone())
             .accept_compressed(CompressionEncoding::Zstd)
             .send_compressed(CompressionEncoding::Zstd);
@@ -28,8 +49,8 @@ impl ClientAgent {
         let i_client = AgentInfoServiceClient::new(channel.clone())
             .accept_compressed(CompressionEncoding::Zstd)
             .send_compressed(CompressionEncoding::Zstd);
-        tracing::info!("Agent 客戶端已建立");
-        Self { m_client, f_client, i_client, channel }
+        tracing::info!("Agent-{hostname} 客戶端已建立");
+        Self { m_client, f_client, i_client, channel, uuid, hostname }
     }
     pub fn get_m_client(&self) -> AgentServiceClient<Channel> {
         self.m_client.clone()
@@ -40,10 +61,19 @@ impl ClientAgent {
     pub fn get_i_client(&self) -> AgentInfoServiceClient<Channel> {
         self.i_client.clone()
     }
+    #[inline]
     pub fn channel(&self) -> Channel {
         self.channel.clone()
     }
-    pub async fn reboot_system(&self, pc: &str) -> ConResult<bool> {
+    #[inline]
+    pub fn uuid(&self) -> Uuid {
+        self.uuid
+    }
+    #[inline]
+    pub fn hostname(&self) -> &str {
+        self.hostname.as_str()
+    }
+    pub async fn reboot_system(&self) -> ConResult<bool> {
         // TODO: 需要實作重新啟動Agent
         let mut client = self.get_m_client();
         let resp = client
@@ -51,10 +81,9 @@ impl ClientAgent {
             .await?
             .into_inner();
         dbg!(resp);
-        dbg!(pc);
         Ok(true)
     }
-    pub async fn shutdown_system(&self, pc: &str) -> ConResult<bool> {
+    pub async fn shutdown_system(&self) -> ConResult<bool> {
         // TODO: 需要實作關閉Agent
         let mut client = self.get_m_client();
         let resp = client
@@ -62,7 +91,6 @@ impl ClientAgent {
             .await?
             .into_inner();
         dbg!(resp);
-        dbg!(pc);
         Ok(true)
     }
 }
