@@ -605,7 +605,7 @@ pub async fn connect_all_services(
     }
 
     if !errors.is_empty() {
-        tracing::info!("部分服務連線失敗（{} 筆），其餘已成功建立", errors.len());
+        tracing::error!("部分服務連線失敗（{} 筆），其餘已成功建立", errors.len());
     }
     Ok(ok_map)
 }
