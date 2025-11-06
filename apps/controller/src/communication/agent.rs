@@ -14,8 +14,8 @@ pub struct ClientAgent {
     m_client: AgentServiceClient<Channel>,
     f_client: AgentFileServiceClient<Channel>,
     i_client: AgentInfoServiceClient<Channel>,
-    channel: Channel,
-    uuid: Uuid,
+    channel:  Channel,
+    uuid:     Uuid,
     hostname: String,
 }
 
