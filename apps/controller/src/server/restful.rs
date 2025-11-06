@@ -17,6 +17,7 @@ use chm_project_const::uuid::Uuid;
 use futures::future::join_all;
 use std::{
     collections::{HashMap, HashSet},
+    net::SocketAddr,
     path::PathBuf,
     sync::Arc,
 };
@@ -201,8 +202,10 @@ impl RestfulService for ControllerRestfulServer {
     ) -> Result<Response<AddPcResponse>, Status> {
         use crate::Node;
         let req = request.into_inner();
-        // Todo: 檢查IP格式及預先檢查是否已經存在於Config中
         // TODO: 預設PC Group 要先在啟動時創建，添加Agent時直接加入預設Group(vni=1)
+        let ip: SocketAddr = req.ip.parse().map_err(|e| {
+            Status::invalid_argument(format!("Invalid IP address format for '{}': {e}", req.ip))
+        })?;
         let node_h = Node::new(
             Some(req.ip),
             Some(req.password),

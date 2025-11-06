@@ -5,13 +5,15 @@ mod unix_main {
         hostd::{proto::HostdServiceServer, HostdGrpcService},
         GlobalConfig, ID, NEED_EXAMPLE,
     };
-    use anyhow::{Context, Result};
+    use anyhow::{anyhow, Context, Result};
     use argh::FromArgs;
     use caps::{CapSet, Capability};
     use chm_grpc::tonic::transport::Server;
     use libc::geteuid;
+    use nix::unistd::{chown, Gid, Uid};
     use std::{
         os::unix::fs::PermissionsExt,
+        path::Path,
         sync::{atomic::Ordering::Relaxed, Arc},
         time::Duration,
     };
@@ -19,6 +21,7 @@ mod unix_main {
     use tokio_stream::wrappers::UnixListenerStream;
     use tracing::{error, info, warn};
     use tracing_subscriber::EnvFilter;
+    use users::get_group_by_name;
 
     #[derive(FromArgs, Debug, Clone)]
     /// HostD 執行參數
@@ -65,6 +68,23 @@ mod unix_main {
         let _guard = SocketGuard::new(socket_path.clone());
         std::fs::set_permissions(&socket_path, std::fs::Permissions::from_mode(0o770))
             .with_context(|| format!("設定 socket 權限失敗 {}", socket_path))?;
+
+        let run_as_group =
+            GlobalConfig::with(|cfg| cfg.extend.run_as_group.clone()).trim().to_owned();
+        if !run_as_group.is_empty() {
+            let group = get_group_by_name(&run_as_group).ok_or_else(|| {
+                anyhow!("設定中的 run_as_group '{}' 在系統中不存在", run_as_group)
+            })?;
+            chown(
+                Path::new(&socket_path),
+                Some(Uid::from_raw(0)),
+                Some(Gid::from_raw(group.gid())),
+            )
+            .map_err(|err| {
+                anyhow!("設定 socket {} 群組為 {} 失敗: {}", socket_path, run_as_group, err)
+            })?;
+            info!("[HostD] socket {} 擁有者已調整為 root:{} (mode 770)", socket_path, run_as_group);
+        }
 
         let concurrency = GlobalConfig::with(|cfg| cfg.extend.file_concurrency).max(1);
         let semaphore = Arc::new(Semaphore::new(concurrency));
