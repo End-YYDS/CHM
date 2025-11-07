@@ -1,11 +1,11 @@
-use crate::{execute_host_body, last_non_empty_line, ReturnInfo};
+use crate::{execute_host_body, last_non_empty_line, ReturnInfo, ReturnStatus};
 
 fn run_power_command(command: &str, success_message: &str) -> ReturnInfo {
     let script = format!("{command}\n");
     match execute_host_body(&script) {
         Ok(result) => {
             if result.status == 0 {
-                ReturnInfo { type_field: "OK".to_string(), message: success_message.to_string() }
+                ReturnInfo { status: ReturnStatus::Ok, message: success_message.to_string() }
             } else {
                 let output = result.output.trim();
                 let message = if output.is_empty() {
@@ -15,10 +15,10 @@ fn run_power_command(command: &str, success_message: &str) -> ReturnInfo {
                 } else {
                     output.to_string()
                 };
-                ReturnInfo { type_field: "ERR".to_string(), message }
+                ReturnInfo { status: ReturnStatus::Err, message }
             }
         }
-        Err(err) => ReturnInfo { type_field: "ERR".to_string(), message: err },
+        Err(err) => ReturnInfo { status: ReturnStatus::Err, message: err },
     }
 }
 
