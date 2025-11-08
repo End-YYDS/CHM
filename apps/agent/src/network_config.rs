@@ -11,7 +11,7 @@ use crate::{
     execute_host_body, family_commands, join_shell_args, make_sysinfo_command, send_to_hostd,
     shell_quote, value_if_specified, ReturnInfo, SystemInfo,
 };
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 use serde_json;
 
 #[derive(Debug)]
@@ -125,18 +125,96 @@ struct DnsServersDto {
     secondary: String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NetifTypeArg {
+    Virtual,
+    Physical,
+}
+
+impl NetifTypeArg {
+    fn as_str(self) -> &'static str {
+        match self {
+            NetifTypeArg::Virtual => "Virtual",
+            NetifTypeArg::Physical => "Physical",
+        }
+    }
+}
+
+impl Serialize for NetifTypeArg {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for NetifTypeArg {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = String::deserialize(deserializer)?;
+        let normalized = raw.trim().to_ascii_lowercase();
+        match normalized.as_str() {
+            "virtual" => Ok(NetifTypeArg::Virtual),
+            "physical" => Ok(NetifTypeArg::Physical),
+            other => Err(de::Error::custom(format!("unsupported interface type: {}", other))),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NetifStatusArg {
+    Up,
+    Down,
+}
+
+impl NetifStatusArg {
+    fn as_str(self) -> &'static str {
+        match self {
+            NetifStatusArg::Up => "Up",
+            NetifStatusArg::Down => "Down",
+        }
+    }
+}
+
+impl Serialize for NetifStatusArg {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for NetifStatusArg {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = String::deserialize(deserializer)?;
+        let normalized = raw.trim().to_ascii_lowercase();
+        match normalized.as_str() {
+            "up" => Ok(NetifStatusArg::Up),
+            "down" => Ok(NetifStatusArg::Down),
+            other => Err(de::Error::custom(format!("unsupported interface status: {}", other))),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 struct NetifAddArg {
     nid:        String,
     #[serde(rename = "Type")]
-    iface_type: String,
+    iface_type: NetifTypeArg,
     ipv4:       String,
     netmask:    String,
     mac:        String,
     broadcast:  String,
     mtu:        i32,
-    status:     String,
+    status:     NetifStatusArg,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -235,8 +313,7 @@ pub fn execute_netif_add(argument: &str, sys: &SystemInfo) -> Result<String, Str
         return Err("netif_add Nid cannot contain whitespace".to_string());
     }
 
-    payload.iface_type = normalize_netif_type_arg(&payload.iface_type)?;
-    if payload.iface_type == "Physical" {
+    if matches!(payload.iface_type, NetifTypeArg::Physical) {
         return Err("netif_add does not support creating Physical interfaces".to_string());
     }
 
@@ -244,7 +321,6 @@ pub fn execute_netif_add(argument: &str, sys: &SystemInfo) -> Result<String, Str
         return Err(format!("interface {} already exists", payload.nid));
     }
 
-    payload.status = normalize_netif_status_arg(&payload.status)?;
     let mac = value_if_specified(&payload.mac).map(|s| s.to_string());
     let ipv4 = value_if_specified(&payload.ipv4).map(|s| s.to_string());
     let netmask = value_if_specified(&payload.netmask).map(|s| s.to_string());
@@ -315,7 +391,7 @@ pub fn execute_netif_add(argument: &str, sys: &SystemInfo) -> Result<String, Str
         })?;
     }
 
-    if payload.status == "Up" {
+    if matches!(payload.status, NetifStatusArg::Up) {
         run_ip_command(sys, &["link", "set", "dev", payload.nid.as_str(), "up"]).map_err(|e| {
             cleanup(format!("failed to bring {} up: {}", payload.nid, e), &payload.nid)
         })?;
@@ -557,22 +633,4 @@ fn netmask_to_prefix(netmask: &str) -> Result<u32, String> {
     }
 
     Ok(prefix)
-}
-
-fn normalize_netif_type_arg(value: &str) -> Result<String, String> {
-    let normalized = value.trim();
-    match normalized.to_ascii_lowercase().as_str() {
-        "virtual" => Ok("Virtual".to_string()),
-        "physical" => Ok("Physical".to_string()),
-        _ => Err(format!("unsupported interface type: {}", value)),
-    }
-}
-
-fn normalize_netif_status_arg(value: &str) -> Result<String, String> {
-    let normalized = value.trim();
-    match normalized.to_ascii_lowercase().as_str() {
-        "up" => Ok("Up".to_string()),
-        "down" => Ok("Down".to_string()),
-        _ => Err(format!("unsupported interface status: {}", value)),
-    }
 }

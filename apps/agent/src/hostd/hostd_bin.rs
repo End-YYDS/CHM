@@ -9,8 +9,7 @@ mod unix_main {
     use argh::FromArgs;
     use caps::{CapSet, Capability};
     use chm_grpc::tonic::transport::Server;
-    use libc::geteuid;
-    use nix::unistd::{chown, Gid, Uid};
+    use nix::unistd::{chown, geteuid, Gid, Uid};
     use std::{
         os::unix::fs::PermissionsExt,
         path::Path,
@@ -119,7 +118,7 @@ mod unix_main {
     }
 
     fn ensure_root_user() -> std::io::Result<()> {
-        if unsafe { geteuid() } != 0 {
+        if !geteuid().is_root() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::PermissionDenied,
                 "HostD 必須以 root 權限執行",
