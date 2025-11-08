@@ -2,7 +2,7 @@ mod communication;
 pub mod first;
 mod server;
 mod supervisor;
-use crate::communication::{ClientHandle, GrpcClients};
+use crate::communication::GrpcClients;
 pub use crate::{config::config, globals::GlobalConfig};
 use argh::FromArgs;
 use chm_cluster_utils::{
@@ -14,7 +14,7 @@ use dashmap::DashMap;
 use first::first_run;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{HashMap, HashSet},
+    collections::HashSet,
     io,
     io::Write,
     path::PathBuf,
@@ -22,7 +22,6 @@ use std::{
 };
 use url::Url;
 
-pub type ClientMap = HashMap<ServiceKind, ClientHandle>;
 pub type ConResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
 pub const ID: &str = "CHMcd";
@@ -116,13 +115,33 @@ pub struct RemoveService {
 #[serde(rename_all = "PascalCase")]
 pub struct ControllerExtension {
     #[serde(default)]
-    pub services_pool: ServicesPool,
-    #[serde(default)]
-    pub sign_days:     u32,
+    pub services_pool:    ServicesPool,
+    #[serde(default = "ControllerExtension::default_sign_days")]
+    pub sign_days:        u32,
+    #[serde(default = "ControllerExtension::default_concurrency")]
+    pub concurrency:      usize,
+    #[serde(default = "ControllerExtension::default_service_attempts")]
+    pub service_attempts: usize,
+}
+impl ControllerExtension {
+    pub fn default_concurrency() -> usize {
+        10
+    }
+    pub fn default_sign_days() -> u32 {
+        10
+    }
+    pub fn default_service_attempts() -> usize {
+        3
+    }
 }
 impl Default for ControllerExtension {
     fn default() -> Self {
-        Self { services_pool: Default::default(), sign_days: 10 }
+        Self {
+            services_pool:    Default::default(),
+            sign_days:        10,
+            concurrency:      10,
+            service_attempts: 3,
+        }
     }
 }
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
@@ -221,28 +240,54 @@ pub async fn entry(args: Args) -> ConResult<()> {
                     (controller_name, controller_ip, controller_uuid, ca_set)
                 });
             let gclient = Arc::new(GrpcClients::connect_all(false).await?);
-            let dns_client = gclient.dns().ok_or("DNS client not initialized")?;
-            tracing::debug!("將 Controller 資訊加入 DNS 伺服器...");
-            {
-                let full_fqdn = format!("{controller_name}.chm.com");
-                dns_client.add_host(full_fqdn, controller_ip, controller_uuid).await?;
-                tracing::debug!("Controller 資訊已加入 DNS 伺服器");
-            }
-            {
-                if let Some(ca_set) = ca_desp {
-                    for ca in ca_set.iter() {
-                        let full_fqdn = format!("{}.chm.com", ca.hostname);
-                        let ca_ip = Url::parse(&ca.uri)
-                            .map_err(|e| format!("解析 CA URI 時發生錯誤: {e}"))?
-                            .host_str()
-                            .ok_or("無法從 CA URI 中取得主機名稱")?
-                            .to_string();
-                        dns_client.add_host(full_fqdn, ca_ip, ca.uuid).await?;
-                        tracing::debug!("CA {} 資訊已加入 DNS 伺服器", ca.hostname);
-                    }
+            // let dns_client = gclient.dns().ok_or("DNS client not initialized")?;
+            // tracing::debug!("將 Controller 資訊加入 DNS 伺服器...");
+            // {
+            //     let full_fqdn = format!("{controller_name}.chm.com");
+            //     dns_client.add_host(full_fqdn, controller_ip, controller_uuid).await?;
+            //     tracing::debug!("Controller 資訊已加入 DNS 伺服器");
+            // }
+            // {
+            //     if let Some(ca_set) = ca_desp {
+            //         for ca in ca_set.iter() {
+            //             let full_fqdn = format!("{}.chm.com", ca.hostname);
+            //             let ca_ip = Url::parse(&ca.uri)
+            //                 .map_err(|e| format!("解析 CA URI 時發生錯誤: {e}"))?
+            //                 .host_str()
+            //                 .ok_or("無法從 CA URI 中取得主機名稱")?
+            //                 .to_string();
+            //             dns_client.add_host(full_fqdn, ca_ip, ca.uuid).await?;
+            //             tracing::debug!("CA {} 資訊已加入 DNS 伺服器", ca.hostname);
+            //         }
+            //     }
+            // }
+
+            gclient
+                .with_dns_handle(|dns| async move {
+                    let full_fqdn = format!("{controller_name}.chm.com");
+                    tracing::debug!("將 Controller 資訊加入 DNS 伺服器...");
+                    dns.add_host(full_fqdn, controller_ip.clone(), controller_uuid).await
+                })
+                .await?;
+
+            tracing::debug!("Controller 資訊已加入 DNS 伺服器");
+            if let Some(ca_set) = ca_desp {
+                for ca in ca_set.iter() {
+                    let full_fqdn = format!("{}.chm.com", ca.hostname);
+                    let ca_ip = Url::parse(&ca.uri)
+                        .map_err(|e| format!("解析 CA URI 時發生錯誤: {e}"))?
+                        .host_str()
+                        .ok_or("無法從 CA URI 中取得主機名稱")?
+                        .to_string();
+                    tracing::debug!("將 CA {} 資訊加入 DNS 伺服器", ca.hostname);
+                    gclient
+                        .with_dns_handle(|dns| async move {
+                            dns.add_host(full_fqdn, ca_ip, ca.uuid).await
+                        })
+                        .await?;
+                    tracing::debug!("CA {} 資訊已加入 DNS 伺服器", ca.hostname);
                 }
             }
-
             atomic_write(&marker_path, b"done").await?;
             tracing::debug!("第一次執行檢查完成");
             Ok(())
@@ -322,15 +367,19 @@ impl Node {
         let first_step = init_with!(self.wclient, payload, as chm_cluster_utils::BootstrapResp)?;
         tracing::debug!("Bootstrap完成，取得CSR，準備向CA請求簽發憑證...");
         let sign_days = GlobalConfig::with(|cfg| cfg.extend.sign_days);
-        let ca = self.gclient.ca().ok_or("CA client not initialized")?;
-        let certs = ca.sign_certificate(first_step.csr_pem.clone(), sign_days).await?;
+        let (cert_pem, chain_pem) = self
+            .gclient
+            .with_ca_handle(|ca| async move {
+                ca.sign_certificate(first_step.csr_pem.clone(), sign_days).await
+            })
+            .await?;
         let (controller_cert, controller_uuid) =
             GlobalConfig::with(|cfg| (cfg.certificate.client_cert.clone(), cfg.server.unique_id));
         let controller_pem = tokio::fs::read(controller_cert).await?;
         let payload = InitData::Finalize {
             id: first_step.service_desp.uuid,
-            cert_pem: certs.0,
-            chain_pem: certs.1,
+            cert_pem,
+            chain_pem,
             controller_pem,
             controller_uuid,
         };
@@ -349,14 +398,16 @@ impl Node {
         GlobalConfig::reload_config().await?;
         if !is_dns {
             tracing::debug!("將服務資訊加入 DNS 伺服器...");
-            let dns_client = self.gclient.dns().ok_or("DNS client not initialized")?;
             let full_fqdn = format!("{}.chm.com", first_step.service_desp.hostname);
-            dns_client
-                .add_host(
-                    full_fqdn,
-                    first_step.socket.ip().to_string(),
-                    first_step.service_desp.uuid,
-                )
+            self.gclient
+                .with_dns_handle(|dns| async move {
+                    dns.add_host(
+                        full_fqdn,
+                        first_step.socket.ip().to_string(),
+                        first_step.service_desp.uuid,
+                    )
+                    .await
+                })
                 .await?;
             tracing::info!("服務資訊已加入 DNS 伺服器");
         }
@@ -412,45 +463,58 @@ impl Node {
         });
         GlobalConfig::save_config().await?;
         GlobalConfig::send_reload();
-        let ca = self.gclient.ca().ok_or("CA client not initialized")?;
+        let mut revoked_ok_or_not_found = false;
         tracing::debug!("向 CA 伺服器請求吊銷憑證...");
-        let w_d_cert = ca.get_certificate_by_common_name(want_delete_hostname).await?;
-        if w_d_cert.is_none() {
-            tracing::warn!("未找到欲刪除服務的憑證，跳過憑證吊銷步驟");
-            return Ok(());
+        let get_cert_res = self
+            .gclient
+            .with_ca_handle(|ca| async move {
+                ca.get_certificate_by_common_name(want_delete_hostname.clone()).await
+            })
+            .await;
+
+        match get_cert_res {
+            Ok(Some(cert)) => {
+                let serial = cert.serial;
+                let ret = self
+                    .gclient
+                    .with_ca_handle(|ca| async move {
+                        ca.mark_certificate_as_revoked(serial, Some("Node Removed!")).await
+                    })
+                    .await;
+                match ret {
+                    Ok(true) => {
+                        tracing::info!("憑證已吊銷");
+                        revoked_ok_or_not_found = true;
+                    }
+                    Ok(false) => {
+                        tracing::warn!("憑證吊銷失敗，請確認憑證是否存在");
+                    }
+                    Err(e) => {
+                        tracing::warn!("吊銷請求失敗：{e}");
+                    }
+                }
+            }
+            Ok(None) => {
+                tracing::warn!("未找到欲刪除服務的憑證，跳過憑證吊銷步驟");
+                revoked_ok_or_not_found = true;
+            }
+            Err(e) => {
+                tracing::warn!("查詢憑證失敗：{e}");
+            }
         }
-        let serial_number = w_d_cert.unwrap().serial;
-        if ca.mark_certificate_as_revoked(serial_number, Some("Node Removed!")).await? {
-            tracing::info!("憑證已吊銷");
-        } else {
-            tracing::warn!("憑證吊銷失敗，請確認憑證是否存在");
-        }
-        let dns_client = self.gclient.dns().ok_or("DNS client not initialized")?;
         tracing::debug!("從 DNS 伺服器刪除服務資訊...");
-        if dns_client.delete_host(want_delete_uuid).await? {
+        let deleted = self
+            .gclient
+            .with_dns_handle(|dns| async move { dns.delete_host(want_delete_uuid).await })
+            .await?;
+        if deleted {
             tracing::info!("服務資訊已從 DNS 伺服器刪除");
         } else {
             tracing::warn!("服務資訊從 DNS 伺服器刪除失敗，請確認服務是否存在");
         }
+        if !revoked_ok_or_not_found && matches!(kind, ServiceKind::Mca) {
+            tracing::warn!("CA 憑證未成功吊銷；請手動確認 CA 狀態");
+        }
         Ok(())
     }
-}
-
-#[macro_export]
-macro_rules! build_clients {
-    ($channels:expr, { $($kind:ident => $variant:ident($ctor:path)),+ $(,)? }) => {{
-        use std::collections::HashMap;
-        let mut out: HashMap<$crate::ServiceKind, $crate::ClientHandle> = HashMap::new();
-        $(
-            if let Some(ch) = $channels.get(&$crate::ServiceKind::$kind) {
-                out.insert($crate::ServiceKind::$kind, $crate::ClientHandle::$variant($ctor(ch.clone())));
-            } else {
-                ::tracing::warn!(
-                    "channel for {:?} not found; skip building client",
-                    $crate::ServiceKind::$kind
-                );
-            }
-        )+
-        out
-    }};
 }

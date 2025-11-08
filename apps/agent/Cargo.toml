@@ -17,9 +17,16 @@ argh = { workspace = true }
 base64 = { workspace = true }
 caps = "0.5"
 chm-cert-utils = { workspace = true }
-chm-cluster-utils = { workspace = true, features = ["server", "grpc-server"], default-features = true }
+chm-cluster-utils = { workspace = true, features = [
+  "server",
+  "grpc-server",
+], default-features = true }
 chm-config_bus = { workspace = true }
-chm-grpc = { workspace = true, features = ["agent-server", "hostd-client", "hostd-server"] }
+chm-grpc = { workspace = true, features = [
+  "agent-server",
+  "hostd-client",
+  "hostd-server",
+] }
 chm-project_const = { workspace = true }
 chrono = { workspace = true }
 http = "1.3"
@@ -30,7 +37,12 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sysinfo = { workspace = true }
 tempfile = "3"
-tokio = { workspace = true, features = ["macros", "rt-multi-thread", "signal", "sync"] }
+tokio = { workspace = true, features = [
+  "macros",
+  "rt-multi-thread",
+  "signal",
+  "sync",
+] }
 tokio-stream = "0.1.17"
 tower = { workspace = true }
 tracing = { workspace = true }
@@ -38,4 +50,4 @@ tracing-subscriber = { workspace = true }
 users = "0.11"
 uuid = { workspace = true, features = ["v4"] }
 chm-password = { workspace = true }
-nix = { version = "0.29.0", default-features = false, features = ["fs", "user"] }
+nix = { version = "0.30.1", default-features = false, features = ["fs", "user"] }
