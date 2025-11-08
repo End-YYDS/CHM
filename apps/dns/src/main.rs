@@ -14,9 +14,8 @@ use dns::{
     service::{make_dns_interceptor, GrpcRouteInfo, GrpcRouteLayer, MyDnsService},
 };
 use sqlx::types::ipnetwork::Ipv4Network;
-use std::net::Ipv4Addr;
 use std::{
-    net::SocketAddrV4,
+    net::{Ipv4Addr, SocketAddrV4},
     ops::ControlFlow,
     path::PathBuf,
     sync::{atomic::Ordering::Relaxed, Arc},

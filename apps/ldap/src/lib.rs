@@ -29,11 +29,11 @@ pub const DEFAULT_TIMEOUT: u64 = 10;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct IdsSettings {
     #[serde(default = "IdsSettings::default_store_path")]
-    pub store_path: PathBuf,
+    pub store_path:      PathBuf,
     #[serde(default = "IdsSettings::default_max_connections")]
     pub max_connections: u32,
     #[serde(default = "IdsSettings::default_timeout")]
-    pub timeout: u64,
+    pub timeout:         u64,
 }
 impl IdsSettings {
     fn default_store_path() -> PathBuf {
@@ -49,9 +49,9 @@ impl IdsSettings {
 impl Default for IdsSettings {
     fn default() -> Self {
         Self {
-            store_path: Self::default_store_path(),
+            store_path:      Self::default_store_path(),
             max_connections: Self::default_max_connections(),
-            timeout: Self::default_timeout(),
+            timeout:         Self::default_timeout(),
         }
     }
 }
@@ -79,21 +79,21 @@ impl Default for AllocatorSettings {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LdapSettings {
     #[serde(default = "LdapSettings::default_url")]
-    pub url: String,
+    pub url:           String,
     #[serde(default = "LdapSettings::default_base_dn")]
-    pub base_dn: String,
+    pub base_dn:       String,
     #[serde(default = "LdapSettings::default_user_dn")]
-    pub user_dn: String,
+    pub user_dn:       String,
     #[serde(default = "LdapSettings::default_group_dn")]
-    pub group_dn: String,
+    pub group_dn:      String,
     #[serde(default = "LdapSettings::default_upg_dn")]
-    pub upg_dn: String,
+    pub upg_dn:        String,
     #[serde(default = "LdapSettings::default_web_dn")]
-    pub web_dn: String,
+    pub web_dn:        String,
     #[serde(default = "LdapSettings::default_service_dn")]
-    pub service_dn: String,
+    pub service_dn:    String,
     #[serde(default = "LdapSettings::default_bind_dn")]
-    pub bind_dn: String,
+    pub bind_dn:       String,
     #[serde(default = "LdapSettings::default_bind_password")]
     pub bind_password: String,
 }
@@ -143,14 +143,14 @@ impl LdapSettings {
 impl Default for LdapSettings {
     fn default() -> Self {
         Self {
-            url: Self::default_url(),
-            base_dn: Self::default_base_dn(),
-            user_dn: Self::default_user_dn(),
-            group_dn: Self::default_group_dn(),
-            upg_dn: Self::default_upg_dn(),
-            web_dn: Self::default_web_dn(),
-            service_dn: Self::default_service_dn(),
-            bind_dn: Self::default_bind_dn(),
+            url:           Self::default_url(),
+            base_dn:       Self::default_base_dn(),
+            user_dn:       Self::default_user_dn(),
+            group_dn:      Self::default_group_dn(),
+            upg_dn:        Self::default_upg_dn(),
+            web_dn:        Self::default_web_dn(),
+            service_dn:    Self::default_service_dn(),
+            bind_dn:       Self::default_bind_dn(),
             bind_password: Self::default_bind_password(),
         }
     }
@@ -164,10 +164,10 @@ pub struct Controller {
     pub fingerprint: String,
     /// 控制器的序列號，用於唯一標識
     #[serde(default = "Controller::default_serial")]
-    pub serial: String,
+    pub serial:      String,
     /// 控制器的UUID
     #[serde(default = "Controller::default_uuid")]
-    pub uuid: Uuid,
+    pub uuid:        Uuid,
 }
 
 impl Controller {
@@ -188,13 +188,13 @@ impl Controller {
 #[serde(rename_all = "PascalCase")]
 pub struct LdapExtension {
     #[serde(default)]
-    pub ids: IdsSettings,
+    pub ids:           IdsSettings,
     #[serde(default)]
-    pub allocator: AllocatorSettings,
+    pub allocator:     AllocatorSettings,
     #[serde(default)]
     pub ldap_settings: LdapSettings,
     #[serde(default)]
-    pub controller: Controller,
+    pub controller:    Controller,
 }
 declare_config!(extend = crate::LdapExtension);
 declare_config_bus!();
