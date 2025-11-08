@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{convert::TryFrom, sync::Arc};
 
 use crate::{
     agent_info_structured, cron_info_structured, dns_info_structured, execute_cron_add,
@@ -9,8 +9,8 @@ use crate::{
     execute_software_install, file_pdir_download, file_pdir_upload, firewall_info_structured,
     log_info_structured, log_query_structured, netif_info_structured, pdir_info_structured,
     process_info_structured, route_info_structured, software_info_structured, CronJobs, DnsInfo,
-    FirewallStatus, Logs, NetworkInterfaces, PackageStatus, ParentDirectory, ProcessInfo,
-    RouteTable, SizeUnit, SoftwareInventory, SystemInfo,
+    FirewallStatus, Logs, NetworkInterfaces, PackageStatus, ParentDirectory, ProcessAction,
+    ProcessInfo, ReturnStatus, RouteTable, SizeUnit, SoftwareInventory, SystemInfo,
 };
 use chm_grpc::tonic::{self, Request, Response, Status};
 use tokio::sync::Semaphore;
@@ -43,6 +43,53 @@ impl AgentGrpcService {
     }
 }
 
+trait AgentCommandExt {
+    fn as_str(&self) -> &'static str;
+}
+
+impl AgentCommandExt for proto::AgentCommand {
+    fn as_str(&self) -> &'static str {
+        match self {
+            proto::AgentCommand::Unspecified => "unspecified",
+            proto::AgentCommand::GetProcess => "get_process",
+            proto::AgentCommand::GetCron => "get_cron",
+            proto::AgentCommand::GetFirewall => "get_firewall",
+            proto::AgentCommand::GetNetif => "get_netif",
+            proto::AgentCommand::GetRoute => "get_route",
+            proto::AgentCommand::GetDns => "get_dns",
+            proto::AgentCommand::GetPdir => "get_pdir",
+            proto::AgentCommand::GetSoftware => "get_software",
+            proto::AgentCommand::GetLog => "get_log",
+            proto::AgentCommand::GetLogQuery => "get_log_query",
+            proto::AgentCommand::SoftwareInstall => "software_install",
+            proto::AgentCommand::SoftwareDelete => "software_delete",
+            proto::AgentCommand::ProcessStart => "process_start",
+            proto::AgentCommand::ProcessStop => "process_stop",
+            proto::AgentCommand::ProcessRestart => "process_restart",
+            proto::AgentCommand::ProcessEnable => "process_enable",
+            proto::AgentCommand::ProcessDisable => "process_disable",
+            proto::AgentCommand::ProcessStartEnable => "process_start_enable",
+            proto::AgentCommand::ProcessStopDisable => "process_stop_disable",
+            proto::AgentCommand::CronAdd => "cron_add",
+            proto::AgentCommand::CronDelete => "cron_delete",
+            proto::AgentCommand::CronUpdate => "cron_update",
+            proto::AgentCommand::FirewallAdd => "firewall_add",
+            proto::AgentCommand::FirewallDelete => "firewall_delete",
+            proto::AgentCommand::FirewallEditStatus => "firewall_edit_status",
+            proto::AgentCommand::FirewallEditPolicy => "firewall_edit_policy",
+            proto::AgentCommand::NetifAdd => "netif_add",
+            proto::AgentCommand::NetifDelete => "netif_delete",
+            proto::AgentCommand::NetifUp => "netif_up",
+            proto::AgentCommand::NetifDown => "netif_down",
+            proto::AgentCommand::RouteAdd => "route_add",
+            proto::AgentCommand::RouteDelete => "route_delete",
+            proto::AgentCommand::Reboot => "reboot",
+            proto::AgentCommand::Shutdown => "shutdown",
+            proto::AgentCommand::GetInfo => "get_info",
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct InfoGrpcService {
     system:      Arc<SystemInfo>,
@@ -67,19 +114,21 @@ impl proto::AgentService for AgentGrpcService {
         request: Request<proto::CommandRequest>,
     ) -> Result<Response<proto::CommandResponse>, Status> {
         let payload = request.into_inner();
-        let command = payload.command.trim();
-        if command.is_empty() {
-            return Err(Status::invalid_argument("command cannot be empty"));
+        let command_enum = proto::AgentCommand::try_from(payload.command)
+            .map_err(|_| Status::invalid_argument("unknown command value"))?;
+        if matches!(command_enum, proto::AgentCommand::Unspecified) {
+            return Err(Status::invalid_argument("command cannot be unspecified"));
         }
-        if command == "get_info" {
+        if matches!(command_enum, proto::AgentCommand::GetInfo) {
             return Err(Status::unimplemented(
                 "get_info is available via AgentInfoService.GetInfo",
             ));
         }
         let argument = payload.argument.as_ref().map(|s| s.trim()).filter(|s| !s.is_empty());
+        let command_name = command_enum.as_str();
 
-        match command {
-            "get_process" => {
+        match command_enum {
+            proto::AgentCommand::GetProcess => {
                 let sys = self.system();
                 let info =
                     tokio::task::spawn_blocking(move || process_info_structured(sys.as_ref()))
@@ -88,7 +137,7 @@ impl proto::AgentService for AgentGrpcService {
                         .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(process_info_to_proto(info)))
             }
-            "get_cron" => {
+            proto::AgentCommand::GetCron => {
                 let sys = self.system();
                 let info = tokio::task::spawn_blocking(move || cron_info_structured(sys.as_ref()))
                     .await
@@ -96,7 +145,7 @@ impl proto::AgentService for AgentGrpcService {
                     .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(cron_info_to_proto(info)))
             }
-            "get_firewall" => {
+            proto::AgentCommand::GetFirewall => {
                 let sys = self.system();
                 let info =
                     tokio::task::spawn_blocking(move || firewall_info_structured(sys.as_ref()))
@@ -105,7 +154,7 @@ impl proto::AgentService for AgentGrpcService {
                         .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(firewall_info_to_proto(info)))
             }
-            "get_netif" => {
+            proto::AgentCommand::GetNetif => {
                 let sys = self.system();
                 let info = tokio::task::spawn_blocking(move || netif_info_structured(sys.as_ref()))
                     .await
@@ -113,7 +162,7 @@ impl proto::AgentService for AgentGrpcService {
                     .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(netif_info_to_proto(info)))
             }
-            "get_route" => {
+            proto::AgentCommand::GetRoute => {
                 let sys = self.system();
                 let info = tokio::task::spawn_blocking(move || route_info_structured(sys.as_ref()))
                     .await
@@ -121,7 +170,7 @@ impl proto::AgentService for AgentGrpcService {
                     .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(route_info_to_proto(info)))
             }
-            "get_dns" => {
+            proto::AgentCommand::GetDns => {
                 let sys = self.system();
                 let info = tokio::task::spawn_blocking(move || dns_info_structured(sys.as_ref()))
                     .await
@@ -129,7 +178,7 @@ impl proto::AgentService for AgentGrpcService {
                     .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(dns_info_to_proto(info)))
             }
-            "get_pdir" => {
+            proto::AgentCommand::GetPdir => {
                 let argument_owned = argument.map(|s| s.to_string());
                 let info = tokio::task::spawn_blocking(move || {
                     pdir_info_structured(argument_owned.as_deref())
@@ -139,7 +188,7 @@ impl proto::AgentService for AgentGrpcService {
                 .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(parent_directory_to_proto(info)))
             }
-            "get_software" => {
+            proto::AgentCommand::GetSoftware => {
                 let sys = self.system();
                 let info =
                     tokio::task::spawn_blocking(move || software_info_structured(sys.as_ref()))
@@ -148,7 +197,7 @@ impl proto::AgentService for AgentGrpcService {
                         .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(software_inventory_to_proto(info)))
             }
-            "get_log" => {
+            proto::AgentCommand::GetLog => {
                 let sys = self.system();
                 let info = tokio::task::spawn_blocking(move || log_info_structured(sys.as_ref()))
                     .await
@@ -156,7 +205,7 @@ impl proto::AgentService for AgentGrpcService {
                     .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(logs_to_proto(info)))
             }
-            "get_log_query" => {
+            proto::AgentCommand::GetLogQuery => {
                 let argument_owned = argument.map(|s| s.to_string());
                 let info = tokio::task::spawn_blocking(move || {
                     log_query_structured(argument_owned.as_deref())
@@ -166,7 +215,7 @@ impl proto::AgentService for AgentGrpcService {
                 .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(logs_to_proto(info)))
             }
-            "software_install" => {
+            proto::AgentCommand::SoftwareInstall => {
                 let argument = argument.ok_or_else(|| {
                     Status::invalid_argument("software_install requires an argument")
                 })?;
@@ -179,12 +228,12 @@ impl proto::AgentService for AgentGrpcService {
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
 
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "software_delete" => {
+            proto::AgentCommand::SoftwareDelete => {
                 let argument = argument.ok_or_else(|| {
                     Status::invalid_argument("software_delete requires an argument")
                 })?;
@@ -197,34 +246,43 @@ impl proto::AgentService for AgentGrpcService {
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
 
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "process_start"
-            | "process_stop"
-            | "process_restart"
-            | "process_enable"
-            | "process_disable"
-            | "process_start_enable"
-            | "process_stop_disable" => {
+            proto::AgentCommand::ProcessStart
+            | proto::AgentCommand::ProcessStop
+            | proto::AgentCommand::ProcessRestart
+            | proto::AgentCommand::ProcessEnable
+            | proto::AgentCommand::ProcessDisable
+            | proto::AgentCommand::ProcessStartEnable
+            | proto::AgentCommand::ProcessStopDisable => {
                 let sys = self.system();
-                let action = command.to_string();
+                let process_action = match command_enum {
+                    proto::AgentCommand::ProcessStart => ProcessAction::Start,
+                    proto::AgentCommand::ProcessStop => ProcessAction::Stop,
+                    proto::AgentCommand::ProcessRestart => ProcessAction::Restart,
+                    proto::AgentCommand::ProcessEnable => ProcessAction::Enable,
+                    proto::AgentCommand::ProcessDisable => ProcessAction::Disable,
+                    proto::AgentCommand::ProcessStartEnable => ProcessAction::StartEnable,
+                    proto::AgentCommand::ProcessStopDisable => ProcessAction::StopDisable,
+                    _ => unreachable!("only process actions reach this branch"),
+                };
                 let argument_owned = argument.map(|s| s.to_string());
                 let result = tokio::task::spawn_blocking(move || {
-                    execute_process_command(&action, argument_owned.as_deref(), sys.as_ref())
+                    execute_process_command(process_action, argument_owned.as_deref(), sys.as_ref())
                 })
                 .await
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
 
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "cron_add" => {
+            proto::AgentCommand::CronAdd => {
                 let argument = argument
                     .ok_or_else(|| Status::invalid_argument("cron_add requires an argument"))?;
                 let argument_owned = argument.to_string();
@@ -235,12 +293,12 @@ impl proto::AgentService for AgentGrpcService {
                 .await
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "cron_delete" => {
+            proto::AgentCommand::CronDelete => {
                 let argument = argument
                     .ok_or_else(|| Status::invalid_argument("cron_delete requires an argument"))?;
                 let argument_owned = argument.to_string();
@@ -251,12 +309,12 @@ impl proto::AgentService for AgentGrpcService {
                 .await
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "cron_update" => {
+            proto::AgentCommand::CronUpdate => {
                 let argument = argument
                     .ok_or_else(|| Status::invalid_argument("cron_update requires an argument"))?;
                 let argument_owned = argument.to_string();
@@ -267,12 +325,12 @@ impl proto::AgentService for AgentGrpcService {
                 .await
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "firewall_add" => {
+            proto::AgentCommand::FirewallAdd => {
                 let argument = argument
                     .ok_or_else(|| Status::invalid_argument("firewall_add requires an argument"))?;
                 let argument_owned = argument.to_string();
@@ -283,12 +341,12 @@ impl proto::AgentService for AgentGrpcService {
                 .await
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "firewall_delete" => {
+            proto::AgentCommand::FirewallDelete => {
                 let argument = argument.ok_or_else(|| {
                     Status::invalid_argument("firewall_delete requires an argument")
                 })?;
@@ -300,12 +358,12 @@ impl proto::AgentService for AgentGrpcService {
                 .await
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "firewall_edit_status" => {
+            proto::AgentCommand::FirewallEditStatus => {
                 let argument = argument.ok_or_else(|| {
                     Status::invalid_argument("firewall_edit_status requires an argument")
                 })?;
@@ -317,12 +375,12 @@ impl proto::AgentService for AgentGrpcService {
                 .await
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "firewall_edit_policy" => {
+            proto::AgentCommand::FirewallEditPolicy => {
                 let argument = argument.ok_or_else(|| {
                     Status::invalid_argument("firewall_edit_policy requires an argument")
                 })?;
@@ -334,12 +392,12 @@ impl proto::AgentService for AgentGrpcService {
                 .await
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "netif_add" => {
+            proto::AgentCommand::NetifAdd => {
                 let argument = argument
                     .ok_or_else(|| Status::invalid_argument("netif_add requires an argument"))?;
                 let argument_owned = argument.to_string();
@@ -350,12 +408,12 @@ impl proto::AgentService for AgentGrpcService {
                 .await
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "netif_delete" => {
+            proto::AgentCommand::NetifDelete => {
                 let argument = argument
                     .ok_or_else(|| Status::invalid_argument("netif_delete requires an argument"))?;
                 let argument_owned = argument.to_string();
@@ -366,12 +424,12 @@ impl proto::AgentService for AgentGrpcService {
                 .await
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "netif_up" => {
+            proto::AgentCommand::NetifUp => {
                 let argument = argument
                     .ok_or_else(|| Status::invalid_argument("netif_up requires an argument"))?;
                 let argument_owned = argument.to_string();
@@ -382,12 +440,12 @@ impl proto::AgentService for AgentGrpcService {
                 .await
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "netif_down" => {
+            proto::AgentCommand::NetifDown => {
                 let argument = argument
                     .ok_or_else(|| Status::invalid_argument("netif_down requires an argument"))?;
                 let argument_owned = argument.to_string();
@@ -398,12 +456,12 @@ impl proto::AgentService for AgentGrpcService {
                 .await
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "route_add" => {
+            proto::AgentCommand::RouteAdd => {
                 let argument = argument
                     .ok_or_else(|| Status::invalid_argument("route_add requires an argument"))?;
                 let argument_owned = argument.to_string();
@@ -414,12 +472,12 @@ impl proto::AgentService for AgentGrpcService {
                 .await
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "route_delete" => {
+            proto::AgentCommand::RouteDelete => {
                 let argument = argument
                     .ok_or_else(|| Status::invalid_argument("route_delete requires an argument"))?;
                 let argument_owned = argument.to_string();
@@ -430,24 +488,24 @@ impl proto::AgentService for AgentGrpcService {
                 .await
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 let response = match result {
-                    Ok(message) => build_return_info("OK", message),
-                    Err(err) => build_return_info("ERR", err),
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
                 Ok(Response::new(response))
             }
-            "reboot" => {
+            proto::AgentCommand::Reboot => {
                 let info = tokio::task::spawn_blocking(execute_reboot)
                     .await
                     .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 Ok(Response::new(return_info_to_proto(info)))
             }
-            "shutdown" => {
+            proto::AgentCommand::Shutdown => {
                 let info = tokio::task::spawn_blocking(execute_shutdown)
                     .await
                     .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
                 Ok(Response::new(return_info_to_proto(info)))
             }
-            _ => Err(Status::unimplemented(format!("unsupported command: {}", command))),
+            _ => Err(Status::unimplemented(format!("unsupported command: {}", command_name))),
         }
     }
 }
@@ -607,10 +665,10 @@ fn firewall_info_to_proto(info: FirewallStatus) -> proto::CommandResponse {
     }
 }
 
-fn build_return_info(status: &str, message: impl Into<String>) -> proto::CommandResponse {
+fn build_return_info(status: ReturnStatus, message: impl Into<String>) -> proto::CommandResponse {
     proto::CommandResponse {
         payload: Some(proto::command_response::Payload::ReturnInfo(proto::ReturnInfo {
-            r#type:  status.to_string(),
+            r#type:  status.as_str().to_string(),
             message: message.into(),
         })),
     }
@@ -619,7 +677,7 @@ fn build_return_info(status: &str, message: impl Into<String>) -> proto::Command
 fn return_info_to_proto(info: crate::ReturnInfo) -> proto::CommandResponse {
     proto::CommandResponse {
         payload: Some(proto::command_response::Payload::ReturnInfo(proto::ReturnInfo {
-            r#type:  info.type_field,
+            r#type:  info.status.as_str().to_string(),
             message: info.message,
         })),
     }

@@ -7,7 +7,7 @@ use crate::{
     execute_host_body, family_commands, join_shell_args, make_sysinfo_command, send_to_hostd,
     value_if_specified, ReturnInfo, SystemInfo,
 };
-use serde::{Deserialize, Serialize};
+use serde::{de, Deserialize, Serialize};
 use serde_json;
 
 #[derive(Debug)]
@@ -83,11 +83,134 @@ struct FirewallRuleDto {
     options:     String,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FirewallChainArg {
+    Input,
+    Forward,
+    Output,
+}
+
+impl FirewallChainArg {
+    fn as_str(self) -> &'static str {
+        match self {
+            FirewallChainArg::Input => "INPUT",
+            FirewallChainArg::Forward => "FORWARD",
+            FirewallChainArg::Output => "OUTPUT",
+        }
+    }
+}
+
+impl Serialize for FirewallChainArg {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for FirewallChainArg {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = String::deserialize(deserializer)?;
+        let normalized = raw.trim().to_ascii_uppercase();
+        match normalized.as_str() {
+            "INPUT" => Ok(FirewallChainArg::Input),
+            "FORWARD" => Ok(FirewallChainArg::Forward),
+            "OUTPUT" => Ok(FirewallChainArg::Output),
+            other => Err(de::Error::custom(format!("unsupported chain: {}", other))),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FirewallTargetArg {
+    Accept,
+    Drop,
+    Reject,
+}
+
+impl FirewallTargetArg {
+    fn as_str(self) -> &'static str {
+        match self {
+            FirewallTargetArg::Accept => "ACCEPT",
+            FirewallTargetArg::Drop => "DROP",
+            FirewallTargetArg::Reject => "REJECT",
+        }
+    }
+}
+
+impl Serialize for FirewallTargetArg {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for FirewallTargetArg {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = String::deserialize(deserializer)?;
+        let normalized = raw.trim().to_ascii_uppercase();
+        match normalized.as_str() {
+            "ACCEPT" => Ok(FirewallTargetArg::Accept),
+            "DROP" => Ok(FirewallTargetArg::Drop),
+            "REJECT" => Ok(FirewallTargetArg::Reject),
+            other => Err(de::Error::custom(format!("unsupported target: {}", other))),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum FirewallStatusArg {
+    Active,
+    Inactive,
+}
+
+impl FirewallStatusArg {
+    fn as_str(self) -> &'static str {
+        match self {
+            FirewallStatusArg::Active => "ACTIVE",
+            FirewallStatusArg::Inactive => "INACTIVE",
+        }
+    }
+}
+
+impl Serialize for FirewallStatusArg {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for FirewallStatusArg {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = String::deserialize(deserializer)?;
+        let normalized = raw.trim().to_ascii_uppercase();
+        match normalized.as_str() {
+            "ACTIVE" => Ok(FirewallStatusArg::Active),
+            "INACTIVE" => Ok(FirewallStatusArg::Inactive),
+            other => Err(de::Error::custom(format!("unsupported status: {}", other))),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 struct FirewallAddArg {
-    chain:       String,
-    target:      String,
+    chain:       FirewallChainArg,
+    target:      FirewallTargetArg,
     protocol:    String,
     #[serde(rename = "In")]
     in_field:    String,
@@ -101,7 +224,7 @@ struct FirewallAddArg {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 struct FirewallDeleteArg {
-    chain:   String,
+    chain:   FirewallChainArg,
     #[serde(rename = "RuleId")]
     rule_id: i32,
 }
@@ -109,14 +232,14 @@ struct FirewallDeleteArg {
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 struct FirewallEditStatusArg {
-    status: String,
+    status: FirewallStatusArg,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "PascalCase")]
 struct FirewallEditPolicyArg {
-    chain:  String,
-    policy: String,
+    chain:  FirewallChainArg,
+    policy: FirewallTargetArg,
 }
 
 pub fn firewall_info_structured(_sys: &SystemInfo) -> io::Result<FirewallStatus> {
@@ -138,14 +261,15 @@ pub fn firewall_info_structured(_sys: &SystemInfo) -> io::Result<FirewallStatus>
 }
 
 pub fn execute_firewall_add(argument: &str, sys: &SystemInfo) -> Result<String, String> {
-    let mut payload: FirewallAddArg = serde_json::from_str(argument)
+    let payload: FirewallAddArg = serde_json::from_str(argument)
         .map_err(|e| format!("firewall_add payload parse error: {}", e))?;
 
-    payload.chain = normalize_firewall_chain_arg(&payload.chain)?;
-    payload.target = normalize_firewall_target_arg(&payload.target)?;
-
-    let mut args =
-        vec!["-A".to_string(), payload.chain.clone(), "-j".to_string(), payload.target.clone()];
+    let mut args = vec![
+        "-A".to_string(),
+        payload.chain.as_str().to_string(),
+        "-j".to_string(),
+        payload.target.as_str().to_string(),
+    ];
 
     if let Some(protocol) = value_if_specified(&payload.protocol) {
         args.push("-p".to_string());
@@ -176,60 +300,62 @@ pub fn execute_firewall_add(argument: &str, sys: &SystemInfo) -> Result<String, 
 
     run_firewall_mutation(sys, &args)?;
 
-    Ok(format!("firewall_add: added rule to {} with target {}", payload.chain, payload.target))
+    Ok(format!(
+        "firewall_add: added rule to {} with target {}",
+        payload.chain.as_str(),
+        payload.target.as_str()
+    ))
 }
 
 pub fn execute_firewall_delete(argument: &str, sys: &SystemInfo) -> Result<String, String> {
-    let mut payload: FirewallDeleteArg = serde_json::from_str(argument)
+    let payload: FirewallDeleteArg = serde_json::from_str(argument)
         .map_err(|e| format!("firewall_delete payload parse error: {}", e))?;
 
-    payload.chain = normalize_firewall_chain_arg(&payload.chain)?;
     if payload.rule_id <= 0 {
         return Err("firewall_delete requires RuleId greater than 0".to_string());
     }
 
-    let args = vec!["-D".to_string(), payload.chain.clone(), payload.rule_id.to_string()];
+    let args =
+        vec!["-D".to_string(), payload.chain.as_str().to_string(), payload.rule_id.to_string()];
 
     run_firewall_mutation(sys, &args)?;
 
-    Ok(format!("firewall_delete: removed rule from {}", payload.chain))
+    Ok(format!("firewall_delete: removed rule from {}", payload.chain.as_str()))
 }
 
 pub fn execute_firewall_edit_status(argument: &str, sys: &SystemInfo) -> Result<String, String> {
-    let mut payload: FirewallEditStatusArg = serde_json::from_str(argument)
+    let payload: FirewallEditStatusArg = serde_json::from_str(argument)
         .map_err(|e| format!("firewall_edit_status payload parse error: {}", e))?;
 
-    payload.status = normalize_firewall_status_arg(&payload.status)?;
-
-    match payload.status.as_str() {
-        "ACTIVE" => {
+    match payload.status {
+        FirewallStatusArg::Active => {
             set_firewall_policies(
                 sys,
                 &[("INPUT", "DROP"), ("FORWARD", "DROP"), ("OUTPUT", "ACCEPT")],
             )?;
             Ok("firewall_edit_status: firewall activated".to_string())
         }
-        "INACTIVE" => {
+        FirewallStatusArg::Inactive => {
             set_firewall_policies(
                 sys,
                 &[("INPUT", "ACCEPT"), ("FORWARD", "ACCEPT"), ("OUTPUT", "ACCEPT")],
             )?;
             Ok("firewall_edit_status: firewall deactivated".to_string())
         }
-        other => Err(format!("unsupported firewall status: {}", other)),
     }
 }
 
 pub fn execute_firewall_edit_policy(argument: &str, sys: &SystemInfo) -> Result<String, String> {
-    let mut payload: FirewallEditPolicyArg = serde_json::from_str(argument)
+    let payload: FirewallEditPolicyArg = serde_json::from_str(argument)
         .map_err(|e| format!("firewall_edit_policy payload parse error: {}", e))?;
-
-    payload.chain = normalize_firewall_chain_arg(&payload.chain)?;
-    payload.policy = normalize_firewall_target_arg(&payload.policy)?;
 
     set_firewall_policies(sys, &[(payload.chain.as_str(), payload.policy.as_str())])?;
 
-    Ok(format!("firewall_edit_policy: set {} policy to {}", payload.chain, payload.policy))
+    Ok(format!(
+        "firewall_edit_policy: set {} policy to {}",
+        payload.chain.as_str(),
+        payload.policy.as_str()
+    ))
 }
 
 fn convert_firewall_status(dto: FirewallStatusDto) -> FirewallStatus {
@@ -299,32 +425,6 @@ impl FirewallPolicy {
             FirewallPolicy::Reject => "REJECT",
             FirewallPolicy::Other(value) => value.as_str(),
         }
-    }
-}
-
-fn normalize_firewall_chain_arg(chain: &str) -> Result<String, String> {
-    match chain.trim().to_uppercase().as_str() {
-        "INPUT" => Ok("INPUT".to_string()),
-        "FORWARD" => Ok("FORWARD".to_string()),
-        "OUTPUT" => Ok("OUTPUT".to_string()),
-        other => Err(format!("unsupported chain: {}", other)),
-    }
-}
-
-fn normalize_firewall_target_arg(target: &str) -> Result<String, String> {
-    match target.trim().to_uppercase().as_str() {
-        "ACCEPT" => Ok("ACCEPT".to_string()),
-        "DROP" => Ok("DROP".to_string()),
-        "REJECT" => Ok("REJECT".to_string()),
-        other => Err(format!("unsupported target: {}", other)),
-    }
-}
-
-fn normalize_firewall_status_arg(status: &str) -> Result<String, String> {
-    match status.trim().to_uppercase().as_str() {
-        "ACTIVE" => Ok("ACTIVE".to_string()),
-        "INACTIVE" => Ok("INACTIVE".to_string()),
-        other => Err(format!("unsupported status: {}", other)),
     }
 }
 

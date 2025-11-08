@@ -29,6 +29,44 @@ const META_PREFIX: &str = "# agent_meta:";
 const SYSLOG_CANDIDATES: [&str; 2] = ["/var/log/syslog", "/var/log/messages"];
 const LOG_ENTRY_LIMIT: usize = 20;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SysinfoKeyword {
+    CpuStatus,
+    MemoryStatus,
+    DiskStatus,
+    ProcessList,
+    FirewallStatus,
+    NetifStatus,
+    RouteStatus,
+    DnsStatus,
+    CronJobs,
+    SoftwareStatus,
+    LogStatus,
+    LogQuery,
+    PdirStatus,
+}
+
+impl SysinfoKeyword {
+    fn parse(input: &str) -> Result<Self, String> {
+        match input {
+            "cpu_status" => Ok(Self::CpuStatus),
+            "memory_status" => Ok(Self::MemoryStatus),
+            "disk_status" => Ok(Self::DiskStatus),
+            "process_list" => Ok(Self::ProcessList),
+            "firewall_status" => Ok(Self::FirewallStatus),
+            "netif_status" => Ok(Self::NetifStatus),
+            "route_status" => Ok(Self::RouteStatus),
+            "dns_status" => Ok(Self::DnsStatus),
+            "cron_jobs" => Ok(Self::CronJobs),
+            "software_status" => Ok(Self::SoftwareStatus),
+            "log_status" => Ok(Self::LogStatus),
+            "log_query" => Ok(Self::LogQuery),
+            "pdir_status" => Ok(Self::PdirStatus),
+            other => Err(format!("unknown sysinfo command: {}", other)),
+        }
+    }
+}
+
 pub mod proto {
     pub use chm_grpc::hostd::{
         hostd_service_server::{HostdService, HostdServiceServer},
@@ -139,24 +177,26 @@ pub fn execute_sysinfo(command: &str) -> Result<String, String> {
     }
 
     let mut parts = trimmed.splitn(2, ' ');
-    let keyword = parts.next().ok_or_else(|| "no sysinfo request provided".to_string())?;
+    let keyword_raw = parts.next().ok_or_else(|| "no sysinfo request provided".to_string())?;
     let argument = parts.next().map(str::trim);
 
     let mut sys = System::new_all();
     sys.refresh_all();
 
+    let keyword = SysinfoKeyword::parse(keyword_raw)?;
+
     match keyword {
-        "cpu_status" => {
+        SysinfoKeyword::CpuStatus => {
             sys.refresh_cpu_usage();
             let cpu_usage = sys.global_cpu_usage();
             Ok(format!("{:.2}", cpu_usage))
         }
-        "memory_status" => {
+        SysinfoKeyword::MemoryStatus => {
             sys.refresh_memory_specifics(MemoryRefreshKind::nothing().with_ram());
             let memory_usage = sys.used_memory();
             Ok(format!("{:.2}", memory_usage))
         }
-        "disk_status" => {
+        SysinfoKeyword::DiskStatus => {
             let disk_usage = Disks::new_with_refreshed_list_specifics(
                 DiskRefreshKind::nothing().with_io_usage(),
             )
@@ -165,34 +205,34 @@ pub fn execute_sysinfo(command: &str) -> Result<String, String> {
             .sum::<u64>();
             Ok(format!("{:.2}", disk_usage))
         }
-        "process_list" => collect_process_info(&mut sys).and_then(|dto| {
+        SysinfoKeyword::ProcessList => collect_process_info(&mut sys).and_then(|dto| {
             serde_json::to_string(&dto).map_err(|e| format!("failed to encode process info: {}", e))
         }),
-        "firewall_status" => firewall_status().and_then(|status| {
+        SysinfoKeyword::FirewallStatus => firewall_status().and_then(|status| {
             serde_json::to_string(&status)
                 .map_err(|e| format!("failed to encode firewall status: {}", e))
         }),
-        "netif_status" => collect_network_interfaces().and_then(|dto| {
+        SysinfoKeyword::NetifStatus => collect_network_interfaces().and_then(|dto| {
             serde_json::to_string(&dto)
                 .map_err(|e| format!("failed to encode network interfaces: {}", e))
         }),
-        "route_status" => collect_route_table().and_then(|dto| {
+        SysinfoKeyword::RouteStatus => collect_route_table().and_then(|dto| {
             serde_json::to_string(&dto).map_err(|e| format!("failed to encode route table: {}", e))
         }),
-        "dns_status" => collect_dns_info().and_then(|dto| {
+        SysinfoKeyword::DnsStatus => collect_dns_info().and_then(|dto| {
             serde_json::to_string(&dto).map_err(|e| format!("failed to encode dns info: {}", e))
         }),
-        "cron_jobs" => {
+        SysinfoKeyword::CronJobs => {
             serialize_cron_jobs().map_err(|e| format!("failed to collect cron jobs: {}", e))
         }
-        "software_status" => collect_software_inventory().and_then(|dto| {
+        SysinfoKeyword::SoftwareStatus => collect_software_inventory().and_then(|dto| {
             serde_json::to_string(&dto)
                 .map_err(|e| format!("failed to encode software inventory: {}", e))
         }),
-        "log_status" => collect_log_entries(None).and_then(|dto| {
+        SysinfoKeyword::LogStatus => collect_log_entries(None).and_then(|dto| {
             serde_json::to_string(&dto).map_err(|e| format!("failed to encode log entries: {}", e))
         }),
-        "log_query" => {
+        SysinfoKeyword::LogQuery => {
             let encoded = argument.ok_or_else(|| "log_query requires an argument".to_string())?;
             let query = decode_log_query_argument(encoded)?;
             collect_log_entries(Some((query.search, query.parameter))).and_then(|dto| {
@@ -200,7 +240,7 @@ pub fn execute_sysinfo(command: &str) -> Result<String, String> {
                     .map_err(|e| format!("failed to encode log entries: {}", e))
             })
         }
-        "pdir_status" => {
+        SysinfoKeyword::PdirStatus => {
             let directory = match argument {
                 Some(encoded) if !encoded.is_empty() => decode_directory_argument(encoded)?,
                 _ => "/".to_string(),
@@ -211,7 +251,6 @@ pub fn execute_sysinfo(command: &str) -> Result<String, String> {
                     .map_err(|e| format!("failed to encode directory info: {}", e))
             })
         }
-        other => Err(format!("unknown sysinfo command: {}", other)),
     }
 }
 

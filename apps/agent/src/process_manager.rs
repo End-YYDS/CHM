@@ -10,6 +10,43 @@ use crate::{
 use serde::Deserialize;
 use serde_json;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ProcessAction {
+    Start,
+    Stop,
+    Restart,
+    Enable,
+    Disable,
+    StartEnable,
+    StopDisable,
+}
+
+impl ProcessAction {
+    pub fn command_name(self) -> &'static str {
+        match self {
+            ProcessAction::Start => "process_start",
+            ProcessAction::Stop => "process_stop",
+            ProcessAction::Restart => "process_restart",
+            ProcessAction::Enable => "process_enable",
+            ProcessAction::Disable => "process_disable",
+            ProcessAction::StartEnable => "process_start_enable",
+            ProcessAction::StopDisable => "process_stop_disable",
+        }
+    }
+
+    fn template(self) -> &'static str {
+        match self {
+            ProcessAction::Start => "systemctl start {process}",
+            ProcessAction::Stop => "systemctl stop {process}",
+            ProcessAction::Restart => "systemctl restart {process}",
+            ProcessAction::Enable => "systemctl enable {process}",
+            ProcessAction::Disable => "systemctl disable {process}",
+            ProcessAction::StartEnable => "systemctl enable --now {process}",
+            ProcessAction::StopDisable => "systemctl disable --now {process}",
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ProcessStatus {
     pub status: bool,
@@ -77,19 +114,20 @@ pub fn process_info_structured(_sys: &SystemInfo) -> io::Result<ProcessInfo> {
 }
 
 pub fn execute_process_command(
-    action: &str,
+    action: ProcessAction,
     argument: Option<&str>,
     sys: &SystemInfo,
 ) -> Result<String, String> {
-    let process = argument.ok_or_else(|| format!("{} requires a process name", action))?.trim();
+    let command_name = action.command_name();
+    let process = argument.ok_or_else(|| format!("{command_name} requires a process name"))?.trim();
 
     validate_process_name(process)?;
 
     let template = resolve_command_template(action, sys)
-        .ok_or_else(|| format!("{} unsupported on {} {}", action, sys.os_id, sys.version_id))?;
+        .ok_or_else(|| format!("{command_name} unsupported on {} {}", sys.os_id, sys.version_id))?;
 
     let command = template.replace("{process}", process);
-    let success_message = format!("{}: {}", action, process);
+    let success_message = format!("{}: {}", command_name, process);
 
     let body = format!("{}\nprintf '%s\\n' {}\n", command, shell_quote(&success_message));
 
@@ -127,30 +165,30 @@ fn validate_process_name(process: &str) -> Result<(), String> {
 
 const FAMILY_FALLBACK_KEYS: [&str; 2] = ["systemd", "linux"];
 
-fn get_command_mapping() -> HashMap<(String, String), String> {
+fn get_command_mapping() -> HashMap<(ProcessAction, String), String> {
     let mut map = HashMap::new();
 
     const KEYS: [&str; 4] = ["systemd", "debian_like", "redhat_like", "linux"];
-    const TEMPLATES: [(&str, &str); 7] = [
-        ("process_start", "systemctl start {process}"),
-        ("process_stop", "systemctl stop {process}"),
-        ("process_restart", "systemctl restart {process}"),
-        ("process_enable", "systemctl enable {process}"),
-        ("process_disable", "systemctl disable {process}"),
-        ("process_start_enable", "systemctl enable --now {process}"),
-        ("process_stop_disable", "systemctl disable --now {process}"),
+    const ACTIONS: [ProcessAction; 7] = [
+        ProcessAction::Start,
+        ProcessAction::Stop,
+        ProcessAction::Restart,
+        ProcessAction::Enable,
+        ProcessAction::Disable,
+        ProcessAction::StartEnable,
+        ProcessAction::StopDisable,
     ];
 
     for key in KEYS {
-        for (action, template) in TEMPLATES {
-            map.insert((action.to_string(), key.to_string()), template.to_string());
+        for action in ACTIONS {
+            map.insert((action, key.to_string()), action.template().to_string());
         }
     }
 
     map
 }
 
-fn resolve_command_template(action: &str, sys: &SystemInfo) -> Option<String> {
+fn resolve_command_template(action: ProcessAction, sys: &SystemInfo) -> Option<String> {
     let mut keys: Vec<String> = Vec::new();
     let os_id = sys.os_id.clone();
     if !sys.version_id.is_empty() {
@@ -175,7 +213,7 @@ fn resolve_command_template(action: &str, sys: &SystemInfo) -> Option<String> {
 
     let map = get_command_mapping();
     for key in keys {
-        if let Some(template) = map.get(&(action.to_string(), key)) {
+        if let Some(template) = map.get(&(action, key.clone())) {
             return Some(template.clone());
         }
     }

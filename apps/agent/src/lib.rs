@@ -16,7 +16,7 @@ use http::Uri;
 #[cfg(unix)]
 use hyper_util::rt::TokioIo;
 #[cfg(unix)]
-use libc::{geteuid, setgid, setuid};
+use nix::unistd::{geteuid, setgid, setuid, Gid, Uid};
 use serde::{Deserialize, Serialize};
 #[cfg(unix)]
 use tokio::{
@@ -69,9 +69,9 @@ pub struct AgentExtension {
     pub file_concurrency: usize,
     #[serde(default)]
     pub controller:       ControllerSettings,
-    #[serde(default)]
+    #[serde(default = "AgentExtension::default_run_as_user")]
     pub run_as_user:      String,
-    #[serde(default)]
+    #[serde(default = "AgentExtension::default_run_as_group")]
     pub run_as_group:     String,
 }
 
@@ -87,6 +87,14 @@ impl AgentExtension {
     fn default_file_concurrency() -> usize {
         DEFAULT_FILE_CONCURRENCY
     }
+
+    fn default_run_as_user() -> String {
+        "chm".to_string()
+    }
+
+    fn default_run_as_group() -> String {
+        "chm".to_string()
+    }
 }
 
 impl Default for AgentExtension {
@@ -96,8 +104,8 @@ impl Default for AgentExtension {
             info_concurrency: Self::default_info_concurrency(),
             file_concurrency: Self::default_file_concurrency(),
             controller:       ControllerSettings::default(),
-            run_as_user:      String::new(),
-            run_as_group:     String::new(),
+            run_as_user:      Self::default_run_as_user(),
+            run_as_group:     Self::default_run_as_group(),
         }
     }
 }
@@ -160,7 +168,8 @@ pub use network_config::{
 };
 pub use pc_manager::{execute_reboot, execute_shutdown};
 pub use process_manager::{
-    execute_process_command, process_info_structured, ProcessEntry, ProcessInfo, ProcessStatus,
+    execute_process_command, process_info_structured, ProcessAction, ProcessEntry, ProcessInfo,
+    ProcessStatus,
 };
 pub use software_package::{
     execute_software_delete, execute_software_install, software_info_structured, PackageStatus,
@@ -228,12 +237,59 @@ pub struct HostCommandOutput {
     pub output: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone)]
+pub enum ReturnStatus {
+    Ok,
+    Err,
+    Other(String),
+}
+
+impl ReturnStatus {
+    pub fn as_str(&self) -> &str {
+        match self {
+            ReturnStatus::Ok => "OK",
+            ReturnStatus::Err => "ERR",
+            ReturnStatus::Other(value) => value.as_str(),
+        }
+    }
+
+    fn from_raw(value: &str) -> Self {
+        let trimmed = value.trim();
+        if trimmed.eq_ignore_ascii_case("OK") {
+            ReturnStatus::Ok
+        } else if trimmed.eq_ignore_ascii_case("ERR") {
+            ReturnStatus::Err
+        } else {
+            ReturnStatus::Other(trimmed.to_string())
+        }
+    }
+}
+
+impl Serialize for ReturnStatus {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for ReturnStatus {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let raw = String::deserialize(deserializer)?;
+        Ok(ReturnStatus::from_raw(&raw))
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct ReturnInfo {
     #[serde(rename = "Type")]
-    pub type_field: String,
+    pub status:  ReturnStatus,
     #[serde(rename = "Message")]
-    pub message:    String,
+    pub message: String,
 }
 
 #[cfg(unix)]
@@ -386,8 +442,8 @@ pub fn drop_privileges(user: &str, group: &str) -> io::Result<()> {
     })?;
 
     let target_uid = user_entry.uid();
-    let current_uid = unsafe { geteuid() } as u32;
-    if current_uid == target_uid {
+    let current_uid = geteuid();
+    if current_uid.as_raw() == target_uid {
         return Ok(());
     }
 
@@ -401,14 +457,8 @@ pub fn drop_privileges(user: &str, group: &str) -> io::Result<()> {
             .gid()
     };
 
-    unsafe {
-        if setgid(target_gid as libc::gid_t) != 0 {
-            return Err(io::Error::last_os_error());
-        }
-        if setuid(target_uid as libc::uid_t) != 0 {
-            return Err(io::Error::last_os_error());
-        }
-    }
+    setgid(Gid::from_raw(target_gid)).map_err(nix_error_to_io)?;
+    setuid(Uid::from_raw(target_uid)).map_err(nix_error_to_io)?;
 
     Ok(())
 }
@@ -424,6 +474,11 @@ pub fn drop_privileges(_user: &str, _group: &str) -> io::Result<()> {
 pub fn parse_return_info(raw: &str) -> Result<ReturnInfo, String> {
     serde_json::from_str::<ReturnInfo>(raw)
         .map_err(|e| format!("failed to parse ReturnInfo JSON: {}", e))
+}
+
+#[cfg(unix)]
+fn nix_error_to_io(err: nix::errno::Errno) -> io::Error {
+    io::Error::from(err)
 }
 
 fn wrap_body_for_host(body: &str) -> String {
