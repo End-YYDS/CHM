@@ -106,3 +106,15 @@ pub struct IpPool {
     pub zone_id: i64,
     pub ip:      String,
 }
+
+#[derive(Debug, Clone)]
+pub struct ZoneInfo {
+    pub id:          i64,
+    pub name:        String,
+    pub vni:         i64,
+    pub network:     String,
+    pub broadcast:   String,
+    pub subnet_mask: String,
+    pub ips:         Vec<String>,
+    pub pcs:         Vec<String>,
+}

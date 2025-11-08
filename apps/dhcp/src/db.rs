@@ -1,6 +1,6 @@
-use crate::{error::DhcpError, IpPool, LZone};
+use crate::{error::DhcpError, IpPool, LZone, ZoneInfo};
 use chm_grpc::dhcp::Zone;
-use sqlx::{Sqlite, SqlitePool, Transaction};
+use sqlx::{QueryBuilder, Sqlite, SqlitePool, Transaction};
 use tokio::sync::OnceCell;
 
 pub static GLOBAL_DB: OnceCell<Db> = OnceCell::const_new();
@@ -52,7 +52,7 @@ impl Db {
         )
         .fetch_all(pool)
         .await?;
-        let has_conflict = existing_conflicts.is_empty();
+        let has_conflict = !existing_conflicts.is_empty();
         let conflicts = existing_conflicts.into_iter().map(|r| r.ip).collect();
         Ok((has_conflict, conflicts))
     }
@@ -88,7 +88,7 @@ impl Db {
                 zone_id,
                 ip_string
             )
-            .execute(pool)
+            .execute(tx.as_mut())
             .await
             .map_err(DhcpError::DatabaseError)?;
         } else {
@@ -147,7 +147,7 @@ impl Db {
         let pool = self.pool().await?;
         let records = sqlx::query!("SELECT name, vni FROM zones").fetch_all(pool).await?;
         let zones: Vec<Zone> =
-            records.into_iter().map(|r| Zone { name: r.name, vni: r.vni as i32 }).collect();
+            records.into_iter().map(|r| Zone { name: r.name, vni: r.vni }).collect();
         Ok(zones)
     }
     pub async fn get_ip_by_zone_id(&self, zone_id: i64) -> DbResult<Vec<String>> {
@@ -158,6 +158,236 @@ impl Db {
             .map_err(DhcpError::DatabaseError)?;
         let ips = records.into_iter().map(|r| r.ip).collect();
         Ok(ips)
+    }
+    pub async fn add_pc_to_zone(
+        &self,
+        zone_id: i64,
+        pc_uuid: &str,
+        ignore: bool,
+    ) -> DbResult<bool> {
+        let pool = self.pool().await?;
+        let mut tx = pool.begin().await?;
+        let sql = if ignore {
+            "INSERT OR IGNORE INTO zone_pcs (zone_id, pc_uuid) VALUES (?, ?)"
+        } else {
+            "INSERT INTO zone_pcs (zone_id, pc_uuid) VALUES (?, ?)"
+        };
+        let result = sqlx::query(sql).bind(zone_id).bind(pc_uuid).execute(tx.as_mut()).await?;
+        tx.commit().await?;
+        Ok(result.rows_affected() > 0)
+    }
+    pub async fn add_pcs_to_zone_bulk(
+        &self,
+        zone_id: i64,
+        pc_uuids: &[String],
+        ignore: bool,
+    ) -> DbResult<u64> {
+        if pc_uuids.is_empty() {
+            return Ok(0);
+        }
+        let pool = self.pool().await?;
+        let mut tx = pool.begin().await?;
+        let mut qb = QueryBuilder::<Sqlite>::new("INSERT ");
+        if ignore {
+            qb.push("OR IGNORE ");
+        }
+        qb.push("INTO zone_pcs (zone_id, pc_uuid) ");
+        qb.push_values(pc_uuids, |mut b, uuid| {
+            b.push_bind(zone_id).push_bind(uuid);
+        });
+        let result = qb.build().execute(tx.as_mut()).await?;
+        tx.commit().await?;
+        Ok(result.rows_affected())
+    }
+    pub async fn remove_pc_from_zone(&self, zone_id: i64, pc_uuid: &str) -> DbResult<u64> {
+        let pool = self.pool().await?;
+        let mut tx = pool.begin().await?;
+        let result = sqlx::query!(
+            "DELETE FROM zone_pcs WHERE zone_id = ? AND pc_uuid = ?",
+            zone_id,
+            pc_uuid
+        )
+        .execute(tx.as_mut())
+        .await?;
+        tx.commit().await?;
+        Ok(result.rows_affected())
+    }
+    pub async fn list_pcs_in_zone(&self, zone_id: i64) -> DbResult<Vec<String>> {
+        let pool = self.pool().await?;
+        let rows = sqlx::query!("SELECT pc_uuid FROM zone_pcs WHERE zone_id = ?", zone_id)
+            .fetch_all(pool)
+            .await?;
+        Ok(rows.into_iter().map(|r| r.pc_uuid).collect())
+    }
+    pub async fn is_pc_in_zone(&self, zone_id: i64, pc_uuid: &str) -> DbResult<bool> {
+        let pool = self.pool().await?;
+        let row = sqlx::query_scalar::<_, i64>(
+            "SELECT EXISTS(SELECT 1 FROM zone_pcs WHERE zone_id = ? AND pc_uuid = ?)",
+        )
+        .bind(zone_id)
+        .bind(pc_uuid)
+        .fetch_one(pool)
+        .await?;
+        Ok(row == 1)
+    }
+    pub async fn list_zones_by_pc(&self, pc_uuid: &str) -> DbResult<Vec<(i64, String, i64)>> {
+        let pool = self.pool().await?;
+        let rows = sqlx::query!(
+            r#"
+        SELECT z.id as "id!", z.name as "name!", z.vni as "vni!"
+        FROM zones z
+        JOIN zone_pcs zp ON zp.zone_id = z.id
+        WHERE zp.pc_uuid = ?
+        ORDER BY z.name
+        "#,
+            pc_uuid
+        )
+        .fetch_all(pool)
+        .await?;
+
+        Ok(rows.into_iter().map(|r| (r.id, r.name, r.vni)).collect())
+    }
+    pub async fn count_pcs_in_zone(&self, zone_id: i64) -> DbResult<i64> {
+        let pool = self.pool().await?;
+        let count = sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM zone_pcs WHERE zone_id = ?")
+            .bind(zone_id)
+            .fetch_one(pool)
+            .await?;
+        Ok(count)
+    }
+    pub async fn insert_ip_pools_bulk(
+        &self,
+        zone_id: i64,
+        ips: &[String],
+        ignore: bool,
+    ) -> DbResult<u64> {
+        if ips.is_empty() {
+            return Ok(0);
+        }
+        let pool = self.pool().await?;
+        let mut tx = pool.begin().await?;
+
+        let mut qb = QueryBuilder::<Sqlite>::new("INSERT ");
+        if ignore {
+            qb.push("OR IGNORE ");
+        }
+        qb.push("INTO ip_pools (zone_id, ip) ");
+        qb.push_values(ips, |mut b, ip| {
+            b.push_bind(zone_id).push_bind(ip);
+        });
+
+        let result = qb.build().execute(tx.as_mut()).await?;
+        tx.commit().await?;
+        Ok(result.rows_affected())
+    }
+    /// vni 是否存在
+    pub async fn zone_exists_by_vni(&self, vni: i64) -> DbResult<bool> {
+        let pool = self.pool().await?;
+        let exists =
+            sqlx::query_scalar::<_, i64>("SELECT EXISTS(SELECT 1 FROM zones WHERE vni = ?)")
+                .bind(vni)
+                .fetch_one(pool)
+                .await?;
+        Ok(exists == 1)
+    }
+
+    /// 透過 vni 取 zone_id（若不存在回傳 Err）
+    pub async fn get_zone_id_by_vni(&self, vni: i64) -> DbResult<i64> {
+        let pool = self.pool().await?;
+        let rec = sqlx::query!("SELECT id FROM zones WHERE vni = ?", vni).fetch_one(pool).await?;
+        Ok(rec.id.expect("zones.id should not be NULL"))
+    }
+
+    /// 透過 vni 取得該 zone 的所有 IP 清單
+    pub async fn get_ips_by_vni(&self, vni: i64) -> DbResult<Vec<String>> {
+        let pool = self.pool().await?;
+        let rows = sqlx::query!(
+            r#"SELECT ip FROM ip_pools WHERE zone_id = (SELECT id FROM zones WHERE vni = ?)"#,
+            vni
+        )
+        .fetch_all(pool)
+        .await?;
+        Ok(rows.into_iter().map(|r| r.ip).collect())
+    }
+
+    /// 透過 vni 取得該 zone 的所有 PC UUID 清單
+    pub async fn list_pcs_by_vni(&self, vni: i64) -> DbResult<Vec<String>> {
+        let pool = self.pool().await?;
+        let rows = sqlx::query!(
+            r#"
+            SELECT zp.pc_uuid
+            FROM zone_pcs AS zp
+            JOIN zones AS z ON z.id = zp.zone_id
+            WHERE z.vni = ?
+            ORDER BY zp.pc_uuid
+            "#,
+            vni
+        )
+        .fetch_all(pool)
+        .await?;
+        Ok(rows.into_iter().map(|r| r.pc_uuid).collect())
+    }
+
+    /// 透過 vni 把zone row+IPs+PCs一次組好（不存在則回傳 Ok(None)）
+    pub async fn get_zone_info_by_vni(&self, vni: i64) -> DbResult<Option<ZoneInfo>> {
+        let pool = self.pool().await?;
+        let row = sqlx::query!(
+            r#"
+            SELECT
+                id          AS "id!",
+                name        AS "name!",
+                vni         AS "vni!",
+                network     AS "network!",
+                broadcast   AS "broadcast!",
+                subnet_mask AS "subnet_mask!"
+            FROM zones
+            WHERE vni = ?
+            "#,
+            vni
+        )
+        .fetch_optional(pool)
+        .await?;
+
+        let Some(z) = row else {
+            return Ok(None);
+        };
+        let ips = self.get_ips_by_vni(vni).await?;
+        let pcs = self.list_pcs_by_vni(vni).await?;
+
+        let info = ZoneInfo {
+            id: z.id,
+            name: z.name,
+            vni: z.vni,
+            network: z.network,
+            broadcast: z.broadcast,
+            subnet_mask: z.subnet_mask,
+            ips,
+            pcs,
+        };
+        Ok(Some(info))
+    }
+    /// 透過 VNI 更新 Zone 名稱。
+    /// 回傳受影響列數（0 = VNI 不存在；1 = 成功更新）。
+    pub async fn update_zone_name_by_vni(&self, vni: i64, new_name: &str) -> DbResult<u64> {
+        let pool = self.pool().await?;
+        let mut tx = pool.begin().await?;
+        let res = sqlx::query!(
+            r#"UPDATE zones SET name = ? WHERE id = (SELECT id FROM zones WHERE vni = ?)"#,
+            new_name,
+            vni
+        )
+        .execute(tx.as_mut())
+        .await
+        .map_err(|e| {
+            if let sqlx::Error::Database(db_err) = &e {
+                if db_err.is_unique_violation() {
+                    return DhcpError::ZoneExists(new_name.to_string());
+                }
+            }
+            DhcpError::from(e)
+        })?;
+        tx.commit().await?;
+        Ok(res.rows_affected())
     }
 }
 

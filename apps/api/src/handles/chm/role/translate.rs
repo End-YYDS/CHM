@@ -21,11 +21,7 @@ impl From<GrpcColor> for Color {
         }
     }
 }
-impl Default for Color {
-    fn default() -> Self {
-        Color::Gray
-    }
-}
+
 impl From<Color> for GrpcColor {
     fn from(c: Color) -> Self {
         match c {

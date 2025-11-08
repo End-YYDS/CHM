@@ -23,7 +23,7 @@ pub struct RoleInfo {
     pub length:      usize,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub enum Color {
     Red,
     Green,
@@ -33,6 +33,7 @@ pub enum Color {
     Orange,
     Black,
     White,
+    #[default]
     Gray,
     Custom(String), // Hex code or RGB
 }

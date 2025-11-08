@@ -55,9 +55,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     loop {
         let (key, cert) = CertUtils::cert_from_path(&cert_path, &key_path, None)?;
         let identity = Identity::from_pem(cert, key);
-        let tls = ServerTlsConfig::new()
+        let mut tls = ServerTlsConfig::new()
             .identity(identity)
             .client_ca_root(Certificate::from_pem(CertUtils::load_cert(&rootca)?.to_pem()?));
+        if cfg!(debug_assertions) {
+            tls = tls.use_key_log();
+        }
         let (health_reporter, health_service) = health_reporter();
         health_reporter.set_serving::<DnsServiceServer<MyDnsService>>().await;
         let mut rx = cert_update_rx.clone();

@@ -48,7 +48,10 @@ pub struct DeletePcRequest {
 }
 #[derive(Debug, Serialize)]
 pub struct DeletePcResponse {
-    pub uuids: HashMap<String, ResponseResult>,
+    #[serde(rename = "Pcs")]
+    pub pcs:    HashMap<String, ResponseResult>,
+    #[serde(rename = "Length")]
+    pub length: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -61,8 +64,8 @@ pub struct UuidsRequest {
 pub struct PostPcgroupRequest {
     #[serde(rename = "Groupname")]
     pub groupname: String,
-    #[serde(rename = "Describe")]
-    pub describe:  String,
+    #[serde(rename = "Cidr")]
+    pub cidr:      String,
 }
 
 #[derive(Debug, Serialize)]
@@ -73,16 +76,16 @@ pub struct Vxlanid {
     pub pcs:       Vec<String>,
 }
 
-#[derive(Debug, Serialize)]
-pub struct Groups {
-    #[serde(rename = "vxlanid")]
-    pub vxlanid: Vxlanid,
-}
+// #[derive(Debug, Serialize)]
+// pub struct Groups {
+//     #[serde(rename = "vxlanid")]
+//     pub vxlanid: Vxlanid,
+// }
 
 #[derive(Debug, Serialize)]
 pub struct GetPcgroupResponseResult {
     #[serde(rename = "Groups")]
-    pub groups: Groups,
+    pub groups: HashMap<String, Vxlanid>,
     #[serde(rename = "Length")]
     pub length: usize,
 }
@@ -97,22 +100,47 @@ pub struct DePutVxlanid {
 
 #[derive(Debug, Deserialize)]
 pub struct PutPcgroupRequest {
-    pub vxlanid: DePutVxlanid,
+    #[serde(flatten)]
+    pub data: HashMap<String, DePutVxlanid>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct DePatchVxlanid {
-    #[serde(rename = "Groupname")]
-    pub groupname: String,
+#[serde(untagged)]
+pub enum DePatchVxlanid {
+    Groupname {
+        #[serde(rename = "Groupname")]
+        groupname: String,
+    },
+    Pcs {
+        #[serde(rename = "Pcs")]
+        pcs: Vec<String>,
+    },
 }
 
 #[derive(Debug, Deserialize)]
 pub struct PatchPcgroupRequest {
-    pub vxlanid: DePatchVxlanid,
+    #[serde(flatten)]
+    pub data: HashMap<String, DePatchVxlanid>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct DeletePcGroupRequest {
     #[serde(rename = "Vxlanid")]
     pub vxlanid: i64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RebootPcResponse {
+    #[serde(rename = "Pcs")]
+    pub pcs:    HashMap<String, ResponseResult>,
+    #[serde(rename = "Length")]
+    pub length: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ShutdownPcResponse {
+    #[serde(rename = "Pcs")]
+    pub pcs:    HashMap<String, ResponseResult>,
+    #[serde(rename = "Length")]
+    pub length: usize,
 }

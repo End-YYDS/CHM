@@ -14,7 +14,10 @@ use chm_grpc::{
     tonic_health::server::health_reporter,
 };
 use chm_project_const::ProjectConst;
-use ldap::{config, service::MyLdapService, CertInfo, GlobalConfig, ID, NEED_EXAMPLE};
+use ldap::{
+    allocator::get_allocator, config, service::MyLdapService, CertInfo, GlobalConfig, ID,
+    NEED_EXAMPLE,
+};
 use std::{
     net::{Ipv4Addr, SocketAddrV4},
     ops::ControlFlow,
@@ -22,6 +25,7 @@ use std::{
     sync::{atomic::Ordering::Relaxed, Arc},
 };
 use tokio::sync::watch;
+
 #[derive(FromArgs, Debug, Clone)]
 /// Ldap 主程式參數
 pub struct Args {
@@ -48,13 +52,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         )
     });
     tracing::info!("正在啟動Ldap...");
+    let db = get_allocator().await;
+    db.pool().await?;
     let (_cert_update_tx, mut cert_update_rx) = watch::channel(());
     loop {
         let (key, cert) = CertUtils::cert_from_path(&cert_path, &key_path, None)?;
         let identity = Identity::from_pem(cert, key);
-        let tls = ServerTlsConfig::new()
+        let mut tls = ServerTlsConfig::new()
             .identity(identity)
             .client_ca_root(Certificate::from_pem(CertUtils::load_cert(&rootca)?.to_pem()?));
+        if cfg!(debug_assertions) {
+            tls = tls.use_key_log();
+        }
         let (health_reporter, health_service) = health_reporter();
 
         health_reporter.set_serving::<LdapServiceServer<MyLdapService>>().await;

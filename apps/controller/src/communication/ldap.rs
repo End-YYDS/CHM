@@ -14,19 +14,23 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct ClientLdap {
-    client: LdapServiceClient<Channel>,
+    client:  LdapServiceClient<Channel>,
+    channel: Channel,
 }
 
 impl ClientLdap {
     pub fn new(channel: Channel) -> Self {
         tracing::debug!("建立 LDAP 客戶端...");
-        let client = LdapServiceClient::new(channel);
+        let client = LdapServiceClient::new(channel.clone());
         tracing::info!("LDAP 客戶端已建立");
-        Self { client }
+        Self { client, channel }
     }
 
     pub fn get_client(&self) -> LdapServiceClient<Channel> {
         self.client.clone()
+    }
+    pub fn channel(&self) -> Channel {
+        self.channel.clone()
     }
     #[allow(clippy::too_many_arguments)]
     pub async fn add_user(

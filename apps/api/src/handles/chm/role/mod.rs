@@ -201,7 +201,7 @@ async fn _get_users(
             _ => actix_web::error::ErrorInternalServerError(format!("gRPC call failed: {status}")),
         })?
         .into_inner();
-    let users = resp.users.into_iter().map(|(k, v)| (k, v)).collect::<HashMap<String, String>>();
+    let users = resp.users.into_iter().collect::<HashMap<String, String>>();
     let length = usize::try_from(resp.length)
         .map_err(|e| actix_web::error::ErrorInternalServerError(e.to_string()))?;
     Ok(web::Json(UsersResponse { users, length }))

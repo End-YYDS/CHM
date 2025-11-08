@@ -221,6 +221,9 @@ pub struct PcSimple {
     pub hostname: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub ip:       ::prost::alloc::string::String,
+    /// true: online, false: offline
+    #[prost(bool, tag = "3")]
+    pub status:   bool,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetAllPcsResponse {
@@ -272,8 +275,9 @@ pub struct RebootPcsRequest {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RebootPcsResponse {
-    #[prost(message, optional, tag = "1")]
-    pub result: ::core::option::Option<super::common::ResponseResult>,
+    #[prost(map = "string, message", tag = "1")]
+    pub results:
+        ::std::collections::HashMap<::prost::alloc::string::String, super::common::ResponseResult>,
 }
 /// Shutdown POST /api/chm/pc/shutdown
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -283,8 +287,9 @@ pub struct ShutdownPcsRequest {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ShutdownPcsResponse {
-    #[prost(message, optional, tag = "1")]
-    pub result: ::core::option::Option<super::common::ResponseResult>,
+    #[prost(map = "string, message", tag = "1")]
+    pub results:
+        ::std::collections::HashMap<::prost::alloc::string::String, super::common::ResponseResult>,
 }
 /// 取得所有 PC 群組資訊 GET /api/chm/pcgroup
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -312,7 +317,7 @@ pub struct CreatePcGroupRequest {
     #[prost(string, tag = "1")]
     pub groupname: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub describe:  ::prost::alloc::string::String,
+    pub cidr:      ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreatePcGroupResponse {
@@ -332,14 +337,28 @@ pub struct PutPcGroupResponse {
     #[prost(message, optional, tag = "1")]
     pub result: ::core::option::Option<super::common::ResponseResult>,
 }
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Pcs {
+    #[prost(string, repeated, tag = "1")]
+    pub pcs: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
 /// 更新 Group 單一內容 PATCH /api/chm/pcgroup
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchPcGroupRequest {
     #[prost(int64, tag = "1")]
-    pub vxlanid:   i64,
-    /// 只更改單一欄位：目前文件僅示範 Groupname
-    #[prost(string, tag = "2")]
-    pub groupname: ::prost::alloc::string::String,
+    pub vxlanid: i64,
+    #[prost(oneof = "patch_pc_group_request::Kind", tags = "2, 3")]
+    pub kind:    ::core::option::Option<patch_pc_group_request::Kind>,
+}
+/// Nested message and enum types in `PatchPcGroupRequest`.
+pub mod patch_pc_group_request {
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Kind {
+        #[prost(string, tag = "2")]
+        Groupname(::prost::alloc::string::String),
+        #[prost(message, tag = "3")]
+        Pcs(super::Pcs),
+    }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchPcGroupResponse {

@@ -15,7 +15,9 @@ use chm_grpc::{
     tonic_health::server::health_reporter,
 };
 use chm_project_const::ProjectConst;
-use dhcp::{config, service::DhcpServiceImpl, CertInfo, GlobalConfig, ID, NEED_EXAMPLE};
+use dhcp::{
+    config, db::get_db, service::DhcpServiceImpl, CertInfo, GlobalConfig, ID, NEED_EXAMPLE,
+};
 use std::{
     net::{Ipv4Addr, SocketAddrV4},
     ops::ControlFlow,
@@ -23,6 +25,7 @@ use std::{
     sync::{atomic::Ordering::Relaxed, Arc},
 };
 use tokio::sync::watch;
+
 #[derive(FromArgs, Debug, Clone)]
 /// Ldap 主程式參數
 pub struct Args {
@@ -43,12 +46,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let (addr, rootca, key_path, cert_path, check_is_controller) = server_init!();
     tracing::info!("正在啟動{ID}...");
     let (_reload_tx, mut reload_rx) = watch::channel(());
+    let db = get_db().await;
+    db.pool().await?;
     loop {
         let (key, cert) = CertUtils::cert_from_path(&cert_path, &key_path, None)?;
         let identity = Identity::from_pem(cert, key);
-        let tls = ServerTlsConfig::new()
+        let mut tls = ServerTlsConfig::new()
             .identity(identity)
             .client_ca_root(Certificate::from_pem(CertUtils::load_cert(&rootca)?.to_pem()?));
+        if cfg!(debug_assertions) {
+            tls = tls.use_key_log();
+        }
         let (health_reporter, health_service) = health_reporter();
         health_reporter.set_serving::<DhcpServiceServer<DhcpServiceImpl>>().await;
         let mut rx = reload_rx.clone();

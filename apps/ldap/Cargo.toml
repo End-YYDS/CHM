@@ -8,23 +8,23 @@ name = "CHM_ldapd"
 path = "src/main.rs"
 
 [dependencies]
-tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
-chm-dns_resolver = { workspace = true }
-chm-project_const = { workspace = true }
-chm-config_bus = { workspace = true }
+arc-swap = { workspace = true }
 argh = { workspace = true }
+chm-cert-utils = { workspace = true }
 chm-cluster-utils = { workspace = true, features = [
   "server",
   "grpc-server",
 ], default-features = true }
-ldap3 = { version = "0.11", default-features = false, features = ["sync"] }
-chm-password = { workspace = true }
-thiserror = { workspace = true }
+chm-config_bus = { workspace = true }
+chm-dns_resolver = { workspace = true }
 chm-grpc = { workspace = true, features = ["ldap"] }
+chm-password = { workspace = true }
+chm-project_const = { workspace = true }
+ldap3 = { version = "0.11", default-features = false, features = ["sync"] }
+serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
-serde = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-arc-swap = { workspace = true }
-chm-cert-utils = { workspace = true }

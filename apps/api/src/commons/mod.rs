@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 pub mod error_logs;
-mod translate;
+pub mod translate;
 
 #[derive(Debug, Deserialize)]
 pub struct UuidRequest {

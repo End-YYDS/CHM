@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT pc_uuid FROM zone_pcs WHERE zone_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "pc_uuid",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1d99b71bbcfb4da493ac3823635cc90540871ff61b5ca4aa48bd72e3148a8d62"
+}

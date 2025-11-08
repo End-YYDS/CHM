@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE zones SET name = ? WHERE id = (SELECT id FROM zones WHERE vni = ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "5d9851b93b91a779db55db300b5ca633f130f5ebce62967f1b2766d95035776f"
+}

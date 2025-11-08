@@ -11,18 +11,32 @@ path = "src/main.rs"
 argh = { workspace = true }
 backoff = { workspace = true }
 chm-cert-utils = { workspace = true }
-chm-cluster-utils = { workspace = true, features = ["client", "server", "grpc-server", "grpc-client"] }
+chm-cluster-utils = { workspace = true, features = [
+  "client",
+  "server",
+  "grpc-server",
+  "grpc-client",
+] }
 chm-config_bus = { workspace = true }
 chm-dns_resolver = { workspace = true }
-chm-grpc = { workspace = true, features = ["controller", "ca-client", "restful", "dns-client", "ldap-client", "dhcp-client"] }
+chm-grpc = { workspace = true, features = [
+  "controller",
+  "ca-client",
+  "restful",
+  "dns-client",
+  "ldap-client",
+  "dhcp-client",
+  "agent-client",
+] }
 chm-project_const = { workspace = true }
 dashmap = { workspace = true }
 futures = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 tokio-util = { workspace = true }
-tower = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 url = { workspace = true }
-
+rand = { workspace = true }
+smallvec = "1.15.1"
+rustc-hash = "2.1.1"
