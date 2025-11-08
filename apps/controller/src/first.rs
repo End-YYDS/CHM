@@ -70,7 +70,7 @@ impl FirstStart {
             format!("{}.chm.com", &certinfo.cn).as_str(),
             san_extend,
         )?;
-        let payload = InitData { csr_cert, days: 365, uuid: self.self_uuid };
+        let payload = InitData { csr_cert, days: 365, uuid: self.self_uuid }; //TODO: 添加新的欄位VNI
         let resp: SignedCertResponse = init_with!(self.inner, payload, as SignedCertResponse)?;
         Ok(InitOutput {
             root_ca:      resp.root_ca,
