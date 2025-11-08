@@ -1,9 +1,10 @@
 #![allow(dead_code, unused_variables)]
 
-use crate::{communication::GrpcClients, GlobalConfig};
+use crate::{communication::GrpcClients, ConResult, GlobalConfig};
 use chm_cert_utils::CertUtils;
-use chm_cluster_utils::ServiceDescriptor;
+use chm_cluster_utils::{ServiceDescriptor, ServiceKind};
 use chm_grpc::{
+    agent::GetInfoRequest as AgentGetInfoRequest,
     common::{ResponseResult, ResponseType},
     restful::{restful_service_server::RestfulService, *},
     tonic,
@@ -22,6 +23,106 @@ use std::{
     sync::Arc,
 };
 use tokio::{sync::Semaphore, task::JoinSet};
+use tracing::{error, warn};
+
+#[derive(Debug, Clone)]
+struct AgentSnapshot {
+    uuid: String,
+    cpu:  f64,
+    mem:  f64,
+    disk: f64,
+}
+
+impl ControllerRestfulServer {
+    fn agent_descriptors(filter: Option<&Uuid>) -> Vec<ServiceDescriptor> {
+        GlobalConfig::with(|cfg| {
+            cfg.extend
+                .services_pool
+                .services
+                .get(&ServiceKind::Agent)
+                .map(|entry| {
+                    entry
+                        .iter()
+                        .filter(|desc| filter.is_none_or(|uuid| &desc.uuid == uuid))
+                        .cloned()
+                        .collect()
+                })
+                .unwrap_or_default()
+        })
+    }
+
+    fn agent_exists(uuid: &Uuid) -> bool {
+        GlobalConfig::with(|cfg| {
+            cfg.extend
+                .services_pool
+                .services
+                .get(&ServiceKind::Agent)
+                .map(|entry| entry.iter().any(|desc| &desc.uuid == uuid))
+                .unwrap_or(false)
+        })
+    }
+
+    async fn collect_agent_snapshots(&self, filter: Option<Uuid>) -> ConResult<Vec<AgentSnapshot>> {
+        let descriptors = Self::agent_descriptors(filter.as_ref());
+        if descriptors.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let concurrency = GlobalConfig::with(|cfg| cfg.extend.concurrency);
+        let permits = if concurrency == 0 { 1 } else { concurrency };
+        let semaphore = Arc::new(Semaphore::new(permits));
+        let mut set = JoinSet::new();
+
+        for descriptor in descriptors {
+            let clients = self.grpc_clients.clone();
+            let semaphore = semaphore.clone();
+            let agent_uuid = descriptor.uuid.to_string();
+
+            set.spawn(async move {
+                let permit = semaphore
+                    .acquire_owned()
+                    .await
+                    .map_err(|_| format!("Failed to acquire semaphore for agent {agent_uuid}"))?;
+
+                let uuid_label = agent_uuid.clone();
+                let snapshot = clients
+                    .with_agent_uuid_handle(&agent_uuid, move |agent| {
+                        let uuid_for_snapshot = uuid_label.clone();
+                        async move {
+                            let mut client = agent.get_i_client();
+                            let resp = client.get_info(AgentGetInfoRequest {}).await?;
+                            let info = resp.into_inner();
+                            Ok(AgentSnapshot {
+                                uuid: uuid_for_snapshot,
+                                cpu:  f64::from(info.cpu),
+                                mem:  f64::from(info.mem),
+                                disk: f64::from(info.disk),
+                            })
+                        }
+                    })
+                    .await
+                    .map_err(|e| e.to_string());
+                drop(permit);
+                snapshot
+            });
+        }
+
+        let mut snapshots = Vec::new();
+        while let Some(join_res) = set.join_next().await {
+            match join_res {
+                Ok(Ok(snapshot)) => snapshots.push(snapshot),
+                Ok(Err(err)) => warn!("Failed to pull agent info: {err}"),
+                Err(join_err) => error!("Join error while collecting agent info: {join_err}"),
+            }
+        }
+
+        if snapshots.is_empty() {
+            return Err("Failed to retrieve metrics from agents".into());
+        }
+
+        Ok(snapshots)
+    }
+}
 
 // TODO: 由RestFul Server 為Client 調用Controller RestFul gRPC介面
 #[derive(Debug)]
@@ -69,14 +170,72 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetAllInfoRequest>,
     ) -> Result<Response<GetAllInfoResponse>, Status> {
-        todo!()
+        let _ = request;
+        let snapshots = self
+            .collect_agent_snapshots(None)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to collect agent info: {e}")))?;
+
+        let mut total_cpu = 0.0;
+        let mut total_mem = 0.0;
+        let mut total_disk = 0.0;
+        for snapshot in &snapshots {
+            total_cpu += snapshot.cpu;
+            total_mem += snapshot.mem;
+            total_disk += snapshot.disk;
+        }
+
+        let count = snapshots.len() as f64;
+        let cluster = ClusterSummary {
+            cpu:    if count > 0.0 { total_cpu / count } else { 0.0 },
+            memory: if count > 0.0 { total_mem / count } else { 0.0 },
+            disk:   if count > 0.0 { total_disk / count } else { 0.0 },
+        };
+        let info_counts = InfoCounts { safe: snapshots.len() as i64, warn: 0, dang: 0 };
+
+        Ok(Response::new(GetAllInfoResponse { info: Some(info_counts), cluster: Some(cluster) }))
     }
 
     async fn get_info(
         &self,
         request: Request<GetInfoRequest>,
     ) -> Result<Response<GetInfoResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let requested_uuid_raw = req.uuid.and_then(|u| {
+            let trimmed = u.trim();
+            if trimmed.is_empty() {
+                None
+            } else {
+                Some(trimmed.to_string())
+            }
+        });
+
+        let target_uuid = if let Some(ref uuid_str) = requested_uuid_raw {
+            let parsed = Uuid::parse_str(uuid_str)
+                .map_err(|_| Status::invalid_argument(format!("Invalid uuid: {uuid_str}")))?;
+            if !Self::agent_exists(&parsed) {
+                return Err(Status::not_found(format!("Agent {uuid_str} not found")));
+            }
+            Some(parsed)
+        } else {
+            None
+        };
+
+        let snapshots = self
+            .collect_agent_snapshots(target_uuid)
+            .await
+            .map_err(|e| Status::internal(format!("Failed to collect agent info: {e}")))?;
+
+        let mut pcs = HashMap::new();
+        for snapshot in snapshots {
+            pcs.insert(
+                snapshot.uuid.clone(),
+                PcMetrics { cpu: snapshot.cpu, memory: snapshot.mem, disk: snapshot.disk },
+            );
+        }
+        let length = pcs.len() as u64;
+
+        Ok(Response::new(GetInfoResponse { pcs, length }))
     }
 
     async fn get_config(

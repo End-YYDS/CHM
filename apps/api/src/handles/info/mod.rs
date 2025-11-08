@@ -1,7 +1,8 @@
 mod types;
 
-use actix_web::{get, post, web, HttpResponse, Scope};
-use std::collections::HashMap;
+use crate::{AppState, RestfulResult};
+use actix_web::{get, post, web, Scope};
+use chm_grpc::restful;
 use types::*;
 
 pub fn info_scope() -> Scope {
@@ -10,42 +11,30 @@ pub fn info_scope() -> Scope {
 
 /// GET /api/info/getAll
 #[get("/getAll")]
-async fn _get_info_all() -> HttpResponse {
-    // TODO: 以你的監控來源取值
-    let info = InfoCounts { safe: 8, warn: 2, dang: 1 };
-    let cluster = ClusterSummary { cpu: 37.5, memory: 62.0, disk: 48.3 };
-    HttpResponse::Ok().json(GetAllInfoResponse { info, cluster })
+async fn _get_info_all(
+    app_state: web::Data<AppState>,
+) -> RestfulResult<web::Json<GetAllInfoResponse>> {
+    let mut client = app_state.gclient.clone();
+    let resp = client.get_all_info(restful::GetAllInfoRequest {}).await?.into_inner();
+    Ok(web::Json(GetAllInfoResponse::from(resp)))
 }
 
 /// POST /api/info/get
 #[post("/get")]
-async fn _post_info_get(data: web::Json<InfoGetRequest>) -> web::Json<InfoGetResponse> {
-    dbg!(&data);
-    // 假資料（uuid -> metrics）；實作時依 zone/target/uuid 過濾與聚合
-    let all: [(&str, PcMetrics); 3] = [
-        ("uuid-a", PcMetrics { cpu: 10.0, memory: 20.0, disk: 30.0 }),
-        ("uuid-b", PcMetrics { cpu: 40.0, memory: 50.0, disk: 60.0 }),
-        ("uuid-c", PcMetrics { cpu: 70.0, memory: 80.0, disk: 90.0 }),
-    ];
-
-    let mut pcs: HashMap<String, PcMetrics> = HashMap::new();
-
-    match &data.uuid {
-        None => {
-            // 取全部
-            for (k, v) in all {
-                pcs.insert(k.to_string(), v);
-            }
-        }
-        Some(u) => {
-            if let Some((k, v)) = all.iter().find(|(id, _)| *id == u) {
-                pcs.insert((*k).to_string(), *v);
-            }
-        }
-    }
-
-    // 這裡示範直接回傳 Cpu/Memory/Disk 全部三欄；若要依 Target
-    // 精簡欄位，能改為自訂序列化或分歧型別
-    let length = pcs.len();
-    web::Json(InfoGetResponse { pcs, length })
+async fn _post_info_get(
+    app_state: web::Data<AppState>,
+    web::Json(payload): web::Json<InfoGetRequest>,
+) -> RestfulResult<web::Json<InfoGetResponse>> {
+    let mut client = app_state.gclient.clone();
+    let uuid = payload.uuid.and_then(|u| {
+        let trimmed = u.trim().to_string();
+        (!trimmed.is_empty()).then_some(trimmed)
+    });
+    let req = restful::GetInfoRequest {
+        zone: restful::Zone::from(payload.zone) as i32,
+        target: restful::Target::from(payload.target) as i32,
+        uuid,
+    };
+    let resp = client.get_info(req).await?.into_inner();
+    Ok(web::Json(InfoGetResponse::from(resp)))
 }
