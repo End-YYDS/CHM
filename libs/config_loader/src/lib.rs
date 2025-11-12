@@ -7,7 +7,7 @@ use tokio::fs;
 
 pub extern crate toml;
 pub struct ConfigLoader<T> {
-    pub config: T,
+    pub config:      T,
     pub config_file: Vec<PathBuf>,
 }
 impl<T> ConfigLoader<T> {

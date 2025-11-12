@@ -22,7 +22,7 @@ const DNS_SERVICE_FQN: &str = "dns.DnsService";
 #[derive(Debug)]
 pub struct DnsResolver {
     dns_address: String,
-    client: DnsServiceClient<Channel>,
+    client:      DnsServiceClient<Channel>,
 }
 pub enum DnsQuery {
     Hostname(String),
