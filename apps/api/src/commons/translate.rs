@@ -34,15 +34,15 @@ impl From<GrpcResponseResult> for ApiResponseResult {
 //     fn status_code(&self) -> StatusCode {
 //         match self.0.code() {
 //             Code::Cancelled | Code::Unavailable => StatusCode::BAD_GATEWAY,
-//             Code::InvalidArgument | Code::FailedPrecondition => StatusCode::BAD_REQUEST,
-//             Code::NotFound => StatusCode::NOT_FOUND,
-//             Code::PermissionDenied | Code::Unauthenticated => StatusCode::UNAUTHORIZED,
-//             _ => StatusCode::INTERNAL_SERVER_ERROR,
+//             Code::InvalidArgument | Code::FailedPrecondition =>
+// StatusCode::BAD_REQUEST,             Code::NotFound => StatusCode::NOT_FOUND,
+//             Code::PermissionDenied | Code::Unauthenticated =>
+// StatusCode::UNAUTHORIZED,             _ => StatusCode::INTERNAL_SERVER_ERROR,
 //         }
 //     }
 //     fn error_response(&self) -> HttpResponse {
-//         HttpResponse::build(self.status_code()).body(self.0.message().to_string())
-//     }
+//         HttpResponse::build(self.status_code()).body(self.0.message().
+// to_string())     }
 // }
 
 #[derive(Debug, Error)]

@@ -24,25 +24,25 @@ pub struct ApiConfigExtend {
     #[serde(default = "ApiConfigExtend::default_controller")]
     pub controller: String,
     #[serde(default)]
-    pub security: ApiSecurityConfig,
+    pub security:   ApiSecurityConfig,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ApiSecurityConfig {
     pub frontend_origin: String,
-    pub cookie_name: String,
-    pub session_key: String,
-    pub same_site: String,
-    pub cookie_secure: bool,
+    pub cookie_name:     String,
+    pub session_key:     String,
+    pub same_site:       String,
+    pub cookie_secure:   bool,
 }
 impl Default for ApiSecurityConfig {
     fn default() -> Self {
         Self {
             frontend_origin: String::from("https://localhost:3000"),
-            cookie_name: String::from("chm_sid"),
-            session_key: chm_password::generate_key64_base64(),
-            same_site: String::from("Lax"),
-            cookie_secure: true,
+            cookie_name:     String::from("chm_sid"),
+            session_key:     chm_password::generate_key64_base64(),
+            same_site:       String::from("Lax"),
+            cookie_secure:   true,
         }
     }
 }

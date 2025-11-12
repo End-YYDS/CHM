@@ -51,14 +51,26 @@ async fn add(
     let mut client = app_state.gclient.clone();
     let data: chm_grpc::restful::AddPcRequest = data.into();
     dbg!(&data);
-    let resp = client.add_pc(data).await.inspect_err(|e| tracing::error!(?e))?.into_inner().result.unwrap().into();
+    let resp = client
+        .add_pc(data)
+        .await
+        .inspect_err(|e| tracing::error!(?e))?
+        .into_inner()
+        .result
+        .unwrap()
+        .into();
     Ok(web::Json(resp))
 }
 
 #[get("/all")]
 async fn all(app_state: web::Data<AppState>) -> RestfulResult<web::Json<PcInformation>> {
     let mut client = app_state.gclient.clone();
-    let resp = client.get_all_pcs(GetAllPcsRequest {}).await.inspect_err(|e| tracing::error!(?e))?.into_inner().into();
+    let resp = client
+        .get_all_pcs(GetAllPcsRequest {})
+        .await
+        .inspect_err(|e| tracing::error!(?e))?
+        .into_inner()
+        .into();
     Ok(web::Json(resp))
 }
 
@@ -69,7 +81,12 @@ async fn specific(
 ) -> RestfulResult<web::Json<PcInformation>> {
     let mut client = app_state.gclient.clone();
     let data: GetSpecificPcsRequest = data.into();
-    let resp = client.get_specific_pcs(data).await.inspect_err(|e| tracing::error!(?e))?.into_inner().into();
+    let resp = client
+        .get_specific_pcs(data)
+        .await
+        .inspect_err(|e| tracing::error!(?e))?
+        .into_inner()
+        .into();
     Ok(web::Json(resp))
 }
 
@@ -80,7 +97,8 @@ async fn delete_pc(
 ) -> RestfulResult<web::Json<DeletePcResponse>> {
     let mut client = app_state.gclient.clone();
     let data: chm_grpc::restful::DeletePcsRequest = data.into();
-    let resp = client.delete_pcs(data).await.inspect_err(|e| tracing::error!(?e))?.into_inner().into();
+    let resp =
+        client.delete_pcs(data).await.inspect_err(|e| tracing::error!(?e))?.into_inner().into();
     Ok(web::Json(resp))
 }
 
