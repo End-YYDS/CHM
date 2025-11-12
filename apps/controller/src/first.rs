@@ -5,45 +5,60 @@ use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{atomic_write, init_with, Default_ClientCluster, ServiceDescriptor};
 use chm_project_const::{uuid::Uuid, ProjectConst};
 use serde::{Deserialize, Serialize};
+use url::Url;
 struct FirstStart {
-    inner:     Default_ClientCluster,
+    inner: Default_ClientCluster,
     self_uuid: Uuid,
 }
 struct FirstStartParams {
-    base_url:  String,
+    base_url: String,
     self_uuid: Uuid,
-    mdns_url:  String,
+    mdns_url: String,
 }
 #[derive(Debug, Deserialize)]
 struct SignedCertResponse {
-    root_ca:      Vec<u8>,
-    cert:         Vec<u8>,
-    chain:        Vec<Vec<u8>>,
-    ca_hostname:  String,
-    port:         u16,
+    root_ca: Vec<u8>,
+    cert: Vec<u8>,
+    chain: Vec<Vec<u8>>,
+    ca_hostname: String,
+    port: u16,
     service_desp: ServiceDescriptor,
 }
 
 #[derive(Debug, Clone, Serialize)]
 struct InitData {
     csr_cert: Vec<u8>,
-    days:     u32,
-    uuid:     Uuid,
+    days: u32,
+    uuid: Uuid,
 }
 #[allow(unused)]
 #[derive(Debug)]
 struct InitOutput {
-    root_ca:      Vec<u8>,
-    private_key:  Vec<u8>,
-    cert:         Vec<u8>,
-    cert_chain:   Vec<Vec<u8>>,
-    ca_hostname:  String,
-    ca_port:      u16,
+    root_ca: Vec<u8>,
+    private_key: Vec<u8>,
+    cert: Vec<u8>,
+    cert_chain: Vec<Vec<u8>>,
+    ca_hostname: String,
+    ca_port: u16,
     service_desp: ServiceDescriptor,
 }
 impl FirstStart {
     pub fn new(parms: FirstStartParams) -> Self {
-        let FirstStartParams { base_url, self_uuid, mdns_url } = parms;
+        let FirstStartParams { base_url, self_uuid, mut mdns_url } = parms;
+        let default_port = GlobalConfig::with(|cfg| cfg.server.port);
+        let ip_port = Url::parse(&mdns_url).expect("必須為正常Url");
+        if ip_port.port().is_none() {
+            let scheme = ip_port.scheme();
+            let new_host = if scheme != "https" {
+                panic!("僅支援 https:// 開頭的網址");
+            } else {
+                ip_port.host_str().expect("無法解析主機名稱").to_string()
+            };
+            mdns_url = format!("{scheme}://{new_host}:{default_port}");
+            tracing::warn!(
+                "目標網址未指定 Port，已自動補上預設 Port 11209，新的目標網址為: {mdns_url}"
+            );
+        }
         Self {
             inner: Default_ClientCluster::new(
                 base_url,
@@ -59,8 +74,10 @@ impl FirstStart {
     pub async fn init(&mut self) -> ConResult<InitOutput> {
         let uuid_s = self.self_uuid.to_string();
         let certinfo = GlobalConfig::with(|cfg| cfg.certificate.cert_info.clone());
+        let self_ip = GlobalConfig::with(|cfg| cfg.server.host.clone());
         let mut san_extend = certinfo.san.clone();
         san_extend.push(uuid_s);
+        san_extend.push(self_ip);
         let (pri_key, csr_cert) = CertUtils::generate_csr_with_new_key(
             certinfo.bits,
             &certinfo.country,
@@ -73,12 +90,12 @@ impl FirstStart {
         let payload = InitData { csr_cert, days: 365, uuid: self.self_uuid }; // TODO: 添加新的欄位VNI
         let resp: SignedCertResponse = init_with!(self.inner, payload, as SignedCertResponse)?;
         Ok(InitOutput {
-            root_ca:      resp.root_ca,
-            private_key:  pri_key,
-            cert:         resp.cert,
-            cert_chain:   resp.chain,
-            ca_hostname:  resp.ca_hostname,
-            ca_port:      resp.port,
+            root_ca: resp.root_ca,
+            private_key: pri_key,
+            cert: resp.cert,
+            cert_chain: resp.chain,
+            ca_hostname: resp.ca_hostname,
+            ca_port: resp.port,
             service_desp: resp.service_desp,
         })
     }

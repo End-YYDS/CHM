@@ -22,7 +22,7 @@ const DNS_SERVICE_FQN: &str = "dns.DnsService";
 #[derive(Debug)]
 pub struct DnsResolver {
     dns_address: String,
-    client:      DnsServiceClient<Channel>,
+    client: DnsServiceClient<Channel>,
 }
 pub enum DnsQuery {
     Hostname(String),
@@ -83,6 +83,7 @@ impl DnsResolver {
                     }
                     Err(e) => {
                         tracing::warn!("建立 channel 失敗: {e}，將重試…");
+                        tracing::debug!(error = ?e, "建立 gRPC channel 錯誤詳情");
                         Err(RetryErr::transient(e.into()))
                     }
                 }

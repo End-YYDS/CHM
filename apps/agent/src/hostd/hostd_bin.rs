@@ -19,7 +19,6 @@ mod unix_main {
     use tokio::{fs, net::UnixListener, signal, sync::Semaphore};
     use tokio_stream::wrappers::UnixListenerStream;
     use tracing::{error, info, warn};
-    use tracing_subscriber::EnvFilter;
     use users::get_group_by_name;
 
     #[derive(FromArgs, Debug, Clone)]
@@ -31,11 +30,8 @@ mod unix_main {
     }
 
     fn init_tracing() {
-        #[cfg(debug_assertions)]
-        let filter = EnvFilter::from_default_env().add_directive("info".parse().unwrap());
-        #[cfg(not(debug_assertions))]
-        let filter = EnvFilter::from_default_env();
-
+        let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
         let _ = tracing_subscriber::fmt().with_env_filter(filter).try_init();
     }
 

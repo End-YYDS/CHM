@@ -61,7 +61,7 @@ pub const DEFAULT_CRL_UPDATE_INTERVAL: u64 = 3600; // 1 小時
 #[serde(rename_all = "PascalCase")]
 pub struct CaExtension {
     #[serde(default)]
-    pub cert_ext:   CertificateExt,
+    pub cert_ext: CertificateExt,
     #[serde(default)]
     pub controller: Controller,
 }
@@ -70,21 +70,21 @@ pub struct CaExtension {
 pub struct CertificateExt {
     #[serde(default = "CertificateExt::default_rootca_key")]
     /// 根憑證的私鑰路徑
-    pub rootca_key:          PathBuf,
+    pub rootca_key: PathBuf,
     #[serde(default = "CertificateExt::default_bits")]
-    pub rand_bits:           i32,
+    pub rand_bits: i32,
     #[serde(with = "humantime_serde", default = "CertificateExt::default_crl_update_interval")]
     pub crl_update_interval: std::time::Duration,
     #[serde(flatten)]
     #[serde(default)]
-    pub backend:             BackendConfig,
+    pub backend: BackendConfig,
 }
 impl Default for CertificateExt {
     fn default() -> Self {
         CertificateExt {
-            rootca_key:          CertificateExt::default_rootca_key(),
-            backend:             BackendConfig::default(),
-            rand_bits:           CertificateExt::default_bits(),
+            rootca_key: CertificateExt::default_rootca_key(),
+            backend: BackendConfig::default(),
+            rand_bits: CertificateExt::default_bits(),
             crl_update_interval: CertificateExt::default_crl_update_interval(),
         }
     }
@@ -108,19 +108,19 @@ pub enum BackendConfig {
     /// 最大連線數量預設為 5，逾時時間預設為 10 秒
     Sqlite {
         #[serde(default = "SqliteSettings::default_store_path")]
-        store_path:      String,
+        store_path: String,
         #[serde(default = "SqliteSettings::default_max_connections")]
         max_connections: u32,
         #[serde(default = "SqliteSettings::default_timeout")]
-        timeout:         u64,
+        timeout: u64,
     },
 }
 impl Default for BackendConfig {
     fn default() -> Self {
         BackendConfig::Sqlite {
-            store_path:      SqliteSettings::default_store_path(),
+            store_path: SqliteSettings::default_store_path(),
             max_connections: SqliteSettings::default_max_connections(),
-            timeout:         SqliteSettings::default_timeout(),
+            timeout: SqliteSettings::default_timeout(),
         }
     }
 }
@@ -145,10 +145,10 @@ pub struct Controller {
     pub fingerprint: String,
     /// 控制器的序列號，用於唯一標識
     #[serde(default = "Controller::default_serial")]
-    pub serial:      String,
+    pub serial: String,
     /// 控制器的UUID
     #[serde(default = "Controller::default_uuid")]
-    pub uuid:        Uuid,
+    pub uuid: Uuid,
 }
 
 impl Controller {
@@ -285,12 +285,9 @@ pub async fn start_grpc(addr: SocketAddrV4, cert_handler: Arc<CertificateProcess
         let ca_layer =
             async_interceptor(make_ca_middleware(cert_handler.clone(), controller_args.clone()));
         let ca_svc = ServiceBuilder::new().layer(ca_layer).service(
-            CaServer::new(MyCa {
-                cert:     cert_handler.clone(),
-                reloader: cert_update_tx.clone(),
-            })
-            .send_compressed(CompressionEncoding::Zstd)
-            .accept_compressed(CompressionEncoding::Zstd),
+            CaServer::new(MyCa { cert: cert_handler.clone(), reloader: cert_update_tx.clone() })
+                .send_compressed(CompressionEncoding::Zstd)
+                .accept_compressed(CompressionEncoding::Zstd),
         );
         let crl_layer = async_interceptor(make_crl_middleware(cert_handler.clone()));
         let crl_svc = ServiceBuilder::new().layer(crl_layer).service(
@@ -357,6 +354,7 @@ pub async fn mini_controller_cert(
 /// # 回傳
 /// * `CaResult<()>` - 返回結果，表示操作是否成功
 pub async fn ca_grpc_cert(cert_handler: &CertificateProcess, uid: Uuid) -> CaResult<()> {
+    let self_ip = GlobalConfig::with(|cfg| cfg.server.host.clone());
     let ca_grpc: (PrivateKey, CsrCert) = CertUtils::generate_csr_with_new_key(
         4096,
         "TW",
@@ -364,7 +362,7 @@ pub async fn ca_grpc_cert(cert_handler: &CertificateProcess, uid: Uuid) -> CaRes
         "Taipei",
         "CHM Organization",
         "ca.chm.com",
-        ["127.0.0.1", "ca.chm.com", "mca.chm.com", uid.to_string().as_str()],
+        ["127.0.0.1", self_ip.as_str(), "ca.chm.com", "mca.chm.com", uid.to_string().as_str()],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;

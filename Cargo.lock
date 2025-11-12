@@ -671,6 +671,7 @@ name = "ca"
 version = "0.1.0"
 dependencies = [
  "actix-web",
+ "argh",
  "chm-cert-utils",
  "chm-cluster-utils",
  "chm-config_bus",

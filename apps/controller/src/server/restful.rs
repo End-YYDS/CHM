@@ -617,7 +617,6 @@ impl RestfulService for ControllerRestfulServer {
                     .map_err(|e| Status::internal(format!("Failed to list DHCP zones: {e}")))?;
                 let mut groups: HashMap<i64, PcGroup> = HashMap::new();
                 for zone in zones {
-                    dbg!(&zone);
                     let id = zone.vni;
                     let zone_name = zone.name;
                     let pcs = dhcp
