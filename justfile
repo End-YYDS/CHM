@@ -132,8 +132,9 @@ run-init password="":
     @just run-ldap '-i'
     @just run-dhcp '-i'
     @just run-controller '-i'
+    @just run-agentd '-i'
     @just remove-examples
-    @files=({{ CONFIG_FOLDER }}/{CHM_API,CHM_dhcpd,CHM_ldapd,CHMcd,CHMmDNS}_config.toml); \
+    @files=({{ CONFIG_FOLDER }}/{CHM_API,CHM_dhcpd,CHM_ldapd,CHMcd,CHMmDNS,CHM_agentd}_config.toml); \
     for i in $(seq 0 $(( ${#files[@]} - 1 )) ); do \
         echo "Processing file: ${files[$i]}"; \
         just replace 'rootCA.pem' "rootCA'$((i+1))'.pem" "${files[$i]}"; \

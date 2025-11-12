@@ -66,7 +66,6 @@ macro_rules! init_with {
     ($client:expr, $data:expr $(,)?) => {{
         use std::error::Error as _;
         use $crate::{ApiResponse, InitEnvelope};
-
         let __http = $client.build().await?;
         let __otp = $client.get_otp().map_err(|e| {
             tracing::error!("OTP Error: {}", e);
@@ -75,7 +74,6 @@ macro_rules! init_with {
         let __payload = InitEnvelope { code: __otp, data: $data };
         let __url = format!("{}/init", $client.base_url());
         tracing::debug!("初始化請求 URL: {}", __url);
-
         let __resp = __http.post(&__url).json(&__payload).send().await?;
         let __resp = __resp.error_for_status().map_err(|e| {
             tracing::error!("初始化 HTTP 錯誤: {e}");
@@ -86,7 +84,6 @@ macro_rules! init_with {
             tracing::error!("初始化回應 JSON 解析失敗: {e}");
             e
         })?;
-
         if !__api_resp.ok {
             let __msg = __api_resp.message.clone();
             tracing::error!("初始化失敗: {}", __msg);
@@ -108,7 +105,6 @@ macro_rules! init_with {
         let __payload = InitEnvelope { code: __otp, data: $data };
         let __url = format!("{}/init", $client.base_url());
         tracing::debug!("初始化請求 URL: {}", __url);
-
         let __resp = __http.post(&__url).json(&__payload).send().await?;
         let __resp = __resp.error_for_status().map_err(|e| {
             tracing::error!("初始化 HTTP 錯誤: {e}");
@@ -118,7 +114,6 @@ macro_rules! init_with {
             tracing::error!("初始化回應 JSON 解析失敗: {e}");
             e
         })?;
-
         if !__parsed.ok {
             let __msg = __parsed.message.clone();
             tracing::error!("初始化失敗: {}", __msg);
