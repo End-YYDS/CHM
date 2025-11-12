@@ -23,14 +23,17 @@ pub fn load_config<T>(
 where
     T: DeserializeOwned,
 {
-    let default_system_path = ProjectConst::release_save_dir(); // TODO: 安裝腳本安裝時注意資料夾權限問題
-    let default_dev_path = PathBuf::from("config");
+    let system_dir = ProjectConst::config_path();
+    let dev_dir = PathBuf::from("config");
     let default_name = format!("{env_prefix}_config.toml");
-    let system_config = system_config.filter(|s| !s.is_empty()).unwrap_or(&default_name);
-    let dev_config = dev_config.filter(|s| !s.is_empty()).unwrap_or(&default_name);
+    let system_name = system_config.filter(|s| !s.is_empty()).unwrap_or(&default_name);
+    let dev_name = dev_config.filter(|s| !s.is_empty()).unwrap_or(&default_name);
+    let sys_path = system_dir.join(system_name);
+    let dev_path = dev_dir.join(dev_name);
+
     let builder = Config::builder()
-        .add_source(File::from(default_system_path.join(system_config)).required(false))
-        .add_source(File::from(default_dev_path.join(dev_config)).required(false))
+        .add_source(File::from(sys_path).required(false))
+        .add_source(File::from(dev_path).required(false))
         // 環境變數覆蓋：CHM_{$env_prefix}__PASSPHRASE
         .add_source(
             Environment::with_prefix(&format!("{}_{}", ProjectConst::PROJECT_NAME, env_prefix))

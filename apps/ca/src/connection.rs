@@ -57,7 +57,6 @@ impl Ca for MyCa {
     ///   返回簽署的憑證和鏈，或錯誤狀態
     async fn sign_csr(&self, req: Request<CsrRequest>) -> Result<Response<CsrResponse>, Status> {
         let temp = req.into_parts();
-        #[cfg(debug_assertions)]
         let CsrRequest { csr, days } = temp.2;
         let csr = X509Req::from_der(&csr)
             .or_else(|_| X509Req::from_pem(&csr))

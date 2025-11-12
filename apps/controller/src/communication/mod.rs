@@ -20,6 +20,7 @@ use std::{
     },
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
+use url::Url;
 
 use rustc_hash::FxHashMap as FastMap;
 use smallvec::SmallVec;
@@ -536,11 +537,24 @@ pub async fn connect_all_services(
     } else {
         services.to_vec()
     };
-
     let dns_resolver = if only_ca {
         None
     } else {
-        let mdns_addr = GlobalConfig::with(|cfg| cfg.server.dns_server.clone());
+        let mut mdns_addr = GlobalConfig::with(|cfg| cfg.server.dns_server.clone());
+        let default_port = GlobalConfig::with(|cfg| cfg.server.port);
+        let ip_port = Url::parse(&mdns_addr).expect("必須為正常Url");
+        if ip_port.port().is_none() {
+            let scheme = ip_port.scheme();
+            let new_host = if scheme != "https" {
+                panic!("僅支援 https:// 開頭的網址");
+            } else {
+                ip_port.host_str().expect("無法解析主機名稱").to_string()
+            };
+            mdns_addr = format!("{scheme}://{new_host}:{default_port}");
+            tracing::warn!(
+                "目標DNS網址未指定 Port，已自動補上預設 Port 11209，新的目標網址為: {mdns_addr}"
+            );
+        }
         Some(Arc::new(DnsResolver::new(mdns_addr, tls.clone()).await))
     };
     let concurrency = GlobalConfig::with(|cfg| cfg.extend.concurrency);
