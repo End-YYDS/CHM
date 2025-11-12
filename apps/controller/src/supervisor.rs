@@ -10,10 +10,10 @@ use tokio_util::sync::CancellationToken;
 use crate::{communication::GrpcClients, server::start_grpc, ConResult, GlobalConfig};
 
 pub struct GrpcSupervisor {
-    handle: Option<JoinHandle<ConResult<()>>>,
-    cancel: CancellationToken,
+    handle:   Option<JoinHandle<ConResult<()>>>,
+    cancel:   CancellationToken,
     gclients: Arc<GrpcClients>,
-    config: (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
+    config:   (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
 }
 
 impl GrpcSupervisor {
