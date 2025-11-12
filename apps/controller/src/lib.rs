@@ -213,15 +213,29 @@ pub async fn entry(args: Args) -> ConResult<()> {
             GlobalConfig::save_config().await?;
             GlobalConfig::reload_config().await?;
             tracing::debug!("Controller UUID 已寫入服務池");
-            let (has_ca, has_dns) = GlobalConfig::with(|cfg| {
+            let (has_ca, has_dns, default_port) = GlobalConfig::with(|cfg| {
                 let m = &cfg.extend.services_pool.services;
                 let has_ca = m.get(&ServiceKind::Mca).map(|v| !v.is_empty()).unwrap_or(false);
                 let has_dns = m.get(&ServiceKind::Dns).map(|v| !v.is_empty()).unwrap_or(false);
-                (has_ca, has_dns)
+                let default_port = cfg.server.port;
+                (has_ca, has_dns, default_port)
             });
             if !has_ca {
-                let ca_url = hostip
+                let mut ca_url = hostip
                     .unwrap_or_else(|| ask_for_ca_url().as_str().trim_end_matches('/').to_string());
+                let ip_port = Url::parse(&ca_url).expect("必須為正常Url");
+                if ip_port.port().is_none() {
+                    let scheme = ip_port.scheme();
+                    let new_host = if scheme != "https" {
+                        panic!("僅支援 https:// 開頭的網址");
+                    } else {
+                        ip_port.host_str().expect("無法解析主機名稱").to_string()
+                    };
+                    ca_url = format!("{scheme}://{new_host}:{default_port}");
+                    tracing::warn!(
+                        "目標網址未指定 Port，已自動補上預設 Port 11209，新的目標網址為: {ca_url}"
+                    );
+                }
                 first_run(ca_url, ca_otp_code).await?;
             }
             if !has_dns {
@@ -240,28 +254,6 @@ pub async fn entry(args: Args) -> ConResult<()> {
                     (controller_name, controller_ip, controller_uuid, ca_set)
                 });
             let gclient = Arc::new(GrpcClients::connect_all(false).await?);
-            // let dns_client = gclient.dns().ok_or("DNS client not initialized")?;
-            // tracing::debug!("將 Controller 資訊加入 DNS 伺服器...");
-            // {
-            //     let full_fqdn = format!("{controller_name}.chm.com");
-            //     dns_client.add_host(full_fqdn, controller_ip, controller_uuid).await?;
-            //     tracing::debug!("Controller 資訊已加入 DNS 伺服器");
-            // }
-            // {
-            //     if let Some(ca_set) = ca_desp {
-            //         for ca in ca_set.iter() {
-            //             let full_fqdn = format!("{}.chm.com", ca.hostname);
-            //             let ca_ip = Url::parse(&ca.uri)
-            //                 .map_err(|e| format!("解析 CA URI 時發生錯誤: {e}"))?
-            //                 .host_str()
-            //                 .ok_or("無法從 CA URI 中取得主機名稱")?
-            //                 .to_string();
-            //             dns_client.add_host(full_fqdn, ca_ip, ca.uuid).await?;
-            //             tracing::debug!("CA {} 資訊已加入 DNS 伺服器", ca.hostname);
-            //         }
-            //     }
-            // }
-
             gclient
                 .with_dns_handle(|dns| async move {
                     let full_fqdn = format!("{controller_name}.chm.com");
@@ -269,7 +261,6 @@ pub async fn entry(args: Args) -> ConResult<()> {
                     dns.add_host(full_fqdn, controller_ip.clone(), controller_uuid).await
                 })
                 .await?;
-
             tracing::debug!("Controller 資訊已加入 DNS 伺服器");
             if let Some(ca_set) = ca_desp {
                 for ca in ca_set.iter() {
@@ -296,7 +287,6 @@ pub async fn entry(args: Args) -> ConResult<()> {
             Ok(())
         };
     }
-
     let gclient = Arc::new(GrpcClients::connect_all(false).await?);
     match args.cmd.unwrap_or_default() {
         Command::Add(AddService { hostip, otp_code }) => {
@@ -338,14 +328,41 @@ impl Node {
         gclient: Arc<GrpcClients>,
         config: (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
     ) -> Self {
-        let host = hostip.unwrap_or_else(|| {
+        let default_port = GlobalConfig::with(|cfg| cfg.server.port);
+        let mut host = hostip.unwrap_or_else(|| {
             print!("請輸入目標主機名稱或IP網址(https://開頭): ");
             io::stdout().flush().unwrap();
             let mut input = String::new();
             io::stdin().read_line(&mut input).unwrap();
             format!("https://{}", input.trim())
         });
-        let dns_server = GlobalConfig::with(|cfg| cfg.server.dns_server.clone());
+        let ip_port = Url::parse(&host).expect("必須為正常Url");
+        if ip_port.port().is_none() {
+            let scheme = ip_port.scheme();
+            let new_host = if scheme != "https" {
+                panic!("僅支援 https:// 開頭的網址");
+            } else {
+                ip_port.host_str().expect("無法解析主機名稱").to_string()
+            };
+            host = format!("{scheme}://{new_host}:{default_port}");
+            tracing::warn!(
+                "目標網址未指定 Port，已自動補上預設 Port 11209，新的目標網址為: {host}"
+            );
+        }
+        let mut dns_server = GlobalConfig::with(|cfg| cfg.server.dns_server.clone());
+        let ip_port = Url::parse(&dns_server).expect("必須為正常Url");
+        if ip_port.port().is_none() {
+            let scheme = ip_port.scheme();
+            let new_host = if scheme != "https" {
+                panic!("僅支援 https:// 開頭的網址");
+            } else {
+                ip_port.host_str().expect("無法解析主機名稱").to_string()
+            };
+            dns_server = format!("{scheme}://{new_host}:{default_port}");
+            tracing::warn!(
+                "目標網址未指定 Port，已自動補上預設 Port 11209，新的目標網址為: {dns_server}"
+            );
+        }
         let wclient = Default_ClientCluster::new(
             host.clone(),
             Some(dns_server),
@@ -364,7 +381,7 @@ impl Node {
             con_uuid:    GlobalConfig::with(|cfg| cfg.server.unique_id),
         };
         tracing::debug!("傳送 Bootstrap 請求到目標服務...");
-        let first_step = init_with!(self.wclient, payload, as chm_cluster_utils::BootstrapResp)?;
+        let first_step = init_with!(self.wclient, payload, as chm_cluster_utils::BootstrapResp)?; // TODO: 將預設VNI傳送過去
         tracing::debug!("Bootstrap完成，取得CSR，準備向CA請求簽發憑證...");
         let sign_days = GlobalConfig::with(|cfg| cfg.extend.sign_days);
         let (cert_pem, chain_pem) = self
@@ -377,12 +394,16 @@ impl Node {
             GlobalConfig::with(|cfg| (cfg.certificate.client_cert.clone(), cfg.server.unique_id));
         let controller_pem = tokio::fs::read(controller_cert).await?;
         let payload = InitData::Finalize {
+            // TODO: 添加 VNI
+            // 資訊，需要先與mDHCP問，有什麼可以用，先保留，等到後面交換結束時材真的消耗
             id: first_step.service_desp.uuid,
             cert_pem,
             chain_pem,
             controller_pem,
             controller_uuid,
         };
+        // TODO: 消耗標準 -> controller 重啟後送grpc 檢查，確認服務可用,
+        // 因為Services的IP 會變成內網IP
         tracing::debug!("傳送 Finalize 請求到目標服務...");
         init_with!(self.wclient, payload)?;
         tracing::debug!("Finalize完成，將服務資訊寫入配置檔...");
@@ -399,6 +420,8 @@ impl Node {
         if !is_dns {
             tracing::debug!("將服務資訊加入 DNS 伺服器...");
             let full_fqdn = format!("{}.chm.com", first_step.service_desp.hostname);
+            // TODO: 多個服務之間需要有同步機制，避免資料不一致
+            // TODO:  IP 會變成mDHCP 分配的內網IP
             self.gclient
                 .with_dns_handle(|dns| async move {
                     dns.add_host(
@@ -411,6 +434,7 @@ impl Node {
                 .await?;
             tracing::info!("服務資訊已加入 DNS 伺服器");
         }
+        GlobalConfig::reload_config().await?;
         Ok(())
     }
     pub async fn remove(&self, kind: &str, confirm: bool) -> ConResult<()> {

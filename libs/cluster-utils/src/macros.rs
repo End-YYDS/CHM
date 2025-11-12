@@ -216,6 +216,7 @@ macro_rules! software_init_define {
                     }
 
                     let mut san_extend = carry.cert_info.san.clone();
+                    san_extend.push(carry.server_addr.ip().to_string());
                     san_extend.push(carry.uuid.to_string());
                     let csr_pem = match CertUtils::generate_csr(
                         carry.private_key.clone(),
@@ -316,6 +317,7 @@ macro_rules! software_init_define {
                     }
                     let mut san_extend = carry.cert_info.san.clone();
                     san_extend.push(carry.uuid.to_string());
+                    san_extend.push(carry.server_addr.ip().to_string());
 
                     let csr_pem = match CertUtils::generate_csr(
                         carry.private_key.clone(),
@@ -458,13 +460,13 @@ macro_rules! server_init {
         .with_otp_rotate_every(otp_time)
         .add_configurer(init_route())
         .with_app_data::<InitCarry>(carry.clone());
-        tracing::info!("啟動初始化 Server，等待 Controller 的初始化請求...");
+        tracing::info!("在 {addr} 啟動初始化 Server，等待 Controller 的初始化請求...");
         match init_server.init().await {
             ControlFlow::Continue(()) => {
                 tracing::info!("初始化完成，啟動正式服務...");
             }
-            ControlFlow::Break(_) => {
-                tracing::warn!("初始化未完成 (Ctrl+C)，程式結束");
+            ControlFlow::Break(e) => {
+                tracing::warn!("初始化未完成，錯誤: {e}");
                 return Ok(());
             }
         }
@@ -475,11 +477,13 @@ macro_rules! server_init {
 #[macro_export]
 macro_rules! software_init {
     ($args_ty:ty) => {{
-        #[cfg(debug_assertions)]
-        let filter = tracing_subscriber::EnvFilter::from_default_env()
-            .add_directive("info".parse().unwrap());
-        #[cfg(not(debug_assertions))]
-        let filter = tracing_subscriber::EnvFilter::from_default_env();
+        // #[cfg(debug_assertions)]
+        // let filter = tracing_subscriber::EnvFilter::from_default_env()
+        //     .add_directive("info".parse().unwrap());
+        let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
+        // #[cfg(not(debug_assertions))]
+        // let filter = tracing_subscriber::EnvFilter::from_default_env();
         tracing_subscriber::fmt().with_env_filter(filter).init();
         let args: $args_ty = argh::from_env();
         if args.init_config {
