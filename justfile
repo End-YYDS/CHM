@@ -45,7 +45,7 @@ create-dhcp-db:
     @sqlx database create -D "{{ DHCP_DATABASE_URL }}"
 
 create-ca-root:
-    @cargo run -p ca --bin CHM_CA -- --create-ca
+    @cargo run -p ca --bin CHMmCA -- --root-ca
 
 reset-ca: (reset-db CA_DATABASE_URL CA_FOLDER_MIGRATE)
 
@@ -96,31 +96,31 @@ remove-examples:
 run-ca args="":
     @[[ ! -f "{{ DB_FOLDER }}/cert_store.db" ]] && just create-ca-db || true
     @[[ ! -f "{{ CERT_FOLDER }}/rootCA.pem" ]] && just create-ca-root || true
-    @DATABASE_URL={{ CA_DATABASE_URL }} RUST_LOG=ca=debug,CHM_CA=debug  cargo run -p ca --bin CHM_CA -- {{ args }}
+    @DATABASE_URL={{ CA_DATABASE_URL }} RUST_LOG=info,ca=debug,CHMmCA=debug  cargo run -p ca --bin CHMmCA -- {{ args }}
 
 run-dns args="":
     @podman start CHM-DNS || true
-    @DATABASE_URL={{ DNS_DATABASE_URL }} RUST_LOG=dns=debug,CHM_mDNSd=debug cargo run -p dns --bin CHM_mDNSd -- {{ args }}
+    @DATABASE_URL={{ DNS_DATABASE_URL }} RUST_LOG=info,dns=debug,CHMmDNS=debug cargo run -p dns --bin CHMmDNS -- {{ args }}
 
 run-controller args="":
-    @RUST_LOG=trace,controller=debug,CHMcd=debug cargo run -p controller --bin CHMcd -- {{ args }}
+    @RUST_LOG=info,controller=debug,CHMcd=debug,chm_dns_resolver=info,chm_cluster_utils=debug cargo run -p controller --bin CHMcd -- {{ args }}
 
 run-api args="":
-    @RUST_LOG=CHM_API=debug,api_server=debug,chm_cluster_utils=debug cargo run -p api_server --bin CHM_API -- {{ args }}
+    @RUST_LOG=info,CHM_API=info,api_server=debug,chm_cluster_utils=debug cargo run -p api_server --bin CHM_API -- {{ args }}
 
 run-agentd args="":
-    @RUST_LOG=agent=debug,CHM_agentd=debug cargo run -p agent --bin CHM_agentd -- {{ args }}
+    @RUST_LOG=info,agent=info,CHM_agentd=debug cargo run -p agent --bin CHM_agentd -- {{ args }}
 
 run-hostd args="":
-    @RUST_LOG=agent=debug,CHM_hostd=debug cargo run -p agent --bin CHM_hostd -- {{ args }}
+    @RUST_LOG=info,agent=debug,CHM_hostd=debug cargo run -p agent --bin CHM_hostd -- {{ args }}
 
 run-ldap args="":
     @[[ ! -f "{{ DB_FOLDER }}/ids.db" ]] && just create-ldap-db || true
-    @DATABASE_URL={{ LDAP_DATABASE_URL }} RUST_LOG=trace,ldap=debug,CHM_ldapd=debug cargo run -p ldap --bin CHM_ldapd -- {{ args }}
+    @DATABASE_URL={{ LDAP_DATABASE_URL }} RUST_LOG=info,ldap=debug,CHM_ldapd=debug cargo run -p ldap --bin CHM_ldapd -- {{ args }}
 
 run-dhcp args="":
     @[[ ! -f "{{ DB_FOLDER }}/dhcp.db" ]] && just create-dhcp-db || true
-    @DATABASE_URL={{ DHCP_DATABASE_URL }} RUST_LOG=dhcp=debug,CHM_dhcpd=debug cargo run -p dhcp --bin CHM_dhcpd -- {{ args }}
+    @DATABASE_URL={{ DHCP_DATABASE_URL }} RUST_LOG=info,dhcp=debug,CHM_dhcpd=debug cargo run -p dhcp --bin CHM_dhcpd -- {{ args }}
 
 run-api-client args="":
     @RUST_LOG=CHM_API=debug,api_server=debug,chm_cluster_utils=debug cargo run -p api_server --bin client -- {{ args }}

@@ -230,6 +230,7 @@ pub async fn grpc_connect_with_retry(
             }
             Err(e) => {
                 tracing::warn!("{log_name} 連線失敗：{e}，稍後重試…");
+                tracing::debug!(error = ?e, "{log_name} 連線錯誤詳情");
                 Err(backoff::Error::transient(e))
             }
         }

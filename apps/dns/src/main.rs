@@ -14,10 +14,8 @@ use dns::{
     service::{make_dns_interceptor, GrpcRouteInfo, GrpcRouteLayer, MyDnsService},
 };
 use sqlx::types::ipnetwork::Ipv4Network;
-#[cfg(debug_assertions)]
-use std::net::Ipv4Addr;
 use std::{
-    net::SocketAddrV4,
+    net::{Ipv4Addr, SocketAddrV4},
     ops::ControlFlow,
     path::PathBuf,
     sync::{atomic::Ordering::Relaxed, Arc},
@@ -84,8 +82,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let solver = DnsSolver::new().await?;
         let full_fqdn = format!("{hostname}.chm.com");
         let ip_net = Ipv4Network::new(*addr.ip(), 32)?;
+        tracing::debug!(?full_fqdn, ?ip_net, "確保DNS主機存在");
         if solver.add_host(&full_fqdn, ip_net.into(), self_uuid).await.is_err() {
+            tracing::debug!("DNS主機已存在，嘗試更新IP");
             let dns_uuid = solver.get_uuid_by_hostname(&full_fqdn).await?;
+            tracing::debug!(?dns_uuid, "取得DNS主機UUID");
             if let Err(e) = solver.edit_ip(dns_uuid, ip_net.into()).await {
                 tracing::warn!("DNS主機IP更新失敗: {}", e);
             }

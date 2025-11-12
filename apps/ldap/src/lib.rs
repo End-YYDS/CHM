@@ -108,7 +108,9 @@ impl LdapSettings {
         #[cfg(not(debug_assertions))]
         {
             use chm_dns_resolver::DnsResolver;
-            let addr = DnsResolver::get_local_ip().unwrap_or(Ipv4Addr::LOCALHOST).to_string();
+            use std::net::{IpAddr, Ipv4Addr};
+            let addr =
+                DnsResolver::get_local_ip().unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST)).to_string();
             format!("ldap://{addr}:389")
         }
     }

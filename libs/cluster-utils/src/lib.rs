@@ -112,7 +112,7 @@ pub enum InitData {
         cert_pem:        Vec<u8>,
         chain_pem:       Vec<Vec<u8>>,
         controller_pem:  Vec<u8>,
-        controller_uuid: Uuid,
+        controller_uuid: Uuid, // TODO: 添加從mDHCP 中取得的IP及VNI,寫入Config中
     },
 }
 

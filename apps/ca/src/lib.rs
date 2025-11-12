@@ -357,6 +357,7 @@ pub async fn mini_controller_cert(
 /// # 回傳
 /// * `CaResult<()>` - 返回結果，表示操作是否成功
 pub async fn ca_grpc_cert(cert_handler: &CertificateProcess, uid: Uuid) -> CaResult<()> {
+    let self_ip = GlobalConfig::with(|cfg| cfg.server.host.clone());
     let ca_grpc: (PrivateKey, CsrCert) = CertUtils::generate_csr_with_new_key(
         4096,
         "TW",
@@ -364,7 +365,7 @@ pub async fn ca_grpc_cert(cert_handler: &CertificateProcess, uid: Uuid) -> CaRes
         "Taipei",
         "CHM Organization",
         "ca.chm.com",
-        ["127.0.0.1", "ca.chm.com", "mca.chm.com", uid.to_string().as_str()],
+        ["127.0.0.1", self_ip.as_str(), "ca.chm.com", "mca.chm.com", uid.to_string().as_str()],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;

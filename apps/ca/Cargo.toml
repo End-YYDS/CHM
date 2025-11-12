@@ -4,13 +4,17 @@ version.workspace = true
 edition.workspace = true
 
 [[bin]]
-name = "CHM_CA"
+name = "CHMmCA"
 path = "src/main.rs"
 
 [dependencies]
+argh = { workspace = true }
 actix-web = { workspace = true }
 chm-cert-utils = { workspace = true }
-chm-cluster-utils = { workspace = true, features = ["server", "grpc-server"], default-features = true }
+chm-cluster-utils = { workspace = true, features = [
+  "server",
+  "grpc-server",
+], default-features = true }
 chm-config_bus = { workspace = true }
 chm-crl_cache = { workspace = true }
 chm-grpc = { workspace = true, features = ["ca", "crl-server"] }
@@ -28,4 +32,3 @@ tower = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
-

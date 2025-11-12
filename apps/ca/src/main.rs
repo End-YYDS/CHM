@@ -1,3 +1,4 @@
+use argh::FromArgs;
 use ca::{
     cert::{
         process::CertificateProcess,
@@ -7,29 +8,36 @@ use ca::{
 };
 use chm_project_const::ProjectConst;
 use std::{
-    env,
     net::SocketAddrV4,
     ops::ControlFlow,
     sync::{atomic::Ordering::Relaxed, Arc},
 };
-use tracing_subscriber::EnvFilter;
+#[derive(Debug, FromArgs)]
+/// CA 主程式參數
+pub struct Args {
+    /// 範例配置檔案
+    #[argh(switch, short = 'i')]
+    init_config: bool,
+
+    /// 創建新的 RootCA
+    #[argh(switch, short = 'c')]
+    root_ca: bool,
+}
 #[actix_web::main]
 async fn main() -> CaResult<()> {
-    #[cfg(debug_assertions)]
-    let filter = EnvFilter::from_default_env().add_directive("info".parse().unwrap());
-    #[cfg(not(debug_assertions))]
-    let filter = EnvFilter::from_default_env();
+    let filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info"));
     tracing_subscriber::fmt().with_env_filter(filter).init();
-    let args: Vec<String> = env::args().collect();
+    let args: Args = argh::from_env();
     tracing::debug!("啟動 mCA 伺服器，參數: {:?}", args);
-    if args.iter().any(|a| a == "--init-config" || a == "-i") {
+    if args.init_config {
         NEED_EXAMPLE.store(true, Relaxed);
         tracing::info!("初始化配置檔案...");
         config().await?;
-        tracing::info!("配置檔案已生成，請檢查 CA_config.toml.example");
+        tracing::info!("配置檔案已生成，請檢查 {ID}_config.toml.example");
         return Ok(());
     }
-    if args.iter().any(|a| a == "--create-ca") {
+    if args.root_ca {
         tracing::info!("創建新的 RootCA...");
         create_new_rootca().await?; //[ ]: 安裝程式需要先行調用此，產生RootCA
         let certs = ProjectConst::certs_path();
