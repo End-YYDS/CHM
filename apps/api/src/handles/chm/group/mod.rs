@@ -62,7 +62,7 @@ async fn _post_group_root(
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
-        r#type: chm_grpc::common::ResponseType::Err as i32,
+        r#type:  chm_grpc::common::ResponseType::Err as i32,
         message: "Unknown error".into(),
     });
     Ok(web::Json(result.into()))
@@ -78,7 +78,7 @@ async fn _put_group_root(
     let mut client = app_state.gclient.clone();
     if data.data.is_empty() {
         return Ok(web::Json(ResponseResult {
-            r#type: ResponseType::Err,
+            r#type:  ResponseType::Err,
             message: "At least one group entry is required".into(),
         }));
     }
@@ -97,7 +97,7 @@ async fn _put_group_root(
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
-        r#type: chm_grpc::common::ResponseType::Err as i32,
+        r#type:  chm_grpc::common::ResponseType::Err as i32,
         message: "Unknown error".into(),
     });
     Ok(web::Json(result.into()))
@@ -125,7 +125,7 @@ async fn _patch_group_root(
     }
     if grpc_patch.groupname.is_none() && grpc_patch.users.is_empty() {
         return Ok(web::Json(ResponseResult {
-            r#type: ResponseType::Err,
+            r#type:  ResponseType::Err,
             message: "No field provided for update".into(),
         }));
     }
@@ -138,7 +138,7 @@ async fn _patch_group_root(
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
-        r#type: chm_grpc::common::ResponseType::Err as i32,
+        r#type:  chm_grpc::common::ResponseType::Err as i32,
         message: "Unknown error".into(),
     });
     Ok(web::Json(result.into()))
@@ -159,7 +159,7 @@ async fn _delete_group_root(
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
-        r#type: chm_grpc::common::ResponseType::Err as i32,
+        r#type:  chm_grpc::common::ResponseType::Err as i32,
         message: "Unknown error".into(),
     });
     Ok(web::Json(result.into()))

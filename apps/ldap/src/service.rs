@@ -20,16 +20,16 @@ use tokio::{sync::Mutex, task::JoinHandle};
 
 #[derive(Debug)]
 struct LdapConnState {
-    ldap: Mutex<Ldap>,
+    ldap:     Mutex<Ldap>,
     _deriver: JoinHandle<()>,
 }
 
 #[derive(Debug)]
 pub struct LdapManager {
-    url: String,
-    bind_dn: String,
-    bind_pw: String,
-    state: ArcSwapOption<LdapConnState>,
+    url:          String,
+    bind_dn:      String,
+    bind_pw:      String,
+    state:        ArcSwapOption<LdapConnState>,
     connect_lock: Mutex<()>,
 }
 impl LdapManager {

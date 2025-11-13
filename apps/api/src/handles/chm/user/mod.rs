@@ -59,17 +59,17 @@ async fn _post_user_root(
     let data = payload.into_inner();
     let mut client = app_state.gclient.clone();
     let user = Grpc_UserEntry {
-        username: data.username,
-        password: data.password,
-        cn: data.cn,
-        sn: data.sn,
+        username:       data.username,
+        password:       data.password,
+        cn:             data.cn,
+        sn:             data.sn,
         home_directory: data.home_directory,
-        shell: data.shell,
-        given_name: data.given_name,
-        display_name: data.display_name,
-        gid_number: "".to_string(),
-        group: data.group,
-        gecos: data.gecos,
+        shell:          data.shell,
+        given_name:     data.given_name,
+        display_name:   data.display_name,
+        gid_number:     "".to_string(),
+        group:          data.group,
+        gecos:          data.gecos,
     };
     let grpc_req = Grpc_CreateUserRequest { user: Some(user) };
     let resp = client
@@ -79,7 +79,7 @@ async fn _post_user_root(
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
-        r#type: chm_grpc::common::ResponseType::Err as i32,
+        r#type:  chm_grpc::common::ResponseType::Err as i32,
         message: "Unknown error".into(),
     });
     Ok(web::Json(result.into()))
@@ -95,7 +95,7 @@ async fn _put_user_root(
     let mut client = app_state.gclient.clone();
     if data.data.is_empty() {
         return Ok(web::Json(ResponseResult {
-            r#type: ResponseType::Err,
+            r#type:  ResponseType::Err,
             message: "At least one user entry is required".into(),
         }));
     }
@@ -106,17 +106,17 @@ async fn _put_user_root(
             (
                 uid,
                 chm_grpc::restful::UserEntry {
-                    username: "".to_string(), // username 不變
-                    password: entry.password,
-                    cn: entry.cn,
-                    sn: entry.sn,
+                    username:       "".to_string(), // username 不變
+                    password:       entry.password,
+                    cn:             entry.cn,
+                    sn:             entry.sn,
                     home_directory: entry.home_directory,
-                    shell: entry.shell,
-                    given_name: entry.given_name,
-                    display_name: entry.display_name,
-                    gid_number: "".to_string(), // 如果不用改 primary group
-                    group: entry.group,
-                    gecos: entry.gecos,
+                    shell:          entry.shell,
+                    given_name:     entry.given_name,
+                    display_name:   entry.display_name,
+                    gid_number:     "".to_string(), // 如果不用改 primary group
+                    group:          entry.group,
+                    gecos:          entry.gecos,
                 },
             )
         })
@@ -129,7 +129,7 @@ async fn _put_user_root(
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
-        r#type: chm_grpc::common::ResponseType::Err as i32,
+        r#type:  chm_grpc::common::ResponseType::Err as i32,
         message: "Unknown error".into(),
     });
     Ok(web::Json(result.into()))
@@ -186,7 +186,7 @@ async fn _patch_user_root(
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
-        r#type: chm_grpc::common::ResponseType::Err as i32,
+        r#type:  chm_grpc::common::ResponseType::Err as i32,
         message: "Unknown error".into(),
     });
     Ok(web::Json(result.into()))
@@ -207,7 +207,7 @@ async fn _delete_user_root(
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
-        r#type: chm_grpc::common::ResponseType::Err as i32,
+        r#type:  chm_grpc::common::ResponseType::Err as i32,
         message: "Unknown error".into(),
     });
     Ok(web::Json(result.into()))

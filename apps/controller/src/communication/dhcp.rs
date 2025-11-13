@@ -20,7 +20,7 @@ use std::net::IpAddr;
 /// 所有方法皆回傳 `ConResult<T>`。
 #[derive(Debug, Clone)]
 pub struct ClientDhcp {
-    client: DhcpServiceClient<Channel>,
+    client:  DhcpServiceClient<Channel>,
     channel: Channel,
 }
 

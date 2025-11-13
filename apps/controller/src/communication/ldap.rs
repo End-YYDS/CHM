@@ -14,7 +14,7 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct ClientLdap {
-    client: LdapServiceClient<Channel>,
+    client:  LdapServiceClient<Channel>,
     channel: Channel,
 }
 

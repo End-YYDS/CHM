@@ -15,14 +15,14 @@ use chm_grpc::ca::{Cert as GrpcCert, CertStatus as GrpcStatus, CrlEntry as GrpcC
 impl From<StoreCert> for GrpcCert {
     fn from(c: StoreCert) -> Self {
         GrpcCert {
-            serial: c.serial.unwrap_or_default(),
-            subject_cn: c.subject_cn.unwrap_or_default(),
-            subject_dn: c.subject_dn.unwrap_or_default(),
-            issuer: c.issuer.unwrap_or_default(),
+            serial:      c.serial.unwrap_or_default(),
+            subject_cn:  c.subject_cn.unwrap_or_default(),
+            subject_dn:  c.subject_dn.unwrap_or_default(),
+            issuer:      c.issuer.unwrap_or_default(),
             issued_date: Some(CertUtils::to_prost_timestamp(&c.issued_date)),
-            expiration: Some(CertUtils::to_prost_timestamp(&c.expiration)),
-            thumbprint: c.thumbprint.unwrap_or_default(),
-            status: match c.status {
+            expiration:  Some(CertUtils::to_prost_timestamp(&c.expiration)),
+            thumbprint:  c.thumbprint.unwrap_or_default(),
+            status:      match c.status {
                 StoreStatus::Valid => GrpcStatus::Valid as i32,
                 StoreStatus::Revoked => GrpcStatus::Revoked as i32,
             },
@@ -34,8 +34,8 @@ impl From<StoreCrlEntry> for GrpcCrlEntry {
     fn from(c: StoreCrlEntry) -> Self {
         GrpcCrlEntry {
             cert_serial: c.cert_serial.unwrap_or_default(),
-            revoked_at: Some(CertUtils::to_prost_timestamp(&c.revoked_at)),
-            reason: c.reason.unwrap_or_default(),
+            revoked_at:  Some(CertUtils::to_prost_timestamp(&c.revoked_at)),
+            reason:      c.reason.unwrap_or_default(),
         }
     }
 }
@@ -43,7 +43,7 @@ impl From<StoreCrlEntry> for GrpcCrlEntry {
 /// gRPC CA 實現
 pub struct MyCa {
     /// 憑證處理器
-    pub cert: Arc<CertificateProcess>,
+    pub cert:     Arc<CertificateProcess>,
     pub reloader: tokio::sync::watch::Sender<()>,
 }
 

@@ -19,12 +19,12 @@ pub use verifier::*;
 impl From<StoreCrlEntry> for GrpcCrlEntry {
     fn from(se: StoreCrlEntry) -> Self {
         GrpcCrlEntry {
-            serial: se.cert_serial.unwrap_or_default(),
+            serial:     se.cert_serial.unwrap_or_default(),
             revoked_at: Some(Timestamp {
                 seconds: se.revoked_at.timestamp(),
-                nanos: se.revoked_at.timestamp_subsec_nanos() as i32,
+                nanos:   se.revoked_at.timestamp_subsec_nanos() as i32,
             }),
-            reason: se.reason.unwrap_or_default(),
+            reason:     se.reason.unwrap_or_default(),
         }
     }
 }
@@ -71,7 +71,7 @@ impl Crl for CrlList {
         let now = Utc::now();
         let this_update = Some(Timestamp {
             seconds: now.timestamp(),
-            nanos: now.timestamp_subsec_nanos() as i32,
+            nanos:   now.timestamp_subsec_nanos() as i32,
         });
         let next = self
             .next_update_time()

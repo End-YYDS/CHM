@@ -51,23 +51,23 @@ pub enum ClientHandle {
 }
 
 pub struct ClientFactories {
-    pub ca: fn(Channel) -> ca::ClientCA,
-    pub dns: fn(Channel) -> dns::ClientDNS,
-    pub ldap: fn(Channel) -> ldap::ClientLdap,
-    pub dhcp: fn(Channel) -> dhcp::ClientDhcp,
+    pub ca:    fn(Channel) -> ca::ClientCA,
+    pub dns:   fn(Channel) -> dns::ClientDNS,
+    pub ldap:  fn(Channel) -> ldap::ClientLdap,
+    pub dhcp:  fn(Channel) -> dhcp::ClientDhcp,
     pub agent: fn(Channel, chm_project_const::uuid::Uuid, String) -> agent::ClientAgent,
 }
 
 #[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub(crate) struct GrpcClients {
-    pub map: ClientMap,
-    rr: FastMap<ServiceKind, Arc<AtomicUsize>>,
-    health: FastMap<ServiceKind, Vec<Arc<AtomicBool>>>,
-    agent_by_uuid: FastMap<String, SmallVec<[usize; 1]>>,
+    pub map:           ClientMap,
+    rr:                FastMap<ServiceKind, Arc<AtomicUsize>>,
+    health:            FastMap<ServiceKind, Vec<Arc<AtomicBool>>>,
+    agent_by_uuid:     FastMap<String, SmallVec<[usize; 1]>>,
     agent_by_hostname: FastMap<String, SmallVec<[usize; 1]>>,
-    unhealthy_until: FastMap<ServiceKind, Vec<Arc<AtomicU64>>>,
-    quarantine_ms: u64,
+    unhealthy_until:   FastMap<ServiceKind, Vec<Arc<AtomicU64>>>,
+    quarantine_ms:     u64,
 }
 
 impl GrpcClients {
@@ -681,10 +681,10 @@ pub async fn init_channels_all(only_ca: bool) -> ConResult<GrpcClients> {
     });
     let pairs = connect_all_services(only_ca, &services, tls, backoff, &opts).await?;
     let factories = ClientFactories {
-        ca: ca::ClientCA::new,
-        dns: dns::ClientDNS::new,
-        ldap: ldap::ClientLdap::new,
-        dhcp: dhcp::ClientDhcp::new,
+        ca:    ca::ClientCA::new,
+        dns:   dns::ClientDNS::new,
+        ldap:  ldap::ClientLdap::new,
+        dhcp:  dhcp::ClientDhcp::new,
         agent: agent::ClientAgent::new_with_meta,
     };
 

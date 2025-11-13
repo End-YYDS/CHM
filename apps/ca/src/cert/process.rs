@@ -24,10 +24,10 @@ pub struct CertificateProcess {
     /// CA 憑證
     ca_cert: X509,
     /// CA 私鑰
-    ca_key: PKey<Private>,
+    ca_key:  PKey<Private>,
     /// CRL 驗證器
-    crl: Arc<CrlVerifier>,
-    store: Arc<dyn crate::cert::store::CertificateStore>,
+    crl:     Arc<CrlVerifier>,
+    store:   Arc<dyn crate::cert::store::CertificateStore>,
 }
 // #[allow(unused)]
 impl CertificateProcess {

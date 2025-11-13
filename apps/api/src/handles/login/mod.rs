@@ -43,7 +43,7 @@ async fn login(
     session.insert("role", "admin")?; // 例子
 
     Ok(web::Json(ResponseResult {
-        r#type: ResponseType::Ok,
+        r#type:  ResponseType::Ok,
         message: "Login successful".to_string(),
     }))
 }

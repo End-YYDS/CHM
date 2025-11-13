@@ -7,7 +7,7 @@ use crate::cert::store::{CertificateStore, CrlEntry as StoreCrlEntry};
 
 #[derive(Debug)]
 pub struct StoreCrlProvider {
-    store: Arc<dyn CertificateStore + Send + Sync>,
+    store:         Arc<dyn CertificateStore + Send + Sync>,
     poll_interval: ChronoDuration,
 }
 /// 繼承 CrlProvider，從 Store 中獲取 CRL，而不從gRPC 獲取。
