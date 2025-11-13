@@ -7,7 +7,7 @@ use crate::cert::store::{CertificateStore, CrlEntry as StoreCrlEntry};
 
 #[derive(Debug)]
 pub struct StoreCrlProvider {
-    store:         Arc<dyn CertificateStore + Send + Sync>,
+    store: Arc<dyn CertificateStore + Send + Sync>,
     poll_interval: ChronoDuration,
 }
 /// 繼承 CrlProvider，從 Store 中獲取 CRL，而不從gRPC 獲取。
@@ -19,11 +19,12 @@ impl CrlProvider for StoreCrlProvider {
         limit: usize,
         offset: usize,
     ) -> Result<(Vec<String>, DateTime<Utc>, DateTime<Utc>), CrlCacheError> {
-        let entries: Vec<StoreCrlEntry> =
-            self.store
-                .list_crl_entries(since, limit, offset)
-                .await
-                .map_err(|e| CrlCacheError::ProviderError(e.to_string()))?;
+        let entries: Vec<StoreCrlEntry> = self
+            .store
+            .list_crl_entries(since, limit, offset)
+            .await
+            .map_err(|e| CrlCacheError::ProviderError(e.to_string()))
+            .inspect_err(|e| tracing::error!(?e))?;
         let serials: Vec<String> = entries.into_iter().filter_map(|e| e.cert_serial).collect();
         let this_u = Utc::now();
         let next_u = this_u + self.poll_interval;

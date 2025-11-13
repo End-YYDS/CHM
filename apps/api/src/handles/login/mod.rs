@@ -1,8 +1,8 @@
 #![allow(unused)]
 
 use crate::{
-    commons::{ResponseResult, ResponseType},
-    AppState,
+    commons::{translate::AppError, ResponseResult, ResponseType},
+    AppState, RestfulResult,
 };
 use actix_session::Session;
 use actix_web::{get, post, web, HttpResponse};
@@ -14,23 +14,27 @@ async fn login(
     session: Session,
     app_state: web::Data<AppState>,
     web::Json(data): web::Json<LoginRequest>,
-) -> actix_web::Result<web::Json<ResponseResult>> {
+) -> RestfulResult<web::Json<ResponseResult>> {
     dbg!(&data);
     let mut h = app_state.gclient.clone();
     let resp = h
         .login(gLoginRequest { username: data.username.clone(), password: data.password })
         .await
-        .map_err(|e| actix_web::error::ErrorForbidden(e.message().to_string()))?
+        .map_err(|e| AppError::Forbidden(e.message().to_string()))
+        .inspect(|ok| tracing::debug!(?ok))
+        .inspect_err(|e| tracing::error!(?e))?
         .into_inner()
         .result
         .unwrap();
     dbg!(&resp);
     let is_success = gResponseType::try_from(resp.r#type)
-        .map_err(actix_web::error::ErrorForbidden)?
+        .map_err(|e| AppError::Forbidden(e.to_string()))
+        .inspect(|ok| tracing::debug!(?ok))
+        .inspect_err(|e| tracing::error!(?e))?
         == gResponseType::Ok;
     dbg!(is_success);
     if !is_success {
-        return Err(actix_web::error::ErrorForbidden("Invalid Username or Password"));
+        return Err(AppError::Forbidden("Invalid Username or Password".into()));
     }
     // Todo: 等dodo的get_users()完成
     session.renew();
@@ -39,7 +43,7 @@ async fn login(
     session.insert("role", "admin")?; // 例子
 
     Ok(web::Json(ResponseResult {
-        r#type:  ResponseType::Ok,
+        r#type: ResponseType::Ok,
         message: "Login successful".to_string(),
     }))
 }

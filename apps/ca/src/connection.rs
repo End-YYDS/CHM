@@ -15,14 +15,14 @@ use chm_grpc::ca::{Cert as GrpcCert, CertStatus as GrpcStatus, CrlEntry as GrpcC
 impl From<StoreCert> for GrpcCert {
     fn from(c: StoreCert) -> Self {
         GrpcCert {
-            serial:      c.serial.unwrap_or_default(),
-            subject_cn:  c.subject_cn.unwrap_or_default(),
-            subject_dn:  c.subject_dn.unwrap_or_default(),
-            issuer:      c.issuer.unwrap_or_default(),
+            serial: c.serial.unwrap_or_default(),
+            subject_cn: c.subject_cn.unwrap_or_default(),
+            subject_dn: c.subject_dn.unwrap_or_default(),
+            issuer: c.issuer.unwrap_or_default(),
             issued_date: Some(CertUtils::to_prost_timestamp(&c.issued_date)),
-            expiration:  Some(CertUtils::to_prost_timestamp(&c.expiration)),
-            thumbprint:  c.thumbprint.unwrap_or_default(),
-            status:      match c.status {
+            expiration: Some(CertUtils::to_prost_timestamp(&c.expiration)),
+            thumbprint: c.thumbprint.unwrap_or_default(),
+            status: match c.status {
                 StoreStatus::Valid => GrpcStatus::Valid as i32,
                 StoreStatus::Revoked => GrpcStatus::Revoked as i32,
             },
@@ -34,8 +34,8 @@ impl From<StoreCrlEntry> for GrpcCrlEntry {
     fn from(c: StoreCrlEntry) -> Self {
         GrpcCrlEntry {
             cert_serial: c.cert_serial.unwrap_or_default(),
-            revoked_at:  Some(CertUtils::to_prost_timestamp(&c.revoked_at)),
-            reason:      c.reason.unwrap_or_default(),
+            revoked_at: Some(CertUtils::to_prost_timestamp(&c.revoked_at)),
+            reason: c.reason.unwrap_or_default(),
         }
     }
 }
@@ -43,7 +43,7 @@ impl From<StoreCrlEntry> for GrpcCrlEntry {
 /// gRPC CA 實現
 pub struct MyCa {
     /// 憑證處理器
-    pub cert:     Arc<CertificateProcess>,
+    pub cert: Arc<CertificateProcess>,
     pub reloader: tokio::sync::watch::Sender<()>,
 }
 
@@ -60,12 +60,15 @@ impl Ca for MyCa {
         let CsrRequest { csr, days } = temp.2;
         let csr = X509Req::from_der(&csr)
             .or_else(|_| X509Req::from_pem(&csr))
-            .map_err(|e| Status::invalid_argument(format!("Invalid CSR: {e}")))?;
-        let (leaf, chain) = self.cert.sign_csr(&csr, days).await.map_err(|e| {
-            #[cfg(debug_assertions)]
-            tracing::error!("Sign error: {e}");
-            Status::internal(format!("Sign error: {e}"))
-        })?;
+            .map_err(|e| Status::invalid_argument(format!("Invalid CSR: {e}")))
+            .inspect_err(|e| tracing::error!(error = ?e , "Invalid CSR"))?;
+        let (leaf, chain) = self
+            .cert
+            .sign_csr(&csr, days)
+            .await
+            .map_err(|e| Status::internal(format!("Sign error: {e}")))
+            .inspect(|ok| tracing::debug!(?ok))
+            .inspect_err(|e| tracing::error!(error = ?e,"Sign CSR failed"))?;
         Ok(Response::new(CsrResponse { cert: leaf, chain }))
     }
     /// 重新加載 gRPC 配置
@@ -93,7 +96,8 @@ impl Ca for MyCa {
             .get_store()
             .list_all()
             .await
-            .map_err(|e| Status::internal(format!("Failed to list all certs: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed to list all certs: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let grpc_certs: Vec<Cert> = certs.into_iter().map(Into::into).collect();
         Ok(Response::new(ListAllCertsResponse { certs: grpc_certs }))
     }
@@ -107,7 +111,8 @@ impl Ca for MyCa {
             .get_store()
             .list_crl()
             .await
-            .map_err(|e| Status::internal(format!("Failed to list all revoked certs: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed to list all revoked certs: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let grpc_certs: Vec<CrlEntry> = certs.into_iter().map(Into::into).collect();
         Ok(Response::new(ListAllCrlResponse { certs: grpc_certs }))
     }
@@ -119,7 +124,8 @@ impl Ca for MyCa {
             .get_store()
             .get(&serial)
             .await
-            .map_err(|e| Status::internal(format!("Failed to get cert: {e}")))?
+            .map_err(|e| Status::internal(format!("Failed to get cert: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?
             .ok_or_else(|| Status::not_found(format!("Cert not found: {serial}")))?;
         Ok(Response::new(GetCertResponse { cert: Some(cert.into()) }))
     }
@@ -133,7 +139,8 @@ impl Ca for MyCa {
             .get_store()
             .get_by_thumbprint(&thumbprint)
             .await
-            .map_err(|e| Status::internal(format!("Failed to get cert by thumbprint: {e}")))?
+            .map_err(|e| Status::internal(format!("Failed to get cert by thumbprint: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?
             .ok_or_else(|| {
                 Status::not_found(format!("Cert not found for thumbprint: {thumbprint}"))
             })?;
@@ -149,7 +156,8 @@ impl Ca for MyCa {
             .get_store()
             .get_by_common_name(&common_name)
             .await
-            .map_err(|e| Status::internal(format!("Failed to get cert by common name: {e}")))?
+            .map_err(|e| Status::internal(format!("Failed to get cert by common name: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?
             .ok_or_else(|| {
                 Status::not_found(format!("Cert not found for common name: {common_name}"))
             })?;
@@ -165,7 +173,8 @@ impl Ca for MyCa {
             .get_store()
             .query_cert_status(&serial)
             .await
-            .map_err(|e| Status::internal(format!("Failed to query cert status: {e}")))?
+            .map_err(|e| Status::internal(format!("Failed to query cert status: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?
             .ok_or_else(|| Status::not_found(format!("Cert not found: {serial}")))?;
         Ok(Response::new(QueryCertStatusResponse {
             status: match status {
@@ -185,12 +194,14 @@ impl Ca for MyCa {
             .get_store()
             .mark_cert_revoked(&serial, reason)
             .await
-            .map_err(|e| Status::internal(format!("Failed to mark cert as revoked: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed to mark cert as revoked: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         self.cert
             .get_crl()
             .reload_crl()
             .await
-            .map_err(|e| Status::internal(format!("Failed reload CRL: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed reload CRL: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         Ok(Response::new(MarkCertRevokedResponse { success: true }))
     }
 }

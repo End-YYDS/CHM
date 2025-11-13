@@ -66,7 +66,7 @@ pub struct Init {
 
     /// 憑證主機OTP 驗證碼
     #[argh(option, short = 'c')]
-    pub ca_otp_code:  Option<String>,
+    pub ca_otp_code: Option<String>,
     /// DNS主機OTP 驗證碼
     #[argh(option, short = 'd')]
     pub dns_otp_code: Option<String>,
@@ -115,11 +115,11 @@ pub struct RemoveService {
 #[serde(rename_all = "PascalCase")]
 pub struct ControllerExtension {
     #[serde(default)]
-    pub services_pool:    ServicesPool,
+    pub services_pool: ServicesPool,
     #[serde(default = "ControllerExtension::default_sign_days")]
-    pub sign_days:        u32,
+    pub sign_days: u32,
     #[serde(default = "ControllerExtension::default_concurrency")]
-    pub concurrency:      usize,
+    pub concurrency: usize,
     #[serde(default = "ControllerExtension::default_service_attempts")]
     pub service_attempts: usize,
 }
@@ -137,9 +137,9 @@ impl ControllerExtension {
 impl Default for ControllerExtension {
     fn default() -> Self {
         Self {
-            services_pool:    Default::default(),
-            sign_days:        10,
-            concurrency:      10,
+            services_pool: Default::default(),
+            sign_days: 10,
+            concurrency: 10,
             service_attempts: 3,
         }
     }
@@ -202,12 +202,12 @@ pub async fn entry(args: Args) -> ConResult<()> {
                     .entry(ServiceKind::Controller)
                     .or_default()
                     .insert(ServiceDescriptor {
-                        kind:        ServiceKind::Controller,
-                        uri:         self_uuid_port,
+                        kind: ServiceKind::Controller,
+                        uri: self_uuid_port,
                         health_name: Some("controller.Controller".to_string()),
-                        is_server:   false,
-                        hostname:    self_hostname.to_string(),
-                        uuid:        cfg.server.unique_id,
+                        is_server: false,
+                        hostname: self_hostname.to_string(),
+                        uuid: cfg.server.unique_id,
                     });
             });
             GlobalConfig::save_config().await?;
@@ -266,7 +266,8 @@ pub async fn entry(args: Args) -> ConResult<()> {
                 for ca in ca_set.iter() {
                     let full_fqdn = format!("{}.chm.com", ca.hostname);
                     let ca_ip = Url::parse(&ca.uri)
-                        .map_err(|e| format!("解析 CA URI 時發生錯誤: {e}"))?
+                        .map_err(|e| format!("解析 CA URI 時發生錯誤: {e}"))
+                        .inspect_err(|e| tracing::error!(?e))?
                         .host_str()
                         .ok_or("無法從 CA URI 中取得主機名稱")?
                         .to_string();
@@ -316,10 +317,10 @@ pub async fn entry(args: Args) -> ConResult<()> {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) struct Node {
-    gclient:  Arc<GrpcClients>,
-    host:     String,
+    gclient: Arc<GrpcClients>,
+    host: String,
     otp_code: Option<String>,
-    wclient:  Default_ClientCluster,
+    wclient: Default_ClientCluster,
 }
 impl Node {
     pub fn new(
@@ -385,7 +386,7 @@ impl Node {
             tokio::fs::read(GlobalConfig::with(|cfg| cfg.certificate.root_ca.clone())).await?;
         let payload = InitData::Bootstrap {
             root_ca_pem: root_ca_bytes,
-            con_uuid:    GlobalConfig::with(|cfg| cfg.server.unique_id),
+            con_uuid: GlobalConfig::with(|cfg| cfg.server.unique_id),
         };
         tracing::debug!("傳送 Bootstrap 請求到目標服務...");
         let first_step = init_with!(self.wclient, payload, as chm_cluster_utils::BootstrapResp)?; // TODO: 將預設VNI傳送過去

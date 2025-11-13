@@ -24,10 +24,10 @@ pub struct CertificateProcess {
     /// CA 憑證
     ca_cert: X509,
     /// CA 私鑰
-    ca_key:  PKey<Private>,
+    ca_key: PKey<Private>,
     /// CRL 驗證器
-    crl:     Arc<CrlVerifier>,
-    store:   Arc<dyn crate::cert::store::CertificateStore>,
+    crl: Arc<CrlVerifier>,
+    store: Arc<dyn crate::cert::store::CertificateStore>,
 }
 // #[allow(unused)]
 impl CertificateProcess {
@@ -54,13 +54,15 @@ impl CertificateProcess {
             .or_else(|_| fs::read("certs/test_root_ca.key"))?;
         let ca_cert = X509::from_pem(&cert_pem)
             .or_else(|_| X509::from_der(&cert_pem))
-            .map_err(|e| format!("無法解析CA憑證: {e}"))?;
+            .map_err(|e| format!("無法解析CA憑證: {e}"))
+            .inspect_err(|e| tracing::error!(?e))?;
         let ca_key = if passphrase.is_empty() {
             PKey::private_key_from_pem(&key_pem)
         } else {
             PKey::private_key_from_pem_passphrase(&key_pem, passphrase.as_bytes())
         }
-        .map_err(|e| format!("無法解析CA私鑰: {e}"))?;
+        .map_err(|e| format!("無法解析CA私鑰: {e}"))
+        .inspect_err(|e| tracing::error!(?e))?;
         let crl = Arc::new(
             CrlVerifier::new(
                 store.clone(),
@@ -293,9 +295,16 @@ impl CertificateProcess {
     /// 用 CA 私鑰對 raw protobuf bytes 做 SHA256-with-RSA 簽名
     pub fn sign_crl(&self, data: &[u8]) -> CaResult<Vec<u8>> {
         let mut signer = Signer::new(MessageDigest::sha256(), &self.ca_key)
-            .map_err(|e| format!("無法建立簽名器: {e}"))?;
-        signer.update(data).map_err(|e| format!("簽名資料失敗: {e}"))?;
-        let sig = signer.sign_to_vec().map_err(|e| format!("生成簽名失敗: {e}"))?;
+            .map_err(|e| format!("無法建立簽名器: {e}"))
+            .inspect_err(|e| tracing::error!(?e))?;
+        signer
+            .update(data)
+            .map_err(|e| format!("簽名資料失敗: {e}"))
+            .inspect_err(|e| tracing::error!(?e))?;
+        let sig = signer
+            .sign_to_vec()
+            .map_err(|e| format!("生成簽名失敗: {e}"))
+            .inspect_err(|e| tracing::error!(?e))?;
         Ok(sig)
     }
 

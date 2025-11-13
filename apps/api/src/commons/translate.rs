@@ -59,6 +59,18 @@ pub enum AppError {
     #[error("I/O error: {0}")]
     Io(#[from] io::Error),
 
+    #[error("Integer conversion error")]
+    IntConvert(#[from] std::num::TryFromIntError),
+
+    #[error("Bad request: {0}")]
+    BadRequest(String),
+
+    #[error("Forbidden: {0}")]
+    Forbidden(String),
+
+    #[error("Session insert error: {0}")]
+    SessionInsert(#[from] actix_session::SessionInsertError),
+
     #[error("Unknown error: {0}")]
     Other(String),
 }
@@ -72,9 +84,13 @@ impl ResponseError for AppError {
                 Code::PermissionDenied | tonic::Code::Unauthenticated => StatusCode::UNAUTHORIZED,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             },
+            AppError::IntConvert(_) => StatusCode::BAD_REQUEST,
             AppError::InvalidUrl(_) => StatusCode::BAD_REQUEST,
             AppError::InvalidIpAddress(_) => StatusCode::BAD_REQUEST,
+            AppError::BadRequest(_) => StatusCode::BAD_REQUEST,
+            AppError::SessionInsert(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::Io(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            AppError::Forbidden(_) => StatusCode::FORBIDDEN,
             AppError::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

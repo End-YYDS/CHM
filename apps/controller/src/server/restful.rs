@@ -27,7 +27,7 @@ use tokio::{sync::Semaphore, task::JoinSet};
 #[derive(Debug)]
 pub struct ControllerRestfulServer {
     pub grpc_clients: Arc<GrpcClients>,
-    pub config:       (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
+    pub config: (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
 }
 
 #[tonic::async_trait]
@@ -37,13 +37,6 @@ impl RestfulService for ControllerRestfulServer {
         request: Request<LoginRequest>,
     ) -> Result<Response<LoginResponse>, Status> {
         let req = request.into_inner();
-        // let resp = with_ldap!(
-        //     self.grpc_clients,
-        //     crate::communication::PickStrategy::Random {
-        //         attempts: GlobalConfig::with(|cfg| cfg.extend.service_attempts)
-        //     },
-        //     |ldap| ldap.authenticate_user(req.username.clone(), req.password).await
-        // );
         let req_username_clone = req.username.clone();
         let resp = self
             .grpc_clients
@@ -51,13 +44,15 @@ impl RestfulService for ControllerRestfulServer {
                 ldap.authenticate_user(req_username_clone, req.password).await
             })
             .await;
-        let res = resp.map_err(|e| Status::internal(e.to_string()))?;
+        let res = resp
+            .map_err(|e| Status::internal(e.to_string()))
+            .inspect_err(|e| tracing::error!(?e))?;
         if !res {
             Err(Status::permission_denied(format!("Invalid credentials for user {}", req.username)))
         } else {
             let resp = LoginResponse {
                 result: Some(ResponseResult {
-                    r#type:  ResponseType::Ok as i32,
+                    r#type: ResponseType::Ok as i32,
                     message: "Login successful".to_string(),
                 }),
             };
@@ -115,11 +110,12 @@ impl RestfulService for ControllerRestfulServer {
             .grpc_clients
             .with_ca_handle(|ca| async move { ca.get_all_certificates().await })
             .await
-            .map_err(|e| Status::internal(format!("Failed to get valid certificates: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed to get valid certificates: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let vaild_certs: Vec<ValidCert> = r
             .iter()
             .map(|cert| ValidCert {
-                name:   cert.subject_cn.clone(),
+                name: cert.subject_cn.clone(),
                 signer: cert.issuer.clone(),
                 period: cert.expiration.as_ref().map(CertUtils::ts_to_string).unwrap_or_default(),
             })
@@ -137,12 +133,13 @@ impl RestfulService for ControllerRestfulServer {
             .grpc_clients
             .with_ca_handle(|ca| async move { ca.get_all_revoked_certificates().await })
             .await
-            .map_err(|e| Status::internal(format!("Failed to get revoked certificates: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed to get revoked certificates: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let revoked_certs: Vec<RevokedCert> = r
             .iter()
             .map(|entry| RevokedCert {
                 number: entry.cert_serial.clone(),
-                time:   entry.revoked_at.as_ref().map(CertUtils::ts_to_string).unwrap_or_default(),
+                time: entry.revoked_at.as_ref().map(CertUtils::ts_to_string).unwrap_or_default(),
                 reason: entry.reason.clone(),
             })
             .collect();
@@ -156,14 +153,6 @@ impl RestfulService for ControllerRestfulServer {
         request: Request<RevokeCertRequest>,
     ) -> Result<Response<RevokeCertResponse>, Status> {
         let RevokeCertRequest { name, reason } = request.into_inner();
-        // let cert = with_ca!(
-        //     self.grpc_clients,
-        //     crate::communication::PickStrategy::Random {
-        //         attempts: GlobalConfig::with(|cfg| cfg.extend.service_attempts)
-        //     },
-        //     |ca| ca.get_certificate_by_common_name(&name).await
-        // )
-        // .map_err(|e| Status::internal(format!("Failed to get serail {name}")))?;
         let name_cloned = name.clone();
         let cert = self
             .grpc_clients
@@ -171,18 +160,19 @@ impl RestfulService for ControllerRestfulServer {
                 ca.get_certificate_by_common_name(name_cloned.clone()).await
             })
             .await
-            .map_err(|e| Status::internal(format!("Failed to get serail {name}: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed to get serail {name}: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let cert = match cert {
             Some(c) => c,
             None => return Err(Status::not_found(format!("Certificate {name} not found"))),
         };
-        // let name_cloned = name.clone();
         self.grpc_clients
             .with_ca_handle(|ca| async move {
                 ca.mark_certificate_as_revoked(cert.serial, Some(reason)).await
             })
             .await
-            .map_err(|e| Status::internal(format!("Failed to revoke certificate {name}: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed to revoke certificate {name}: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         // TODO: 等到後面Agent成功合併之後，需要修改
         let (pri_key, same_name_csr) = CertUtils::generate_csr_with_new_key(
             4096,
@@ -193,14 +183,16 @@ impl RestfulService for ControllerRestfulServer {
             &name,
             ["127.0.0.1", &name],
         )
-        .map_err(|e| Status::internal(e.to_string()))?;
+        .map_err(|e| Status::internal(e.to_string()))
+        .inspect_err(|e| tracing::error!(?e))?;
         let sign_days = GlobalConfig::with(|cfg| cfg.extend.sign_days);
         self.grpc_clients
             .with_ca_handle(|ca| async move { ca.sign_certificate(same_name_csr, sign_days).await })
             .await
-            .map_err(|e| Status::internal(format!("Failed to sign certificate: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed to sign certificate: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: format!("憑證 {name} 已成功註銷"),
         };
         let resp = RevokeCertResponse { result: Some(result) };
@@ -214,19 +206,27 @@ impl RestfulService for ControllerRestfulServer {
         use crate::Node;
         let req = request.into_inner();
         // TODO: 預設PC Group 要先在啟動時創建，添加Agent時直接加入預設Group(vni=1)
-        let ip: SocketAddr = req.ip.parse().map_err(|e| {
-            Status::invalid_argument(format!("Invalid IP address format for '{}': {e}", req.ip))
-        })?;
+        let ip: SocketAddr = req
+            .ip
+            .parse()
+            .map_err(|e| {
+                Status::invalid_argument(format!("Invalid IP address format for '{}': {e}", req.ip))
+            })
+            .inspect_err(|e| tracing::error!(?e))?;
         let node_h = Node::new(
             Some(req.ip),
             Some(req.password),
             self.grpc_clients.clone(),
             self.config.clone(),
         );
-        node_h.add(false).await.map_err(|e| Status::internal(e.to_string()))?;
+        node_h
+            .add(false)
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+            .inspect_err(|e| tracing::error!(?e))?;
         let resp = AddPcResponse {
             result: Some(ResponseResult {
-                r#type:  ResponseType::Ok as i32,
+                r#type: ResponseType::Ok as i32,
                 message: "添加主機成功".to_string(),
             }),
         };
@@ -252,7 +252,6 @@ impl RestfulService for ControllerRestfulServer {
             let mut status = false;
 
             if let Some(health_name) = service.health_name.as_deref() {
-                // 取出該 ServiceKind 的所有連線，逐一檢查
                 let channels = self.grpc_clients.all_channels(service.kind);
                 if channels.is_empty() {
                     tracing::warn!(
@@ -271,7 +270,7 @@ impl RestfulService for ControllerRestfulServer {
                                 let s = resp.into_inner().status;
                                 if s == ServingStatus::Serving as i32 {
                                     status = true;
-                                    break; // 有一條健康即可
+                                    break;
                                 }
                             }
                             Err(e) => {
@@ -321,7 +320,6 @@ impl RestfulService for ControllerRestfulServer {
         let mut pcs: HashMap<String, PcSimple> = HashMap::new();
         for service in filtered {
             let mut status = false;
-
             if let Some(health_name) = service.health_name.as_deref() {
                 let channels = self.grpc_clients.all_channels(service.kind);
                 if channels.is_empty() {
@@ -353,7 +351,6 @@ impl RestfulService for ControllerRestfulServer {
             } else {
                 tracing::info!("{} 未設定 health_name，跳過健康檢查", service.hostname);
             }
-
             let pc =
                 PcSimple { ip: service.uri.clone(), hostname: service.hostname.clone(), status };
             pcs.insert(service.uuid.to_string(), pc);
@@ -383,7 +380,7 @@ impl RestfulService for ControllerRestfulServer {
                 results.insert(
                     pc,
                     ResponseResult {
-                        r#type:  ResponseType::Err as i32,
+                        r#type: ResponseType::Err as i32,
                         message: "找不到主機資訊".to_string(),
                     },
                 );
@@ -403,7 +400,7 @@ impl RestfulService for ControllerRestfulServer {
             results.insert(
                 pc,
                 ResponseResult {
-                    r#type:  ResponseType::Ok as i32,
+                    r#type: ResponseType::Ok as i32,
                     message: "刪除主機成功".to_string(),
                 },
             );
@@ -416,14 +413,11 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<RebootPcsRequest>,
     ) -> Result<Response<RebootPcsResponse>, Status> {
-        // 調用Agent的grpc fn
         let req = request.into_inner();
         let uuids = req.uuids;
         let total = uuids.len() as u32;
         let max_concurrent = GlobalConfig::with(|cfg| cfg.extend.concurrency);
         let semaphore = Arc::new(Semaphore::new(max_concurrent));
-        // let mut set: JoinSet<Result<(String, ResponseResult), Status>> =
-        // JoinSet::new();
         let mut set: JoinSet<(String, ResponseResult)> = JoinSet::new();
         let mut results = HashMap::new();
         for uuid in uuids {
@@ -438,7 +432,7 @@ impl RestfulService for ControllerRestfulServer {
                 results.insert(
                     uuid.clone(),
                     ResponseResult {
-                        r#type:  ResponseType::Err as i32,
+                        r#type: ResponseType::Err as i32,
                         message: "找不到主機資訊".into(),
                     },
                 );
@@ -453,7 +447,7 @@ impl RestfulService for ControllerRestfulServer {
                         return (
                             uuid,
                             ResponseResult {
-                                r#type:  ResponseType::Err as i32,
+                                r#type: ResponseType::Err as i32,
                                 message: "Semaphore closed".to_string(),
                             },
                         );
@@ -469,28 +463,27 @@ impl RestfulService for ControllerRestfulServer {
                     Ok(true) => (
                         uuid,
                         ResponseResult {
-                            r#type:  ResponseType::Ok as i32,
+                            r#type: ResponseType::Ok as i32,
                             message: "Reboot succeeded".to_string(),
                         },
                     ),
                     Ok(false) => (
                         uuid,
                         ResponseResult {
-                            r#type:  ResponseType::Err as i32,
+                            r#type: ResponseType::Err as i32,
                             message: "Agent reported failure".to_string(),
                         },
                     ),
                     Err(e) => (
                         uuid,
                         ResponseResult {
-                            r#type:  ResponseType::Err as i32,
+                            r#type: ResponseType::Err as i32,
                             message: format!("RPC error: {e}"),
                         },
                     ),
                 }
             });
         }
-
         while let Some(join_res) = set.join_next().await {
             match join_res {
                 Ok((uuid, result)) => {
@@ -500,7 +493,7 @@ impl RestfulService for ControllerRestfulServer {
                     results.insert(
                         format!("unknown-{}", results.len() + 1),
                         ResponseResult {
-                            r#type:  ResponseType::Err as i32,
+                            r#type: ResponseType::Err as i32,
                             message: format!("Join error: {join_err}"),
                         },
                     );
@@ -533,7 +526,7 @@ impl RestfulService for ControllerRestfulServer {
                 results.insert(
                     uuid.clone(),
                     ResponseResult {
-                        r#type:  ResponseType::Err as i32,
+                        r#type: ResponseType::Err as i32,
                         message: "找不到主機資訊".into(),
                     },
                 );
@@ -548,7 +541,7 @@ impl RestfulService for ControllerRestfulServer {
                         return (
                             uuid,
                             ResponseResult {
-                                r#type:  ResponseType::Err as i32,
+                                r#type: ResponseType::Err as i32,
                                 message: "Semaphore closed".to_string(),
                             },
                         );
@@ -564,21 +557,21 @@ impl RestfulService for ControllerRestfulServer {
                     Ok(true) => (
                         uuid,
                         ResponseResult {
-                            r#type:  ResponseType::Ok as i32,
+                            r#type: ResponseType::Ok as i32,
                             message: "Shutdown succeeded".to_string(),
                         },
                     ),
                     Ok(false) => (
                         uuid,
                         ResponseResult {
-                            r#type:  ResponseType::Err as i32,
+                            r#type: ResponseType::Err as i32,
                             message: "Agent reported failure".to_string(),
                         },
                     ),
                     Err(e) => (
                         uuid,
                         ResponseResult {
-                            r#type:  ResponseType::Err as i32,
+                            r#type: ResponseType::Err as i32,
                             message: format!("RPC error: {e}"),
                         },
                     ),
@@ -594,7 +587,7 @@ impl RestfulService for ControllerRestfulServer {
                     results.insert(
                         format!("unknown-{}", results.len() + 1),
                         ResponseResult {
-                            r#type:  ResponseType::Err as i32,
+                            r#type: ResponseType::Err as i32,
                             message: format!("Join error: {join_err}"),
                         },
                     );
@@ -614,7 +607,8 @@ impl RestfulService for ControllerRestfulServer {
                 let zones = dhcp
                     .list_zones()
                     .await
-                    .map_err(|e| Status::internal(format!("Failed to list DHCP zones: {e}")))?;
+                    .map_err(|e| Status::internal(format!("Failed to list DHCP zones: {e}")))
+                    .inspect_err(|e| tracing::error!(?e))?;
                 let mut groups: HashMap<i64, PcGroup> = HashMap::new();
                 for zone in zones {
                     let id = zone.vni;
@@ -622,7 +616,8 @@ impl RestfulService for ControllerRestfulServer {
                     let pcs = dhcp
                         .list_pcs_in_zone(&zone_name)
                         .await
-                        .map_err(|e| Status::internal(e.to_string()))?;
+                        .map_err(|e| Status::internal(e.to_string()))
+                        .inspect_err(|e| tracing::error!(?e))?;
                     let group = PcGroup { groupname: zone_name, pcs };
                     groups.insert(id, group);
                 }
@@ -630,7 +625,8 @@ impl RestfulService for ControllerRestfulServer {
                 Ok((groups, length))
             })
             .await
-            .map_err(|e| Status::internal(format!("DHCP operation failed: {e}")))?;
+            .map_err(|e| Status::internal(format!("DHCP operation failed: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let resp = GetPcGroupsResponse { groups, length };
         Ok(Response::new(resp))
     }
@@ -640,10 +636,6 @@ impl RestfulService for ControllerRestfulServer {
         request: Request<CreatePcGroupRequest>,
     ) -> Result<Response<CreatePcGroupResponse>, Status> {
         let req = request.into_inner();
-        // let dhcp = self
-        //     .grpc_clients
-        //     .dhcp()
-        //     .ok_or_else(|| Status::internal("DHCP client not initialized"))?;
         let result = self
             .grpc_clients
             .with_dhcp_handle(|dhcp| async move {
@@ -657,21 +649,23 @@ impl RestfulService for ControllerRestfulServer {
                 let status = dhcp
                     .create_zone(req.groupname, vni, req.cidr)
                     .await
-                    .map_err(|e| Status::internal(e.to_string()))?;
+                    .map_err(|e| Status::internal(e.to_string()))
+                    .inspect_err(|e| tracing::error!(?e))?;
                 if !status {
                     Ok(ResponseResult {
-                        r#type:  ResponseType::Err as i32,
+                        r#type: ResponseType::Err as i32,
                         message: "Failed to create PC group".to_string(),
                     })
                 } else {
                     Ok(ResponseResult {
-                        r#type:  ResponseType::Ok as i32,
+                        r#type: ResponseType::Ok as i32,
                         message: "PC group created successfully".to_string(),
                     })
                 }
             })
             .await
-            .map_err(|e| Status::internal(format!("DHCP operation failed: {e}")))?;
+            .map_err(|e| Status::internal(format!("DHCP operation failed: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let result = Some(result);
         let resp = CreatePcGroupResponse { result };
         Ok(Response::new(resp))
@@ -686,16 +680,22 @@ impl RestfulService for ControllerRestfulServer {
             .grpc_clients
             .with_dhcp_handle(|dhcp| async move {
                 let vxlanid = req.vxlanid;
-                let group =
-                    req.group.ok_or_else(|| Status::invalid_argument("PcGroup is required"))?;
+                let group = req
+                    .group
+                    .ok_or_else(|| Status::invalid_argument("PcGroup is required"))
+                    .inspect_err(|e| tracing::error!(?e))?;
                 let detail = dhcp
                     .get_zone_detail_by_vni(vxlanid)
                     .await
-                    .map_err(|e| Status::internal(format!("get_zone_detail_by_vni failed: {e}")))?;
+                    .map_err(|e| Status::internal(format!("get_zone_detail_by_vni failed: {e}")))
+                    .inspect_err(|e| tracing::error!(?e))?;
                 if !group.groupname.is_empty() && group.groupname != detail.name {
-                    dhcp.update_zone_name_by_vni(vxlanid, group.groupname.clone()).await.map_err(
-                        |e| Status::internal(format!("update_zone_name_by_vni failed: {e}")),
-                    )?;
+                    dhcp.update_zone_name_by_vni(vxlanid, group.groupname.clone())
+                        .await
+                        .map_err(|e| {
+                            Status::internal(format!("update_zone_name_by_vni failed: {e}"))
+                        })
+                        .inspect_err(|e| tracing::error!(?e))?;
                 }
                 let desired_uuid_set: HashSet<String> = group
                     .pcs
@@ -703,10 +703,11 @@ impl RestfulService for ControllerRestfulServer {
                     .map(|s| s.trim().to_string())
                     .filter(|s| !s.is_empty())
                     .collect();
-                let current_pcs_resp =
-                    dhcp.list_pcs_in_zone_by_vni(vxlanid).await.map_err(|e| {
-                        Status::internal(format!("list_pcs_in_zone_by_vni failed: {e}"))
-                    })?;
+                let current_pcs_resp = dhcp
+                    .list_pcs_in_zone_by_vni(vxlanid)
+                    .await
+                    .map_err(|e| Status::internal(format!("list_pcs_in_zone_by_vni failed: {e}")))
+                    .inspect_err(|e| tracing::error!(?e))?;
                 let current_uuid_set: HashSet<String> = current_pcs_resp.into_iter().collect();
                 let to_add: Vec<String> =
                     desired_uuid_set.difference(&current_uuid_set).cloned().collect();
@@ -724,16 +725,19 @@ impl RestfulService for ControllerRestfulServer {
                 });
                 let _add_results = join_all(add_futs).await;
                 let _remove_results = join_all(remove_futs).await;
-                let final_pcs_resp = dhcp.list_pcs_in_zone_by_vni(vxlanid).await.map_err(|e| {
-                    Status::internal(format!("list_pcs_in_zone_by_vni failed: {e}"))
-                })?;
+                let final_pcs_resp = dhcp
+                    .list_pcs_in_zone_by_vni(vxlanid)
+                    .await
+                    .map_err(|e| Status::internal(format!("list_pcs_in_zone_by_vni failed: {e}")))
+                    .inspect_err(|e| tracing::error!(?e))?;
                 Ok(final_pcs_resp)
             })
             .await
-            .map_err(|e| Status::internal(format!("DHCP operation failed: {e}")))?;
+            .map_err(|e| Status::internal(format!("DHCP operation failed: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let resp = PutPcGroupResponse {
             result: Some(ResponseResult {
-                r#type:  ResponseType::Ok as i32,
+                r#type: ResponseType::Ok as i32,
                 message: format!(
                     "PC group updated successfully, total PCs: {}",
                     final_pcs_resp.len()
@@ -748,10 +752,6 @@ impl RestfulService for ControllerRestfulServer {
         request: Request<PatchPcGroupRequest>,
     ) -> Result<Response<PatchPcGroupResponse>, Status> {
         let req = request.into_inner();
-        // let dhcp = self
-        //     .grpc_clients
-        //     .dhcp()
-        //     .ok_or_else(|| Status::internal("DHCP client not initialized"))?;
         let vni = req.vxlanid;
         let result = self
             .grpc_clients
@@ -762,26 +762,30 @@ impl RestfulService for ControllerRestfulServer {
                             Ok(resp) => {
                                 if resp {
                                     ResponseResult {
-                                        r#type:  ResponseType::Ok as i32,
+                                        r#type: ResponseType::Ok as i32,
                                         message: "Zone name updated successfully".to_string(),
                                     }
                                 } else {
                                     ResponseResult {
-                                        r#type:  ResponseType::Err as i32,
+                                        r#type: ResponseType::Err as i32,
                                         message: "Failed to update zone name".to_string(),
                                     }
                                 }
                             }
                             Err(e) => ResponseResult {
-                                r#type:  ResponseType::Err as i32,
+                                r#type: ResponseType::Err as i32,
                                 message: format!("update_zone_name_by_vni failed: {e}"),
                             },
                         }
                     }
                     Some(patch_pc_group_request::Kind::Pcs(pcs_msg)) => {
-                        let current = dhcp.list_pcs_in_zone_by_vni(vni).await.map_err(|e| {
-                            Status::internal(format!("list_pcs_in_zone_by_vni failed: {e}"))
-                        })?;
+                        let current = dhcp
+                            .list_pcs_in_zone_by_vni(vni)
+                            .await
+                            .map_err(|e| {
+                                Status::internal(format!("list_pcs_in_zone_by_vni failed: {e}"))
+                            })
+                            .inspect_err(|e| tracing::error!(?e))?;
                         let current_set: HashSet<String> = current.into_iter().collect();
                         let desired_set: HashSet<String> = pcs_msg
                             .pcs
@@ -812,19 +816,20 @@ impl RestfulService for ControllerRestfulServer {
                         }
                         while set.join_next().await.is_some() {}
                         ResponseResult {
-                            r#type:  ResponseType::Ok as i32,
+                            r#type: ResponseType::Ok as i32,
                             message: "PCs updated successfully".into(),
                         }
                     }
                     None => ResponseResult {
-                        r#type:  ResponseType::Err as i32,
+                        r#type: ResponseType::Err as i32,
                         message: "Missing patch kind".into(),
                     },
                 };
                 Ok(ret)
             })
             .await
-            .map_err(|e| Status::internal(format!("DHCP operation failed: {e}")))?;
+            .map_err(|e| Status::internal(format!("DHCP operation failed: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         Ok(Response::new(PatchPcGroupResponse { result: Some(result) }))
     }
 
@@ -833,28 +838,31 @@ impl RestfulService for ControllerRestfulServer {
         request: Request<DeletePcGroupRequest>,
     ) -> Result<Response<DeletePcGroupResponse>, Status> {
         let req = request.into_inner();
-        let result =
-            self.grpc_clients
-                .with_dhcp_handle(|dhcp| async move {
-                    let vni = req.vxlanid;
-                    let zone = dhcp.get_zone_detail_by_vni(vni).await.map_err(|e| {
-                        Status::internal(format!("get_zone_detail_by_vni failed: {e}"))
-                    })?;
-                    let res = dhcp.delete_zone(zone.name).await;
-                    let result = match res {
-                        Ok(_) => ResponseResult {
-                            r#type:  ResponseType::Ok as i32,
-                            message: "Zone deleted successfully".into(),
-                        },
-                        Err(e) => ResponseResult {
-                            r#type:  ResponseType::Err as i32,
-                            message: format!("Failed to delete zone: {e}"),
-                        },
-                    };
-                    Ok(result)
-                })
-                .await
-                .map_err(|e| Status::internal(format!("DHCP operation failed: {e}")))?;
+        let result = self
+            .grpc_clients
+            .with_dhcp_handle(|dhcp| async move {
+                let vni = req.vxlanid;
+                let zone = dhcp
+                    .get_zone_detail_by_vni(vni)
+                    .await
+                    .map_err(|e| Status::internal(format!("get_zone_detail_by_vni failed: {e}")))
+                    .inspect_err(|e| tracing::error!(?e))?;
+                let res = dhcp.delete_zone(zone.name).await;
+                let result = match res {
+                    Ok(_) => ResponseResult {
+                        r#type: ResponseType::Ok as i32,
+                        message: "Zone deleted successfully".into(),
+                    },
+                    Err(e) => ResponseResult {
+                        r#type: ResponseType::Err as i32,
+                        message: format!("Failed to delete zone: {e}"),
+                    },
+                };
+                Ok(result)
+            })
+            .await
+            .map_err(|e| Status::internal(format!("DHCP operation failed: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         Ok(Response::new(DeletePcGroupResponse { result: Some(result) }))
     }
 
@@ -1001,7 +1009,8 @@ impl RestfulService for ControllerRestfulServer {
                 let uids = ldap
                     .list_users()
                     .await
-                    .map_err(|e| Status::internal(format!("Failed to list users: {e}")))?;
+                    .map_err(|e| Status::internal(format!("Failed to list users: {e}")))
+                    .inspect_err(|e| tracing::error!(?e))?;
                 let mut users: HashMap<String, UserEntry> = HashMap::new();
                 for uid in uids {
                     match ldap.search_user(uid.clone()).await {
@@ -1013,17 +1022,17 @@ impl RestfulService for ControllerRestfulServer {
                                 .map_err(|e| Status::not_found(e.to_string()))?
                                 .group_name;
                             let entry = UserEntry {
-                                username:       detail.uid,
-                                password:       "".to_string(),
-                                cn:             detail.cn,
-                                sn:             detail.sn,
+                                username: detail.uid,
+                                password: "".to_string(),
+                                cn: detail.cn,
+                                sn: detail.sn,
                                 home_directory: detail.home_directory,
-                                shell:          detail.login_shell,
-                                given_name:     detail.given_name,
-                                display_name:   detail.display_name,
-                                gid_number:     detail.gid_number,
-                                group:          vec![group_name],
-                                gecos:          detail.gecos,
+                                shell: detail.login_shell,
+                                given_name: detail.given_name,
+                                display_name: detail.display_name,
+                                gid_number: detail.gid_number,
+                                group: vec![group_name],
+                                gecos: detail.gecos,
                             };
                             users.insert(uid, entry);
                         }
@@ -1036,7 +1045,8 @@ impl RestfulService for ControllerRestfulServer {
                 Ok(users)
             })
             .await
-            .map_err(|e| Status::internal(format!("Ldap Error: {e}")))?;
+            .map_err(|e| Status::internal(format!("Ldap Error: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let length = users.len() as u64;
         let resp = GetUsersResponse { users, length };
         Ok(Response::new(resp))
@@ -1048,7 +1058,10 @@ impl RestfulService for ControllerRestfulServer {
         request: Request<CreateUserRequest>,
     ) -> Result<Response<CreateUserResponse>, Status> {
         let req = request.into_inner();
-        let user = req.user.ok_or_else(|| Status::invalid_argument("User field is required"))?;
+        let user = req
+            .user
+            .ok_or_else(|| Status::invalid_argument("User field is required"))
+            .inspect_err(|e| tracing::error!(?e))?;
         let username = user.username.clone();
         let username_clone = username.clone();
         self.grpc_clients
@@ -1058,9 +1071,12 @@ impl RestfulService for ControllerRestfulServer {
                         if group_name == &username_clone {
                             continue;
                         }
-                        ldap.search_group(group_name.clone()).await.map_err(|e| {
-                            Status::not_found(format!("Group {group_name} not found: {e}"))
-                        })?;
+                        ldap.search_group(group_name.clone())
+                            .await
+                            .map_err(|e| {
+                                Status::not_found(format!("Group {group_name} not found: {e}"))
+                            })
+                            .inspect_err(|e| tracing::error!(?e))?;
                     }
                 }
                 ldap.add_user(
@@ -1075,7 +1091,8 @@ impl RestfulService for ControllerRestfulServer {
                     Some(user.gid_number),
                     Some(user.gecos),
                 )
-                .await?;
+                .await
+                .inspect_err(|e| tracing::error!(?e))?;
                 for group_name in user.group.iter() {
                     if group_name == &username_clone {
                         continue;
@@ -1086,14 +1103,16 @@ impl RestfulService for ControllerRestfulServer {
                             Status::internal(format!(
                                 "Failed to add user {username_clone} to group {group_name}: {e}"
                             ))
-                        })?;
+                        })
+                        .inspect_err(|e| tracing::error!(?e))?;
                 }
                 Ok(())
             })
             .await
-            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))?;
+            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: format!("使用者 {username} 已成功建立"),
         };
         Ok(Response::new(CreateUserResponse { result: Some(result) }))
@@ -1113,16 +1132,19 @@ impl RestfulService for ControllerRestfulServer {
                         Status::invalid_argument("At least one user entry is required").into()
                     );
                 }
-                let (username, user) = users.iter().next().ok_or_else(|| {
-                    Status::invalid_argument("At least one user entry is required")
-                })?;
+                let (username, user) = users
+                    .iter()
+                    .next()
+                    .ok_or_else(|| Status::invalid_argument("At least one user entry is required"))
+                    .inspect_err(|e| tracing::error!(?e))?;
                 ldap.search_user(username.clone())
                     .await
-                    .map_err(|e| Status::not_found(format!("User {username} not found: {e}")))?;
+                    .map_err(|e| Status::not_found(format!("User {username} not found: {e}")))
+                    .inspect_err(|e| tracing::error!(?e))?;
                 if !user.group.is_empty() {
                     for group_name in user.group.iter() {
                         if group_name == username {
-                            continue; // 跳過 primary group
+                            continue;
                         }
                         if let Err(e) = ldap.search_group(group_name.clone()).await {
                             return Err(Status::not_found(format!(
@@ -1141,29 +1163,32 @@ impl RestfulService for ControllerRestfulServer {
                 attr.insert("givenName".into(), user.given_name.clone());
                 attr.insert("displayName".into(), user.display_name.clone());
                 attr.insert("gecos".into(), user.gecos.clone());
-                ldap.modify_user(username.clone(), attr).await.map_err(|e| {
-                    Status::internal(format!("Failed to modify user {username}: {e}"))
-                })?;
+                ldap.modify_user(username.clone(), attr)
+                    .await
+                    .map_err(|e| Status::internal(format!("Failed to modify user {username}: {e}")))
+                    .inspect_err(|e| tracing::error!(?e))?;
 
                 for group_name in user.group.iter() {
                     if group_name == username {
                         continue;
                     }
-                    ldap.add_user_to_group(username.clone(), group_name.clone()).await.map_err(
-                        |e| {
+                    ldap.add_user_to_group(username.clone(), group_name.clone())
+                        .await
+                        .map_err(|e| {
                             Status::internal(format!(
                                 "Failed to add user {username} to group {group_name}: {e}"
                             ))
-                        },
-                    )?;
+                        })
+                        .inspect_err(|e| tracing::error!(?e))?;
                 }
                 Ok(username.clone())
             })
             .await
-            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))?;
+            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
 
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: format!("使用者 {username} 已成功更新"),
         };
 
@@ -1176,10 +1201,6 @@ impl RestfulService for ControllerRestfulServer {
     ) -> Result<Response<PatchUsersResponse>, Status> {
         let req = request.into_inner();
         let users = req.users;
-        // let ldap = self
-        //     .grpc_clients
-        //     .ldap()
-        //     .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
         let username = self
             .grpc_clients
             .with_ldap_handle(|ldap| async move {
@@ -1188,9 +1209,11 @@ impl RestfulService for ControllerRestfulServer {
                         Status::invalid_argument("At least one user entry is required").into()
                     );
                 }
-                let (username, user) = users.iter().next().ok_or_else(|| {
-                    Status::invalid_argument("At least one user entry is required")
-                })?;
+                let (username, user) = users
+                    .iter()
+                    .next()
+                    .ok_or_else(|| Status::invalid_argument("At least one user entry is required"))
+                    .inspect_err(|e| tracing::error!(?e))?;
 
                 if let Err(e) = ldap.search_user(username.clone()).await {
                     return Err(Status::not_found(format!("User {username} not found: {e}")).into());
@@ -1223,7 +1246,7 @@ impl RestfulService for ControllerRestfulServer {
                 if !user.group.is_empty() {
                     for group_name in user.group.iter() {
                         if group_name == username {
-                            continue; // 跳過 primary group
+                            continue;
                         }
                         if let Err(e) = ldap.search_group(group_name.clone()).await {
                             return Err(Status::not_found(format!(
@@ -1233,15 +1256,17 @@ impl RestfulService for ControllerRestfulServer {
                         }
                     }
                 }
-                ldap.modify_user(username.clone(), attr).await.map_err(|e| {
-                    Status::internal(format!("Failed to modify user {username}: {e}"))
-                })?;
+                ldap.modify_user(username.clone(), attr)
+                    .await
+                    .map_err(|e| Status::internal(format!("Failed to modify user {username}: {e}")))
+                    .inspect_err(|e| tracing::error!(?e))?;
                 Ok(username.clone())
             })
             .await
-            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))?;
+            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: format!("使用者 {username} 已成功更新"),
         };
         Ok(Response::new(PatchUsersResponse { result: Some(result) }))
@@ -1261,15 +1286,19 @@ impl RestfulService for ControllerRestfulServer {
                         Status::not_found(format!("User {uid_clone} not found: {e}")).into()
                     );
                 }
-                ldap.delete_user(uid_clone.clone()).await.map_err(|e| {
-                    Status::internal(format!("Failed to delete user {uid_clone}: {e}"))
-                })?;
+                ldap.delete_user(uid_clone.clone())
+                    .await
+                    .map_err(|e| {
+                        Status::internal(format!("Failed to delete user {uid_clone}: {e}"))
+                    })
+                    .inspect_err(|e| tracing::error!(?e))?;
                 Ok(())
             })
             .await
-            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))?;
+            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: format!("使用者 {uid} 已成功刪除"),
         };
         Ok(Response::new(DeleteUserResponse { result: Some(result) }))
@@ -1285,7 +1314,8 @@ impl RestfulService for ControllerRestfulServer {
                 let gids = ldap
                     .list_groups()
                     .await
-                    .map_err(|e| Status::internal(format!("Failed to list groups: {e}")))?;
+                    .map_err(|e| Status::internal(format!("Failed to list groups: {e}")))
+                    .inspect_err(|e| tracing::error!(?e))?;
                 let mut groups: HashMap<String, GroupInfo> = HashMap::new();
                 for gid in gids {
                     match ldap.search_group(gid.clone()).await {
@@ -1303,7 +1333,8 @@ impl RestfulService for ControllerRestfulServer {
                 Ok(groups)
             })
             .await
-            .map_err(|e| Status::internal(format!("Ldap Error: {e}")))?;
+            .map_err(|e| Status::internal(format!("Ldap Error: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let resp = GetGroupsResponse { groups };
         Ok(Response::new(resp))
     }
@@ -1317,22 +1348,27 @@ impl RestfulService for ControllerRestfulServer {
         let users = req.users.clone();
         self.grpc_clients
             .with_ldap_handle(|ldap| async move {
-                ldap.add_group(groupname.clone()).await.map_err(|e| {
-                    Status::internal(format!("Failed to add group {groupname}: {e}"))
-                })?;
+                ldap.add_group(groupname.clone())
+                    .await
+                    .map_err(|e| Status::internal(format!("Failed to add group {groupname}: {e}")))
+                    .inspect_err(|e| tracing::error!(?e))?;
                 for uid in users {
-                    ldap.add_user_to_group(uid.clone(), groupname.clone()).await.map_err(|e| {
-                        Status::internal(format!(
-                            "Failed to add user {uid} to group {groupname}: {e}"
-                        ))
-                    })?;
+                    ldap.add_user_to_group(uid.clone(), groupname.clone())
+                        .await
+                        .map_err(|e| {
+                            Status::internal(format!(
+                                "Failed to add user {uid} to group {groupname}: {e}"
+                            ))
+                        })
+                        .inspect_err(|e| tracing::error!(?e))?;
                 }
                 Ok(())
             })
             .await
-            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))?;
+            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: format!("群組 {} 已成功建立", req.groupname),
         };
         Ok(Response::new(CreateGroupResponse { result: Some(result) }))
@@ -1355,52 +1391,61 @@ impl RestfulService for ControllerRestfulServer {
                         .or_else(|_| Ok(false))
                         .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
                             Status::internal(format!("LDAP search error: {e}"))
-                        })?;
+                        })
+                        .inspect_err(|e| tracing::error!(?e))?;
                     if old_name != new_name {
-                        ldap.modify_group_name(old_name.clone(), new_name.clone()).await.map_err(
-                            |e| {
+                        ldap.modify_group_name(old_name.clone(), new_name.clone())
+                            .await
+                            .map_err(|e| {
                                 Status::internal(format!(
                                     "Failed to rename group {old_name} -> {new_name}: {e}"
                                 ))
-                            },
-                        )?;
+                            })
+                            .inspect_err(|e| tracing::error!(?e))?;
                     }
-                    let current_users: Vec<String> =
-                        ldap.list_user_in_group(new_name.clone()).await.map_err(|e| {
+                    let current_users: Vec<String> = ldap
+                        .list_user_in_group(new_name.clone())
+                        .await
+                        .map_err(|e| {
                             Status::internal(format!(
                                 "Failed to list users in group {new_name}: {e}"
                             ))
-                        })?;
+                        })
+                        .inspect_err(|e| tracing::error!(?e))?;
                     let new_users: HashSet<_> = group_info.users.iter().cloned().collect();
                     let current_users_set: HashSet<_> = current_users.into_iter().collect();
                     for uid in new_users.difference(&current_users_set) {
                         ldap.search_user(uid.clone())
                             .await
-                            .map_err(|e| Status::not_found(format!("User {uid} not found: {e}")))?;
-                        ldap.add_user_to_group(uid.clone(), new_name.clone()).await.map_err(
-                            |e| {
+                            .map_err(|e| Status::not_found(format!("User {uid} not found: {e}")))
+                            .inspect_err(|e| tracing::error!(?e))?;
+                        ldap.add_user_to_group(uid.clone(), new_name.clone())
+                            .await
+                            .map_err(|e| {
                                 Status::internal(format!(
                                     "Failed to add user {uid} to group {new_name}: {e}"
                                 ))
-                            },
-                        )?;
+                            })
+                            .inspect_err(|e| tracing::error!(?e))?;
                     }
                     for uid in current_users_set.difference(&new_users) {
-                        ldap.remove_user_from_group(uid.clone(), new_name.clone()).await.map_err(
-                            |e| {
+                        ldap.remove_user_from_group(uid.clone(), new_name.clone())
+                            .await
+                            .map_err(|e| {
                                 Status::internal(format!(
                                     "Failed to remove user {uid} from group {new_name}: {e}"
                                 ))
-                            },
-                        )?;
+                            })
+                            .inspect_err(|e| tracing::error!(?e))?;
                     }
                 }
                 Ok(())
             })
             .await
-            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))?;
+            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: "群組資料已成功更新".to_string(),
         };
         Ok(Response::new(PutGroupsResponse { result: Some(result) }))
@@ -1411,10 +1456,6 @@ impl RestfulService for ControllerRestfulServer {
         request: Request<PatchGroupsRequest>,
     ) -> Result<Response<PatchGroupsResponse>, Status> {
         let req = request.into_inner();
-        // let ldap = self
-        //     .grpc_clients
-        //     .ldap()
-        //     .ok_or_else(|| Status::internal("LDAP client not initialized"))?;
         self.grpc_clients
             .with_ldap_handle(|ldap| async move {
                 if req.groups.is_empty() {
@@ -1432,7 +1473,8 @@ impl RestfulService for ControllerRestfulServer {
                                 .or_else(|_| Ok(false))
                                 .map_err(|e: Box<dyn std::error::Error + Send + Sync>| {
                                     Status::internal(format!("LDAP search error: {e}"))
-                                })?;
+                                })
+                                .inspect_err(|e| tracing::error!(?e))?;
                             if group_exists {
                                 return Err(Status::already_exists(format!(
                                     "Group '{new_name}' already exists"
@@ -1445,40 +1487,49 @@ impl RestfulService for ControllerRestfulServer {
                                     Status::internal(format!(
                                         "Failed to rename group {old_name} -> {new_name}: {e}"
                                     ))
-                                })?;
+                                })
+                                .inspect_err(|e| tracing::error!(?e))?;
                         }
                     }
                     if !patch_info.users.is_empty() {
                         let users = &patch_info.users;
                         let group_name = patch_info.groupname.as_ref().unwrap_or(old_name);
-                        let current_users =
-                            ldap.list_user_in_group(group_name.clone()).await.map_err(|e| {
+                        let current_users = ldap
+                            .list_user_in_group(group_name.clone())
+                            .await
+                            .map_err(|e| {
                                 Status::internal(format!(
                                     "Failed to list users in group {group_name}: {e}"
                                 ))
-                            })?;
+                            })
+                            .inspect_err(|e| tracing::error!(?e))?;
                         let current_set: HashSet<_> = current_users.into_iter().collect();
                         let new_set: HashSet<_> = users.iter().cloned().collect();
                         for uid in new_set.difference(&current_set) {
-                            ldap.add_user_to_group(uid.clone(), group_name.clone()).await.map_err(
-                                |e| Status::internal(format!("Failed to add user {uid}: {e}")),
-                            )?;
+                            ldap.add_user_to_group(uid.clone(), group_name.clone())
+                                .await
+                                .map_err(|e| {
+                                    Status::internal(format!("Failed to add user {uid}: {e}"))
+                                })
+                                .inspect_err(|e| tracing::error!(?e))?;
                         }
                         for uid in current_set.difference(&new_set) {
                             ldap.remove_user_from_group(uid.clone(), group_name.clone())
                                 .await
                                 .map_err(|e| {
                                     Status::internal(format!("Failed to remove user {uid}: {e}"))
-                                })?;
+                                })
+                                .inspect_err(|e| tracing::error!(?e))?;
                         }
                     }
                 }
                 Ok(())
             })
             .await
-            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))?;
+            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: "群組已成功更新".to_string(),
         };
         Ok(Response::new(PatchGroupsResponse { result: Some(result) }))
@@ -1499,15 +1550,19 @@ impl RestfulService for ControllerRestfulServer {
                     ))
                     .into());
                 }
-                ldap.delete_group(group_name_clone.clone()).await.map_err(|e| {
-                    Status::internal(format!("Failed to delete group {group_name_clone}: {e}"))
-                })?;
+                ldap.delete_group(group_name_clone.clone())
+                    .await
+                    .map_err(|e| {
+                        Status::internal(format!("Failed to delete group {group_name_clone}: {e}"))
+                    })
+                    .inspect_err(|e| tracing::error!(?e))?;
                 Ok(())
             })
             .await
-            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))?;
+            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: format!("群組 {group_name} 已成功刪除"),
         };
         Ok(Response::new(DeleteGroupResponse { result: Some(result) }))

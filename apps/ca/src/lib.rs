@@ -61,7 +61,7 @@ pub const DEFAULT_CRL_UPDATE_INTERVAL: u64 = 3600; // 1 小時
 #[serde(rename_all = "PascalCase")]
 pub struct CaExtension {
     #[serde(default)]
-    pub cert_ext:   CertificateExt,
+    pub cert_ext: CertificateExt,
     #[serde(default)]
     pub controller: Controller,
 }
@@ -70,21 +70,21 @@ pub struct CaExtension {
 pub struct CertificateExt {
     #[serde(default = "CertificateExt::default_rootca_key")]
     /// 根憑證的私鑰路徑
-    pub rootca_key:          PathBuf,
+    pub rootca_key: PathBuf,
     #[serde(default = "CertificateExt::default_bits")]
-    pub rand_bits:           i32,
+    pub rand_bits: i32,
     #[serde(with = "humantime_serde", default = "CertificateExt::default_crl_update_interval")]
     pub crl_update_interval: std::time::Duration,
     #[serde(flatten)]
     #[serde(default)]
-    pub backend:             BackendConfig,
+    pub backend: BackendConfig,
 }
 impl Default for CertificateExt {
     fn default() -> Self {
         CertificateExt {
-            rootca_key:          CertificateExt::default_rootca_key(),
-            backend:             BackendConfig::default(),
-            rand_bits:           CertificateExt::default_bits(),
+            rootca_key: CertificateExt::default_rootca_key(),
+            backend: BackendConfig::default(),
+            rand_bits: CertificateExt::default_bits(),
             crl_update_interval: CertificateExt::default_crl_update_interval(),
         }
     }
@@ -108,19 +108,19 @@ pub enum BackendConfig {
     /// 最大連線數量預設為 5，逾時時間預設為 10 秒
     Sqlite {
         #[serde(default = "SqliteSettings::default_store_path")]
-        store_path:      String,
+        store_path: String,
         #[serde(default = "SqliteSettings::default_max_connections")]
         max_connections: u32,
         #[serde(default = "SqliteSettings::default_timeout")]
-        timeout:         u64,
+        timeout: u64,
     },
 }
 impl Default for BackendConfig {
     fn default() -> Self {
         BackendConfig::Sqlite {
-            store_path:      SqliteSettings::default_store_path(),
+            store_path: SqliteSettings::default_store_path(),
             max_connections: SqliteSettings::default_max_connections(),
-            timeout:         SqliteSettings::default_timeout(),
+            timeout: SqliteSettings::default_timeout(),
         }
     }
 }
@@ -145,10 +145,10 @@ pub struct Controller {
     pub fingerprint: String,
     /// 控制器的序列號，用於唯一標識
     #[serde(default = "Controller::default_serial")]
-    pub serial:      String,
+    pub serial: String,
     /// 控制器的UUID
     #[serde(default = "Controller::default_uuid")]
-    pub uuid:        Uuid,
+    pub uuid: Uuid,
 }
 
 impl Controller {
@@ -176,9 +176,11 @@ fn get_ssl_info(req: &Request<()>) -> CaResult<(X509, String)> {
         .first()
         .ok_or_else(|| Status::unauthenticated("No peer certificate presented"))?;
     let x509 = X509::from_der(leaf)
-        .map_err(|_| Status::invalid_argument("Peer certificate DER is invalid"))?;
+        .map_err(|_| Status::invalid_argument("Peer certificate DER is invalid"))
+        .inspect_err(|e| tracing::error!(?e))?;
     let serial = CertUtils::cert_serial_sha256(&x509)
-        .map_err(|e| Status::internal(format!("Serial sha256 failed: {e}")))?;
+        .map_err(|e| Status::internal(format!("Serial sha256 failed: {e}")))
+        .inspect_err(|e| tracing::error!(?e))?;
     Ok((x509, serial))
 }
 
@@ -206,11 +208,13 @@ async fn check_controller(
     controller_args: (String, String),
     req: Request<()>,
 ) -> Result<Request<()>, Status> {
-    let (x509, _) =
-        get_ssl_info(&req).map_err(|e| Status::internal(format!("SSL info failed: {e}")))?;
+    let (x509, _) = get_ssl_info(&req)
+        .map_err(|e| Status::internal(format!("SSL info failed: {e}")))
+        .inspect_err(|e| tracing::error!(?e))?;
     let is_ctrl = cert_handler
         .is_controller_cert(&x509, controller_args.clone())
-        .map_err(|e| Status::internal(format!("Controller check failed: {e}")))?;
+        .map_err(|e| Status::internal(format!("Controller check failed: {e}")))
+        .inspect_err(|e| tracing::error!(?e))?;
     if !is_ctrl {
         return Err(Status::permission_denied("Only controller cert is allowed"));
     }
@@ -221,8 +225,9 @@ async fn check_revoke(
     cert_handler: Arc<CertificateProcess>,
     req: Request<()>,
 ) -> Result<Request<()>, Status> {
-    let (_, serial) =
-        get_ssl_info(&req).map_err(|e| Status::internal(format!("SSL info failed: {e}")))?;
+    let (_, serial) = get_ssl_info(&req)
+        .map_err(|e| Status::internal(format!("SSL info failed: {e}")))
+        .inspect_err(|e| tracing::error!(?e))?;
     if cert_handler.get_crl().is_revoked(&serial).await {
         return Err(Status::unauthenticated("Certificate was revoked"));
     }
@@ -285,12 +290,9 @@ pub async fn start_grpc(addr: SocketAddrV4, cert_handler: Arc<CertificateProcess
         let ca_layer =
             async_interceptor(make_ca_middleware(cert_handler.clone(), controller_args.clone()));
         let ca_svc = ServiceBuilder::new().layer(ca_layer).service(
-            CaServer::new(MyCa {
-                cert:     cert_handler.clone(),
-                reloader: cert_update_tx.clone(),
-            })
-            .send_compressed(CompressionEncoding::Zstd)
-            .accept_compressed(CompressionEncoding::Zstd),
+            CaServer::new(MyCa { cert: cert_handler.clone(), reloader: cert_update_tx.clone() })
+                .send_compressed(CompressionEncoding::Zstd)
+                .accept_compressed(CompressionEncoding::Zstd),
         );
         let crl_layer = async_interceptor(make_crl_middleware(cert_handler.clone()));
         let crl_svc = ServiceBuilder::new().layer(crl_layer).service(
