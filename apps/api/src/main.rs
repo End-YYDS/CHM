@@ -124,7 +124,7 @@ async fn main() -> ApiResult<()> {
             Err(_) => {
                 let (r, _) = req.into_parts();
                 let resp = HttpResponse::Unauthorized().json(ResponseResult {
-                    r#type: ResponseType::Err,
+                    r#type:  ResponseType::Err,
                     message: "Session 取得失敗，請重新登入".to_string(),
                 });
                 let sr = ServiceResponse::new(r, resp.map_into_right_body());
@@ -138,7 +138,7 @@ async fn main() -> ApiResult<()> {
         if !logged_in {
             let (r, _) = req.into_parts();
             let resp = HttpResponse::Unauthorized().json(ResponseResult {
-                r#type: ResponseType::Err,
+                r#type:  ResponseType::Err,
                 message: "驗證失敗，請重新登入".to_string(),
             });
             let sr = ServiceResponse::new(r, resp.map_into_right_body());

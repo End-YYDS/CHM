@@ -10,7 +10,7 @@ use chm_project_const::uuid::Uuid;
 
 #[derive(Debug, Clone)]
 pub struct ClientDNS {
-    client: DnsServiceClient<Channel>,
+    client:  DnsServiceClient<Channel>,
     channel: Channel,
 }
 impl ClientDNS {

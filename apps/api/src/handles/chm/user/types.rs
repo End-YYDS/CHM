@@ -4,31 +4,31 @@ use std::collections::HashMap;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct GetUserEntry {
     #[serde(rename = "Username")]
-    pub username: String,
+    pub username:       String,
     #[serde(rename = "Cn")]
-    pub cn: String,
+    pub cn:             String,
     #[serde(rename = "Sn")]
-    pub sn: String,
+    pub sn:             String,
     #[serde(rename = "Home_directory")]
     pub home_directory: String,
     #[serde(rename = "Shell")]
-    pub shell: String,
+    pub shell:          String,
     #[serde(rename = "Given_name")]
-    pub given_name: String,
+    pub given_name:     String,
     #[serde(rename = "Display_name")]
-    pub display_name: String,
+    pub display_name:   String,
     #[serde(rename = "Gid_number")]
-    pub gid_number: String,
+    pub gid_number:     String,
     #[serde(rename = "Group")]
-    pub group: Vec<String>,
+    pub group:          Vec<String>,
     #[serde(rename = "Gecos")]
-    pub gecos: String,
+    pub gecos:          String,
 }
 
 #[derive(Debug, Serialize)]
 pub struct UsersCollection {
     #[serde(rename = "Users")]
-    pub users: HashMap<String, GetUserEntry>,
+    pub users:  HashMap<String, GetUserEntry>,
     #[serde(rename = "Length")]
     pub length: usize,
 }
@@ -37,48 +37,48 @@ pub struct UsersCollection {
 #[derive(Debug, Deserialize)]
 pub struct CreateUserRequest {
     #[serde(rename = "Username")]
-    pub username: String,
+    pub username:       String,
     #[serde(rename = "Password")]
-    pub password: String,
+    pub password:       String,
     #[serde(rename = "Cn")]
-    pub cn: String,
+    pub cn:             String,
     #[serde(rename = "Sn")]
-    pub sn: String,
+    pub sn:             String,
     #[serde(rename = "Home_directory")]
     pub home_directory: String,
     #[serde(rename = "Shell")]
-    pub shell: String,
+    pub shell:          String,
     #[serde(rename = "Given_name")]
-    pub given_name: String,
+    pub given_name:     String,
     #[serde(rename = "Display_name")]
-    pub display_name: String,
+    pub display_name:   String,
     #[serde(rename = "Group")]
-    pub group: Vec<String>,
+    pub group:          Vec<String>,
     #[serde(rename = "Gecos")]
-    pub gecos: String,
+    pub gecos:          String,
 }
 
 // PUT /api/chm/user  — 更改整筆（以 uid 做 key）
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct PutUserEntry {
     #[serde(rename = "Password")]
-    pub password: String,
+    pub password:       String,
     #[serde(rename = "Cn")]
-    pub cn: String,
+    pub cn:             String,
     #[serde(rename = "Sn")]
-    pub sn: String,
+    pub sn:             String,
     #[serde(rename = "Home_directory")]
     pub home_directory: String,
     #[serde(rename = "Shell")]
-    pub shell: String,
+    pub shell:          String,
     #[serde(rename = "Given_name")]
-    pub given_name: String,
+    pub given_name:     String,
     #[serde(rename = "Display_name")]
-    pub display_name: String,
+    pub display_name:   String,
     #[serde(rename = "Group")]
-    pub group: Vec<String>,
+    pub group:          Vec<String>,
     #[serde(rename = "Gecos")]
-    pub gecos: String,
+    pub gecos:          String,
 }
 #[derive(Debug, Deserialize)]
 pub struct PutUsersRequest {
@@ -91,26 +91,26 @@ pub struct PutUsersRequest {
 #[serde(default)]
 pub struct PatchUserEntry {
     #[serde(rename = "Password", deserialize_with = "chm_cluster_utils::none_if_string_none")]
-    pub password: Option<String>,
+    pub password:       Option<String>,
     #[serde(rename = "Cn", deserialize_with = "chm_cluster_utils::none_if_string_none")]
-    pub cn: Option<String>,
+    pub cn:             Option<String>,
     #[serde(rename = "Sn", deserialize_with = "chm_cluster_utils::none_if_string_none")]
-    pub sn: Option<String>,
+    pub sn:             Option<String>,
     #[serde(
         rename = "Home_directory",
         deserialize_with = "chm_cluster_utils::none_if_string_none"
     )]
     pub home_directory: Option<String>,
     #[serde(rename = "Shell", deserialize_with = "chm_cluster_utils::none_if_string_none")]
-    pub shell: Option<String>,
+    pub shell:          Option<String>,
     #[serde(rename = "Given_name", deserialize_with = "chm_cluster_utils::none_if_string_none")]
-    pub given_name: Option<String>,
+    pub given_name:     Option<String>,
     #[serde(rename = "Display_name", deserialize_with = "chm_cluster_utils::none_if_string_none")]
-    pub display_name: Option<String>,
+    pub display_name:   Option<String>,
     #[serde(rename = "Group")]
-    pub group: Option<Vec<String>>,
+    pub group:          Option<Vec<String>>,
     #[serde(rename = "Gecos", deserialize_with = "chm_cluster_utils::none_if_string_none")]
-    pub gecos: Option<String>,
+    pub gecos:          Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

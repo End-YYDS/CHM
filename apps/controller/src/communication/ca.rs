@@ -8,7 +8,7 @@ type SignedCertificate = Vec<u8>;
 type CertificateChain = Vec<Vec<u8>>;
 #[derive(Debug, Clone)]
 pub struct ClientCA {
-    client: CaClient<Channel>,
+    client:  CaClient<Channel>,
     channel: Channel,
 }
 #[allow(unused)]
