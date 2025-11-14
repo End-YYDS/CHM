@@ -27,7 +27,7 @@ use tokio::{sync::Semaphore, task::JoinSet};
 #[derive(Debug)]
 pub struct ControllerRestfulServer {
     pub grpc_clients: Arc<GrpcClients>,
-    pub config:       (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
+    pub config: (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
 }
 
 #[tonic::async_trait]
@@ -52,7 +52,7 @@ impl RestfulService for ControllerRestfulServer {
         } else {
             let resp = LoginResponse {
                 result: Some(ResponseResult {
-                    r#type:  ResponseType::Ok as i32,
+                    r#type: ResponseType::Ok as i32,
                     message: "Login successful".to_string(),
                 }),
             };
@@ -115,7 +115,7 @@ impl RestfulService for ControllerRestfulServer {
         let vaild_certs: Vec<ValidCert> = r
             .iter()
             .map(|cert| ValidCert {
-                name:   cert.subject_cn.clone(),
+                name: cert.subject_cn.clone(),
                 signer: cert.issuer.clone(),
                 period: cert.expiration.as_ref().map(CertUtils::ts_to_string).unwrap_or_default(),
             })
@@ -139,7 +139,7 @@ impl RestfulService for ControllerRestfulServer {
             .iter()
             .map(|entry| RevokedCert {
                 number: entry.cert_serial.clone(),
-                time:   entry.revoked_at.as_ref().map(CertUtils::ts_to_string).unwrap_or_default(),
+                time: entry.revoked_at.as_ref().map(CertUtils::ts_to_string).unwrap_or_default(),
                 reason: entry.reason.clone(),
             })
             .collect();
@@ -192,7 +192,7 @@ impl RestfulService for ControllerRestfulServer {
             .map_err(|e| Status::internal(format!("Failed to sign certificate: {e}")))
             .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: format!("憑證 {name} 已成功註銷"),
         };
         let resp = RevokeCertResponse { result: Some(result) };
@@ -226,7 +226,7 @@ impl RestfulService for ControllerRestfulServer {
             .inspect_err(|e| tracing::error!(?e))?;
         let resp = AddPcResponse {
             result: Some(ResponseResult {
-                r#type:  ResponseType::Ok as i32,
+                r#type: ResponseType::Ok as i32,
                 message: "添加主機成功".to_string(),
             }),
         };
@@ -380,7 +380,7 @@ impl RestfulService for ControllerRestfulServer {
                 results.insert(
                     pc,
                     ResponseResult {
-                        r#type:  ResponseType::Err as i32,
+                        r#type: ResponseType::Err as i32,
                         message: "找不到主機資訊".to_string(),
                     },
                 );
@@ -400,7 +400,7 @@ impl RestfulService for ControllerRestfulServer {
             results.insert(
                 pc,
                 ResponseResult {
-                    r#type:  ResponseType::Ok as i32,
+                    r#type: ResponseType::Ok as i32,
                     message: "刪除主機成功".to_string(),
                 },
             );
@@ -432,7 +432,7 @@ impl RestfulService for ControllerRestfulServer {
                 results.insert(
                     uuid.clone(),
                     ResponseResult {
-                        r#type:  ResponseType::Err as i32,
+                        r#type: ResponseType::Err as i32,
                         message: "找不到主機資訊".into(),
                     },
                 );
@@ -447,7 +447,7 @@ impl RestfulService for ControllerRestfulServer {
                         return (
                             uuid,
                             ResponseResult {
-                                r#type:  ResponseType::Err as i32,
+                                r#type: ResponseType::Err as i32,
                                 message: "Semaphore closed".to_string(),
                             },
                         );
@@ -463,21 +463,21 @@ impl RestfulService for ControllerRestfulServer {
                     Ok(true) => (
                         uuid,
                         ResponseResult {
-                            r#type:  ResponseType::Ok as i32,
+                            r#type: ResponseType::Ok as i32,
                             message: "Reboot succeeded".to_string(),
                         },
                     ),
                     Ok(false) => (
                         uuid,
                         ResponseResult {
-                            r#type:  ResponseType::Err as i32,
+                            r#type: ResponseType::Err as i32,
                             message: "Agent reported failure".to_string(),
                         },
                     ),
                     Err(e) => (
                         uuid,
                         ResponseResult {
-                            r#type:  ResponseType::Err as i32,
+                            r#type: ResponseType::Err as i32,
                             message: format!("RPC error: {e}"),
                         },
                     ),
@@ -493,7 +493,7 @@ impl RestfulService for ControllerRestfulServer {
                     results.insert(
                         format!("unknown-{}", results.len() + 1),
                         ResponseResult {
-                            r#type:  ResponseType::Err as i32,
+                            r#type: ResponseType::Err as i32,
                             message: format!("Join error: {join_err}"),
                         },
                     );
@@ -526,7 +526,7 @@ impl RestfulService for ControllerRestfulServer {
                 results.insert(
                     uuid.clone(),
                     ResponseResult {
-                        r#type:  ResponseType::Err as i32,
+                        r#type: ResponseType::Err as i32,
                         message: "找不到主機資訊".into(),
                     },
                 );
@@ -541,7 +541,7 @@ impl RestfulService for ControllerRestfulServer {
                         return (
                             uuid,
                             ResponseResult {
-                                r#type:  ResponseType::Err as i32,
+                                r#type: ResponseType::Err as i32,
                                 message: "Semaphore closed".to_string(),
                             },
                         );
@@ -557,21 +557,21 @@ impl RestfulService for ControllerRestfulServer {
                     Ok(true) => (
                         uuid,
                         ResponseResult {
-                            r#type:  ResponseType::Ok as i32,
+                            r#type: ResponseType::Ok as i32,
                             message: "Shutdown succeeded".to_string(),
                         },
                     ),
                     Ok(false) => (
                         uuid,
                         ResponseResult {
-                            r#type:  ResponseType::Err as i32,
+                            r#type: ResponseType::Err as i32,
                             message: "Agent reported failure".to_string(),
                         },
                     ),
                     Err(e) => (
                         uuid,
                         ResponseResult {
-                            r#type:  ResponseType::Err as i32,
+                            r#type: ResponseType::Err as i32,
                             message: format!("RPC error: {e}"),
                         },
                     ),
@@ -587,7 +587,7 @@ impl RestfulService for ControllerRestfulServer {
                     results.insert(
                         format!("unknown-{}", results.len() + 1),
                         ResponseResult {
-                            r#type:  ResponseType::Err as i32,
+                            r#type: ResponseType::Err as i32,
                             message: format!("Join error: {join_err}"),
                         },
                     );
@@ -653,12 +653,12 @@ impl RestfulService for ControllerRestfulServer {
                     .inspect_err(|e| tracing::error!(?e))?;
                 if !status {
                     Ok(ResponseResult {
-                        r#type:  ResponseType::Err as i32,
+                        r#type: ResponseType::Err as i32,
                         message: "Failed to create PC group".to_string(),
                     })
                 } else {
                     Ok(ResponseResult {
-                        r#type:  ResponseType::Ok as i32,
+                        r#type: ResponseType::Ok as i32,
                         message: "PC group created successfully".to_string(),
                     })
                 }
@@ -737,7 +737,7 @@ impl RestfulService for ControllerRestfulServer {
             .inspect_err(|e| tracing::error!(?e))?;
         let resp = PutPcGroupResponse {
             result: Some(ResponseResult {
-                r#type:  ResponseType::Ok as i32,
+                r#type: ResponseType::Ok as i32,
                 message: format!(
                     "PC group updated successfully, total PCs: {}",
                     final_pcs_resp.len()
@@ -762,18 +762,18 @@ impl RestfulService for ControllerRestfulServer {
                             Ok(resp) => {
                                 if resp {
                                     ResponseResult {
-                                        r#type:  ResponseType::Ok as i32,
+                                        r#type: ResponseType::Ok as i32,
                                         message: "Zone name updated successfully".to_string(),
                                     }
                                 } else {
                                     ResponseResult {
-                                        r#type:  ResponseType::Err as i32,
+                                        r#type: ResponseType::Err as i32,
                                         message: "Failed to update zone name".to_string(),
                                     }
                                 }
                             }
                             Err(e) => ResponseResult {
-                                r#type:  ResponseType::Err as i32,
+                                r#type: ResponseType::Err as i32,
                                 message: format!("update_zone_name_by_vni failed: {e}"),
                             },
                         }
@@ -816,12 +816,12 @@ impl RestfulService for ControllerRestfulServer {
                         }
                         while set.join_next().await.is_some() {}
                         ResponseResult {
-                            r#type:  ResponseType::Ok as i32,
+                            r#type: ResponseType::Ok as i32,
                             message: "PCs updated successfully".into(),
                         }
                     }
                     None => ResponseResult {
-                        r#type:  ResponseType::Err as i32,
+                        r#type: ResponseType::Err as i32,
                         message: "Missing patch kind".into(),
                     },
                 };
@@ -850,11 +850,11 @@ impl RestfulService for ControllerRestfulServer {
                 let res = dhcp.delete_zone(zone.name).await;
                 let result = match res {
                     Ok(_) => ResponseResult {
-                        r#type:  ResponseType::Ok as i32,
+                        r#type: ResponseType::Ok as i32,
                         message: "Zone deleted successfully".into(),
                     },
                     Err(e) => ResponseResult {
-                        r#type:  ResponseType::Err as i32,
+                        r#type: ResponseType::Err as i32,
                         message: format!("Failed to delete zone: {e}"),
                     },
                 };
@@ -1022,17 +1022,17 @@ impl RestfulService for ControllerRestfulServer {
                                 .map_err(|e| Status::not_found(e.to_string()))?
                                 .group_name;
                             let entry = UserEntry {
-                                username:       detail.uid,
-                                password:       "".to_string(),
-                                cn:             detail.cn,
-                                sn:             detail.sn,
+                                username: detail.uid,
+                                password: "".to_string(),
+                                cn: detail.cn,
+                                sn: detail.sn,
                                 home_directory: detail.home_directory,
-                                shell:          detail.login_shell,
-                                given_name:     detail.given_name,
-                                display_name:   detail.display_name,
-                                gid_number:     detail.gid_number,
-                                group:          vec![group_name],
-                                gecos:          detail.gecos,
+                                shell: detail.login_shell,
+                                given_name: detail.given_name,
+                                display_name: detail.display_name,
+                                gid_number: detail.gid_number,
+                                group: vec![group_name],
+                                gecos: detail.gecos,
                             };
                             users.insert(uid, entry);
                         }
@@ -1112,7 +1112,7 @@ impl RestfulService for ControllerRestfulServer {
             .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
             .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: format!("使用者 {username} 已成功建立"),
         };
         Ok(Response::new(CreateUserResponse { result: Some(result) }))
@@ -1188,7 +1188,7 @@ impl RestfulService for ControllerRestfulServer {
             .inspect_err(|e| tracing::error!(?e))?;
 
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: format!("使用者 {username} 已成功更新"),
         };
 
@@ -1266,7 +1266,7 @@ impl RestfulService for ControllerRestfulServer {
             .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
             .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: format!("使用者 {username} 已成功更新"),
         };
         Ok(Response::new(PatchUsersResponse { result: Some(result) }))
@@ -1281,26 +1281,34 @@ impl RestfulService for ControllerRestfulServer {
         let uid_clone = uid.clone();
         self.grpc_clients
             .with_ldap_handle(|ldap| async move {
-                if let Err(e) = ldap.search_user(uid_clone.clone()).await {
-                    return Err(
-                        Status::not_found(format!("User {uid_clone} not found: {e}")).into()
-                    );
-                }
-                ldap.delete_user(uid_clone.clone())
-                    .await
-                    .map_err(|e| {
-                        Status::internal(format!("Failed to delete user {uid_clone}: {e}"))
-                    })
-                    .inspect_err(|e| tracing::error!(?e))?;
+                ldap.search_user(uid_clone.clone()).await.inspect_err(|e| {
+                    tracing::warn!(uid = uid_clone, ?e, "User not found when deleting");
+                })?;
+                ldap.remove_user_from_all_groups_and_web_roles(&uid_clone).await.inspect_err(
+                    |e| {
+                        tracing::error!(
+                            uid = uid_clone,
+                            ?e,
+                            "Failed to remove user from all groups/web roles"
+                        );
+                    },
+                )?;
+                ldap.delete_user(uid_clone.clone()).await.inspect_err(|e| {
+                    tracing::error!(uid = uid_clone, ?e, "Failed to delete user");
+                })?;
                 Ok(())
             })
             .await
-            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
-            .inspect_err(|e| tracing::error!(?e))?;
+            .map_err(|e| {
+                tracing::error!(uid = uid, ?e, "LDAP handle error when deleting user");
+                Status::internal(format!("LDAP Error: {e}"))
+            })?;
+
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: format!("使用者 {uid} 已成功刪除"),
         };
+
         Ok(Response::new(DeleteUserResponse { result: Some(result) }))
     }
 
@@ -1368,7 +1376,7 @@ impl RestfulService for ControllerRestfulServer {
             .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
             .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: format!("群組 {} 已成功建立", req.groupname),
         };
         Ok(Response::new(CreateGroupResponse { result: Some(result) }))
@@ -1445,7 +1453,7 @@ impl RestfulService for ControllerRestfulServer {
             .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
             .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: "群組資料已成功更新".to_string(),
         };
         Ok(Response::new(PutGroupsResponse { result: Some(result) }))
@@ -1529,7 +1537,7 @@ impl RestfulService for ControllerRestfulServer {
             .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
             .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: "群組已成功更新".to_string(),
         };
         Ok(Response::new(PatchGroupsResponse { result: Some(result) }))
@@ -1562,7 +1570,7 @@ impl RestfulService for ControllerRestfulServer {
             .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
             .inspect_err(|e| tracing::error!(?e))?;
         let result = ResponseResult {
-            r#type:  ResponseType::Ok as i32,
+            r#type: ResponseType::Ok as i32,
             message: format!("群組 {group_name} 已成功刪除"),
         };
         Ok(Response::new(DeleteGroupResponse { result: Some(result) }))

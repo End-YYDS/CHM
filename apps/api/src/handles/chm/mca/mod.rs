@@ -22,7 +22,6 @@ async fn valid(app_state: web::Data<AppState>) -> RestfulResult<web::Json<get_va
     let resp = client
         .get_valid_certs(GetValidCertsRequest {})
         .await
-        .inspect(|ok| tracing::debug!(?ok))
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     Ok(web::Json(resp.into()))
@@ -34,7 +33,6 @@ async fn revoked(app_state: web::Data<AppState>) -> RestfulResult<web::Json<get_
     let resp = client
         .get_revoked_certs(chm_grpc::restful::GetRevokedCertsRequest {})
         .await
-        .inspect(|ok| tracing::debug!(?ok))
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     Ok(web::Json(resp.into()))

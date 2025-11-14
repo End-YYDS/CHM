@@ -67,7 +67,7 @@ impl Ca for MyCa {
             .sign_csr(&csr, days)
             .await
             .map_err(|e| Status::internal(format!("Sign error: {e}")))
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(error = ?e,"Sign CSR failed"))?;
         Ok(Response::new(CsrResponse { cert: leaf, chain }))
     }

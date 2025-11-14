@@ -14,8 +14,8 @@ pub struct ClientAgent {
     m_client: AgentServiceClient<Channel>,
     f_client: AgentFileServiceClient<Channel>,
     i_client: AgentInfoServiceClient<Channel>,
-    channel:  Channel,
-    uuid:     Uuid,
+    channel: Channel,
+    uuid: Uuid,
     hostname: String,
 }
 
@@ -63,11 +63,10 @@ impl ClientAgent {
         let mut client = self.get_m_client();
         let resp = client
             .execute_command(CommandRequest {
-                command:  AgentCommand::Reboot as i32,
+                command: AgentCommand::Reboot as i32,
                 argument: None,
             })
             .await
-            .inspect(|ok| tracing::debug!(?ok))
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         dbg!(resp);
@@ -77,11 +76,10 @@ impl ClientAgent {
         let mut client = self.get_m_client();
         let resp = client
             .execute_command(CommandRequest {
-                command:  AgentCommand::Shutdown as i32,
+                command: AgentCommand::Shutdown as i32,
                 argument: None,
             })
             .await
-            .inspect(|ok| tracing::debug!(?ok))
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         dbg!(resp);

@@ -60,7 +60,7 @@ impl ClientDhcp {
         let response = client
             .create_zone(request)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         let ret = response.message.contains("successfully");
@@ -76,7 +76,7 @@ impl ClientDhcp {
         let response = client
             .allocate_ip(request)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok(response.ip)
@@ -91,7 +91,7 @@ impl ClientDhcp {
         let response = client
             .release_ip(request)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         let ret = response.message.contains("released");
@@ -107,7 +107,7 @@ impl ClientDhcp {
         let response = client
             .delete_zone(request)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         let ret = response.message.contains("deleted");
@@ -123,7 +123,7 @@ impl ClientDhcp {
         let response = client
             .list_zones(request)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok(response.zones)
@@ -138,7 +138,7 @@ impl ClientDhcp {
         let response = client
             .list_available_ips(request)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         let ips: Vec<IpAddr> =
@@ -156,7 +156,7 @@ impl ClientDhcp {
         let resp = client
             .add_pc_to_zone(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok(Self::is_ok(&resp))
@@ -172,7 +172,7 @@ impl ClientDhcp {
         let resp = client
             .remove_pc_from_zone(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok(Self::is_ok(&resp))
@@ -188,7 +188,7 @@ impl ClientDhcp {
         let resp = client
             .list_pcs_in_zone(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok(resp.pcs)
@@ -203,7 +203,7 @@ impl ClientDhcp {
         let resp = client
             .list_zones_by_pc(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok(resp.zones)
@@ -216,7 +216,7 @@ impl ClientDhcp {
         let resp = client
             .get_zone_detail_by_vni(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok(resp)
@@ -232,7 +232,7 @@ impl ClientDhcp {
         let resp = client
             .list_available_ips_by_vni(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         let ips = resp.ips.into_iter().filter_map(|s| s.parse::<IpAddr>().ok()).collect();
@@ -250,7 +250,7 @@ impl ClientDhcp {
         let resp = client
             .add_pc_to_zone_by_vni(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok(Self::is_ok(&resp))
@@ -267,7 +267,7 @@ impl ClientDhcp {
         let resp = client
             .remove_pc_from_zone_by_vni(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok(Self::is_ok(&resp))
@@ -280,7 +280,7 @@ impl ClientDhcp {
         let resp = client
             .list_pcs_in_zone_by_vni(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok(resp.pcs)
@@ -296,7 +296,7 @@ impl ClientDhcp {
         let resp = client
             .update_zone_name_by_vni(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok(matches!(ResponseType::try_from(resp.r#type), Ok(ResponseType::Ok)))
@@ -313,7 +313,7 @@ impl ClientDhcp {
         let resp = client
             .add_pc_to_zone(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok((Self::is_ok(&resp), resp.message))
@@ -329,7 +329,7 @@ impl ClientDhcp {
         let resp = client
             .remove_pc_from_zone(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok((Self::is_ok(&resp), resp.message))
@@ -346,7 +346,7 @@ impl ClientDhcp {
         let resp = client
             .add_pc_to_zone_by_vni(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok((Self::is_ok(&resp), resp.message))
@@ -363,7 +363,7 @@ impl ClientDhcp {
         let resp = client
             .remove_pc_from_zone_by_vni(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         Ok((Self::is_ok(&resp), resp.message))
@@ -379,7 +379,7 @@ impl ClientDhcp {
         let resp = client
             .update_zone_name_by_vni(req)
             .await
-            .inspect(|ok| tracing::debug!(?ok))
+
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         let ok = matches!(ResponseType::try_from(resp.r#type), Ok(ResponseType::Ok));
