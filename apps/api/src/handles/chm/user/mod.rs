@@ -4,16 +4,13 @@ use actix_web::{delete, get, patch, post, put, web, Scope};
 use std::collections::HashMap;
 
 use crate::{
-    commons::{ResponseResult, ResponseType},
-    AppState,
+    commons::{translate::AppError, ResponseResult, ResponseType},
+    AppState, RestfulResult,
 };
-use chm_grpc::{
-    restful::{
-        CreateUserRequest as Grpc_CreateUserRequest, GetUsersRequest as Grpc_GetUsersRequest,
-        PutUsersRequest as Grpc_PutUsersRequest, UserEntry as Grpc_UserEntry,
-        UserPatch as Grpc_UserPatch,
-    },
-    tonic,
+use chm_grpc::restful::{
+    CreateUserRequest as Grpc_CreateUserRequest, GetUsersRequest as Grpc_GetUsersRequest,
+    PutUsersRequest as Grpc_PutUsersRequest, UserEntry as Grpc_UserEntry,
+    UserPatch as Grpc_UserPatch,
 };
 use types::{
     CreateUserRequest as Web_CreateUserRequest, GetUserEntry as Web_GetUserEntry,
@@ -33,19 +30,13 @@ pub fn user_scope() -> Scope {
 #[get("")]
 async fn _get_user_root(
     app_state: web::Data<AppState>,
-) -> actix_web::Result<web::Json<UsersCollection>> {
+) -> RestfulResult<web::Json<UsersCollection>> {
     let mut client = app_state.gclient.clone();
-
-    // 呼叫 gRPC server 取得使用者列表
     let resp = client
         .get_users(Grpc_GetUsersRequest {})
         .await
-        .map_err(|status| match status.code() {
-            tonic::Code::Cancelled | tonic::Code::Unavailable => {
-                actix_web::error::ErrorBadGateway(format!("gRPC connection lost: {status}"))
-            }
-            _ => actix_web::error::ErrorInternalServerError(format!("gRPC call failed: {status}")),
-        })?
+        .inspect(|ok| tracing::debug!(?ok))
+        .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let users = resp
         .users
@@ -53,7 +44,8 @@ async fn _get_user_root(
         .map(|(k, v)| (k, v.into()))
         .collect::<HashMap<String, Web_GetUserEntry>>();
     let length = usize::try_from(resp.length)
-        .map_err(|e| actix_web::error::ErrorInternalServerError(e.to_string()))?;
+        .inspect(|ok| tracing::debug!(?ok))
+        .inspect_err(|e| tracing::error!(?e))?;
     Ok(web::Json(UsersCollection { users, length }))
 }
 
@@ -62,7 +54,7 @@ async fn _get_user_root(
 async fn _post_user_root(
     app_state: web::Data<AppState>,
     payload: web::Json<Web_CreateUserRequest>,
-) -> actix_web::Result<web::Json<ResponseResult>> {
+) -> RestfulResult<web::Json<ResponseResult>> {
     // TDOO: 修正前端API傳送邏輯
     let data = payload.into_inner();
     let mut client = app_state.gclient.clone();
@@ -83,15 +75,8 @@ async fn _post_user_root(
     let resp = client
         .create_user(grpc_req)
         .await
-        .map_err(|status| match status.code() {
-            tonic::Code::Cancelled | tonic::Code::Unavailable => {
-                actix_web::error::ErrorBadGateway(format!("gRPC 連線中斷: {}", status.message()))
-            }
-            _ => actix_web::error::ErrorInternalServerError(format!(
-                "gRPC 失敗: {}",
-                status.message()
-            )),
-        })?
+        .inspect(|ok| tracing::debug!(?ok))
+        .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
         r#type:  chm_grpc::common::ResponseType::Err as i32,
@@ -105,10 +90,9 @@ async fn _post_user_root(
 async fn _put_user_root(
     app_state: web::Data<AppState>,
     payload: web::Json<Web_PutUsersRequest>,
-) -> actix_web::Result<web::Json<ResponseResult>> {
+) -> RestfulResult<web::Json<ResponseResult>> {
     let data = payload.into_inner();
     let mut client = app_state.gclient.clone();
-
     if data.data.is_empty() {
         return Ok(web::Json(ResponseResult {
             r#type:  ResponseType::Err,
@@ -137,20 +121,12 @@ async fn _put_user_root(
             )
         })
         .collect();
-    // 將 HashMap 直接傳給 gRPC
     let grpc_req = Grpc_PutUsersRequest { users };
     let resp = client
         .put_users(grpc_req)
         .await
-        .map_err(|status| match status.code() {
-            tonic::Code::Cancelled | tonic::Code::Unavailable => {
-                actix_web::error::ErrorBadGateway(format!("gRPC 連線中斷: {}", status.message()))
-            }
-            _ => actix_web::error::ErrorInternalServerError(format!(
-                "gRPC 失敗: {}",
-                status.message()
-            )),
-        })?
+        .inspect(|ok| tracing::debug!(?ok))
+        .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
         r#type:  chm_grpc::common::ResponseType::Err as i32,
@@ -164,12 +140,15 @@ async fn _put_user_root(
 async fn _patch_user_root(
     app_state: web::Data<AppState>,
     web::Json(data): web::Json<PatchUsersRequest>,
-) -> actix_web::Result<web::Json<ResponseResult>> {
+) -> RestfulResult<web::Json<ResponseResult>> {
     let mut client = app_state.gclient.clone();
-    let (username, user) =
-        data.data.iter().next().ok_or_else(|| {
-            actix_web::error::ErrorBadRequest("At least one user entry is required")
-        })?;
+    let (username, user) = data
+        .data
+        .iter()
+        .next()
+        .ok_or_else(|| AppError::BadRequest("At least one user entry is required".to_string()))
+        .inspect(|ok| tracing::debug!(?ok))
+        .inspect_err(|e| tracing::error!(?e))?;
     let mut data: Grpc_UserPatch = Grpc_UserPatch::default();
     if let Some(u) = &user.password {
         data.password = Some(u.clone());
@@ -203,15 +182,8 @@ async fn _patch_user_root(
     let resp = client
         .patch_users(chm_grpc::restful::PatchUsersRequest { users })
         .await
-        .map_err(|status| match status.code() {
-            tonic::Code::Cancelled | tonic::Code::Unavailable => {
-                actix_web::error::ErrorBadGateway(format!("gRPC 連線中斷: {}", status.message()))
-            }
-            _ => actix_web::error::ErrorInternalServerError(format!(
-                "gRPC 失敗: {}",
-                status.message()
-            )),
-        })?
+        .inspect(|ok| tracing::debug!(?ok))
+        .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
         r#type:  chm_grpc::common::ResponseType::Err as i32,
@@ -225,21 +197,14 @@ async fn _patch_user_root(
 async fn _delete_user_root(
     app_state: web::Data<AppState>,
     payload: web::Json<DeleteUserRequest>,
-) -> actix_web::Result<web::Json<ResponseResult>> {
+) -> RestfulResult<web::Json<ResponseResult>> {
     let data = payload.into_inner();
     let mut client = app_state.gclient.clone();
     let resp = client
         .delete_user(chm_grpc::restful::DeleteUserRequest { uid: data.uid.clone() })
         .await
-        .map_err(|status| match status.code() {
-            tonic::Code::Cancelled | tonic::Code::Unavailable => {
-                actix_web::error::ErrorBadGateway(format!("gRPC 連線中斷: {}", status.message()))
-            }
-            _ => actix_web::error::ErrorInternalServerError(format!(
-                "gRPC 失敗: {}",
-                status.message()
-            )),
-        })?
+        .inspect(|ok| tracing::debug!(?ok))
+        .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
         r#type:  chm_grpc::common::ResponseType::Err as i32,

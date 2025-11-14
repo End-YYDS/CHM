@@ -310,7 +310,8 @@ impl LdapService for MyLdapService {
                 Pin::from(Box::new(async move { modify_group_name_impl(ldap, req_clone).await }))
             })
             .await
-            .map_err(|e| Status::internal(format!("Failed to modify group name: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed to modify group name: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         Ok(Response::new(GenericResponse {
             success: true,
             message: format!("Group '{}' renamed to '{}'", req.old_name, req.new_name),

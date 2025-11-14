@@ -635,9 +635,18 @@ pub async fn init_channels_all(only_ca: bool) -> ConResult<GrpcClients> {
         }
         Ok((root, cert, key))
     })?;
-    let root_cert = tokio::fs::read(root).await.map_err(|_| "無法讀取 CA 根憑證")?;
-    let client_cert = tokio::fs::read(cert).await.map_err(|_| "無法讀取客戶端憑證")?;
-    let client_key = tokio::fs::read(key).await.map_err(|_| "無法讀取客戶端金鑰")?;
+    let root_cert = tokio::fs::read(root)
+        .await
+        .map_err(|_| "無法讀取 CA 根憑證")
+        .inspect_err(|e| tracing::error!(?e))?;
+    let client_cert = tokio::fs::read(cert)
+        .await
+        .map_err(|_| "無法讀取客戶端憑證")
+        .inspect_err(|e| tracing::error!(?e))?;
+    let client_key = tokio::fs::read(key)
+        .await
+        .map_err(|_| "無法讀取客戶端金鑰")
+        .inspect_err(|e| tracing::error!(?e))?;
 
     let mut tls = ClientTlsConfig::new()
         .ca_certificate(Certificate::from_pem(root_cert))

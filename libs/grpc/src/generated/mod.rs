@@ -27,4 +27,3 @@ pub mod restful;
 
 #[cfg(any(feature = "agent-client", feature = "agent-server"))]
 pub mod agent;
-

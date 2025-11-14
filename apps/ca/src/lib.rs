@@ -176,9 +176,11 @@ fn get_ssl_info(req: &Request<()>) -> CaResult<(X509, String)> {
         .first()
         .ok_or_else(|| Status::unauthenticated("No peer certificate presented"))?;
     let x509 = X509::from_der(leaf)
-        .map_err(|_| Status::invalid_argument("Peer certificate DER is invalid"))?;
+        .map_err(|_| Status::invalid_argument("Peer certificate DER is invalid"))
+        .inspect_err(|e| tracing::error!(?e))?;
     let serial = CertUtils::cert_serial_sha256(&x509)
-        .map_err(|e| Status::internal(format!("Serial sha256 failed: {e}")))?;
+        .map_err(|e| Status::internal(format!("Serial sha256 failed: {e}")))
+        .inspect_err(|e| tracing::error!(?e))?;
     Ok((x509, serial))
 }
 
@@ -206,11 +208,13 @@ async fn check_controller(
     controller_args: (String, String),
     req: Request<()>,
 ) -> Result<Request<()>, Status> {
-    let (x509, _) =
-        get_ssl_info(&req).map_err(|e| Status::internal(format!("SSL info failed: {e}")))?;
+    let (x509, _) = get_ssl_info(&req)
+        .map_err(|e| Status::internal(format!("SSL info failed: {e}")))
+        .inspect_err(|e| tracing::error!(?e))?;
     let is_ctrl = cert_handler
         .is_controller_cert(&x509, controller_args.clone())
-        .map_err(|e| Status::internal(format!("Controller check failed: {e}")))?;
+        .map_err(|e| Status::internal(format!("Controller check failed: {e}")))
+        .inspect_err(|e| tracing::error!(?e))?;
     if !is_ctrl {
         return Err(Status::permission_denied("Only controller cert is allowed"));
     }
@@ -221,8 +225,9 @@ async fn check_revoke(
     cert_handler: Arc<CertificateProcess>,
     req: Request<()>,
 ) -> Result<Request<()>, Status> {
-    let (_, serial) =
-        get_ssl_info(&req).map_err(|e| Status::internal(format!("SSL info failed: {e}")))?;
+    let (_, serial) = get_ssl_info(&req)
+        .map_err(|e| Status::internal(format!("SSL info failed: {e}")))
+        .inspect_err(|e| tracing::error!(?e))?;
     if cert_handler.get_crl().is_revoked(&serial).await {
         return Err(Status::unauthenticated("Certificate was revoked"));
     }

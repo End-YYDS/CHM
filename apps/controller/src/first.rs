@@ -125,7 +125,8 @@ pub async fn first_run(ca_url: String, otp_code: Option<String>) -> ConResult<()
     });
     atomic_write(&root_ca, &output.root_ca).await?;
     CertUtils::save_cert(&self_hostname, &output.private_key, &output.cert)
-        .map_err(|e| format!("儲存憑證失敗：{e}"))?;
+        .map_err(|e| format!("儲存憑證失敗：{e}"))
+        .inspect_err(|e| tracing::error!(?e))?;
     tracing::info!("已儲存憑證與私鑰：{name}.pem / {name}.key", name = self_hostname);
 
     GlobalConfig::save_config().await?;

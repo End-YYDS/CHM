@@ -19,11 +19,12 @@ impl CrlProvider for StoreCrlProvider {
         limit: usize,
         offset: usize,
     ) -> Result<(Vec<String>, DateTime<Utc>, DateTime<Utc>), CrlCacheError> {
-        let entries: Vec<StoreCrlEntry> =
-            self.store
-                .list_crl_entries(since, limit, offset)
-                .await
-                .map_err(|e| CrlCacheError::ProviderError(e.to_string()))?;
+        let entries: Vec<StoreCrlEntry> = self
+            .store
+            .list_crl_entries(since, limit, offset)
+            .await
+            .map_err(|e| CrlCacheError::ProviderError(e.to_string()))
+            .inspect_err(|e| tracing::error!(?e))?;
         let serials: Vec<String> = entries.into_iter().filter_map(|e| e.cert_serial).collect();
         let this_u = Utc::now();
         let next_u = this_u + self.poll_interval;
