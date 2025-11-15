@@ -35,8 +35,9 @@ pub struct CrlList {
 impl CrlList {
     pub async fn next_update_time(&self) -> CaResult<DateTime<Utc>> {
         let interval_std = GlobalConfig::with(|cfg| cfg.extend.cert_ext.crl_update_interval);
-        let interval =
-            Duration::from_std(interval_std).map_err(|e| format!("Invalid interval: {e}"))?;
+        let interval = Duration::from_std(interval_std)
+            .map_err(|e| format!("Invalid interval: {e}"))
+            .inspect_err(|e| tracing::error!(?e))?;
         Ok(Utc::now() + interval)
     }
     /// CRL number = (now - 基準日) 的分鐘數
@@ -64,7 +65,8 @@ impl Crl for CrlList {
             .get_store()
             .list_crl_entries(since, limit, offset)
             .await
-            .map_err(|e| Status::internal(format!("CRL 查詢失敗: {e}")))?;
+            .map_err(|e| Status::internal(format!("CRL 查詢失敗: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let grpc_entries: Vec<GrpcCrlEntry> = store_entries.into_iter().map(Into::into).collect();
         let now = Utc::now();
         let this_update = Some(Timestamp {
@@ -74,12 +76,14 @@ impl Crl for CrlList {
         let next = self
             .next_update_time()
             .await
-            .map_err(|e| Status::internal(format!("計算 next_update 失敗: {e}")))?;
+            .map_err(|e| Status::internal(format!("計算 next_update 失敗: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let next_update =
             Timestamp { seconds: next.timestamp(), nanos: next.timestamp_subsec_nanos() as i32 };
         let crl_number = self
             .current_crl_number()
-            .map_err(|e| Status::internal(format!("計算 crl_number 失敗: {e}")))?;
+            .map_err(|e| Status::internal(format!("計算 crl_number 失敗: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let mut resp = ListCrlEntriesResponse {
             entries: grpc_entries,
             this_update,
@@ -88,8 +92,11 @@ impl Crl for CrlList {
             signature: vec![],
         };
         let raw = Message::encode_to_vec(&resp);
-        resp.signature =
-            self.cert.sign_crl(&raw).map_err(|e| Status::internal(format!("CRL 簽名失敗: {e}")))?;
+        resp.signature = self
+            .cert
+            .sign_crl(&raw)
+            .map_err(|e| Status::internal(format!("CRL 簽名失敗: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         Ok(Response::new(resp)) // TODO: 驗證CRL簽名
     }
 }

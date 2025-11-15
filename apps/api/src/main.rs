@@ -9,9 +9,8 @@ use actix_web::{
     cookie::{time::Duration as ac_Duration, Key, SameSite},
     dev::{ServiceRequest, ServiceResponse},
     http::header,
-    middleware,
-    middleware::{from_fn, Logger, Next},
-    App, Error, FromRequest, HttpServer,
+    middleware::{self, from_fn, Logger, Next},
+    web, App, Error, FromRequest, HttpServer,
 };
 use api_server::{
     commons::{ResponseResult, ResponseType},
@@ -170,6 +169,10 @@ async fn main() -> ApiResult<()> {
             .session_lifecycle(lifecycle)
             .build();
         App::new()
+            .app_data(web::JsonConfig::default().error_handler(|err, _req| {
+                tracing::error!(?err, "JSON deserialization error");
+                actix_web::error::ErrorBadRequest(err)
+            }))
             .app_data(Data::new(AppState { gclient: grpc_client.clone() }))
             .wrap(middleware::NormalizePath::trim())
             .wrap(Logger::default())

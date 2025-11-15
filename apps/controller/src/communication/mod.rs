@@ -75,6 +75,7 @@ impl GrpcClients {
         init_channels_all(only_ca).await
     }
     pub fn with_map(map: ClientMap) -> Self {
+        let quarantine_ms = GlobalConfig::with(|cfg| cfg.extend.quarantine.as_millis() as u64);
         let rr = map.keys().map(|&k| (k, Arc::new(AtomicUsize::new(0)))).collect();
 
         let mut health: FastMap<ServiceKind, Vec<Arc<AtomicBool>>> = FastMap::default();
@@ -99,15 +100,7 @@ impl GrpcClients {
             }
         }
 
-        Self {
-            map,
-            rr,
-            health,
-            agent_by_uuid,
-            agent_by_hostname,
-            unhealthy_until,
-            quarantine_ms: 15_000, // 預設 15 秒
-        }
+        Self { map, rr, health, agent_by_uuid, agent_by_hostname, unhealthy_until, quarantine_ms }
     }
 
     #[inline]
@@ -122,10 +115,20 @@ impl GrpcClients {
 
     #[inline]
     pub fn mark_healthy(&self, kind: ServiceKind, idx: usize, healthy: bool) {
-        if let Some(v) = self.health.get(&kind).and_then(|v| v.get(idx)) {
-            v.store(healthy, Ordering::Relaxed);
-        }
+        // if let Some(v) = self.health.get(&kind).and_then(|v| v.get(idx)) {
+        //     v.store(healthy, Ordering::Relaxed);
+        // }
+        // if healthy {
+        //     if let Some(v) = self.unhealthy_until.get(&kind).and_then(|v| v.get(idx))
+        // {         v.store(0, Ordering::Relaxed);
+        //     }
+        // } else if let Some(v) = self.unhealthy_until.get(&kind).and_then(|v|
+        // v.get(idx)) {     v.store(Self::now_ms() + self.quarantine_ms,
+        // Ordering::Relaxed); }
         if healthy {
+            if let Some(v) = self.health.get(&kind).and_then(|v| v.get(idx)) {
+                v.store(true, Ordering::Relaxed);
+            }
             if let Some(v) = self.unhealthy_until.get(&kind).and_then(|v| v.get(idx)) {
                 v.store(0, Ordering::Relaxed);
             }
@@ -156,11 +159,22 @@ impl GrpcClients {
     }
     #[inline]
     fn is_eligible(&self, kind: ServiceKind, idx: usize) -> bool {
+        // if !self.is_healthy(kind, idx) {
+        //     return false;
+        // }
+        // if let Some(v) = self.unhealthy_until.get(&kind).and_then(|v| v.get(idx)) {
+        //     let until = v.load(Ordering::Relaxed);
+        //     return until <= Self::now_ms();
+        // }
+        // true
         if !self.is_healthy(kind, idx) {
             return false;
         }
         if let Some(v) = self.unhealthy_until.get(&kind).and_then(|v| v.get(idx)) {
             let until = v.load(Ordering::Relaxed);
+            if until == 0 {
+                return true;
+            }
             return until <= Self::now_ms();
         }
         true
@@ -189,7 +203,6 @@ impl GrpcClients {
         }
         None
     }
-    /// 隨機嘗試 attempts 次，跳過 quarantine/unhealthy
     pub fn random_with_retry(
         &self,
         kind: ServiceKind,
@@ -279,8 +292,6 @@ impl GrpcClients {
         }
     }
 
-    // ---------- typed handle 快捷 ----------
-
     #[inline]
     fn ca_handle_with_idx(&self) -> Option<(usize, ca::ClientCA)> {
         self.pick_typed(ServiceKind::Mca, PickStrategy::RoundRobin, |h| match h {
@@ -350,8 +361,6 @@ impl GrpcClients {
         Some((idx, a.channel()))
     }
 
-    // ---------- 直接回傳 handle 的 API ----------
-
     pub fn ca_handle(&self) -> Option<ca::ClientCA> {
         self.ca_handle_with_idx().map(|(_, h)| h)
     }
@@ -381,8 +390,6 @@ impl GrpcClients {
     pub fn try_dhcp(&self) -> ConResult<dhcp::ClientDhcp> {
         self.dhcp_handle().ok_or_else(|| "沒有可用的 DHCP 節點".into())
     }
-
-    // ---------- with_* 閉包 API：自動標記健康/隔離 ----------
 
     pub async fn with_ca_handle<F, Fut, T>(&self, f: F) -> ConResult<T>
     where
@@ -477,8 +484,6 @@ impl GrpcClients {
         }
         out
     }
-
-    // ---------- Agent 專用：擁有所有權的取用（供 with_* 使用） ----------
 
     #[inline]
     fn agent_handle_by_uuid_with_idx(&self, uuid: &str) -> Option<(usize, agent::ClientAgent)> {
@@ -635,9 +640,18 @@ pub async fn init_channels_all(only_ca: bool) -> ConResult<GrpcClients> {
         }
         Ok((root, cert, key))
     })?;
-    let root_cert = tokio::fs::read(root).await.map_err(|_| "無法讀取 CA 根憑證")?;
-    let client_cert = tokio::fs::read(cert).await.map_err(|_| "無法讀取客戶端憑證")?;
-    let client_key = tokio::fs::read(key).await.map_err(|_| "無法讀取客戶端金鑰")?;
+    let root_cert = tokio::fs::read(root)
+        .await
+        .map_err(|_| "無法讀取 CA 根憑證")
+        .inspect_err(|e| tracing::error!(?e))?;
+    let client_cert = tokio::fs::read(cert)
+        .await
+        .map_err(|_| "無法讀取客戶端憑證")
+        .inspect_err(|e| tracing::error!(?e))?;
+    let client_key = tokio::fs::read(key)
+        .await
+        .map_err(|_| "無法讀取客戶端金鑰")
+        .inspect_err(|e| tracing::error!(?e))?;
 
     let mut tls = ClientTlsConfig::new()
         .ca_certificate(Certificate::from_pem(root_cert))

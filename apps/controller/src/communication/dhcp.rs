@@ -57,7 +57,8 @@ impl ClientDhcp {
     pub async fn create_zone(&self, zone_name: String, vni: i64, cidr: String) -> ConResult<bool> {
         let mut client = self.get_client();
         let request = chm_grpc::dhcp::CreateZoneRequest { zone_name, vni, cidr };
-        let response = client.create_zone(request).await?.into_inner();
+        let response =
+            client.create_zone(request).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
         let ret = response.message.contains("successfully");
         Ok(ret)
     }
@@ -68,7 +69,8 @@ impl ClientDhcp {
     pub async fn allocate_ip(&self, zone_name: String) -> ConResult<String> {
         let mut client = self.get_client();
         let request = chm_grpc::dhcp::AllocateIpRequest { zone_name };
-        let response = client.allocate_ip(request).await?.into_inner();
+        let response =
+            client.allocate_ip(request).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
         Ok(response.ip)
     }
     /// 將 IP 歸還至指定的 Zone。
@@ -78,7 +80,8 @@ impl ClientDhcp {
     pub async fn release_ip(&self, zone_name: String, ip: String) -> ConResult<bool> {
         let mut client = self.get_client();
         let request = chm_grpc::dhcp::ReleaseIpRequest { zone_name, ip };
-        let response = client.release_ip(request).await?.into_inner();
+        let response =
+            client.release_ip(request).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
         let ret = response.message.contains("released");
         Ok(ret)
     }
@@ -89,7 +92,8 @@ impl ClientDhcp {
     pub async fn delete_zone(&self, zone_name: String) -> ConResult<bool> {
         let mut client = self.get_client();
         let request = chm_grpc::dhcp::DeleteZoneRequest { zone_name };
-        let response = client.delete_zone(request).await?.into_inner();
+        let response =
+            client.delete_zone(request).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
         let ret = response.message.contains("deleted");
         Ok(ret)
     }
@@ -100,7 +104,8 @@ impl ClientDhcp {
     pub async fn list_zones(&self) -> ConResult<Vec<Zone>> {
         let mut client = self.get_client();
         let request = chm_grpc::dhcp::Empty {};
-        let response = client.list_zones(request).await?.into_inner();
+        let response =
+            client.list_zones(request).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
         Ok(response.zones)
     }
     /// 取得指定 Zone 內的所有可用 IP。
@@ -110,7 +115,11 @@ impl ClientDhcp {
     pub async fn list_available_ips(&self, zone_name: String) -> ConResult<Vec<IpAddr>> {
         let mut client = self.get_client();
         let request = ZoneIdentifier { zone_name };
-        let response = client.list_available_ips(request).await?.into_inner();
+        let response = client
+            .list_available_ips(request)
+            .await
+            .inspect_err(|e| tracing::error!(?e))?
+            .into_inner();
         let ips: Vec<IpAddr> =
             response.ips.into_iter().filter_map(|ip_str| ip_str.parse::<IpAddr>().ok()).collect();
         Ok(ips)
@@ -123,7 +132,8 @@ impl ClientDhcp {
     pub async fn add_pc_to_zone(&self, zone_name: String, pc_uuid: String) -> ConResult<bool> {
         let mut client = self.get_client();
         let req = AddPcToZoneRequest { zone_name, pc_uuid };
-        let resp = client.add_pc_to_zone(req).await?.into_inner();
+        let resp =
+            client.add_pc_to_zone(req).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
         Ok(Self::is_ok(&resp))
     }
     /// 從 Zone 移除指定 PC(UUID)。
@@ -134,7 +144,11 @@ impl ClientDhcp {
     pub async fn remove_pc_from_zone(&self, zone_name: String, pc_uuid: String) -> ConResult<bool> {
         let mut client = self.get_client();
         let req = chm_grpc::dhcp::RemovePcFromZoneRequest { zone_name, pc_uuid };
-        let resp = client.remove_pc_from_zone(req).await?.into_inner();
+        let resp = client
+            .remove_pc_from_zone(req)
+            .await
+            .inspect_err(|e| tracing::error!(?e))?
+            .into_inner();
         Ok(Self::is_ok(&resp))
     }
     /// 列出某個 Zone 內所有 PC(UUID)。
@@ -145,7 +159,8 @@ impl ClientDhcp {
         let mut client = self.get_client();
         let zone_name = zone_name.to_string();
         let req = ZoneIdentifier { zone_name };
-        let resp = client.list_pcs_in_zone(req).await?.into_inner();
+        let resp =
+            client.list_pcs_in_zone(req).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
         Ok(resp.pcs)
     }
     /// 反查某台 PC 所屬的所有 Zone。
@@ -155,7 +170,8 @@ impl ClientDhcp {
     pub async fn list_zones_by_pc(&self, pc_uuid: String) -> ConResult<Vec<Zone>> {
         let mut client = self.get_client();
         let req = PcIdentifier { pc_uuid };
-        let resp = client.list_zones_by_pc(req).await?.into_inner();
+        let resp =
+            client.list_zones_by_pc(req).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
         Ok(resp.zones)
     }
 
@@ -163,7 +179,11 @@ impl ClientDhcp {
     pub async fn get_zone_detail_by_vni(&self, vni: i64) -> ConResult<ZoneDetail> {
         let mut client = self.get_client();
         let req = VniIdentifier { vni };
-        let resp = client.get_zone_detail_by_vni(req).await?.into_inner();
+        let resp = client
+            .get_zone_detail_by_vni(req)
+            .await
+            .inspect_err(|e| tracing::error!(?e))?
+            .into_inner();
         Ok(resp)
     }
 
@@ -174,7 +194,11 @@ impl ClientDhcp {
     pub async fn list_available_ips_by_vni(&self, vni: i64) -> ConResult<Vec<IpAddr>> {
         let mut client = self.get_client();
         let req = VniIdentifier { vni };
-        let resp = client.list_available_ips_by_vni(req).await?.into_inner();
+        let resp = client
+            .list_available_ips_by_vni(req)
+            .await
+            .inspect_err(|e| tracing::error!(?e))?
+            .into_inner();
         let ips = resp.ips.into_iter().filter_map(|s| s.parse::<IpAddr>().ok()).collect();
         Ok(ips)
     }
@@ -187,7 +211,11 @@ impl ClientDhcp {
     pub async fn add_pc_to_zone_by_vni(&self, vni: i64, pc_uuid: String) -> ConResult<bool> {
         let mut client = self.get_client();
         let req = AddPcToZoneByVniRequest { vni, pc_uuid };
-        let resp = client.add_pc_to_zone_by_vni(req).await?.into_inner();
+        let resp = client
+            .add_pc_to_zone_by_vni(req)
+            .await
+            .inspect_err(|e| tracing::error!(?e))?
+            .into_inner();
         Ok(Self::is_ok(&resp))
     }
 
@@ -199,7 +227,11 @@ impl ClientDhcp {
     pub async fn remove_pc_from_zone_by_vni(&self, vni: i64, pc_uuid: String) -> ConResult<bool> {
         let mut client = self.get_client();
         let req = RemovePcFromZoneByVniRequest { vni, pc_uuid };
-        let resp = client.remove_pc_from_zone_by_vni(req).await?.into_inner();
+        let resp = client
+            .remove_pc_from_zone_by_vni(req)
+            .await
+            .inspect_err(|e| tracing::error!(?e))?
+            .into_inner();
         Ok(Self::is_ok(&resp))
     }
 
@@ -207,7 +239,11 @@ impl ClientDhcp {
     pub async fn list_pcs_in_zone_by_vni(&self, vni: i64) -> ConResult<Vec<String>> {
         let mut client = self.get_client();
         let req = VniIdentifier { vni };
-        let resp = client.list_pcs_in_zone_by_vni(req).await?.into_inner();
+        let resp = client
+            .list_pcs_in_zone_by_vni(req)
+            .await
+            .inspect_err(|e| tracing::error!(?e))?
+            .into_inner();
         Ok(resp.pcs)
     }
     /// 透過 VNI 更新 Zone 名稱。
@@ -218,7 +254,11 @@ impl ClientDhcp {
     pub async fn update_zone_name_by_vni(&self, vni: i64, new_name: String) -> ConResult<bool> {
         let mut client = self.get_client();
         let req = UpdateZoneNameByVniRequest { vni, new_name };
-        let resp = client.update_zone_name_by_vni(req).await?.into_inner();
+        let resp = client
+            .update_zone_name_by_vni(req)
+            .await
+            .inspect_err(|e| tracing::error!(?e))?
+            .into_inner();
         Ok(matches!(ResponseType::try_from(resp.r#type), Ok(ResponseType::Ok)))
     }
 
@@ -230,7 +270,8 @@ impl ClientDhcp {
     ) -> ConResult<(bool, String)> {
         let mut client = self.get_client();
         let req = AddPcToZoneRequest { zone_name, pc_uuid };
-        let resp = client.add_pc_to_zone(req).await?.into_inner();
+        let resp =
+            client.add_pc_to_zone(req).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
         Ok((Self::is_ok(&resp), resp.message))
     }
     /// 與 [`remove_pc_from_zone`] 相同，但會返回 `(是否成功, 訊息文字)`。
@@ -241,7 +282,11 @@ impl ClientDhcp {
     ) -> ConResult<(bool, String)> {
         let mut client = self.get_client();
         let req = chm_grpc::dhcp::RemovePcFromZoneRequest { zone_name, pc_uuid };
-        let resp = client.remove_pc_from_zone(req).await?.into_inner();
+        let resp = client
+            .remove_pc_from_zone(req)
+            .await
+            .inspect_err(|e| tracing::error!(?e))?
+            .into_inner();
         Ok((Self::is_ok(&resp), resp.message))
     }
 
@@ -253,7 +298,11 @@ impl ClientDhcp {
     ) -> ConResult<(bool, String)> {
         let mut client = self.get_client();
         let req = AddPcToZoneByVniRequest { vni, pc_uuid };
-        let resp = client.add_pc_to_zone_by_vni(req).await?.into_inner();
+        let resp = client
+            .add_pc_to_zone_by_vni(req)
+            .await
+            .inspect_err(|e| tracing::error!(?e))?
+            .into_inner();
         Ok((Self::is_ok(&resp), resp.message))
     }
 
@@ -265,7 +314,11 @@ impl ClientDhcp {
     ) -> ConResult<(bool, String)> {
         let mut client = self.get_client();
         let req = RemovePcFromZoneByVniRequest { vni, pc_uuid };
-        let resp = client.remove_pc_from_zone_by_vni(req).await?.into_inner();
+        let resp = client
+            .remove_pc_from_zone_by_vni(req)
+            .await
+            .inspect_err(|e| tracing::error!(?e))?
+            .into_inner();
         Ok((Self::is_ok(&resp), resp.message))
     }
     /// 與 [`update_zone_name_by_vni`] ，但會回傳 `(是否成功, 訊息字串)`。
@@ -276,7 +329,11 @@ impl ClientDhcp {
     ) -> ConResult<(bool, String)> {
         let mut client = self.get_client();
         let req = UpdateZoneNameByVniRequest { vni, new_name };
-        let resp = client.update_zone_name_by_vni(req).await?.into_inner();
+        let resp = client
+            .update_zone_name_by_vni(req)
+            .await
+            .inspect_err(|e| tracing::error!(?e))?
+            .into_inner();
         let ok = matches!(ResponseType::try_from(resp.r#type), Ok(ResponseType::Ok));
         Ok((ok, resp.message))
     }

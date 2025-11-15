@@ -60,12 +60,14 @@ impl Ca for MyCa {
         let CsrRequest { csr, days } = temp.2;
         let csr = X509Req::from_der(&csr)
             .or_else(|_| X509Req::from_pem(&csr))
-            .map_err(|e| Status::invalid_argument(format!("Invalid CSR: {e}")))?;
-        let (leaf, chain) = self.cert.sign_csr(&csr, days).await.map_err(|e| {
-            #[cfg(debug_assertions)]
-            tracing::error!("Sign error: {e}");
-            Status::internal(format!("Sign error: {e}"))
-        })?;
+            .map_err(|e| Status::invalid_argument(format!("Invalid CSR: {e}")))
+            .inspect_err(|e| tracing::error!(error = ?e , "Invalid CSR"))?;
+        let (leaf, chain) = self
+            .cert
+            .sign_csr(&csr, days)
+            .await
+            .map_err(|e| Status::internal(format!("Sign error: {e}")))
+            .inspect_err(|e| tracing::error!(error = ?e,"Sign CSR failed"))?;
         Ok(Response::new(CsrResponse { cert: leaf, chain }))
     }
     /// 重新加載 gRPC 配置
@@ -93,7 +95,8 @@ impl Ca for MyCa {
             .get_store()
             .list_all()
             .await
-            .map_err(|e| Status::internal(format!("Failed to list all certs: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed to list all certs: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let grpc_certs: Vec<Cert> = certs.into_iter().map(Into::into).collect();
         Ok(Response::new(ListAllCertsResponse { certs: grpc_certs }))
     }
@@ -107,7 +110,8 @@ impl Ca for MyCa {
             .get_store()
             .list_crl()
             .await
-            .map_err(|e| Status::internal(format!("Failed to list all revoked certs: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed to list all revoked certs: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         let grpc_certs: Vec<CrlEntry> = certs.into_iter().map(Into::into).collect();
         Ok(Response::new(ListAllCrlResponse { certs: grpc_certs }))
     }
@@ -119,7 +123,8 @@ impl Ca for MyCa {
             .get_store()
             .get(&serial)
             .await
-            .map_err(|e| Status::internal(format!("Failed to get cert: {e}")))?
+            .map_err(|e| Status::internal(format!("Failed to get cert: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?
             .ok_or_else(|| Status::not_found(format!("Cert not found: {serial}")))?;
         Ok(Response::new(GetCertResponse { cert: Some(cert.into()) }))
     }
@@ -133,7 +138,8 @@ impl Ca for MyCa {
             .get_store()
             .get_by_thumbprint(&thumbprint)
             .await
-            .map_err(|e| Status::internal(format!("Failed to get cert by thumbprint: {e}")))?
+            .map_err(|e| Status::internal(format!("Failed to get cert by thumbprint: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?
             .ok_or_else(|| {
                 Status::not_found(format!("Cert not found for thumbprint: {thumbprint}"))
             })?;
@@ -149,7 +155,8 @@ impl Ca for MyCa {
             .get_store()
             .get_by_common_name(&common_name)
             .await
-            .map_err(|e| Status::internal(format!("Failed to get cert by common name: {e}")))?
+            .map_err(|e| Status::internal(format!("Failed to get cert by common name: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?
             .ok_or_else(|| {
                 Status::not_found(format!("Cert not found for common name: {common_name}"))
             })?;
@@ -165,7 +172,8 @@ impl Ca for MyCa {
             .get_store()
             .query_cert_status(&serial)
             .await
-            .map_err(|e| Status::internal(format!("Failed to query cert status: {e}")))?
+            .map_err(|e| Status::internal(format!("Failed to query cert status: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?
             .ok_or_else(|| Status::not_found(format!("Cert not found: {serial}")))?;
         Ok(Response::new(QueryCertStatusResponse {
             status: match status {
@@ -185,12 +193,14 @@ impl Ca for MyCa {
             .get_store()
             .mark_cert_revoked(&serial, reason)
             .await
-            .map_err(|e| Status::internal(format!("Failed to mark cert as revoked: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed to mark cert as revoked: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         self.cert
             .get_crl()
             .reload_crl()
             .await
-            .map_err(|e| Status::internal(format!("Failed reload CRL: {e}")))?;
+            .map_err(|e| Status::internal(format!("Failed reload CRL: {e}")))
+            .inspect_err(|e| tracing::error!(?e))?;
         Ok(Response::new(MarkCertRevokedResponse { success: true }))
     }
 }

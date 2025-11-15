@@ -17,7 +17,7 @@ pub const ID: &str = "CHM_API";
 pub(crate) const DEFAULT_PORT: u16 = 50050;
 pub(crate) const DEFAULT_OTP_LEN: usize = 6;
 pub type ApiResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
-pub type RestfulResult<T> = actix_web::Result<T, commons::translate::GrpcError>;
+pub type RestfulResult<T> = actix_web::Result<T, commons::translate::AppError>;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ApiConfigExtend {

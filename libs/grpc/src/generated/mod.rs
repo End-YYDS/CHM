@@ -16,11 +16,13 @@ pub mod dns;
 #[cfg(any(feature = "crl-client", feature = "crl-server"))]
 pub mod crl;
 
-#[cfg(any(feature = "agent-client", feature = "agent-server"))]
-pub mod agent;
 #[cfg(any(feature = "ca-client", feature = "ca-server"))]
 pub mod ca;
-#[cfg(any(feature = "dhcp-client", feature = "dhcp-server"))]
-pub mod dhcp;
+
 #[cfg(any(feature = "hostd-client", feature = "hostd-server"))]
 pub mod hostd;
+
+#[cfg(any(feature = "agent-client", feature = "agent-server"))]
+pub mod agent;
+#[cfg(any(feature = "dhcp-client", feature = "dhcp-server"))]
+pub mod dhcp;

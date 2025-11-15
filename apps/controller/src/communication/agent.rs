@@ -66,7 +66,8 @@ impl ClientAgent {
                 command:  AgentCommand::Reboot as i32,
                 argument: None,
             })
-            .await?
+            .await
+            .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         dbg!(resp);
         Ok(true)
@@ -78,7 +79,8 @@ impl ClientAgent {
                 command:  AgentCommand::Shutdown as i32,
                 argument: None,
             })
-            .await?
+            .await
+            .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         dbg!(resp);
         Ok(true)

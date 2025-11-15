@@ -15,10 +15,10 @@ use first::first_run;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
-    io,
-    io::Write,
+    io::{self, Write},
     path::PathBuf,
     sync::{atomic::AtomicBool, Arc},
+    time::Duration,
 };
 use url::Url;
 
@@ -122,6 +122,8 @@ pub struct ControllerExtension {
     pub concurrency:      usize,
     #[serde(default = "ControllerExtension::default_service_attempts")]
     pub service_attempts: usize,
+    #[serde(with = "humantime_serde", default = "ControllerExtension::default_quarantine")]
+    pub quarantine:       Duration,
 }
 impl ControllerExtension {
     pub fn default_concurrency() -> usize {
@@ -133,14 +135,18 @@ impl ControllerExtension {
     pub fn default_service_attempts() -> usize {
         3
     }
+    pub fn default_quarantine() -> Duration {
+        Duration::from_secs(15)
+    }
 }
 impl Default for ControllerExtension {
     fn default() -> Self {
         Self {
             services_pool:    Default::default(),
-            sign_days:        10,
-            concurrency:      10,
-            service_attempts: 3,
+            sign_days:        Self::default_sign_days(),
+            concurrency:      Self::default_concurrency(),
+            service_attempts: Self::default_service_attempts(),
+            quarantine:       Self::default_quarantine(),
         }
     }
 }
@@ -266,7 +272,8 @@ pub async fn entry(args: Args) -> ConResult<()> {
                 for ca in ca_set.iter() {
                     let full_fqdn = format!("{}.chm.com", ca.hostname);
                     let ca_ip = Url::parse(&ca.uri)
-                        .map_err(|e| format!("解析 CA URI 時發生錯誤: {e}"))?
+                        .map_err(|e| format!("解析 CA URI 時發生錯誤: {e}"))
+                        .inspect_err(|e| tracing::error!(?e))?
                         .host_str()
                         .ok_or("無法從 CA URI 中取得主機名稱")?
                         .to_string();
@@ -336,19 +343,26 @@ impl Node {
             io::stdin().read_line(&mut input).unwrap();
             format!("https://{}", input.trim())
         });
-        let ip_port = Url::parse(&host).expect("必須為正常Url");
+        let mut ip_port = match Url::parse(&host) {
+            Ok(url) => Ok(url),
+            Err(url::ParseError::RelativeUrlWithoutBase) => Url::parse(&format!("https://{host}")),
+            Err(e) => Err(e),
+        }
+        .expect("Url -> IP 失敗，請確認輸入的網址格式正確");
         if ip_port.port().is_none() {
             let scheme = ip_port.scheme();
-            let new_host = if scheme != "https" {
+            if scheme != "https" {
                 panic!("僅支援 https:// 開頭的網址");
             } else {
                 ip_port.host_str().expect("無法解析主機名稱").to_string()
             };
-            host = format!("{scheme}://{new_host}:{default_port}");
+            let _ = ip_port.set_port(Some(ProjectConst::SOFTWARE_PORT));
             tracing::warn!(
                 "目標網址未指定 Port，已自動補上預設 Port 11209，新的目標網址為: {host}"
             );
         }
+        host = ip_port.to_string();
+        host = host.trim_end_matches('/').to_string();
         let mut dns_server = GlobalConfig::with(|cfg| cfg.server.dns_server.clone());
         let ip_port = Url::parse(&dns_server).expect("必須為正常Url");
         if ip_port.port().is_none() {

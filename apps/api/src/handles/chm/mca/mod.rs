@@ -1,7 +1,7 @@
 use crate::{
     commons::{ResponseResult, ResponseType},
     handles::chm::mca::types::{get_revokeds, get_valids, RevokeRequest},
-    AppState,
+    AppState, RestfulResult,
 };
 use actix_web::{get, post, web, Scope};
 use chm_grpc::{
@@ -17,33 +17,23 @@ pub fn mca_scope() -> Scope {
 }
 
 #[get("/valid")]
-async fn valid(app_state: web::Data<AppState>) -> actix_web::Result<web::Json<get_valids>> {
+async fn valid(app_state: web::Data<AppState>) -> RestfulResult<web::Json<get_valids>> {
     let mut client = app_state.gclient.clone();
     let resp = client
         .get_valid_certs(GetValidCertsRequest {})
         .await
-        .map_err(|status| match status.code() {
-            tonic::Code::Cancelled | tonic::Code::Unavailable => {
-                actix_web::error::ErrorBadGateway(format!("gRPC 連線中斷: {status}"))
-            }
-            _ => actix_web::error::ErrorInternalServerError(format!("gRPC 失敗: {status}")),
-        })?
+        .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     Ok(web::Json(resp.into()))
 }
 
 #[get("/revoked")]
-async fn revoked(app_state: web::Data<AppState>) -> actix_web::Result<web::Json<get_revokeds>> {
+async fn revoked(app_state: web::Data<AppState>) -> RestfulResult<web::Json<get_revokeds>> {
     let mut client = app_state.gclient.clone();
     let resp = client
         .get_revoked_certs(chm_grpc::restful::GetRevokedCertsRequest {})
         .await
-        .map_err(|status| match status.code() {
-            tonic::Code::Cancelled | tonic::Code::Unavailable => {
-                actix_web::error::ErrorBadGateway(format!("gRPC 連線中斷: {status}"))
-            }
-            _ => actix_web::error::ErrorInternalServerError(format!("gRPC 失敗: {status}")),
-        })?
+        .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     Ok(web::Json(resp.into()))
 }
@@ -52,7 +42,7 @@ async fn revoked(app_state: web::Data<AppState>) -> actix_web::Result<web::Json<
 async fn revoke(
     app_state: web::Data<AppState>,
     data: web::Json<RevokeRequest>,
-) -> actix_web::Result<web::Json<ResponseResult>> {
+) -> RestfulResult<web::Json<ResponseResult>> {
     let data = data.into_inner();
     let mut client = app_state.gclient.clone();
     let resp = client.revoke_cert(RevokeCertRequest { name: data.name, reason: data.reason }).await;
