@@ -1,6 +1,6 @@
 #![allow(dead_code, unused_variables)]
 
-use crate::{communication::GrpcClients, ConResult, GlobalConfig};
+use crate::{communication::GrpcClients, ConResult, GlobalConfig, InfoThresholds, MetricThreshold};
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{ServiceDescriptor, ServiceKind};
 use chm_grpc::{
@@ -31,6 +31,14 @@ struct AgentSnapshot {
     cpu:  f64,
     mem:  f64,
     disk: f64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(u8)]
+enum NodeStatus {
+    Safe = 0,
+    Warn = 1,
+    Danger = 2,
 }
 
 impl ControllerRestfulServer {
@@ -124,6 +132,23 @@ impl ControllerRestfulServer {
     }
 }
 
+fn classify_metric(value: f64, threshold: &MetricThreshold) -> NodeStatus {
+    if value >= threshold.danger {
+        NodeStatus::Danger
+    } else if value >= threshold.warn {
+        NodeStatus::Warn
+    } else {
+        NodeStatus::Safe
+    }
+}
+
+fn classify_snapshot(snapshot: &AgentSnapshot, threshold: &InfoThresholds) -> NodeStatus {
+    let cpu = classify_metric(snapshot.cpu, &threshold.cpu);
+    let memory = classify_metric(snapshot.mem, &threshold.memory);
+    let disk = classify_metric(snapshot.disk, &threshold.disk);
+    *[cpu, memory, disk].iter().max().unwrap_or(&NodeStatus::Safe)
+}
+
 // TODO: 由RestFul Server 為Client 調用Controller RestFul gRPC介面
 #[derive(Debug)]
 pub struct ControllerRestfulServer {
@@ -170,14 +195,21 @@ impl RestfulService for ControllerRestfulServer {
             .collect_agent_snapshots(None)
             .await
             .map_err(|e| Status::internal(format!("Failed to collect agent info: {e}")))?;
+        let thresholds = GlobalConfig::with(|cfg| cfg.extend.info_thresholds.clone());
 
         let mut total_cpu = 0.0;
         let mut total_mem = 0.0;
         let mut total_disk = 0.0;
+        let mut counts = InfoCounts { safe: 0, warn: 0, dang: 0 };
         for snapshot in &snapshots {
             total_cpu += snapshot.cpu;
             total_mem += snapshot.mem;
             total_disk += snapshot.disk;
+            match classify_snapshot(snapshot, &thresholds) {
+                NodeStatus::Safe => counts.safe += 1,
+                NodeStatus::Warn => counts.warn += 1,
+                NodeStatus::Danger => counts.dang += 1,
+            }
         }
 
         let count = snapshots.len() as f64;
@@ -186,7 +218,7 @@ impl RestfulService for ControllerRestfulServer {
             memory: if count > 0.0 { total_mem / count } else { 0.0 },
             disk:   if count > 0.0 { total_disk / count } else { 0.0 },
         };
-        let info_counts = InfoCounts { safe: snapshots.len() as i64, warn: 0, dang: 0 };
+        let info_counts = InfoCounts { safe: counts.safe, warn: counts.warn, dang: counts.dang };
 
         Ok(Response::new(GetAllInfoResponse { info: Some(info_counts), cluster: Some(cluster) }))
     }
@@ -220,6 +252,7 @@ impl RestfulService for ControllerRestfulServer {
             .collect_agent_snapshots(target_uuid)
             .await
             .map_err(|e| Status::internal(format!("Failed to collect agent info: {e}")))?;
+        let thresholds = GlobalConfig::with(|cfg| cfg.extend.info_thresholds.clone());
 
         let mut pcs = HashMap::new();
         for snapshot in snapshots {
