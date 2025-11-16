@@ -37,7 +37,6 @@ impl ClientCA {
         let resp = client
             .sign_csr(chm_grpc::ca::CsrRequest { csr, days })
             .await
-            .inspect(|ok| tracing::debug!(?ok))
             .inspect_err(|e| tracing::error!(?e))?;
         let reply = resp.into_inner();
         Ok((reply.cert, reply.chain))
@@ -47,28 +46,21 @@ impl ClientCA {
         let resp = client
             .reload_grpc(chm_grpc::ca::Empty {})
             .await
-            .inspect(|ok| tracing::debug!(?ok))
             .inspect_err(|e| tracing::error!(?e))?;
         let reply = resp.into_inner();
         Ok(reply.success)
     }
     pub async fn get_all_certificates(&self) -> ConResult<Vec<chm_grpc::ca::Cert>> {
         let mut client = self.get_client();
-        let resp = client
-            .list_all(chm_grpc::ca::Empty {})
-            .await
-            .inspect(|ok| tracing::debug!(?ok))
-            .inspect_err(|e| tracing::error!(?e))?;
+        let resp =
+            client.list_all(chm_grpc::ca::Empty {}).await.inspect_err(|e| tracing::error!(?e))?;
         let reply = resp.into_inner();
         Ok(reply.certs)
     }
     pub async fn get_all_revoked_certificates(&self) -> ConResult<Vec<chm_grpc::ca::CrlEntry>> {
         let mut client = self.get_client();
-        let resp = client
-            .list_crl(chm_grpc::ca::Empty {})
-            .await
-            .inspect(|ok| tracing::debug!(?ok))
-            .inspect_err(|e| tracing::error!(?e))?;
+        let resp =
+            client.list_crl(chm_grpc::ca::Empty {}).await.inspect_err(|e| tracing::error!(?e))?;
         let reply = resp.into_inner();
         Ok(reply.certs)
     }
@@ -81,7 +73,6 @@ impl ClientCA {
         let resp = client
             .get(chm_grpc::ca::GetCertRequest { serial: serial.clone() })
             .await
-            .inspect(|ok| tracing::debug!(?ok))
             .inspect_err(|e| tracing::error!(?e))?;
         let reply = resp.into_inner().cert;
         match reply {
@@ -103,7 +94,6 @@ impl ClientCA {
                 thumbprint: thumbprint.clone(),
             })
             .await
-            .inspect(|ok| tracing::debug!(?ok))
             .inspect_err(|e| tracing::error!(?e))?;
         let reply = resp.into_inner().cert;
         match reply {
@@ -123,7 +113,6 @@ impl ClientCA {
         let resp = client
             .get_by_common_name(chm_grpc::ca::GetByCommonNameRequest { name: common_name.clone() })
             .await
-            .inspect(|ok| tracing::debug!(?ok))
             .inspect_err(|e| tracing::error!(?e))?;
         let reply = resp.into_inner().cert;
         match reply {
@@ -143,13 +132,10 @@ impl ClientCA {
         let resp = client
             .query_cert_status(chm_grpc::ca::QueryCertStatusRequest { serial: serial.clone() })
             .await
-            .inspect(|ok| tracing::debug!(?ok))
             .inspect_err(|e| tracing::error!(?e))?;
         let reply = resp.into_inner().status;
         tracing::info!("憑證 {} 的狀態為 {:?}", serial, reply);
-        let reply = CertStatus::try_from(reply.unwrap())
-            .inspect(|ok| tracing::debug!(?ok))
-            .inspect_err(|e| tracing::error!(?e))?;
+        let reply = CertStatus::try_from(reply.unwrap()).inspect_err(|e| tracing::error!(?e))?;
         Ok(reply)
     }
     pub async fn mark_certificate_as_revoked(
@@ -165,7 +151,6 @@ impl ClientCA {
                 reason: reason.map(Into::into),
             })
             .await
-            .inspect(|ok| tracing::debug!(?ok))
             .inspect_err(|e| tracing::error!(?e))?;
         let reply = resp.into_inner().success;
         if reply {

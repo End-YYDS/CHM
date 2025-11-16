@@ -82,15 +82,13 @@ pub struct PutUserEntry {
 }
 #[derive(Debug, Deserialize)]
 pub struct PutUsersRequest {
-    // pub uid01: Option<UserEntry>,
-    // 若要接受任意 uid，建議改成 HashMap<String, UserEntry>，如下：
     #[serde(flatten)]
     pub data: HashMap<String, PutUserEntry>,
 }
 
-// PATCH /api/chm/user  — 單一內容可選
+// PATCH /api/chm/user
 #[derive(Debug, Deserialize, Clone, Default)]
-#[serde()]
+#[serde(default)]
 pub struct PatchUserEntry {
     #[serde(rename = "Password", deserialize_with = "chm_cluster_utils::none_if_string_none")]
     pub password:       Option<String>,
@@ -110,14 +108,13 @@ pub struct PatchUserEntry {
     #[serde(rename = "Display_name", deserialize_with = "chm_cluster_utils::none_if_string_none")]
     pub display_name:   Option<String>,
     #[serde(rename = "Group")]
-    pub group:          Vec<String>,
+    pub group:          Option<Vec<String>>,
     #[serde(rename = "Gecos", deserialize_with = "chm_cluster_utils::none_if_string_none")]
     pub gecos:          Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct PatchUsersRequest {
-    // pub uid01: Option<PatchUserEntry>,
     #[serde(flatten)]
     pub data: HashMap<String, PatchUserEntry>,
 }

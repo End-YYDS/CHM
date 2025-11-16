@@ -35,7 +35,6 @@ async fn _get_user_root(
     let resp = client
         .get_users(Grpc_GetUsersRequest {})
         .await
-        .inspect(|ok| tracing::debug!(?ok))
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let users = resp
@@ -43,9 +42,7 @@ async fn _get_user_root(
         .into_iter()
         .map(|(k, v)| (k, v.into()))
         .collect::<HashMap<String, Web_GetUserEntry>>();
-    let length = usize::try_from(resp.length)
-        .inspect(|ok| tracing::debug!(?ok))
-        .inspect_err(|e| tracing::error!(?e))?;
+    let length = usize::try_from(resp.length).inspect_err(|e| tracing::error!(?e))?;
     Ok(web::Json(UsersCollection { users, length }))
 }
 
@@ -72,12 +69,8 @@ async fn _post_user_root(
         gecos:          data.gecos,
     };
     let grpc_req = Grpc_CreateUserRequest { user: Some(user) };
-    let resp = client
-        .create_user(grpc_req)
-        .await
-        .inspect(|ok| tracing::debug!(?ok))
-        .inspect_err(|e| tracing::error!(?e))?
-        .into_inner();
+    let resp =
+        client.create_user(grpc_req).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
         r#type:  chm_grpc::common::ResponseType::Err as i32,
         message: "Unknown error".into(),
@@ -122,12 +115,7 @@ async fn _put_user_root(
         })
         .collect();
     let grpc_req = Grpc_PutUsersRequest { users };
-    let resp = client
-        .put_users(grpc_req)
-        .await
-        .inspect(|ok| tracing::debug!(?ok))
-        .inspect_err(|e| tracing::error!(?e))?
-        .into_inner();
+    let resp = client.put_users(grpc_req).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
         r#type:  chm_grpc::common::ResponseType::Err as i32,
         message: "Unknown error".into(),
@@ -147,7 +135,6 @@ async fn _patch_user_root(
         .iter()
         .next()
         .ok_or_else(|| AppError::BadRequest("At least one user entry is required".to_string()))
-        .inspect(|ok| tracing::debug!(?ok))
         .inspect_err(|e| tracing::error!(?e))?;
     let mut data: Grpc_UserPatch = Grpc_UserPatch::default();
     if let Some(u) = &user.password {
@@ -174,15 +161,15 @@ async fn _patch_user_root(
     if let Some(u) = &user.gecos {
         data.gecos = Some(u.clone());
     }
-    if !user.group.is_empty() {
-        data.group = user.group.clone();
+    if let Some(g) = &user.group {
+        if !g.is_empty() {
+            data.group = g.clone();
+        }
     }
     let users = HashMap::from([(username.clone(), data)]);
-
     let resp = client
         .patch_users(chm_grpc::restful::PatchUsersRequest { users })
         .await
-        .inspect(|ok| tracing::debug!(?ok))
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
@@ -203,7 +190,6 @@ async fn _delete_user_root(
     let resp = client
         .delete_user(chm_grpc::restful::DeleteUserRequest { uid: data.uid.clone() })
         .await
-        .inspect(|ok| tracing::debug!(?ok))
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {

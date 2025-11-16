@@ -1440,26 +1440,34 @@ impl RestfulService for ControllerRestfulServer {
         let uid_clone = uid.clone();
         self.grpc_clients
             .with_ldap_handle(|ldap| async move {
-                if let Err(e) = ldap.search_user(uid_clone.clone()).await {
-                    return Err(
-                        Status::not_found(format!("User {uid_clone} not found: {e}")).into()
-                    );
-                }
-                ldap.delete_user(uid_clone.clone())
-                    .await
-                    .map_err(|e| {
-                        Status::internal(format!("Failed to delete user {uid_clone}: {e}"))
-                    })
-                    .inspect_err(|e| tracing::error!(?e))?;
+                ldap.search_user(uid_clone.clone()).await.inspect_err(|e| {
+                    tracing::warn!(uid = uid_clone, ?e, "User not found when deleting");
+                })?;
+                ldap.remove_user_from_all_groups_and_web_roles(&uid_clone).await.inspect_err(
+                    |e| {
+                        tracing::error!(
+                            uid = uid_clone,
+                            ?e,
+                            "Failed to remove user from all groups/web roles"
+                        );
+                    },
+                )?;
+                ldap.delete_user(uid_clone.clone()).await.inspect_err(|e| {
+                    tracing::error!(uid = uid_clone, ?e, "Failed to delete user");
+                })?;
                 Ok(())
             })
             .await
-            .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
-            .inspect_err(|e| tracing::error!(?e))?;
+            .map_err(|e| {
+                tracing::error!(uid = uid, ?e, "LDAP handle error when deleting user");
+                Status::internal(format!("LDAP Error: {e}"))
+            })?;
+
         let result = ResponseResult {
             r#type:  ResponseType::Ok as i32,
             message: format!("使用者 {uid} 已成功刪除"),
         };
+
         Ok(Response::new(DeleteUserResponse { result: Some(result) }))
     }
 

@@ -31,56 +31,33 @@ impl ClientDNS {
     pub async fn add_host(&self, hostname: String, ip: String, uuid: Uuid) -> ConResult<bool> {
         let mut client = self.client.clone();
         let req = AddHostRequest { hostname, ip, id: uuid.to_string() };
-        let reply = client
-            .add_host(req)
-            .await
-            .inspect(|ok| tracing::debug!(?ok))
-            .inspect_err(|e| tracing::error!(?e))?
-            .into_inner();
+        let reply = client.add_host(req).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
         Ok(reply.success)
     }
     pub async fn delete_host(&self, uuid: Uuid) -> ConResult<bool> {
         let mut client = self.client.clone();
         let req = DeleteHostRequest { id: uuid.to_string() };
-        let reply = client
-            .delete_host(req)
-            .await
-            .inspect(|ok| tracing::debug!(?ok))
-            .inspect_err(|e| tracing::error!(?e))?
-            .into_inner();
+        let reply =
+            client.delete_host(req).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
         Ok(reply.success)
     }
     pub async fn edit_uuid(&self, o_uuid: Uuid, n_uuid: Uuid) -> ConResult<bool> {
         let mut client = self.client.clone();
         let req = EditUuidRequest { id: o_uuid.to_string(), new_id: n_uuid.to_string() };
-        let reply = client
-            .edit_uuid(req)
-            .await
-            .inspect(|ok| tracing::debug!(?ok))
-            .inspect_err(|e| tracing::error!(?e))?
-            .into_inner();
+        let reply = client.edit_uuid(req).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
         Ok(reply.success)
     }
     pub async fn edit_hostname(&self, uuid: Uuid, new_hostname: String) -> ConResult<bool> {
         let mut client = self.client.clone();
         let req = EditHostnameRequest { id: uuid.to_string(), new_hostname };
-        let reply = client
-            .edit_hostname(req)
-            .await
-            .inspect(|ok| tracing::debug!(?ok))
-            .inspect_err(|e| tracing::error!(?e))?
-            .into_inner();
+        let reply =
+            client.edit_hostname(req).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
         Ok(reply.success)
     }
     pub async fn edit_ip(&self, uuid: Uuid, new_ip: String) -> ConResult<bool> {
         let mut client = self.client.clone();
         let req = EditIpRequest { id: uuid.to_string(), new_ip };
-        let reply = client
-            .edit_ip(req)
-            .await
-            .inspect(|ok| tracing::debug!(?ok))
-            .inspect_err(|e| tracing::error!(?e))?
-            .into_inner();
+        let reply = client.edit_ip(req).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
         Ok(reply.success)
     }
 }

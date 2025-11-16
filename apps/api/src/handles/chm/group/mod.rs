@@ -35,7 +35,6 @@ async fn _get_group_root(
     let resp = client
         .get_groups(Grpc_GetGroupsRequest {})
         .await
-        .inspect(|ok| tracing::debug!(?ok))
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let groups = resp
@@ -55,12 +54,8 @@ async fn _post_group_root(
     let data = payload.into_inner();
     let mut client = app_state.gclient.clone();
     let grpc_req = Grpc_CreateGroupRequest { groupname: data.groupname, users: data.users };
-    let resp = client
-        .create_group(grpc_req)
-        .await
-        .inspect(|ok| tracing::debug!(?ok))
-        .inspect_err(|e| tracing::error!(?e))?
-        .into_inner();
+    let resp =
+        client.create_group(grpc_req).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
         r#type:  chm_grpc::common::ResponseType::Err as i32,
         message: "Unknown error".into(),
@@ -90,12 +85,7 @@ async fn _put_group_root(
         })
         .collect();
     let grpc_req = chm_grpc::restful::PutGroupsRequest { groups };
-    let resp = client
-        .put_groups(grpc_req)
-        .await
-        .inspect(|ok| tracing::debug!(?ok))
-        .inspect_err(|e| tracing::error!(?e))?
-        .into_inner();
+    let resp = client.put_groups(grpc_req).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
         r#type:  chm_grpc::common::ResponseType::Err as i32,
         message: "Unknown error".into(),
@@ -114,7 +104,6 @@ async fn _patch_group_root(
         .iter()
         .next()
         .ok_or_else(|| AppError::BadRequest("At least one group entry is required".to_string()))
-        .inspect(|ok| tracing::debug!(?ok))
         .inspect_err(|e| tracing::error!(?e))?;
     let mut grpc_patch = chm_grpc::restful::GroupPatch::default();
     if let Some(name) = &group_entry.groupname {
@@ -131,12 +120,8 @@ async fn _patch_group_root(
     }
     let groups = HashMap::from([(gid.clone(), grpc_patch)]);
     let grpc_req = chm_grpc::restful::PatchGroupsRequest { groups };
-    let resp = client
-        .patch_groups(grpc_req)
-        .await
-        .inspect(|ok| tracing::debug!(?ok))
-        .inspect_err(|e| tracing::error!(?e))?
-        .into_inner();
+    let resp =
+        client.patch_groups(grpc_req).await.inspect_err(|e| tracing::error!(?e))?.into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {
         r#type:  chm_grpc::common::ResponseType::Err as i32,
         message: "Unknown error".into(),
@@ -155,7 +140,6 @@ async fn _delete_group_root(
     let resp = client
         .delete_group(chm_grpc::restful::DeleteGroupRequest { gid: data.gid.clone() })
         .await
-        .inspect(|ok| tracing::debug!(?ok))
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner();
     let result = resp.result.unwrap_or(chm_grpc::common::ResponseResult {

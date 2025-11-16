@@ -67,7 +67,6 @@ impl ClientAgent {
                 argument: None,
             })
             .await
-            .inspect(|ok| tracing::debug!(?ok))
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         dbg!(resp);
@@ -81,7 +80,6 @@ impl ClientAgent {
                 argument: None,
             })
             .await
-            .inspect(|ok| tracing::debug!(?ok))
             .inspect_err(|e| tracing::error!(?e))?
             .into_inner();
         dbg!(resp);

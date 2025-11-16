@@ -15,10 +15,10 @@ use first::first_run;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
-    io,
-    io::Write,
+    io::{self, Write},
     path::PathBuf,
     sync::{atomic::AtomicBool, Arc},
+    time::Duration,
 };
 use url::Url;
 
@@ -122,6 +122,8 @@ pub struct ControllerExtension {
     pub concurrency:      usize,
     #[serde(default = "ControllerExtension::default_service_attempts")]
     pub service_attempts: usize,
+    #[serde(with = "humantime_serde", default = "ControllerExtension::default_quarantine")]
+    pub quarantine:       Duration,
 }
 impl ControllerExtension {
     pub fn default_concurrency() -> usize {
@@ -133,14 +135,18 @@ impl ControllerExtension {
     pub fn default_service_attempts() -> usize {
         3
     }
+    pub fn default_quarantine() -> Duration {
+        Duration::from_secs(15)
+    }
 }
 impl Default for ControllerExtension {
     fn default() -> Self {
         Self {
             services_pool:    Default::default(),
-            sign_days:        10,
-            concurrency:      10,
-            service_attempts: 3,
+            sign_days:        Self::default_sign_days(),
+            concurrency:      Self::default_concurrency(),
+            service_attempts: Self::default_service_attempts(),
+            quarantine:       Self::default_quarantine(),
         }
     }
 }

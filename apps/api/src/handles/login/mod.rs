@@ -21,20 +21,18 @@ async fn login(
         .login(gLoginRequest { username: data.username.clone(), password: data.password })
         .await
         .map_err(|e| AppError::Forbidden(e.message().to_string()))
-        .inspect(|ok| tracing::debug!(?ok))
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner()
         .result
         .unwrap();
     dbg!(&resp);
     let is_success = gResponseType::try_from(resp.r#type)
-        .map_err(|e| AppError::Forbidden(e.to_string()))
-        .inspect(|ok| tracing::debug!(?ok))
+        .map_err(|e| AppError::Other(e.to_string()))
         .inspect_err(|e| tracing::error!(?e))?
         == gResponseType::Ok;
     dbg!(is_success);
     if !is_success {
-        return Err(AppError::Forbidden("Invalid Username or Password".into()));
+        return Err(AppError::Unauthorized("Invalid Username or Password".into()));
     }
     // Todo: 等dodo的get_users()完成
     session.renew();

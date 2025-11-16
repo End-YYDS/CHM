@@ -68,6 +68,9 @@ pub enum AppError {
     #[error("Forbidden: {0}")]
     Forbidden(String),
 
+    #[error("Unauthorized: {0}")]
+    Unauthorized(String),
+
     #[error("Session insert error: {0}")]
     SessionInsert(#[from] actix_session::SessionInsertError),
 
@@ -91,6 +94,7 @@ impl ResponseError for AppError {
             AppError::SessionInsert(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::Io(_) => StatusCode::INTERNAL_SERVER_ERROR,
             AppError::Forbidden(_) => StatusCode::FORBIDDEN,
+            AppError::Unauthorized(_) => StatusCode::UNAUTHORIZED,
             AppError::Other(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
