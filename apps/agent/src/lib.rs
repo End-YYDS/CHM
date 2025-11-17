@@ -46,6 +46,8 @@ pub const DEFAULT_OTP_LEN: usize = 6;
 // ==================================
 pub const DEFAULT_INFO_CONCURRENCY: usize = 4;
 pub const DEFAULT_FILE_CONCURRENCY: usize = 4;
+pub const DEFAULT_GET_TIMEOUT_SECS: u64 = 10;
+pub const DEFAULT_COMMAND_TIMEOUT_SECS: u64 = 60;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "PascalCase")]
@@ -67,6 +69,10 @@ pub struct AgentExtension {
     pub info_concurrency: usize,
     #[serde(default = "AgentExtension::default_file_concurrency")]
     pub file_concurrency: usize,
+    #[serde(default = "AgentExtension::default_get_timeout_secs")]
+    pub get_timeout_secs: u64,
+    #[serde(default = "AgentExtension::default_command_timeout_secs")]
+    pub command_timeout_secs: u64,
     #[serde(default)]
     pub controller:       ControllerSettings,
     #[serde(default = "AgentExtension::default_run_as_user")]
@@ -88,6 +94,14 @@ impl AgentExtension {
         DEFAULT_FILE_CONCURRENCY
     }
 
+    fn default_get_timeout_secs() -> u64 {
+        DEFAULT_GET_TIMEOUT_SECS
+    }
+
+    fn default_command_timeout_secs() -> u64 {
+        DEFAULT_COMMAND_TIMEOUT_SECS
+    }
+
     fn default_run_as_user() -> String {
         "chm".to_string()
     }
@@ -103,6 +117,8 @@ impl Default for AgentExtension {
             socket_path:      Self::default_socket_path(),
             info_concurrency: Self::default_info_concurrency(),
             file_concurrency: Self::default_file_concurrency(),
+            get_timeout_secs: Self::default_get_timeout_secs(),
+            command_timeout_secs: Self::default_command_timeout_secs(),
             controller:       ControllerSettings::default(),
             run_as_user:      Self::default_run_as_user(),
             run_as_group:     Self::default_run_as_group(),
@@ -299,11 +315,17 @@ static HOSTD_CLIENT: OnceCell<Mutex<Option<HostdClient>>> = OnceCell::const_new(
 
 #[cfg(unix)]
 async fn connect_hostd_client() -> io::Result<HostdClient> {
-    let path = GlobalConfig::with(|cfg| cfg.extend.socket_path.clone());
+    let (path, get_timeout_secs, command_timeout_secs) = GlobalConfig::with(|cfg| {
+        (
+            cfg.extend.socket_path.clone(),
+            cfg.extend.get_timeout_secs.max(1),
+            cfg.extend.command_timeout_secs.max(1),
+        )
+    });
     let path = Arc::new(path);
     let endpoint = Endpoint::from_static("http://[::]:50059")
         .connect_timeout(Duration::from_secs(5))
-        .timeout(Duration::from_secs(10));
+        .timeout(Duration::from_secs(get_timeout_secs.max(command_timeout_secs)));
     let connector = service_fn(move |_: Uri| {
         let path = Arc::clone(&path);
         async move {
@@ -344,21 +366,36 @@ pub async fn send_to_hostd_async(real_command: &RealCommand) -> io::Result<Strin
 
     let client = guard.as_mut().expect("HostD client must be initialized");
 
+    let (get_timeout, command_timeout) = GlobalConfig::with(|cfg| {
+        (
+            Duration::from_secs(cfg.extend.get_timeout_secs.max(1)),
+            Duration::from_secs(cfg.extend.command_timeout_secs.max(1)),
+        )
+    });
+
     if real_command.is_get {
         let request = crate::hostd::proto::SysInfoRequest { command: real_command.command.clone() };
-        match client.run_sys_info(request).await {
+        match tokio::time::timeout(get_timeout, client.run_sys_info(request)).await {
+            Ok(result) => match result {
             Ok(resp) => Ok(resp.into_inner().output.trim().to_string()),
             Err(status) => {
                 if matches!(status.code(), Code::Unavailable | Code::Internal) {
                     *guard = None;
                 }
                 Err(status_to_io_error(status))
+                }
+            },
+            Err(_) => {
+                tracing::warn!("HostD run_sys_info timed out after {:?}", get_timeout);
+                *guard = None;
+                Err(io::Error::new(io::ErrorKind::TimedOut, "HostD sysinfo RPC timeout"))
             }
         }
     } else {
         let request =
             crate::hostd::proto::HostCommandRequest { command: real_command.command.clone() };
-        match client.run_host_command(request).await {
+        match tokio::time::timeout(command_timeout, client.run_host_command(request)).await {
+            Ok(result) => match result {
             Ok(resp) => {
                 let inner = resp.into_inner();
                 let payload =
@@ -370,6 +407,12 @@ pub async fn send_to_hostd_async(real_command: &RealCommand) -> io::Result<Strin
                     *guard = None;
                 }
                 Err(status_to_io_error(status))
+                }
+            },
+            Err(_) => {
+                tracing::warn!("HostD run_host_command timed out after {:?}", command_timeout);
+                *guard = None;
+                Err(io::Error::new(io::ErrorKind::TimedOut, "HostD command RPC timeout"))
             }
         }
     }

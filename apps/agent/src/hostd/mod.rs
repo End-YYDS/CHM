@@ -78,11 +78,16 @@ pub mod proto {
 pub struct HostdGrpcService {
     semaphore:       Arc<Semaphore>,
     command_timeout: Duration,
+    sysinfo_timeout: Duration,
 }
 
 impl HostdGrpcService {
-    pub fn new(semaphore: Arc<Semaphore>, command_timeout: Duration) -> Self {
-        Self { semaphore, command_timeout }
+    pub fn new(
+        semaphore: Arc<Semaphore>,
+        sysinfo_timeout: Duration,
+        command_timeout: Duration,
+    ) -> Self {
+        Self { semaphore, sysinfo_timeout, command_timeout }
     }
 }
 
@@ -97,13 +102,25 @@ impl proto::HostdService for HostdGrpcService {
         if command.trim().is_empty() {
             return Err(Status::invalid_argument("sysinfo command cannot be empty"));
         }
-        match execute_sysinfo(&command) {
-            Ok(output) => Ok(Response::new(proto::SysInfoResponse { output })),
-            Err(err) => {
-                tracing::error!("HostD sysinfo command failed: {err}");
-                Err(Status::internal(err))
+        let handle = task::spawn_blocking(move || execute_sysinfo(&command));
+        tokio::pin!(handle);
+        let join_result = match tokio::time::timeout(self.sysinfo_timeout, &mut handle).await {
+            Ok(res) => {
+                res.map_err(|err| Status::internal(format!("sysinfo worker panic: {err}")))?
             }
-        }
+            Err(_) => {
+                tracing::error!("HostD run_sys_info timed out after {:?}", self.sysinfo_timeout);
+                handle.abort();
+                return Err(Status::deadline_exceeded("sysinfo execution timed out"));
+            }
+        };
+
+        let output = join_result.map_err(|err| {
+            let message = err.to_string();
+            tracing::error!("HostD sysinfo command failed: {message}");
+            Status::internal(message)
+        })?;
+        Ok(Response::new(proto::SysInfoResponse { output }))
     }
 
     async fn run_host_command(
