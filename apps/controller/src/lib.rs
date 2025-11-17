@@ -122,6 +122,8 @@ pub struct ControllerExtension {
     pub concurrency:      usize,
     #[serde(default = "ControllerExtension::default_service_attempts")]
     pub service_attempts: usize,
+    #[serde(default)]
+    pub info_thresholds:  InfoThresholds,
     #[serde(with = "humantime_serde", default = "ControllerExtension::default_quarantine")]
     pub quarantine:       Duration,
 }
@@ -147,7 +149,48 @@ impl Default for ControllerExtension {
             concurrency:      Self::default_concurrency(),
             service_attempts: Self::default_service_attempts(),
             quarantine:       Self::default_quarantine(),
+            info_thresholds:  InfoThresholds::default(),
         }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct InfoThresholds {
+    #[serde(default)]
+    pub cpu:    MetricThreshold,
+    #[serde(default)]
+    pub memory: MetricThreshold,
+    #[serde(default)]
+    pub disk:   MetricThreshold,
+}
+
+impl Default for InfoThresholds {
+    fn default() -> Self {
+        Self {
+            cpu:    MetricThreshold::new(70.0, 90.0),
+            memory: MetricThreshold::new(70.0, 90.0),
+            disk:   MetricThreshold::new(80.0, 95.0),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct MetricThreshold {
+    pub warn:   f64,
+    pub danger: f64,
+}
+
+impl MetricThreshold {
+    pub const fn new(warn: f64, danger: f64) -> Self {
+        Self { warn, danger }
+    }
+}
+
+impl Default for MetricThreshold {
+    fn default() -> Self {
+        Self::new(70.0, 90.0)
     }
 }
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
