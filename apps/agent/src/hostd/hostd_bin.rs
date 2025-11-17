@@ -83,17 +83,20 @@ mod unix_main {
 
         let concurrency = GlobalConfig::with(|cfg| cfg.extend.file_concurrency).max(1);
         let semaphore = Arc::new(Semaphore::new(concurrency));
-        let command_timeout = Duration::from_secs(
-            GlobalConfig::with(|cfg| cfg.extend.info_concurrency).max(1) as u64,
-        );
+        let (get_timeout_secs, command_timeout_secs) = GlobalConfig::with(|cfg| {
+            (cfg.extend.get_timeout_secs.max(1), cfg.extend.command_timeout_secs.max(1))
+        });
+        let sysinfo_timeout = Duration::from_secs(get_timeout_secs);
+        let command_timeout = Duration::from_secs(command_timeout_secs);
 
         let incoming = UnixListenerStream::new(listener);
-        let service = HostdGrpcService::new(Arc::clone(&semaphore), command_timeout);
+        let service =
+            HostdGrpcService::new(Arc::clone(&semaphore), sysinfo_timeout, command_timeout);
 
         info!(
             "[HostD] gRPC 服務啟動於 unix://{socket_path} (max_concurrency: {concurrency}, \
-             timeout: {:?})",
-            command_timeout
+             get_timeout: {:?}, command_timeout: {:?})",
+            sysinfo_timeout, command_timeout
         );
 
         let shutdown = async {

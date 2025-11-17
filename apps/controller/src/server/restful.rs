@@ -4,7 +4,9 @@ use crate::{communication::GrpcClients, ConResult, GlobalConfig, InfoThresholds,
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{ServiceDescriptor, ServiceKind};
 use chm_grpc::{
-    agent::GetInfoRequest as AgentGetInfoRequest,
+    agent::{
+        self, command_response, AgentCommand, CommandRequest, GetInfoRequest as AgentGetInfoRequest,
+    },
     common::{ResponseResult, ResponseType},
     restful::{restful_service_server::RestfulService, *},
     tonic,
@@ -16,6 +18,7 @@ use chm_grpc::{
 };
 use chm_project_const::uuid::Uuid;
 use futures::future::join_all;
+use serde_json::json;
 use std::{
     collections::{HashMap, HashSet},
     net::SocketAddr,
@@ -2108,21 +2111,118 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetSoftwareRequest>,
     ) -> Result<Response<GetSoftwareResponse>, Status> {
-        todo!()
+        let _ = request.into_inner();
+        let agents: Vec<ServiceDescriptor> = GlobalConfig::with(|cfg| {
+            cfg.extend
+                .services_pool
+                .services
+                .iter()
+                .flat_map(|entry| {
+                    entry.value().clone().into_iter().filter(|svc| svc.kind == ServiceKind::Agent)
+                })
+                .collect()
+        });
+        let mut pcs = HashMap::new();
+        for agent in agents {
+            let uuid = agent.uuid.to_string();
+            match self.fetch_software_inventory(&uuid).await {
+                Ok(pkgs) => {
+                    pcs.insert(uuid, pkgs);
+                }
+                Err(err) => {
+                    tracing::warn!(%uuid, "failed to fetch software inventory: {err}");
+                }
+            }
+        }
+        Ok(Response::new(GetSoftwareResponse { pcs }))
     }
 
     async fn install_software(
         &self,
         request: Request<InstallSoftwareRequest>,
     ) -> Result<Response<PackageActionResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        if req.uuids.is_empty() {
+            return Err(Status::invalid_argument("至少需要指定一台主機"));
+        }
+        if req.packages.is_empty() {
+            return Err(Status::invalid_argument("至少需要指定一個套件"));
+        }
+        let packages = req.packages;
+        let uuids = req.uuids;
+        let payload = json!({ "Packages": packages.clone() }).to_string();
+        let mut results = Self::init_package_result_map(&packages);
+        for uuid in uuids {
+            let parsed_uuid = match Uuid::parse_str(&uuid) {
+                Ok(uuid) => uuid,
+                Err(_) => {
+                    tracing::warn!(%uuid, "software install skipped: invalid uuid");
+                    Self::record_action_result(&mut results, &uuid, false, true);
+                    continue;
+                }
+            };
+            if !Self::agent_exists(&parsed_uuid) {
+                tracing::warn!(%uuid, "software install skipped: unknown agent");
+                Self::record_action_result(&mut results, &uuid, false, true);
+                continue;
+            }
+            match self
+                .run_software_action(&uuid, AgentCommand::SoftwareInstall, Some(payload.clone()))
+                .await
+            {
+                Ok(_) => Self::record_action_result(&mut results, &uuid, true, true),
+                Err(err) => {
+                    tracing::warn!(%uuid, "software install failed: {err}");
+                    Self::record_action_result(&mut results, &uuid, false, true);
+                }
+            }
+        }
+        let length = results.len() as u64;
+        Ok(Response::new(PackageActionResponse { packages: results, length }))
     }
 
     async fn delete_software(
         &self,
         request: Request<DeleteSoftwareRequest>,
     ) -> Result<Response<PackageActionResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        if req.uuids.is_empty() {
+            return Err(Status::invalid_argument("至少需要指定一台主機"));
+        }
+        if req.packages.is_empty() {
+            return Err(Status::invalid_argument("至少需要指定一個套件"));
+        }
+        let packages = req.packages;
+        let uuids = req.uuids;
+        let payload = json!({ "Package": packages.clone() }).to_string();
+        let mut results = Self::init_package_result_map(&packages);
+        for uuid in uuids {
+            let parsed_uuid = match Uuid::parse_str(&uuid) {
+                Ok(uuid) => uuid,
+                Err(_) => {
+                    tracing::warn!(%uuid, "software delete skipped: invalid uuid");
+                    Self::record_action_result(&mut results, &uuid, false, false);
+                    continue;
+                }
+            };
+            if !Self::agent_exists(&parsed_uuid) {
+                tracing::warn!(%uuid, "software delete skipped: unknown agent");
+                Self::record_action_result(&mut results, &uuid, false, false);
+                continue;
+            }
+            match self
+                .run_software_action(&uuid, AgentCommand::SoftwareDelete, Some(payload.clone()))
+                .await
+            {
+                Ok(_) => Self::record_action_result(&mut results, &uuid, true, false),
+                Err(err) => {
+                    tracing::warn!(%uuid, "software delete failed: {err}");
+                    Self::record_action_result(&mut results, &uuid, false, false);
+                }
+            }
+        }
+        let length = results.len() as u64;
+        Ok(Response::new(PackageActionResponse { packages: results, length }))
     }
 
     async fn get_apache_status(
@@ -2396,5 +2496,109 @@ impl RestfulService for ControllerRestfulServer {
         request: Request<RestartSshRequest>,
     ) -> Result<Response<RestartSshResponse>, Status> {
         todo!()
+    }
+}
+
+impl ControllerRestfulServer {
+    fn init_package_result_map(packages: &[String]) -> HashMap<String, PackageActionResult> {
+        let mut map = HashMap::new();
+        for pkg in packages {
+            map.entry(pkg.clone()).or_insert_with(|| PackageActionResult {
+                installed:    Vec::new(),
+                notinstalled: Vec::new(),
+            });
+        }
+        map
+    }
+
+    fn record_action_result(
+        results: &mut HashMap<String, PackageActionResult>,
+        uuid: &str,
+        success: bool,
+        is_install: bool,
+    ) {
+        for entry in results.values_mut() {
+            match (is_install, success) {
+                (true, true) | (false, false) => entry.installed.push(uuid.to_string()),
+                (true, false) | (false, true) => entry.notinstalled.push(uuid.to_string()),
+            }
+        }
+    }
+
+    async fn exec_agent_command(
+        &self,
+        uuid: &str,
+        command: AgentCommand,
+        argument: Option<String>,
+    ) -> Result<agent::CommandResponse, String> {
+        self.grpc_clients
+            .with_agent_uuid_handle(uuid, move |agent| {
+                let argument = argument.clone();
+                async move {
+                    let mut client = agent.get_m_client();
+                    let resp = client
+                        .execute_command(CommandRequest { command: command as i32, argument })
+                        .await
+                        .map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })?;
+                    Ok(resp.into_inner())
+                }
+            })
+            .await
+            .map_err(|e| e.to_string())
+    }
+
+    async fn fetch_software_inventory(&self, uuid: &str) -> Result<PcPackages, String> {
+        let response = self.exec_agent_command(uuid, AgentCommand::GetSoftware, None).await?;
+        match response.payload {
+            Some(command_response::Payload::SoftwareInventory(inv)) => {
+                Ok(Self::convert_inventory(inv))
+            }
+            Some(_) => Err("Agent response missing software inventory".into()),
+            None => Err("Agent response missing payload".into()),
+        }
+    }
+
+    async fn run_software_action(
+        &self,
+        uuid: &str,
+        command: AgentCommand,
+        argument: Option<String>,
+    ) -> Result<(), String> {
+        let response = self.exec_agent_command(uuid, command, argument).await?;
+        match response.payload {
+            Some(command_response::Payload::ReturnInfo(info)) => {
+                if info.r#type.eq_ignore_ascii_case("ok") {
+                    Ok(())
+                } else {
+                    Err(info.message)
+                }
+            }
+            _ => Err("Agent response missing ReturnInfo".into()),
+        }
+    }
+
+    fn convert_inventory(inv: agent::SoftwareInventory) -> PcPackages {
+        let packages = inv
+            .packages
+            .into_iter()
+            .map(|(name, pkg)| {
+                (
+                    name,
+                    PackageInfo {
+                        version: pkg.version,
+                        status:  Self::map_agent_status(pkg.status),
+                    },
+                )
+            })
+            .collect();
+        PcPackages { packages }
+    }
+
+    fn map_agent_status(status: i32) -> i32 {
+        match agent::PackageStatus::try_from(status).unwrap_or(agent::PackageStatus::Unspecified) {
+            agent::PackageStatus::Installed => PackageStatus::Installed as i32,
+            agent::PackageStatus::Notinstall => PackageStatus::Notinstall as i32,
+            agent::PackageStatus::Unspecified => PackageStatus::Notinstall as i32,
+        }
     }
 }
