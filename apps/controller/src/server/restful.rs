@@ -4,7 +4,7 @@ use crate::{communication::GrpcClients, GlobalConfig};
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{ServiceDescriptor, ServiceKind};
 use chm_grpc::{
-    agent::{self, AgentCommand, CommandRequest, command_response},
+    agent::{self, command_response, AgentCommand, CommandRequest},
     common::{ResponseResult, ResponseType},
     restful::{restful_service_server::RestfulService, *},
     tonic,
@@ -2305,7 +2305,7 @@ impl ControllerRestfulServer {
         let mut map = HashMap::new();
         for pkg in packages {
             map.entry(pkg.clone()).or_insert_with(|| PackageActionResult {
-                installed: Vec::new(),
+                installed:    Vec::new(),
                 notinstalled: Vec::new(),
             });
         }
@@ -2368,7 +2368,11 @@ impl ControllerRestfulServer {
         let response = self.exec_agent_command(uuid, command, argument).await?;
         match response.payload {
             Some(command_response::Payload::ReturnInfo(info)) => {
-                if info.r#type.eq_ignore_ascii_case("ok") { Ok(()) } else { Err(info.message) }
+                if info.r#type.eq_ignore_ascii_case("ok") {
+                    Ok(())
+                } else {
+                    Err(info.message)
+                }
             }
             _ => Err("Agent response missing ReturnInfo".into()),
         }
@@ -2383,7 +2387,7 @@ impl ControllerRestfulServer {
                     name,
                     PackageInfo {
                         version: pkg.version,
-                        status: Self::map_agent_status(pkg.status),
+                        status:  Self::map_agent_status(pkg.status),
                     },
                 )
             })

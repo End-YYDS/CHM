@@ -665,7 +665,7 @@ pub async fn init_channels_all(only_ca: bool) -> ConResult<GrpcClients> {
     };
     let opts = GrpcConnectOptions::builder()
         .connect_timeout(Duration::from_secs(5))
-        .overall_timeout(Duration::from_secs(20))
+        .overall_timeout(Duration::from_secs(120))
         .tcp_keepalive(Duration::from_secs(30))
         .tcp_nodelay(true)
         .h2_keepalive_interval(Duration::from_secs(15))

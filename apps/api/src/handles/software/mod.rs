@@ -1,7 +1,7 @@
 mod types;
 
-use crate::{AppState, RestfulResult, commons::translate::AppError};
-use actix_web::{Scope, delete, get, post, web};
+use crate::{commons::translate::AppError, AppState, RestfulResult};
+use actix_web::{delete, get, post, web, Scope};
 use chm_grpc::restful::{
     self, DeleteSoftwareRequest as GrpcDeleteSoftwareRequest,
     GetSoftwareRequest as GrpcGetSoftwareRequest,
@@ -43,7 +43,7 @@ async fn _post_software(
         .await
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner()
-        .try_into()
+        .try_into_action_response(PackageActionKind::Install)
         .inspect_err(|e: &AppError| tracing::error!(?e))?;
     Ok(web::Json(resp))
 }
@@ -61,7 +61,7 @@ async fn _delete_software(
         .await
         .inspect_err(|e| tracing::error!(?e))?
         .into_inner()
-        .try_into()
+        .try_into_action_response(PackageActionKind::Delete)
         .inspect_err(|e: &AppError| tracing::error!(?e))?;
     Ok(web::Json(resp))
 }
@@ -86,23 +86,39 @@ impl From<restful::PackageInfo> for PackageInfo {
     }
 }
 
-impl From<restful::PackageActionResult> for PackageActionResult {
-    fn from(src: restful::PackageActionResult) -> Self {
-        Self { installed: src.installed, notinstalled: src.notinstalled }
+enum PackageActionKind {
+    Install,
+    Delete,
+}
+
+trait ActionResponseExt {
+    #[allow(clippy::result_large_err)]
+    fn try_into_action_response(self, kind: PackageActionKind) -> Result<ActionResponse, AppError>;
+}
+
+impl ActionResponseExt for restful::PackageActionResponse {
+    fn try_into_action_response(self, kind: PackageActionKind) -> Result<ActionResponse, AppError> {
+        let length = usize::try_from(self.length)?;
+        let packages = self
+            .packages
+            .into_iter()
+            .map(|(pkg, result)| (pkg, convert_action_result(result, &kind)))
+            .collect::<HashMap<_, _>>();
+        Ok(ActionResponse { packages, length })
     }
 }
 
-impl TryFrom<restful::PackageActionResponse> for ActionResponse {
-    type Error = AppError;
-
-    fn try_from(src: restful::PackageActionResponse) -> Result<Self, Self::Error> {
-        let length = usize::try_from(src.length)?;
-        let packages = src
-            .packages
-            .into_iter()
-            .map(|(pkg, result)| (pkg, result.into()))
-            .collect::<HashMap<String, PackageActionResult>>();
-        Ok(Self { packages, length })
+fn convert_action_result(
+    src: restful::PackageActionResult,
+    kind: &PackageActionKind,
+) -> PackageActionResult {
+    match kind {
+        PackageActionKind::Install => {
+            PackageActionResult { installed: src.installed, notinstalled: src.notinstalled }
+        }
+        PackageActionKind::Delete => {
+            PackageActionResult { installed: src.installed, notinstalled: src.notinstalled }
+        }
     }
 }
 

@@ -36,7 +36,7 @@ pub struct GetSoftwareResponse {
 /// POST /api/software 請求
 #[derive(Debug, Deserialize)]
 pub struct InstallRequest {
-    #[serde(rename = "uuid")]
+    #[serde(rename = "uuid", alias = "Uuid", alias = "UUID")]
     pub uuids:    Vec<String>,
     #[serde(rename = "Packages")]
     pub packages: Vec<String>,
@@ -45,9 +45,9 @@ pub struct InstallRequest {
 /// DELETE /api/software 請求
 #[derive(Debug, Deserialize)]
 pub struct DeleteRequest {
-    #[serde(rename = "uuid")]
+    #[serde(rename = "uuid", alias = "Uuid", alias = "UUID")]
     pub uuids:    Vec<String>,
-    #[serde(rename = "Package")]
+    #[serde(rename = "Package", alias = "Packages", alias = "package")]
     pub packages: Vec<String>,
 }
 

@@ -232,7 +232,7 @@ fn build_package_command(
                 quoted
             ),
             PackageAction::Remove => {
-                format!("DEBIAN_FRONTEND=noninteractive apt-get remove -y {}", quoted)
+                format!("DEBIAN_FRONTEND=noninteractive apt-get purge -y {}", quoted)
             }
         },
         PackageManagerKind::Redhat => {

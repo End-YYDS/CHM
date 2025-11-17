@@ -64,21 +64,21 @@ pub struct ControllerSettings {
 #[serde(rename_all = "PascalCase")]
 pub struct AgentExtension {
     #[serde(default = "AgentExtension::default_socket_path")]
-    pub socket_path:      PathBuf,
+    pub socket_path:          PathBuf,
     #[serde(default = "AgentExtension::default_info_concurrency")]
-    pub info_concurrency: usize,
+    pub info_concurrency:     usize,
     #[serde(default = "AgentExtension::default_file_concurrency")]
-    pub file_concurrency: usize,
+    pub file_concurrency:     usize,
     #[serde(default = "AgentExtension::default_get_timeout_secs")]
-    pub get_timeout_secs: u64,
+    pub get_timeout_secs:     u64,
     #[serde(default = "AgentExtension::default_command_timeout_secs")]
     pub command_timeout_secs: u64,
     #[serde(default)]
-    pub controller:       ControllerSettings,
+    pub controller:           ControllerSettings,
     #[serde(default = "AgentExtension::default_run_as_user")]
-    pub run_as_user:      String,
+    pub run_as_user:          String,
     #[serde(default = "AgentExtension::default_run_as_group")]
-    pub run_as_group:     String,
+    pub run_as_group:         String,
 }
 
 impl AgentExtension {
@@ -114,14 +114,14 @@ impl AgentExtension {
 impl Default for AgentExtension {
     fn default() -> Self {
         Self {
-            socket_path:      Self::default_socket_path(),
-            info_concurrency: Self::default_info_concurrency(),
-            file_concurrency: Self::default_file_concurrency(),
-            get_timeout_secs: Self::default_get_timeout_secs(),
+            socket_path:          Self::default_socket_path(),
+            info_concurrency:     Self::default_info_concurrency(),
+            file_concurrency:     Self::default_file_concurrency(),
+            get_timeout_secs:     Self::default_get_timeout_secs(),
             command_timeout_secs: Self::default_command_timeout_secs(),
-            controller:       ControllerSettings::default(),
-            run_as_user:      Self::default_run_as_user(),
-            run_as_group:     Self::default_run_as_group(),
+            controller:           ControllerSettings::default(),
+            run_as_user:          Self::default_run_as_user(),
+            run_as_group:         Self::default_run_as_group(),
         }
     }
 }
@@ -377,12 +377,12 @@ pub async fn send_to_hostd_async(real_command: &RealCommand) -> io::Result<Strin
         let request = crate::hostd::proto::SysInfoRequest { command: real_command.command.clone() };
         match tokio::time::timeout(get_timeout, client.run_sys_info(request)).await {
             Ok(result) => match result {
-            Ok(resp) => Ok(resp.into_inner().output.trim().to_string()),
-            Err(status) => {
-                if matches!(status.code(), Code::Unavailable | Code::Internal) {
-                    *guard = None;
-                }
-                Err(status_to_io_error(status))
+                Ok(resp) => Ok(resp.into_inner().output.trim().to_string()),
+                Err(status) => {
+                    if matches!(status.code(), Code::Unavailable | Code::Internal) {
+                        *guard = None;
+                    }
+                    Err(status_to_io_error(status))
                 }
             },
             Err(_) => {
@@ -396,17 +396,17 @@ pub async fn send_to_hostd_async(real_command: &RealCommand) -> io::Result<Strin
             crate::hostd::proto::HostCommandRequest { command: real_command.command.clone() };
         match tokio::time::timeout(command_timeout, client.run_host_command(request)).await {
             Ok(result) => match result {
-            Ok(resp) => {
-                let inner = resp.into_inner();
-                let payload =
-                    if !inner.stdout.trim().is_empty() { inner.stdout } else { inner.stderr };
-                Ok(payload.trim().to_string())
-            }
-            Err(status) => {
-                if matches!(status.code(), Code::Unavailable | Code::Internal) {
-                    *guard = None;
+                Ok(resp) => {
+                    let inner = resp.into_inner();
+                    let payload =
+                        if !inner.stdout.trim().is_empty() { inner.stdout } else { inner.stderr };
+                    Ok(payload.trim().to_string())
                 }
-                Err(status_to_io_error(status))
+                Err(status) => {
+                    if matches!(status.code(), Code::Unavailable | Code::Internal) {
+                        *guard = None;
+                    }
+                    Err(status_to_io_error(status))
                 }
             },
             Err(_) => {
