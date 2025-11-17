@@ -217,9 +217,9 @@ impl RestfulService for ControllerRestfulServer {
 
         let count = snapshots.len() as f64;
         let cluster = ClusterSummary {
-            cpu:    if count > 0.0 { total_cpu / count } else { 0.0 },
-            memory: if count > 0.0 { total_mem / count } else { 0.0 },
-            disk:   if count > 0.0 { total_disk / count } else { 0.0 },
+            cpu:    if count > 0.0 { ((total_cpu / count) * 100.0).round() / 100.0 } else { 0.0 },
+            memory: if count > 0.0 { ((total_mem / count) * 100.0).round() / 100.0 } else { 0.0 },
+            disk:   if count > 0.0 { ((total_disk / count) * 100.0).round() / 100.0 } else { 0.0 },
         };
         let info_counts = InfoCounts { safe: counts.safe, warn: counts.warn, dang: counts.dang };
 
@@ -261,7 +261,11 @@ impl RestfulService for ControllerRestfulServer {
         for snapshot in snapshots {
             pcs.insert(
                 snapshot.uuid.clone(),
-                PcMetrics { cpu: snapshot.cpu, memory: snapshot.mem, disk: snapshot.disk },
+                PcMetrics {
+                    cpu:    (snapshot.cpu * 100.0).round() / 100.0,
+                    memory: (snapshot.mem * 100.0).round() / 100.0,
+                    disk:   (snapshot.disk * 100.0).round() / 100.0,
+                },
             );
         }
         let length = pcs.len() as u64;
