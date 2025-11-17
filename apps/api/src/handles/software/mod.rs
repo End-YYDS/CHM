@@ -37,7 +37,10 @@ async fn _post_software(
     web::Json(data): web::Json<InstallRequest>,
 ) -> RestfulResult<web::Json<ActionResponse>> {
     let mut client = app_state.gclient.clone();
-    let req = GrpcInstallSoftwareRequest { uuids: data.uuids, packages: data.packages };
+    let req = GrpcInstallSoftwareRequest {
+        uuids: data.uuids,
+        packages: data.packages.unwrap_or_default(),
+    };
     let resp = client
         .install_software(req)
         .await
@@ -55,7 +58,10 @@ async fn _delete_software(
     web::Json(data): web::Json<DeleteRequest>,
 ) -> RestfulResult<web::Json<ActionResponse>> {
     let mut client = app_state.gclient.clone();
-    let req = GrpcDeleteSoftwareRequest { uuids: data.uuids, packages: data.packages };
+    let req = GrpcDeleteSoftwareRequest {
+        uuids: data.uuids,
+        packages: data.packages.unwrap_or_default(),
+    };
     let resp = client
         .delete_software(req)
         .await
