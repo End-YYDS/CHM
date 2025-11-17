@@ -209,18 +209,22 @@ pub fn execute_sysinfo(command: &str) -> Result<String, String> {
             Ok(format!("{:.2}", cpu_usage))
         }
         SysinfoKeyword::MemoryStatus => {
-            sys.refresh_memory_specifics(MemoryRefreshKind::nothing().with_ram());
-            let memory_usage = sys.used_memory();
-            Ok(format!("{:.2}", memory_usage))
+            sys.refresh_memory_specifics(MemoryRefreshKind::everything());
+            let used = sys.used_memory() as f64;
+            let total = sys.total_memory() as f64;
+            let percent = if total > 0.0 { (used / total) * 100.0 } else { 0.0 };
+            Ok(format!("{:.2}", percent))
         }
         SysinfoKeyword::DiskStatus => {
-            let disk_usage = Disks::new_with_refreshed_list_specifics(
-                DiskRefreshKind::nothing().with_io_usage(),
-            )
-            .iter()
-            .map(|disk| disk.total_space() - disk.available_space())
-            .sum::<u64>();
-            Ok(format!("{:.2}", disk_usage))
+            let disks = Disks::new_with_refreshed_list_specifics(DiskRefreshKind::everything());
+            let mut used: u128 = 0;
+            let mut total: u128 = 0;
+            for disk in disks.iter() {
+                total += disk.total_space() as u128;
+                used += (disk.total_space() - disk.available_space()) as u128;
+            }
+            let percent = if total > 0 { (used as f64 / total as f64) * 100.0 } else { 0.0 };
+            Ok(format!("{:.2}", percent))
         }
         SysinfoKeyword::ProcessList => collect_process_info(&mut sys).and_then(|dto| {
             serde_json::to_string(&dto).map_err(|e| format!("failed to encode process info: {}", e))
