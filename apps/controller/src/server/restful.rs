@@ -1402,12 +1402,92 @@ impl RestfulService for ControllerRestfulServer {
         Ok(Response::new(PutUsersResponse { result: Some(result) }))
     }
 
+    // async fn patch_users(
+    //     &self,
+    //     request: Request<PatchUsersRequest>,
+    // ) -> Result<Response<PatchUsersResponse>, Status> {
+    //     dbg!(&request);
+    //     let req = request.into_inner();
+    //     let users = req.users;
+    //     let username = self
+    //         .grpc_clients
+    //         .with_ldap_handle(|ldap| async move {
+    //             if users.is_empty() {
+    //                 return Err(
+    //                     Status::invalid_argument("At least one user entry is
+    // required").into()                 );
+    //             }
+    //             let (username, user) = users
+    //                 .iter()
+    //                 .next()
+    //                 .ok_or_else(|| Status::invalid_argument("At least one user
+    // entry is required"))                 .inspect_err(|e|
+    // tracing::error!(?e))?;
+
+    //             if let Err(e) = ldap.search_user(username.clone()).await {
+    //                 return Err(Status::not_found(format!("User {username} not
+    // found: {e}")).into());             }
+    //             let mut attr: HashMap<String, String> = HashMap::new();
+    //             if let Some(u) = &user.password {
+    //                 attr.insert("userPassword".into(), u.clone());
+    //             }
+    //             if let Some(u) = &user.cn {
+    //                 attr.insert("cn".into(), u.clone());
+    //             }
+    //             if let Some(u) = &user.sn {
+    //                 attr.insert("sn".into(), u.clone());
+    //             }
+    //             if let Some(u) = &user.home_directory {
+    //                 attr.insert("homeDirectory".into(), u.clone());
+    //             }
+    //             if let Some(u) = &user.shell {
+    //                 attr.insert("loginShell".into(), u.clone());
+    //             }
+    //             if let Some(u) = &user.given_name {
+    //                 attr.insert("givenName".into(), u.clone());
+    //             }
+    //             if let Some(u) = &user.display_name {
+    //                 attr.insert("displayName".into(), u.clone());
+    //             }
+    //             if let Some(u) = &user.gecos {
+    //                 attr.insert("gecos".into(), u.clone());
+    //             }
+    //             if !user.group.is_empty() {
+    //                 for group_name in user.group.iter() {
+    //                     if group_name == username {
+    //                         continue;
+    //                     }
+    //                     if let Err(e) =
+    // ldap.search_group(group_name.clone()).await {                         
+    // return Err(Status::not_found(format!(                             "Group
+    // {group_name} not found: {e}"                         ))
+    //                         .into());
+    //                     }
+    //                 }
+    //             }
+    //             ldap.modify_user(username.clone(), attr)
+    //                 .await
+    //                 .map_err(|e| Status::internal(format!("Failed to modify user
+    // {username}: {e}")))                 .inspect_err(|e|
+    // tracing::error!(?e))?;             Ok(username.clone())
+    //         })
+    //         .await
+    //         .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
+    //         .inspect_err(|e| tracing::error!(?e))?;
+    //     let result = ResponseResult {
+    //         r#type: ResponseType::Ok as i32,
+    //         message: format!("使用者 {username} 已成功更新"),
+    //     };
+    //     Ok(Response::new(PatchUsersResponse { result: Some(result) }))
+    // }
+
     async fn patch_users(
         &self,
         request: Request<PatchUsersRequest>,
     ) -> Result<Response<PatchUsersResponse>, Status> {
         let req = request.into_inner();
         let users = req.users;
+
         let username = self
             .grpc_clients
             .with_ldap_handle(|ldap| async move {
@@ -1416,15 +1496,17 @@ impl RestfulService for ControllerRestfulServer {
                         Status::invalid_argument("At least one user entry is required").into()
                     );
                 }
+
                 let (username, user) = users
                     .iter()
                     .next()
                     .ok_or_else(|| Status::invalid_argument("At least one user entry is required"))
                     .inspect_err(|e| tracing::error!(?e))?;
 
-                if let Err(e) = ldap.search_user(username.clone()).await {
-                    return Err(Status::not_found(format!("User {username} not found: {e}")).into());
-                }
+                let detail = ldap
+                    .search_user(username.clone())
+                    .await
+                    .map_err(|e| Status::not_found(format!("User {username} not found: {e}")))?;
                 let mut attr: HashMap<String, String> = HashMap::new();
                 if let Some(u) = &user.password {
                     attr.insert("userPassword".into(), u.clone());
@@ -1450,28 +1532,61 @@ impl RestfulService for ControllerRestfulServer {
                 if let Some(u) = &user.gecos {
                     attr.insert("gecos".into(), u.clone());
                 }
-                if !user.group.is_empty() {
-                    for group_name in user.group.iter() {
-                        if group_name == username {
-                            continue;
-                        }
-                        if let Err(e) = ldap.search_group(group_name.clone()).await {
-                            return Err(Status::not_found(format!(
-                                "Group {group_name} not found: {e}"
-                            ))
-                            .into());
-                        }
+                use std::collections::HashSet;
+                let current_groups: HashSet<String> = detail
+                    .groups
+                    .into_iter()
+                    .filter(|g| g != username) // 跳過同名 UPG 群組
+                    .collect();
+                let desired_groups_iter = user
+                    .group
+                    .iter()
+                    .filter(|g| *g != username) // 一樣跳過 UPG
+                    .cloned();
+                let mut desired_groups = HashSet::new();
+                for group_name in desired_groups_iter {
+                    if let Err(e) = ldap.search_group(group_name.clone()).await {
+                        return Err(Status::not_found(format!(
+                            "Group {group_name} not found: {e}"
+                        ))
+                        .into());
                     }
+                    desired_groups.insert(group_name);
                 }
+                let to_add: Vec<String> =
+                    desired_groups.difference(&current_groups).cloned().collect();
+                let to_remove: Vec<String> =
+                    current_groups.difference(&desired_groups).cloned().collect();
                 ldap.modify_user(username.clone(), attr)
                     .await
                     .map_err(|e| Status::internal(format!("Failed to modify user {username}: {e}")))
                     .inspect_err(|e| tracing::error!(?e))?;
+
+                for group_name in to_add {
+                    ldap.add_user_to_group(username.clone(), group_name.clone()).await.map_err(
+                        |e| {
+                            Status::internal(format!(
+                                "Failed to add {username} to group {group_name}: {e}"
+                            ))
+                        },
+                    )?;
+                }
+                for group_name in to_remove {
+                    ldap.remove_user_from_group(username.clone(), group_name.clone())
+                        .await
+                        .map_err(|e| {
+                            Status::internal(format!(
+                                "Failed to remove {username} from group {group_name}: {e}"
+                            ))
+                        })?;
+                }
+
                 Ok(username.clone())
             })
             .await
             .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
             .inspect_err(|e| tracing::error!(?e))?;
+
         let result = ResponseResult {
             r#type:  ResponseType::Ok as i32,
             message: format!("使用者 {username} 已成功更新"),
