@@ -427,8 +427,8 @@ pub(crate) async fn search_group_impl(
     let entry = SearchEntry::construct(results[0].clone());
     let attrs = &entry.attrs;
     let resp = GroupDetailResponse {
-        cn: attrs.get("cn").and_then(|v| v.first()).cloned().unwrap_or_default(),
-        gidnumber: attrs.get("gidNumber").and_then(|v| v.first()).cloned().unwrap_or_default(),
+        cn:         attrs.get("cn").and_then(|v| v.first()).cloned().unwrap_or_default(),
+        gidnumber:  attrs.get("gidNumber").and_then(|v| v.first()).cloned().unwrap_or_default(),
         member_uid: attrs.get("memberUid").cloned().unwrap_or_default(),
     };
     Ok(resp)
@@ -684,7 +684,7 @@ pub(crate) async fn search_web_role_impl(
         .collect();
 
     let resp = WebRoleDetailResponse {
-        cn: attrs.get("cn").and_then(|v| v.first()).cloned().unwrap_or_default(),
+        cn:         attrs.get("cn").and_then(|v| v.first()).cloned().unwrap_or_default(),
         member_uid: members,
     };
     Ok(resp)
