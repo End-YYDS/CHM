@@ -96,12 +96,13 @@ message UserDetailResponse {
   string cn = 2;
   string sn = 3;
   string uidNumber = 4;
-  string gidNumber = 5;
-  string homeDirectory = 6;
-  string loginShell = 7;
-  string givenName = 8;
-  string displayName = 9;
-  string gecos = 10;
+  repeated string gidNumber = 5;
+  repeated string groups = 6;
+  string homeDirectory = 7;
+  string loginShell = 8;
+  string givenName = 9;
+  string displayName = 10;
+  string gecos = 11;
 }
 
 message GroupListResponse {
