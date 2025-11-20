@@ -22,9 +22,9 @@ pub mod dns;
 #[cfg(any(feature = "hostd-client", feature = "hostd-server"))]
 pub mod hostd;
 
-#[cfg(any(feature = "ldap-client", feature = "ldap-server"))]
-pub mod ldap;
-
 #[cfg(any(feature = "restful-client", feature = "restful-server"))]
 pub mod restful;
+
+#[cfg(any(feature = "ldap-client", feature = "ldap-server"))]
+pub mod ldap;
 
