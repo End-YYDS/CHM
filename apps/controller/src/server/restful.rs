@@ -1214,12 +1214,20 @@ impl RestfulService for ControllerRestfulServer {
                 for uid in uids {
                     match ldap.search_user(uid.clone()).await {
                         Ok(detail) => {
-                            let gid_number = detail.gid_number.clone();
-                            let group_name = ldap
-                                .get_group_name(gid_number)
-                                .await
-                                .map_err(|e| Status::not_found(e.to_string()))?
-                                .group_name;
+                            let gid_number = detail.gid_number;
+                            let mut group_names = Vec::new();
+                            let mut primary_gid = String::new();
+                            for gid in &gid_number {
+                                let group_name = ldap
+                                    .get_group_name(gid.clone())
+                                    .await
+                                    .map_err(|e| Status::not_found(e.to_string()))?
+                                    .group_name;
+                                if group_name == detail.uid {
+                                    primary_gid = gid.clone();
+                                }
+                                group_names.push(group_name);
+                            }
                             let entry = UserEntry {
                                 username:       detail.uid,
                                 password:       "".to_string(),
@@ -1229,8 +1237,8 @@ impl RestfulService for ControllerRestfulServer {
                                 shell:          detail.login_shell,
                                 given_name:     detail.given_name,
                                 display_name:   detail.display_name,
-                                gid_number:     detail.gid_number,
-                                group:          vec![group_name],
+                                gid_number:     primary_gid,
+                                group:          detail.groups,
                                 gecos:          detail.gecos,
                             };
                             users.insert(uid, entry);

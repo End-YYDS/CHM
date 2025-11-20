@@ -1,5 +1,5 @@
-#[cfg(any(feature = "crl-client", feature = "crl-server"))]
-pub mod crl;
+#[cfg(any(feature = "agent-client", feature = "agent-server"))]
+pub mod agent;
 
 #[cfg(any(feature = "ca-client", feature = "ca-server"))]
 pub mod ca;
@@ -9,6 +9,9 @@ pub mod common;
 
 #[cfg(any(feature = "controller-client", feature = "controller-server"))]
 pub mod controller;
+
+#[cfg(any(feature = "crl-client", feature = "crl-server"))]
+pub mod crl;
 
 #[cfg(any(feature = "dhcp-client", feature = "dhcp-server"))]
 pub mod dhcp;
@@ -25,5 +28,3 @@ pub mod ldap;
 #[cfg(any(feature = "restful-client", feature = "restful-server"))]
 pub mod restful;
 
-#[cfg(any(feature = "agent-client", feature = "agent-server"))]
-pub mod agent;

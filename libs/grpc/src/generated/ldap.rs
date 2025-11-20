@@ -93,17 +93,19 @@ pub struct UserDetailResponse {
     pub sn:             ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
     pub uid_number:     ::prost::alloc::string::String,
-    #[prost(string, tag = "5")]
-    pub gid_number:     ::prost::alloc::string::String,
-    #[prost(string, tag = "6")]
-    pub home_directory: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "5")]
+    pub gid_number:     ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, repeated, tag = "6")]
+    pub groups:         ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(string, tag = "7")]
-    pub login_shell:    ::prost::alloc::string::String,
+    pub home_directory: ::prost::alloc::string::String,
     #[prost(string, tag = "8")]
-    pub given_name:     ::prost::alloc::string::String,
+    pub login_shell:    ::prost::alloc::string::String,
     #[prost(string, tag = "9")]
-    pub display_name:   ::prost::alloc::string::String,
+    pub given_name:     ::prost::alloc::string::String,
     #[prost(string, tag = "10")]
+    pub display_name:   ::prost::alloc::string::String,
+    #[prost(string, tag = "11")]
     pub gecos:          ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
