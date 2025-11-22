@@ -5,14 +5,14 @@ use crate::{
     execute_cron_delete, execute_cron_update, execute_firewall_add, execute_firewall_delete,
     execute_firewall_edit_policy, execute_firewall_edit_status, execute_netif_add,
     execute_netif_delete, execute_netif_toggle, execute_process_command, execute_reboot,
-    execute_route_add, execute_route_delete, execute_shutdown, execute_software_delete,
-    execute_software_install, file_pdir_download, file_pdir_upload, firewall_info_structured,
-    get_server_apache, log_info_structured, log_query_structured, netif_info_structured,
-    pdir_info_structured, process_info_structured, route_info_structured, software_info_structured,
-    ApacheAccessLogEntry, ApacheDate, ApacheErrorLogEntry, ApacheLogLevel, ApacheLogs, ApacheMonth,
-    ApacheServerInfo, ApacheStatus, ApacheWeek, CronJobs, DnsInfo, FirewallStatus, Logs,
-    NetworkInterfaces, PackageStatus, ParentDirectory, ProcessAction, ProcessInfo, ReturnStatus,
-    RouteTable, SizeUnit, SoftwareInventory, SystemInfo,
+    execute_route_add, execute_route_delete, execute_server_apache_action, execute_shutdown,
+    execute_software_delete, execute_software_install, file_pdir_download, file_pdir_upload,
+    firewall_info_structured, get_server_apache, log_info_structured, log_query_structured,
+    netif_info_structured, pdir_info_structured, process_info_structured, route_info_structured,
+    software_info_structured, ApacheAccessLogEntry, ApacheAction, ApacheDate, ApacheErrorLogEntry,
+    ApacheLogLevel, ApacheLogs, ApacheMonth, ApacheServerInfo, ApacheStatus, ApacheWeek, CronJobs,
+    DnsInfo, FirewallStatus, Logs, NetworkInterfaces, PackageStatus, ParentDirectory,
+    ProcessAction, ProcessInfo, ReturnStatus, RouteTable, SizeUnit, SoftwareInventory, SystemInfo,
 };
 use chm_grpc::tonic::{self, Request, Response, Status};
 use tokio::sync::Semaphore;
@@ -89,6 +89,9 @@ impl AgentCommandExt for proto::AgentCommand {
             proto::AgentCommand::Reboot => "reboot",
             proto::AgentCommand::Shutdown => "shutdown",
             proto::AgentCommand::GetInfo => "get_info",
+            proto::AgentCommand::ServerApacheStart => "server_apache_start",
+            proto::AgentCommand::ServerApacheStop => "server_apache_stop",
+            proto::AgentCommand::ServerApacheRestart => "server_apache_restart",
         }
     }
 }
@@ -225,6 +228,28 @@ impl proto::AgentService for AgentGrpcService {
                     .map_err(|e| Status::internal(format!("task join error: {}", e)))?
                     .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(apache_info_to_proto(info)))
+            }
+            proto::AgentCommand::ServerApacheStart
+            | proto::AgentCommand::ServerApacheStop
+            | proto::AgentCommand::ServerApacheRestart => {
+                let sys = self.system();
+                let action = match command_enum {
+                    proto::AgentCommand::ServerApacheStart => ApacheAction::Start,
+                    proto::AgentCommand::ServerApacheStop => ApacheAction::Stop,
+                    proto::AgentCommand::ServerApacheRestart => ApacheAction::Restart,
+                    _ => unreachable!("only apache actions reach this branch"),
+                };
+                let result = tokio::task::spawn_blocking(move || {
+                    execute_server_apache_action(action, sys.as_ref())
+                })
+                .await
+                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+
+                let response = match result {
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
+                };
+                Ok(Response::new(response))
             }
             proto::AgentCommand::SoftwareInstall => {
                 let argument = argument.ok_or_else(|| {

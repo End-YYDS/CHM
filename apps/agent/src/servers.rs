@@ -2,7 +2,10 @@ use std::{convert::TryFrom, io, str::FromStr};
 
 use chrono::{Datelike, NaiveDate, Weekday};
 
-use crate::{execute_host_body, make_sysinfo_command, send_to_hostd, shell_quote, SystemInfo};
+use crate::{
+    execute_host_body, last_non_empty_line, make_sysinfo_command, send_to_hostd, shell_quote,
+    SystemInfo,
+};
 
 const ERROR_LOG_LINE_LIMIT: usize = 50;
 const ACCESS_LOG_LINE_LIMIT: usize = 50;
@@ -11,6 +14,31 @@ const ACCESS_LOG_LINE_LIMIT: usize = 50;
 pub enum ApacheStatus {
     Active,
     Stopped,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ApacheAction {
+    Start,
+    Stop,
+    Restart,
+}
+
+impl ApacheAction {
+    fn command_name(self) -> &'static str {
+        match self {
+            ApacheAction::Start => "server_apache_start",
+            ApacheAction::Stop => "server_apache_stop",
+            ApacheAction::Restart => "server_apache_restart",
+        }
+    }
+
+    fn systemctl_subcommand(self) -> &'static str {
+        match self {
+            ApacheAction::Start => "start",
+            ApacheAction::Stop => "stop",
+            ApacheAction::Restart => "restart",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -238,6 +266,31 @@ pub fn get_server_apache(sys: &SystemInfo) -> io::Result<ApacheServerInfo> {
     };
 
     Ok(ApacheServerInfo { hostname, status, cpu, memory, connections, ip, logs })
+}
+
+pub fn execute_server_apache_action(
+    action: ApacheAction,
+    sys: &SystemInfo,
+) -> Result<String, String> {
+    let config = ApacheConfig::for_system(sys);
+    let service = shell_quote(config.service_name);
+    let command = format!("systemctl {} {}", action.systemctl_subcommand(), service);
+    let success_message = format!("{}: {}", action.command_name(), config.service_name);
+    let body = format!("{command}\nprintf '%s\\n' {}\n", shell_quote(&success_message));
+
+    let result = execute_host_body(&body)
+        .map_err(|err| format!("{} host error: {}", action.command_name(), err))?;
+
+    if result.status == 0 {
+        let message = last_non_empty_line(&result.output)
+            .map(|line| line.to_string())
+            .unwrap_or(success_message);
+        Ok(message)
+    } else if result.output.trim().is_empty() {
+        Err(format!("{} failed with status {}", action.command_name(), result.status))
+    } else {
+        Err(result.output.trim().to_string())
+    }
 }
 
 fn fetch_hostname() -> io::Result<String> {
