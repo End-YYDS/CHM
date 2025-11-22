@@ -157,6 +157,7 @@ pub mod network_config;
 pub mod pc_manager;
 pub mod process_manager;
 pub mod software_package;
+pub mod servers;
 
 pub mod service;
 
@@ -186,6 +187,10 @@ pub use pc_manager::{execute_reboot, execute_shutdown};
 pub use process_manager::{
     execute_process_command, process_info_structured, ProcessAction, ProcessEntry, ProcessInfo,
     ProcessStatus,
+};
+pub use servers::{
+    get_server_apache, ApacheAccessLogEntry, ApacheDate, ApacheErrorLogEntry, ApacheLogLevel,
+    ApacheLogs, ApacheMonth, ApacheServerInfo, ApacheStatus, ApacheTime, ApacheWeek,
 };
 pub use software_package::{
     execute_software_delete, execute_software_install, software_info_structured, PackageStatus,

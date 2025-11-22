@@ -13,6 +13,7 @@ use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     fs,
     io::{self, BufRead, BufReader},
+    net::UdpSocket,
     os::unix::fs::{FileTypeExt, MetadataExt},
     path::Path,
     process::{Command, Output},
@@ -44,6 +45,7 @@ enum SysinfoKeyword {
     LogStatus,
     LogQuery,
     PdirStatus,
+    LocalIp,
 }
 
 impl SysinfoKeyword {
@@ -62,8 +64,19 @@ impl SysinfoKeyword {
             "log_status" => Ok(Self::LogStatus),
             "log_query" => Ok(Self::LogQuery),
             "pdir_status" => Ok(Self::PdirStatus),
+            "local_ip" => Ok(Self::LocalIp),
             other => Err(format!("unknown sysinfo command: {}", other)),
         }
+    }
+}
+
+fn detect_local_ip() -> Result<String, String> {
+    let socket = UdpSocket::bind("0.0.0.0:0").map_err(|e| format!("local_ip bind error: {}", e))?;
+    socket.connect("1.1.1.1:80").map_err(|e| format!("local_ip connect error: {}", e))?;
+    let addr = socket.local_addr().map_err(|e| format!("local_ip read error: {}", e))?;
+    match addr.ip() {
+        std::net::IpAddr::V4(ip) => Ok(ip.to_string()),
+        _ => Err("local_ip is not IPv4".to_string()),
     }
 }
 
@@ -272,6 +285,7 @@ pub fn execute_sysinfo(command: &str) -> Result<String, String> {
                     .map_err(|e| format!("failed to encode directory info: {}", e))
             })
         }
+        SysinfoKeyword::LocalIp => detect_local_ip(),
     }
 }
 

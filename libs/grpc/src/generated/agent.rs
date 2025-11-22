@@ -32,6 +32,8 @@ pub mod command_response {
         SoftwareInventory(super::SoftwareInventory),
         #[prost(message, tag = "12")]
         Logs(super::Logs),
+        #[prost(message, tag = "13")]
+        ApacheInfo(super::ApacheInfo),
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -336,6 +338,7 @@ pub enum AgentCommand {
     Reboot = 33,
     Shutdown = 34,
     GetInfo = 35,
+    GetServerApache = 36,
 }
 impl AgentCommand {
     pub fn as_str_name(&self) -> &'static str {
@@ -376,6 +379,7 @@ impl AgentCommand {
             Self::Reboot => "AGENT_COMMAND_REBOOT",
             Self::Shutdown => "AGENT_COMMAND_SHUTDOWN",
             Self::GetInfo => "AGENT_COMMAND_GET_INFO",
+            Self::GetServerApache => "AGENT_COMMAND_GET_SERVER_APACHE",
         }
     }
     pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
@@ -416,6 +420,7 @@ impl AgentCommand {
             "AGENT_COMMAND_REBOOT" => Some(Self::Reboot),
             "AGENT_COMMAND_SHUTDOWN" => Some(Self::Shutdown),
             "AGENT_COMMAND_GET_INFO" => Some(Self::GetInfo),
+            "AGENT_COMMAND_GET_SERVER_APACHE" => Some(Self::GetServerApache),
             _ => None,
         }
     }
@@ -485,6 +490,272 @@ impl PackageStatus {
             _ => None,
         }
     }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ApacheStatus {
+    Unspecified = 0,
+    Active = 1,
+    Stopped = 2,
+}
+impl ApacheStatus {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "APACHE_STATUS_UNSPECIFIED",
+            Self::Active => "APACHE_STATUS_ACTIVE",
+            Self::Stopped => "APACHE_STATUS_STOPPED",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "APACHE_STATUS_UNSPECIFIED" => Some(Self::Unspecified),
+            "APACHE_STATUS_ACTIVE" => Some(Self::Active),
+            "APACHE_STATUS_STOPPED" => Some(Self::Stopped),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ApacheLogLevel {
+    Unspecified = 0,
+    Debug = 1,
+    Info = 2,
+    Notice = 3,
+    Warn = 4,
+    Error = 5,
+    Crit = 6,
+    Alert = 7,
+    Emerg = 8,
+}
+impl ApacheLogLevel {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "APACHE_LOG_LEVEL_UNSPECIFIED",
+            Self::Debug => "APACHE_LOG_LEVEL_DEBUG",
+            Self::Info => "APACHE_LOG_LEVEL_INFO",
+            Self::Notice => "APACHE_LOG_LEVEL_NOTICE",
+            Self::Warn => "APACHE_LOG_LEVEL_WARN",
+            Self::Error => "APACHE_LOG_LEVEL_ERROR",
+            Self::Crit => "APACHE_LOG_LEVEL_CRIT",
+            Self::Alert => "APACHE_LOG_LEVEL_ALERT",
+            Self::Emerg => "APACHE_LOG_LEVEL_EMERG",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "APACHE_LOG_LEVEL_UNSPECIFIED" => Some(Self::Unspecified),
+            "APACHE_LOG_LEVEL_DEBUG" => Some(Self::Debug),
+            "APACHE_LOG_LEVEL_INFO" => Some(Self::Info),
+            "APACHE_LOG_LEVEL_NOTICE" => Some(Self::Notice),
+            "APACHE_LOG_LEVEL_WARN" => Some(Self::Warn),
+            "APACHE_LOG_LEVEL_ERROR" => Some(Self::Error),
+            "APACHE_LOG_LEVEL_CRIT" => Some(Self::Crit),
+            "APACHE_LOG_LEVEL_ALERT" => Some(Self::Alert),
+            "APACHE_LOG_LEVEL_EMERG" => Some(Self::Emerg),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ApacheWeek {
+    Unspecified = 0,
+    Mon = 1,
+    Tue = 2,
+    Wed = 3,
+    Thu = 4,
+    Fri = 5,
+    Sat = 6,
+    Sun = 7,
+}
+impl ApacheWeek {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "APACHE_WEEK_UNSPECIFIED",
+            Self::Mon => "APACHE_WEEK_MON",
+            Self::Tue => "APACHE_WEEK_TUE",
+            Self::Wed => "APACHE_WEEK_WED",
+            Self::Thu => "APACHE_WEEK_THU",
+            Self::Fri => "APACHE_WEEK_FRI",
+            Self::Sat => "APACHE_WEEK_SAT",
+            Self::Sun => "APACHE_WEEK_SUN",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "APACHE_WEEK_UNSPECIFIED" => Some(Self::Unspecified),
+            "APACHE_WEEK_MON" => Some(Self::Mon),
+            "APACHE_WEEK_TUE" => Some(Self::Tue),
+            "APACHE_WEEK_WED" => Some(Self::Wed),
+            "APACHE_WEEK_THU" => Some(Self::Thu),
+            "APACHE_WEEK_FRI" => Some(Self::Fri),
+            "APACHE_WEEK_SAT" => Some(Self::Sat),
+            "APACHE_WEEK_SUN" => Some(Self::Sun),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ApacheMonth {
+    Unspecified = 0,
+    Jan = 1,
+    Feb = 2,
+    Mar = 3,
+    Apr = 4,
+    May = 5,
+    Jun = 6,
+    Jul = 7,
+    Aug = 8,
+    Sep = 9,
+    Oct = 10,
+    Nov = 11,
+    Dec = 12,
+}
+impl ApacheMonth {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "APACHE_MONTH_UNSPECIFIED",
+            Self::Jan => "APACHE_MONTH_JAN",
+            Self::Feb => "APACHE_MONTH_FEB",
+            Self::Mar => "APACHE_MONTH_MAR",
+            Self::Apr => "APACHE_MONTH_APR",
+            Self::May => "APACHE_MONTH_MAY",
+            Self::Jun => "APACHE_MONTH_JUN",
+            Self::Jul => "APACHE_MONTH_JUL",
+            Self::Aug => "APACHE_MONTH_AUG",
+            Self::Sep => "APACHE_MONTH_SEP",
+            Self::Oct => "APACHE_MONTH_OCT",
+            Self::Nov => "APACHE_MONTH_NOV",
+            Self::Dec => "APACHE_MONTH_DEC",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "APACHE_MONTH_UNSPECIFIED" => Some(Self::Unspecified),
+            "APACHE_MONTH_JAN" => Some(Self::Jan),
+            "APACHE_MONTH_FEB" => Some(Self::Feb),
+            "APACHE_MONTH_MAR" => Some(Self::Mar),
+            "APACHE_MONTH_APR" => Some(Self::Apr),
+            "APACHE_MONTH_MAY" => Some(Self::May),
+            "APACHE_MONTH_JUN" => Some(Self::Jun),
+            "APACHE_MONTH_JUL" => Some(Self::Jul),
+            "APACHE_MONTH_AUG" => Some(Self::Aug),
+            "APACHE_MONTH_SEP" => Some(Self::Sep),
+            "APACHE_MONTH_OCT" => Some(Self::Oct),
+            "APACHE_MONTH_NOV" => Some(Self::Nov),
+            "APACHE_MONTH_DEC" => Some(Self::Dec),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ApacheDate {
+    #[prost(int32, tag = "1")]
+    pub year: i32,
+    #[prost(enumeration = "ApacheMonth", tag = "2")]
+    pub month: i32,
+    #[prost(int32, tag = "3")]
+    pub day: i32,
+    #[prost(enumeration = "ApacheWeek", tag = "4")]
+    pub week: i32,
+    #[prost(message, optional, tag = "5")]
+    pub time: ::core::option::Option<apache_date::Time>,
+}
+/// Nested message and enum types in `ApacheDate`.
+pub mod apache_date {
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct Time {
+        #[prost(uint32, tag = "1")]
+        pub hour: u32,
+        #[prost(uint32, tag = "2")]
+        pub min: u32,
+    }
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ApacheErrorLog {
+    #[prost(message, optional, tag = "1")]
+    pub date: ::core::option::Option<ApacheDate>,
+    #[prost(string, tag = "2")]
+    pub module: ::prost::alloc::string::String,
+    #[prost(enumeration = "ApacheLogLevel", tag = "3")]
+    pub level: i32,
+    #[prost(uint64, tag = "4")]
+    pub pid: u64,
+    #[prost(string, tag = "5")]
+    pub client: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub message: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ApacheAccessLog {
+    #[prost(string, tag = "1")]
+    pub ip: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "2")]
+    pub date: ::core::option::Option<ApacheDate>,
+    #[prost(string, tag = "3")]
+    pub method: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub url: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub protocol: ::prost::alloc::string::String,
+    #[prost(int64, tag = "6")]
+    pub status: i64,
+    #[prost(int64, tag = "7")]
+    pub byte: i64,
+    #[prost(string, tag = "8")]
+    pub referer: ::prost::alloc::string::String,
+    #[prost(string, tag = "9")]
+    pub user_agent: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ApacheLogs {
+    #[prost(message, repeated, tag = "1")]
+    pub error_log: ::prost::alloc::vec::Vec<ApacheErrorLog>,
+    #[prost(uint64, tag = "2")]
+    pub errlength: u64,
+    #[prost(message, repeated, tag = "3")]
+    pub access_log: ::prost::alloc::vec::Vec<ApacheAccessLog>,
+    #[prost(uint64, tag = "4")]
+    pub acclength: u64,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ApacheInfo {
+    #[prost(string, tag = "1")]
+    pub hostname: ::prost::alloc::string::String,
+    #[prost(enumeration = "ApacheStatus", tag = "2")]
+    pub status: i32,
+    #[prost(double, tag = "3")]
+    pub cpu: f64,
+    #[prost(double, tag = "4")]
+    pub memory: f64,
+    #[prost(int64, tag = "5")]
+    pub connections: i64,
+    #[prost(string, tag = "6")]
+    pub ip: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "7")]
+    pub logs: ::core::option::Option<ApacheLogs>,
 }
 /// Generated client implementations.
 #[cfg(feature = "agent-client")]
