@@ -77,7 +77,8 @@ async fn all(app_state: web::Data<AppState>) -> RestfulResult<web::Json<PcInform
 #[get("/specific")]
 async fn specific(
     app_state: web::Data<AppState>,
-    web::Json(data): web::Json<SpecificRequest>,
+    // web::Json(data): web::Json<SpecificRequest>,
+    web::Query(data): web::Query<SpecificRequest>,
 ) -> RestfulResult<web::Json<PcInformation>> {
     let mut client = app_state.gclient.clone();
     let data: GetSpecificPcsRequest = data.into();
