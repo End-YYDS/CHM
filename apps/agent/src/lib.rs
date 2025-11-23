@@ -189,9 +189,10 @@ pub use process_manager::{
     ProcessStatus,
 };
 pub use servers::{
-    execute_server_apache_action, get_server_apache, ApacheAccessLogEntry, ApacheAction,
-    ApacheDate, ApacheErrorLogEntry, ApacheLogLevel, ApacheLogs, ApacheMonth, ApacheServerInfo,
-    ApacheStatus, ApacheTime, ApacheWeek,
+    execute_server_apache_action, get_server_apache, get_server_install, get_server_noninstall,
+    ApacheAccessLogEntry, ApacheAction, ApacheDate, ApacheErrorLogEntry, ApacheLogLevel,
+    ApacheLogs, ApacheMonth, ApacheServerInfo, ApacheStatus, ApacheTime, ApacheWeek,
+    ServerHostInfo, ServerStatus,
 };
 pub use software_package::{
     execute_software_delete, execute_software_install, software_info_structured, PackageStatus,

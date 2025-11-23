@@ -1393,6 +1393,36 @@ message PackageActionResponse {
   uint64 length = 2;                              // packages.len
 }
 
+// =================== Server Installed / Not Installed ===================
+
+// GET /api/server/install
+message GetServerInstalledPcsRequest {
+  string server = 1; // Server name, e.g., "apache", "nginx"
+}
+message GetServerInstalledPcsResponse {
+  // key = uuid, value = { Hostname, Status(active|stopped), Cpu, Memory }
+  map<string, common.CommonInfo> pcs = 1;
+  uint64 length = 2; // pcs.len
+}
+
+// GET /api/server/noinstall
+message GetServerNotInstalledPcsRequest {
+  string server = 1; // Server name
+}
+message GetServerNotInstalledPcsResponse {
+  map<string, common.CommonInfo> pcs = 1; // key = uuid
+  uint64 length = 2; // pcs.len
+}
+
+// POST /api/server/install
+message InstallServerRequest {
+  string server = 1;
+  repeated string uuids = 2; // target machines
+}
+message InstallServerResponse {
+  common.ActionResult result = 1; // {Type, Message}
+}
+
 // ======================= Apache Webserver =======================
 
 // GET /api/server/apache
@@ -1990,36 +2020,6 @@ message StopSambaResponse {common.ActionResult result = 1;}
 message RestartSambaRequest {SambaActionRequest inner = 1;}
 message RestartSambaResponse {common.ActionResult result = 1;}
 
-// ============ Server Installed/Not Installed Lists ============
-
-// GET /api/server/installed
-message GetServerInstalledPcsRequest {
-  string server = 1; // Server name, e.g., "apache", "nginx"
-}
-message GetServerInstalledPcsResponse {
-  // key = uuid, value = { Hostname, Status(active|stopped), Cpu, Memory }
-  map<string, common.CommonInfo> pcs = 1;
-  uint64 length = 2; // pcs.len
-}
-
-// GET /api/server/noinstall
-message GetServerNotInstalledPcsRequest {
-  string server = 1; // Server name
-}
-message GetServerNotInstalledPcsResponse {
-  map<string, common.CommonInfo> pcs = 1; // key = uuid
-  uint64 length = 2; // pcs.len
-}
-
-// POST /api/server/install
-message InstallServerRequest {
-  string server = 1;
-  repeated string uuids = 2; // target machines
-}
-message InstallServerResponse {
-  common.ActionResult result = 1; // {Type, Message}
-}
-
 
 // ===================== Squid =====================
 
@@ -2306,6 +2306,11 @@ service RestfulService {
   rpc InstallSoftware (InstallSoftwareRequest) returns (PackageActionResponse);
   rpc DeleteSoftware (DeleteSoftwareRequest) returns (PackageActionResponse);
 
+  // Server Installed/Not Installed Lists & Install
+  rpc GetServerInstalledPcs (GetServerInstalledPcsRequest) returns (GetServerInstalledPcsResponse);
+  rpc GetServerNotInstalledPcs (GetServerNotInstalledPcsRequest) returns (GetServerNotInstalledPcsResponse);
+  rpc InstallServer (InstallServerRequest) returns (InstallServerResponse);
+
   // Apache Webserver
   rpc GetApacheStatus (GetApacheRequest) returns (GetApacheResponse);
 
@@ -2348,11 +2353,6 @@ service RestfulService {
   rpc StartSamba (StartSambaRequest) returns (StartSambaResponse);
   rpc StopSamba (StopSambaRequest) returns (StopSambaResponse);
   rpc RestartSamba (RestartSambaRequest) returns (RestartSambaResponse);
-
-  // Server Installed/Not Installed Lists & Install
-  rpc GetServerInstalledPcs (GetServerInstalledPcsRequest) returns (GetServerInstalledPcsResponse);
-  rpc GetServerNotInstalledPcs (GetServerNotInstalledPcsRequest) returns (GetServerNotInstalledPcsResponse);
-  rpc InstallServer (InstallServerRequest) returns (InstallServerResponse);
 
   // Squid
   rpc GetSquid (GetSquidRequest) returns (GetSquidResponse);

@@ -17,6 +17,7 @@ message CommandResponse {
     SoftwareInventory software_inventory = 11;
     Logs logs = 12;
     ApacheInfo apache_info = 13;
+    ServerHostInfo server_host_info = 14;
   }
 }
 
@@ -61,6 +62,8 @@ enum AgentCommand {
   AGENT_COMMAND_SERVER_APACHE_START = 37;
   AGENT_COMMAND_SERVER_APACHE_STOP = 38;
   AGENT_COMMAND_SERVER_APACHE_RESTART = 39;
+  AGENT_COMMAND_GET_SERVER_INSTALL = 40;
+  AGENT_COMMAND_GET_SERVER_NONINSTALL = 41;
 }
 
 message CommandRequest {
@@ -333,6 +336,18 @@ message ApacheInfo {
   int64 connections = 5;
   string ip = 6;
   ApacheLogs logs = 7;
+}
+
+message ServerHostInfo {
+  enum Status {
+    SERVER_STATUS_UNSPECIFIED = 0;
+    ACTIVE = 1;
+    STOPPED = 2;
+  }
+  string hostname = 1;
+  Status status = 2;
+  double cpu = 3;
+  double memory = 4;
 }
 
 message RouteEntry {

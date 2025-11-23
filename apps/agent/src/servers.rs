@@ -1,10 +1,11 @@
 use std::{convert::TryFrom, io, str::FromStr};
 
 use chrono::{Datelike, NaiveDate, Weekday};
+use serde::Deserialize;
 
 use crate::{
-    execute_host_body, last_non_empty_line, make_sysinfo_command, send_to_hostd, shell_quote,
-    SystemInfo,
+    agent_info_structured, execute_host_body, last_non_empty_line, make_sysinfo_command,
+    send_to_hostd, shell_quote, SystemInfo,
 };
 
 const ERROR_LOG_LINE_LIMIT: usize = 50;
@@ -14,6 +15,20 @@ const ACCESS_LOG_LINE_LIMIT: usize = 50;
 pub enum ApacheStatus {
     Active,
     Stopped,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ServerStatus {
+    Active,
+    Stopped,
+}
+
+#[derive(Debug, Clone)]
+pub struct ServerHostInfo {
+    pub hostname: String,
+    pub status:   ServerStatus,
+    pub cpu:      f64,
+    pub memory:   f64,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -246,12 +261,31 @@ impl ApacheConfig {
     }
 }
 
+#[derive(Deserialize)]
+struct ServerQueryArgument {
+    #[serde(rename = "Server")]
+    server: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ServicePresence {
+    Active,
+    Inactive,
+    NotFound,
+}
+
+fn round_two(value: f64) -> f64 {
+    (value * 100.0).round() / 100.0
+}
+
 /// Collect Apache metrics and logs through HostD.
 pub fn get_server_apache(sys: &SystemInfo) -> io::Result<ApacheServerInfo> {
     let config = ApacheConfig::for_system(sys);
     let hostname = fetch_hostname()?;
     let status = fetch_service_status(&config)?;
-    let (cpu, memory) = fetch_cpu_memory(&config)?;
+    let (cpu_raw, memory_raw) = fetch_cpu_memory(&config)?;
+    let cpu = round_two(cpu_raw);
+    let memory = round_two(memory_raw);
     let connections = fetch_connection_count()?;
     let ip = fetch_public_ip()?;
     let error_lines = fetch_log_lines(config.error_log, ERROR_LOG_LINE_LIMIT)?;
@@ -266,6 +300,80 @@ pub fn get_server_apache(sys: &SystemInfo) -> io::Result<ApacheServerInfo> {
     };
 
     Ok(ApacheServerInfo { hostname, status, cpu, memory, connections, ip, logs })
+}
+
+/// Return host info if the specified server is installed.
+pub fn get_server_install(argument: &str, sys: &SystemInfo) -> Result<ServerHostInfo, String> {
+    let server = parse_server_argument(argument)?;
+    let service = resolve_service_name(&server, sys);
+    let presence =
+        detect_service_presence(&service).map_err(|e| format!("{server} query error: {e}"))?;
+    match presence {
+        ServicePresence::Active => collect_server_host_info(ServerStatus::Active, sys)
+            .map_err(|e| format!("failed to collect host info: {e}")),
+        ServicePresence::Inactive => collect_server_host_info(ServerStatus::Stopped, sys)
+            .map_err(|e| format!("failed to collect host info: {e}")),
+        ServicePresence::NotFound => Err(format!("{server} not installed")),
+    }
+}
+
+/// Return host info if the specified server is not installed.
+pub fn get_server_noninstall(argument: &str, sys: &SystemInfo) -> Result<ServerHostInfo, String> {
+    let server = parse_server_argument(argument)?;
+    let service = resolve_service_name(&server, sys);
+    let presence =
+        detect_service_presence(&service).map_err(|e| format!("{server} query error: {e}"))?;
+    match presence {
+        ServicePresence::NotFound => collect_server_host_info(ServerStatus::Stopped, sys)
+            .map_err(|e| format!("failed to collect host info: {e}")),
+        ServicePresence::Active | ServicePresence::Inactive => {
+            Err(format!("{server} already installed"))
+        }
+    }
+}
+
+fn parse_server_argument(argument: &str) -> Result<String, String> {
+    let parsed: ServerQueryArgument = serde_json::from_str(argument)
+        .map_err(|e| format!("server argument parse error: {}", e))?;
+    let trimmed = parsed.server.trim();
+    if trimmed.is_empty() {
+        return Err("Server cannot be empty".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
+fn resolve_service_name(server: &str, sys: &SystemInfo) -> String {
+    match server.to_ascii_lowercase().as_str() {
+        "apache" => ApacheConfig::for_system(sys).service_name.to_string(),
+        other => other.to_string(),
+    }
+}
+
+fn collect_server_host_info(status: ServerStatus, sys: &SystemInfo) -> io::Result<ServerHostInfo> {
+    let hostname = fetch_hostname()?;
+    let metrics = agent_info_structured(sys).map_err(io::Error::other)?;
+    Ok(ServerHostInfo {
+        hostname,
+        status,
+        cpu: round_two(f64::from(metrics.cpu)),
+        memory: round_two(f64::from(metrics.mem)),
+    })
+}
+
+fn detect_service_presence(service: &str) -> io::Result<ServicePresence> {
+    let svc = shell_quote(service);
+    let script = format!(
+        "systemctl status {svc} >/dev/null 2>&1\ncode=$?\nif [ \"$code\" -eq 4 ]; then\n  printf \
+         '%s\\n' 'notfound'\n  exit 0\nfi\nstate=$(systemctl is-active {svc} 2>/dev/null || \
+         true)\nprintf '%s\\n' \"$state\"\n"
+    );
+    let output = run_host_command(&script, "systemctl query")?;
+    let trimmed = output.trim();
+    Ok(match trimmed {
+        "active" => ServicePresence::Active,
+        "inactive" | "failed" | "activating" | "deactivating" => ServicePresence::Inactive,
+        _ => ServicePresence::NotFound,
+    })
 }
 
 pub fn execute_server_apache_action(
