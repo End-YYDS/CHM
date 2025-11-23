@@ -334,7 +334,7 @@ fn convert_server_host_info(info: agent::ServerHostInfo) -> CommonInfo {
         _ => CommonStatus::Unspecified as i32,
     };
 
-    CommonInfo { hostname: info.hostname, status, cpu: info.cpu, memory: info.memory }
+    CommonInfo { hostname: info.hostname, status, cpu: info.cpu, memory: info.memory, ip: info.ip }
 }
 
 #[allow(clippy::result_large_err)]
@@ -349,7 +349,7 @@ fn convert_agent_apache_info(info: agent::ApacheInfo) -> Result<GetApacheRespons
 
     let logs = info.logs.map(convert_agent_logs);
     let common_info =
-        Some(CommonInfo { hostname: info.hostname, status, cpu: info.cpu, memory: info.memory });
+        Some(CommonInfo { hostname: info.hostname, status, cpu: info.cpu, memory: info.memory, ip: info.ip });
 
     Ok(GetApacheResponse { common_info, connections: info.connections, logs })
 }

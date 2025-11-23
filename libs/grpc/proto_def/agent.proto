@@ -348,6 +348,7 @@ message ServerHostInfo {
   Status status = 2;
   double cpu = 3;
   double memory = 4;
+  string ip = 5;
 }
 
 message RouteEntry {

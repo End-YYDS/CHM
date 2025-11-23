@@ -89,6 +89,9 @@ pub struct CommonInfo {
     /// Memory usage
     #[prost(double, tag = "4")]
     pub memory:   f64,
+    /// public ip
+    #[prost(string, tag = "5")]
+    pub ip:       ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ErrorLog {

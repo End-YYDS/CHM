@@ -29,6 +29,7 @@ pub struct ServerHostInfo {
     pub status:   ServerStatus,
     pub cpu:      f64,
     pub memory:   f64,
+    pub ip:       String,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -352,11 +353,13 @@ fn resolve_service_name(server: &str, sys: &SystemInfo) -> String {
 fn collect_server_host_info(status: ServerStatus, sys: &SystemInfo) -> io::Result<ServerHostInfo> {
     let hostname = fetch_hostname()?;
     let metrics = agent_info_structured(sys).map_err(io::Error::other)?;
+    let ip = fetch_public_ip()?;
     Ok(ServerHostInfo {
         hostname,
         status,
         cpu: round_two(f64::from(metrics.cpu)),
         memory: round_two(f64::from(metrics.mem)),
+        ip,
     })
 }
 

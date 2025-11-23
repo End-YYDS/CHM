@@ -62,6 +62,7 @@ message CommonInfo {
   Status status = 2; // active | stopped
   double cpu = 3; // CPU usage
   double memory = 4; // Memory usage
+  string ip = 5; // public ip
 }
 // ========== Error log entry  ==========
 enum LogLevel {

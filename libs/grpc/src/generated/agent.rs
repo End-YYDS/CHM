@@ -370,6 +370,8 @@ pub struct ServerHostInfo {
     pub cpu:      f64,
     #[prost(double, tag = "4")]
     pub memory:   f64,
+    #[prost(string, tag = "5")]
+    pub ip:       ::prost::alloc::string::String,
 }
 /// Nested message and enum types in `ServerHostInfo`.
 pub mod server_host_info {

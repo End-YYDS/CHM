@@ -903,6 +903,7 @@ fn server_host_info_to_proto(info: ServerHostInfo) -> proto::CommandResponse {
             status,
             cpu: info.cpu,
             memory: info.memory,
+            ip: info.ip,
         })),
     }
 }
