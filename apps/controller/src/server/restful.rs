@@ -1458,7 +1458,7 @@ impl RestfulService for ControllerRestfulServer {
     //                         continue;
     //                     }
     //                     if let Err(e) =
-    // ldap.search_group(group_name.clone()).await {                         
+    // ldap.search_group(group_name.clone()).await {
     // return Err(Status::not_found(format!(                             "Group
     // {group_name} not found: {e}"                         ))
     //                         .into());

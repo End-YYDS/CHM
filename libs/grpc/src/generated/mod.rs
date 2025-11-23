@@ -27,4 +27,3 @@ pub mod restful;
 
 #[cfg(any(feature = "ldap-client", feature = "ldap-server"))]
 pub mod ldap;
-
