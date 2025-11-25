@@ -36,6 +36,7 @@ fn generate_test_ftp_response() -> FTPResponse {
             status:   Status::Active,
             cpu:      15.2,
             memory:   4096.0,
+            ip:       None,
         },
         connections: 25,
         sessions:    Sessions {

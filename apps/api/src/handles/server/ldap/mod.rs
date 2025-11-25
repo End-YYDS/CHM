@@ -31,6 +31,7 @@ fn generate_test_ldap_response() -> LDAPResponse {
             status:   Status::Active,
             cpu:      2.2,
             memory:   512.0,
+            ip:       None,
         },
         connections: 42,
         entries:     128,

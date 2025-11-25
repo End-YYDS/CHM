@@ -26,6 +26,7 @@ fn generate_test_squid_response() -> SquidResponse {
             status:   Status::Active,
             cpu:      23.5,
             memory:   8.2,
+            ip:       None,
         },
         connections:        10,
         cache_hits:         5,

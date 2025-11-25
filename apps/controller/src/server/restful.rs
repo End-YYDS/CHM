@@ -348,8 +348,13 @@ fn convert_agent_apache_info(info: agent::ApacheInfo) -> Result<GetApacheRespons
     };
 
     let logs = info.logs.map(convert_agent_logs);
-    let common_info =
-        Some(CommonInfo { hostname: info.hostname, status, cpu: info.cpu, memory: info.memory, ip: info.ip });
+    let common_info = Some(CommonInfo {
+        hostname: info.hostname,
+        status,
+        cpu: info.cpu,
+        memory: info.memory,
+        ip: info.ip,
+    });
 
     Ok(GetApacheResponse { common_info, connections: info.connections, logs })
 }
@@ -439,8 +444,9 @@ fn convert_apache_date(date: agent::ApacheDate) -> Option<Date> {
 
     let time =
         date.time.map(|t| common::date::Time { hour: u64::from(t.hour), min: u64::from(t.min) });
+    let day = u64::try_from(date.day).ok().unwrap_or(0);
 
-    Some(Date { year, month, week, time })
+    Some(Date { year, month, week, time, day })
 }
 
 #[tonic::async_trait]
@@ -1742,7 +1748,7 @@ impl RestfulService for ControllerRestfulServer {
     //                         continue;
     //                     }
     //                     if let Err(e) =
-    // ldap.search_group(group_name.clone()).await {                         
+    // ldap.search_group(group_name.clone()).await {
     // return Err(Status::not_found(format!(                             "Group
     // {group_name} not found: {e}"                         ))
     //                         .into());

@@ -4,8 +4,8 @@ use chrono::{Datelike, NaiveDate, Weekday};
 use serde::Deserialize;
 
 use crate::{
-    agent_info_structured, execute_host_body, last_non_empty_line, make_sysinfo_command,
-    send_to_hostd, shell_quote, SystemInfo,
+    execute_host_body, last_non_empty_line, make_sysinfo_command, send_to_hostd, shell_quote,
+    SystemInfo,
 };
 
 const ERROR_LOG_LINE_LIMIT: usize = 50;
@@ -345,22 +345,19 @@ fn parse_server_argument(argument: &str) -> Result<String, String> {
 
 fn resolve_service_name(server: &str, sys: &SystemInfo) -> String {
     match server.to_ascii_lowercase().as_str() {
-        "apache" => ApacheConfig::for_system(sys).service_name.to_string(),
+        "apache" => ApacheConfig::for_system(sys).process_name.to_string(),
         other => other.to_string(),
     }
 }
 
 fn collect_server_host_info(status: ServerStatus, sys: &SystemInfo) -> io::Result<ServerHostInfo> {
     let hostname = fetch_hostname()?;
-    let metrics = agent_info_structured(sys).map_err(io::Error::other)?;
+    let config = ApacheConfig::for_system(sys);
+    let (cpu_raw, memory_raw) = fetch_cpu_memory(&config)?;
+    let cpu = round_two(cpu_raw);
+    let memory = round_two(memory_raw);
     let ip = fetch_public_ip()?;
-    Ok(ServerHostInfo {
-        hostname,
-        status,
-        cpu: round_two(f64::from(metrics.cpu)),
-        memory: round_two(f64::from(metrics.mem)),
-        ip,
-    })
+    Ok(ServerHostInfo { hostname, status, cpu, memory, ip })
 }
 
 fn detect_service_presence(service: &str) -> io::Result<ServicePresence> {

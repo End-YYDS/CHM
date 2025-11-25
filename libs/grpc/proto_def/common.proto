@@ -38,6 +38,7 @@ message Date {
     uint64 min = 2;  // Min
   }
   Time time = 4;   // Time
+  uint64 day = 5;   // Day of month
 }
 
 message ActionResult {

@@ -20,6 +20,9 @@ pub struct Date {
     /// Time
     #[prost(message, optional, tag = "4")]
     pub time:  ::core::option::Option<date::Time>,
+    /// Day of month
+    #[prost(uint64, tag = "5")]
+    pub day:   u64,
 }
 /// Nested message and enum types in `Date`.
 pub mod date {

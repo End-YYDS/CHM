@@ -884,7 +884,9 @@ pub mod agent_service_client {
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
                 http::Request<tonic::body::Body>,
-                Response = http::Response<<T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                >,
             >,
             <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
                 Into<StdError> + Send + Sync,
@@ -924,8 +926,7 @@ pub mod agent_service_client {
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/agent.AgentService/ExecuteCommand");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("agent.AgentService", "ExecuteCommand"));
+            req.extensions_mut().insert(GrpcMethod::new("agent.AgentService", "ExecuteCommand"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -978,7 +979,9 @@ pub mod agent_info_service_client {
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
                 http::Request<tonic::body::Body>,
-                Response = http::Response<<T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                >,
             >,
             <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
                 Into<StdError> + Send + Sync,
@@ -1018,8 +1021,7 @@ pub mod agent_info_service_client {
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static("/agent.AgentInfoService/GetInfo");
             let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("agent.AgentInfoService", "GetInfo"));
+            req.extensions_mut().insert(GrpcMethod::new("agent.AgentInfoService", "GetInfo"));
             self.inner.unary(req, path, codec).await
         }
     }
@@ -1072,7 +1074,9 @@ pub mod agent_file_service_client {
             T::ResponseBody: Default,
             T: tonic::codegen::Service<
                 http::Request<tonic::body::Body>,
-                Response = http::Response<<T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody>,
+                Response = http::Response<
+                    <T as tonic::client::GrpcService<tonic::body::Body>>::ResponseBody,
+                >,
             >,
             <T as tonic::codegen::Service<http::Request<tonic::body::Body>>>::Error:
                 Into<StdError> + Send + Sync,
@@ -1110,7 +1114,8 @@ pub mod agent_file_service_client {
                 )
             })?;
             let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static("/agent.AgentFileService/FilePdirUpload");
+            let path =
+                http::uri::PathAndQuery::from_static("/agent.AgentFileService/FilePdirUpload");
             let mut req = request.into_request();
             req.extensions_mut()
                 .insert(GrpcMethod::new("agent.AgentFileService", "FilePdirUpload"));

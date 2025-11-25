@@ -94,4 +94,6 @@ pub struct CommonInfo {
     pub cpu:      f64,
     #[serde(rename = "Memory")]
     pub memory:   f64,
+    #[serde(rename = "Ip", skip_serializing_if = "Option::is_none")]
+    pub ip:       Option<String>,
 }

@@ -31,6 +31,7 @@ fn generate_test_mysql_response() -> MySQLResponse {
             status:   Status::Active,
             cpu:      2.3,
             memory:   512.0,
+            ip:       None,
         },
         connections:     120,
         databases:       8,
