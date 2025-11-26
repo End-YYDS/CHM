@@ -21,9 +21,9 @@ mod types;
 #[get("")]
 async fn apache_root(
     app_state: web::Data<AppState>,
-    web::Json(payload): web::Json<UuidRequest>,
+    query: web::Query<UuidRequest>,
 ) -> RestfulResult<web::Json<ApacheResponse>> {
-    let uuid = extract_uuid(&payload.uuid)?;
+    let uuid = extract_uuid(&query.uuid)?;
     let mut client = app_state.gclient.clone();
     let resp = client.get_apache_status(restful::GetApacheRequest { uuid }).await?.into_inner();
     let converted = convert_apache_response(resp)?;
