@@ -972,6 +972,7 @@ fn apache_status_to_proto(status: ApacheStatus) -> i32 {
     match status {
         ApacheStatus::Active => proto::ApacheStatus::Active as i32,
         ApacheStatus::Stopped => proto::ApacheStatus::Stopped as i32,
+        ApacheStatus::Uninstalled => proto::ApacheStatus::Uninstalled as i32,
     }
 }
 

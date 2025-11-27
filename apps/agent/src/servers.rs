@@ -15,6 +15,7 @@ const ACCESS_LOG_LINE_LIMIT: usize = 50;
 pub enum ApacheStatus {
     Active,
     Stopped,
+    Uninstalled,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -283,12 +284,28 @@ fn round_two(value: f64) -> f64 {
 pub fn get_server_apache(sys: &SystemInfo) -> io::Result<ApacheServerInfo> {
     let config = ApacheConfig::for_system(sys);
     let hostname = fetch_hostname()?;
-    let status = fetch_service_status(&config)?;
+    let ip = fetch_public_ip()?;
+    let presence = detect_service_presence(config.service_name);
+    if matches!(presence, Ok(ServicePresence::NotFound)) {
+        return Ok(ApacheServerInfo {
+            hostname,
+            status: ApacheStatus::Uninstalled,
+            cpu: 0.0,
+            memory: 0.0,
+            connections: 0,
+            ip,
+            logs: ApacheLogs { error_log: Vec::new(), errlength: 0, access_log: Vec::new(), acclength: 0 },
+        });
+    }
+    let status = match presence {
+        Ok(ServicePresence::Active) => ApacheStatus::Active,
+        Ok(ServicePresence::Inactive) => ApacheStatus::Stopped,
+        _ => fetch_service_status(&config)?,
+    };
     let (cpu_raw, memory_raw) = fetch_cpu_memory(&config)?;
     let cpu = round_two(cpu_raw);
     let memory = round_two(memory_raw);
     let connections = fetch_connection_count()?;
-    let ip = fetch_public_ip()?;
     let error_lines = fetch_log_lines(config.error_log, ERROR_LOG_LINE_LIMIT)?;
     let access_lines = fetch_log_lines(config.access_log, ACCESS_LOG_LINE_LIMIT)?;
     let error_log = parse_error_log_entries(&error_lines);

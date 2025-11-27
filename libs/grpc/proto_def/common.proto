@@ -55,6 +55,7 @@ enum Status {
   STATUS_UNSPECIFIED = 0;
   ACTIVE = 1;  // active
   STOPPED = 2;  // stopped
+  UNINSTALLED = 3; // not installed
 }
 
 // ========== Shared host info  ==========

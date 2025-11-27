@@ -260,6 +260,8 @@ pub enum Status {
     Active = 1,
     /// stopped
     Stopped = 2,
+    /// not installed
+    Uninstalled = 3,
 }
 impl Status {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -272,6 +274,7 @@ impl Status {
             Self::Unspecified => "STATUS_UNSPECIFIED",
             Self::Active => "ACTIVE",
             Self::Stopped => "STOPPED",
+            Self::Uninstalled => "UNINSTALLED",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.

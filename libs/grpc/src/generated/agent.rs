@@ -659,6 +659,7 @@ pub enum ApacheStatus {
     Unspecified = 0,
     Active = 1,
     Stopped = 2,
+    Uninstalled = 3,
 }
 impl ApacheStatus {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -671,6 +672,7 @@ impl ApacheStatus {
             Self::Unspecified => "APACHE_STATUS_UNSPECIFIED",
             Self::Active => "APACHE_STATUS_ACTIVE",
             Self::Stopped => "APACHE_STATUS_STOPPED",
+            Self::Uninstalled => "APACHE_STATUS_UNINSTALLED",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -679,6 +681,7 @@ impl ApacheStatus {
             "APACHE_STATUS_UNSPECIFIED" => Some(Self::Unspecified),
             "APACHE_STATUS_ACTIVE" => Some(Self::Active),
             "APACHE_STATUS_STOPPED" => Some(Self::Stopped),
+            "APACHE_STATUS_UNINSTALLED" => Some(Self::Uninstalled),
             _ => None,
         }
     }

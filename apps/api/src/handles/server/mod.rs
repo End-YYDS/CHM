@@ -63,6 +63,7 @@ pub(crate) fn convert_common_info(info: common::CommonInfo) -> CommonInfo {
     {
         common::Status::Active => Status::Active,
         common::Status::Stopped => Status::Stopped,
+        common::Status::Uninstalled => Status::Uninstalled,
         _ => Status::Stopped,
     };
     let ip = if info.ip.trim().is_empty() { None } else { Some(info.ip) };

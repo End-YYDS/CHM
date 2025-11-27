@@ -344,6 +344,7 @@ fn convert_agent_apache_info(info: agent::ApacheInfo) -> Result<GetApacheRespons
     let status = match apache_status {
         agent::ApacheStatus::Active => CommonStatus::Active as i32,
         agent::ApacheStatus::Stopped => CommonStatus::Stopped as i32,
+        agent::ApacheStatus::Uninstalled => CommonStatus::Uninstalled as i32,
         _ => CommonStatus::Unspecified as i32,
     };
 

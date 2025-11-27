@@ -82,6 +82,8 @@ pub enum Status {
     Active,
     #[serde(rename = "stopped")]
     Stopped,
+    #[serde(rename = "uninstalled")]
+    Uninstalled,
 }
 
 #[derive(Debug, Serialize)]
