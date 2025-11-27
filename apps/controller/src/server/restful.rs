@@ -331,10 +331,48 @@ fn convert_server_host_info(info: agent::ServerHostInfo) -> CommonInfo {
     let status = match status_enum {
         agent::server_host_info::Status::Active => CommonStatus::Active as i32,
         agent::server_host_info::Status::Stopped => CommonStatus::Stopped as i32,
+        agent::server_host_info::Status::Uninstalled => CommonStatus::Uninstalled as i32,
         _ => CommonStatus::Unspecified as i32,
     };
 
     CommonInfo { hostname: info.hostname, status, cpu: info.cpu, memory: info.memory, ip: info.ip }
+}
+
+fn resolve_server_package(server: &str, info: &agent::SystemInfo) -> Result<&'static str, String> {
+    match server.to_ascii_lowercase().as_str() {
+        "apache" => {
+            let os = info.os_id.to_ascii_lowercase();
+            if is_redhat_family(&os) {
+                Ok("httpd")
+            } else if is_debian_family(&os) {
+                Ok("apache2")
+            } else {
+                Err(format!("不支援在 {os} 上安裝 Apache"))
+            }
+        }
+        _ => Err(format!("{server} 尚未支援安裝")),
+    }
+}
+
+fn is_redhat_family(os: &str) -> bool {
+    matches!(
+        os,
+        "centos"
+            | "rocky"
+            | "rhel"
+            | "almalinux"
+            | "scientific"
+            | "oracle"
+            | "fedora"
+            | "redhat"
+    )
+}
+
+fn is_debian_family(os: &str) -> bool {
+    matches!(
+        os,
+        "debian" | "ubuntu" | "kali" | "linuxmint" | "raspbian" | "elementary" | "pop"
+    )
 }
 
 #[allow(clippy::result_large_err)]
@@ -2913,7 +2951,72 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<InstallServerRequest>,
     ) -> Result<Response<InstallServerResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let server = parse_server_name_input(&req.server)?;
+        if req.uuids.is_empty() {
+            return Err(Status::invalid_argument("必須提供至少一個 UUID"));
+        }
+        let mut success = Vec::new();
+        let mut failures = Vec::new();
+
+        for raw_uuid in req.uuids {
+            let trimmed = raw_uuid.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let (parsed_uuid, uuid_str) = parse_agent_uuid_input(trimmed)?;
+            if !Self::agent_exists(&parsed_uuid) {
+                failures.push(format!("{trimmed}: 指定的 Agent 不存在"));
+                continue;
+            }
+
+            let sysinfo = match self.fetch_agent_system_info(&uuid_str).await {
+                Ok(info) => info,
+                Err(err) => {
+                    failures.push(format!("{uuid_str}: {err}"));
+                    continue;
+                }
+            };
+            let package = match resolve_server_package(&server, &sysinfo) {
+                Ok(pkg) => pkg.to_string(),
+                Err(err) => {
+                    failures.push(format!("{uuid_str}: {err}"));
+                    continue;
+                }
+            };
+
+            let payload = json!({ "Packages": [package] }).to_string();
+            match self
+                .run_software_action(&uuid_str, AgentCommand::SoftwareInstall, Some(payload))
+                .await
+            {
+                Ok(_) => {
+                    success.push(uuid_str);
+                }
+                Err(err) => {
+                    failures.push(format!("{uuid_str}: {err}"));
+                }
+            }
+        }
+
+        let result = if failures.is_empty() {
+            ActionResult {
+                r#type: action_result::Type::Ok as i32,
+                message: format!("成功安裝 {server} 於 {} 台主機", success.len()),
+            }
+        } else {
+            ActionResult {
+                r#type: action_result::Type::Err as i32,
+                message: format!(
+                    "{server} 安裝成功 {success_count} 台，失敗 {fail_count} 台: {detail}",
+                    success_count = success.len(),
+                    fail_count = failures.len(),
+                    detail = failures.join("; ")
+                ),
+            }
+        };
+
+        Ok(Response::new(InstallServerResponse { result: Some(result) }))
     }
 
     async fn get_squid(
@@ -3048,6 +3151,14 @@ impl ControllerRestfulServer {
                 }
             }
             _ => Err("Agent response missing ReturnInfo".into()),
+        }
+    }
+
+    async fn fetch_agent_system_info(&self, uuid: &str) -> Result<agent::SystemInfo, String> {
+        let response = self.exec_agent_command(uuid, AgentCommand::GetSystemInfo, None).await?;
+        match response.payload {
+            Some(command_response::Payload::SystemInfo(info)) => Ok(info),
+            _ => Err("Agent response missing system information".into()),
         }
     }
 

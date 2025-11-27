@@ -95,6 +95,7 @@ impl AgentCommandExt for proto::AgentCommand {
             proto::AgentCommand::ServerApacheRestart => "server_apache_restart",
             proto::AgentCommand::GetServerInstall => "get_server_install",
             proto::AgentCommand::GetServerNoninstall => "get_server_noninstall",
+            proto::AgentCommand::GetSystemInfo => "get_system_info",
         }
     }
 }
@@ -288,6 +289,11 @@ impl proto::AgentService for AgentGrpcService {
                     Ok(info) => server_host_info_to_proto(info),
                     Err(err) => build_return_info(ReturnStatus::Err, err),
                 };
+                Ok(Response::new(response))
+            }
+            proto::AgentCommand::GetSystemInfo => {
+                let sys = self.system();
+                let response = system_info_to_proto(sys.as_ref());
                 Ok(Response::new(response))
             }
             proto::AgentCommand::SoftwareInstall => {
@@ -905,6 +911,17 @@ fn server_host_info_to_proto(info: ServerHostInfo) -> proto::CommandResponse {
             memory: info.memory,
             ip: info.ip,
         })),
+    }
+}
+
+fn system_info_to_proto(sys: &SystemInfo) -> proto::CommandResponse {
+    proto::CommandResponse {
+        payload: Some(proto::command_response::Payload::SystemInfo(
+            proto::SystemInfo {
+                os_id: sys.os_id.clone(),
+                version_id: sys.version_id.clone(),
+            },
+        )),
     }
 }
 

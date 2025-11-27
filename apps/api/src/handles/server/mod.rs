@@ -110,11 +110,8 @@ async fn noinstall(
         .get_server_not_installed_pcs(restful::GetServerNotInstalledPcsRequest { server })
         .await?
         .into_inner();
-    let pcs_map = resp
-        .pcs
-        .into_iter()
-        .map(|(uuid, info)| (uuid, info.hostname))
-        .collect::<HashMap<_, _>>();
+    let pcs_map =
+        resp.pcs.into_iter().map(|(uuid, info)| (uuid, info.hostname)).collect::<HashMap<_, _>>();
     let length = usize::try_from(resp.length).unwrap_or(pcs_map.len());
     Ok(web::Json(stalledResponse { pcs: Pcs::NotInstalled { uuids: pcs_map }, length }))
 }

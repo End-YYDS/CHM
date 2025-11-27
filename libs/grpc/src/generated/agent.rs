@@ -3,7 +3,7 @@
 pub struct CommandResponse {
     #[prost(
         oneof = "command_response::Payload",
-        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14"
+        tags = "1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15"
     )]
     pub payload: ::core::option::Option<command_response::Payload>,
 }
@@ -39,6 +39,8 @@ pub mod command_response {
         ApacheInfo(super::ApacheInfo),
         #[prost(message, tag = "14")]
         ServerHostInfo(super::ServerHostInfo),
+        #[prost(message, tag = "15")]
+        SystemInfo(super::SystemInfo),
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -358,7 +360,14 @@ pub struct ApacheInfo {
     #[prost(string, tag = "6")]
     pub ip:          ::prost::alloc::string::String,
     #[prost(message, optional, tag = "7")]
-    pub logs:        ::core::option::Option<ApacheLogs>,
+    pub logs: ::core::option::Option<ApacheLogs>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SystemInfo {
+    #[prost(string, tag = "1")]
+    pub os_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub version_id: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ServerHostInfo {
@@ -381,6 +390,7 @@ pub mod server_host_info {
         ServerStatusUnspecified = 0,
         Active = 1,
         Stopped = 2,
+        Uninstalled = 3,
     }
     impl Status {
         /// String value of the enum field names used in the ProtoBuf
@@ -394,6 +404,7 @@ pub mod server_host_info {
                 Self::ServerStatusUnspecified => "SERVER_STATUS_UNSPECIFIED",
                 Self::Active => "ACTIVE",
                 Self::Stopped => "STOPPED",
+                Self::Uninstalled => "UNINSTALLED",
             }
         }
         /// Creates an enum from field names used in the ProtoBuf definition.
@@ -402,6 +413,7 @@ pub mod server_host_info {
                 "SERVER_STATUS_UNSPECIFIED" => Some(Self::ServerStatusUnspecified),
                 "ACTIVE" => Some(Self::Active),
                 "STOPPED" => Some(Self::Stopped),
+                "UNINSTALLED" => Some(Self::Uninstalled),
                 _ => None,
             }
         }
@@ -485,6 +497,7 @@ pub enum AgentCommand {
     ServerApacheRestart = 39,
     GetServerInstall = 40,
     GetServerNoninstall = 41,
+    GetSystemInfo = 42,
 }
 impl AgentCommand {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -536,6 +549,7 @@ impl AgentCommand {
             Self::ServerApacheRestart => "AGENT_COMMAND_SERVER_APACHE_RESTART",
             Self::GetServerInstall => "AGENT_COMMAND_GET_SERVER_INSTALL",
             Self::GetServerNoninstall => "AGENT_COMMAND_GET_SERVER_NONINSTALL",
+            Self::GetSystemInfo => "AGENT_COMMAND_GET_SYSTEM_INFO",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -583,6 +597,7 @@ impl AgentCommand {
             "AGENT_COMMAND_SERVER_APACHE_RESTART" => Some(Self::ServerApacheRestart),
             "AGENT_COMMAND_GET_SERVER_INSTALL" => Some(Self::GetServerInstall),
             "AGENT_COMMAND_GET_SERVER_NONINSTALL" => Some(Self::GetServerNoninstall),
+            "AGENT_COMMAND_GET_SYSTEM_INFO" => Some(Self::GetSystemInfo),
             _ => None,
         }
     }

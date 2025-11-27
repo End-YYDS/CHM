@@ -294,7 +294,12 @@ pub fn get_server_apache(sys: &SystemInfo) -> io::Result<ApacheServerInfo> {
             memory: 0.0,
             connections: 0,
             ip,
-            logs: ApacheLogs { error_log: Vec::new(), errlength: 0, access_log: Vec::new(), acclength: 0 },
+            logs: ApacheLogs {
+                error_log:  Vec::new(),
+                errlength:  0,
+                access_log: Vec::new(),
+                acclength:  0,
+            },
         });
     }
     let status = match presence {

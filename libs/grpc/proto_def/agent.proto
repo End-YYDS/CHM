@@ -18,6 +18,7 @@ message CommandResponse {
     Logs logs = 12;
     ApacheInfo apache_info = 13;
     ServerHostInfo server_host_info = 14;
+    SystemInfo system_info = 15;
   }
 }
 
@@ -64,6 +65,7 @@ enum AgentCommand {
   AGENT_COMMAND_SERVER_APACHE_RESTART = 39;
   AGENT_COMMAND_GET_SERVER_INSTALL = 40;
   AGENT_COMMAND_GET_SERVER_NONINSTALL = 41;
+  AGENT_COMMAND_GET_SYSTEM_INFO = 42;
 }
 
 message CommandRequest {
@@ -339,11 +341,17 @@ message ApacheInfo {
   ApacheLogs logs = 7;
 }
 
+message SystemInfo {
+  string os_id = 1;
+  string version_id = 2;
+}
+
 message ServerHostInfo {
   enum Status {
     SERVER_STATUS_UNSPECIFIED = 0;
     ACTIVE = 1;
     STOPPED = 2;
+    UNINSTALLED = 3;
   }
   string hostname = 1;
   Status status = 2;
