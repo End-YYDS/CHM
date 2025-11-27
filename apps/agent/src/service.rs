@@ -916,12 +916,10 @@ fn server_host_info_to_proto(info: ServerHostInfo) -> proto::CommandResponse {
 
 fn system_info_to_proto(sys: &SystemInfo) -> proto::CommandResponse {
     proto::CommandResponse {
-        payload: Some(proto::command_response::Payload::SystemInfo(
-            proto::SystemInfo {
-                os_id: sys.os_id.clone(),
-                version_id: sys.version_id.clone(),
-            },
-        )),
+        payload: Some(proto::command_response::Payload::SystemInfo(proto::SystemInfo {
+            os_id:      sys.os_id.clone(),
+            version_id: sys.version_id.clone(),
+        })),
     }
 }
 

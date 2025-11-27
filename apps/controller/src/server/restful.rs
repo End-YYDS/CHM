@@ -357,22 +357,12 @@ fn resolve_server_package(server: &str, info: &agent::SystemInfo) -> Result<&'st
 fn is_redhat_family(os: &str) -> bool {
     matches!(
         os,
-        "centos"
-            | "rocky"
-            | "rhel"
-            | "almalinux"
-            | "scientific"
-            | "oracle"
-            | "fedora"
-            | "redhat"
+        "centos" | "rocky" | "rhel" | "almalinux" | "scientific" | "oracle" | "fedora" | "redhat"
     )
 }
 
 fn is_debian_family(os: &str) -> bool {
-    matches!(
-        os,
-        "debian" | "ubuntu" | "kali" | "linuxmint" | "raspbian" | "elementary" | "pop"
-    )
+    matches!(os, "debian" | "ubuntu" | "kali" | "linuxmint" | "raspbian" | "elementary" | "pop")
 }
 
 #[allow(clippy::result_large_err)]
@@ -3001,12 +2991,12 @@ impl RestfulService for ControllerRestfulServer {
 
         let result = if failures.is_empty() {
             ActionResult {
-                r#type: action_result::Type::Ok as i32,
+                r#type:  action_result::Type::Ok as i32,
                 message: format!("成功安裝 {server} 於 {} 台主機", success.len()),
             }
         } else {
             ActionResult {
-                r#type: action_result::Type::Err as i32,
+                r#type:  action_result::Type::Err as i32,
                 message: format!(
                     "{server} 安裝成功 {success_count} 台，失敗 {fail_count} 台: {detail}",
                     success_count = success.len(),

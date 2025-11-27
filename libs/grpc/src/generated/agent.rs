@@ -360,12 +360,12 @@ pub struct ApacheInfo {
     #[prost(string, tag = "6")]
     pub ip:          ::prost::alloc::string::String,
     #[prost(message, optional, tag = "7")]
-    pub logs: ::core::option::Option<ApacheLogs>,
+    pub logs:        ::core::option::Option<ApacheLogs>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SystemInfo {
     #[prost(string, tag = "1")]
-    pub os_id: ::prost::alloc::string::String,
+    pub os_id:      ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub version_id: ::prost::alloc::string::String,
 }
