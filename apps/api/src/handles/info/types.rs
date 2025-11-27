@@ -104,8 +104,7 @@ impl From<restful::ClusterSummary> for ClusterSummary {
 impl From<restful::PcMetrics> for PcMetrics {
     fn from(value: restful::PcMetrics) -> Self {
         fn convert_status(raw: i32) -> StatusLabel {
-            let status =
-                restful::InfoStatus::try_from(raw).unwrap_or(restful::InfoStatus::Unknown);
+            let status = restful::InfoStatus::try_from(raw).unwrap_or(restful::InfoStatus::Unknown);
             match status {
                 restful::InfoStatus::Safe => StatusLabel::Safe,
                 restful::InfoStatus::Warn => StatusLabel::Warn,

@@ -530,13 +530,17 @@ message PutIpModeResponse {
 
 // =================== 設定警告數值 ===================
 
+message MetricSetting {
+  double warn = 1;
+  double dang = 2;
+}
+
 // GET /api/chm/setting/values
 message GetSettingValuesRequest {}
 message Values {
-  double cpu_usage = 1;
-  double disk_usage = 2;
-  double memory = 3;
-  double network = 4;
+  MetricSetting cpu_usage = 1;
+  MetricSetting disk_usage = 2;
+  MetricSetting memory = 3;
 }
 message GetSettingValuesResponse {
   Values values = 1;
@@ -544,10 +548,9 @@ message GetSettingValuesResponse {
 
 // PUT /api/chm/setting/values  (單一或整筆更新 -> 使用 optional 欄位)
 message PutSettingValuesRequest {
-  optional double cpu_usage = 1;
-  optional double disk_usage = 2;
-  optional double memory = 3;
-  optional double network = 4;
+  optional MetricSetting cpu_usage = 1;
+  optional MetricSetting disk_usage = 2;
+  optional MetricSetting memory = 3;
 }
 message PutSettingValuesResponse {
   enum ResultType {

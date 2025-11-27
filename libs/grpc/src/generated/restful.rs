@@ -911,32 +911,35 @@ pub mod put_ip_mode_response {
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct GetSettingValuesRequest {}
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct Values {
+pub struct MetricSetting {
     #[prost(double, tag = "1")]
-    pub cpu_usage:  f64,
+    pub warn: f64,
     #[prost(double, tag = "2")]
-    pub disk_usage: f64,
-    #[prost(double, tag = "3")]
-    pub memory:     f64,
-    #[prost(double, tag = "4")]
-    pub network:    f64,
+    pub dang: f64,
 }
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Values {
+    #[prost(message, optional, tag = "1")]
+    pub cpu_usage:  ::core::option::Option<MetricSetting>,
+    #[prost(message, optional, tag = "2")]
+    pub disk_usage: ::core::option::Option<MetricSetting>,
+    #[prost(message, optional, tag = "3")]
+    pub memory:     ::core::option::Option<MetricSetting>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetSettingValuesResponse {
     #[prost(message, optional, tag = "1")]
     pub values: ::core::option::Option<Values>,
 }
 /// PUT /api/chm/setting/values  (單一或整筆更新 -> 使用 optional 欄位)
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutSettingValuesRequest {
-    #[prost(double, optional, tag = "1")]
-    pub cpu_usage:  ::core::option::Option<f64>,
-    #[prost(double, optional, tag = "2")]
-    pub disk_usage: ::core::option::Option<f64>,
-    #[prost(double, optional, tag = "3")]
-    pub memory:     ::core::option::Option<f64>,
-    #[prost(double, optional, tag = "4")]
-    pub network:    ::core::option::Option<f64>,
+    #[prost(message, optional, tag = "1")]
+    pub cpu_usage:  ::core::option::Option<MetricSetting>,
+    #[prost(message, optional, tag = "2")]
+    pub disk_usage: ::core::option::Option<MetricSetting>,
+    #[prost(message, optional, tag = "3")]
+    pub memory:     ::core::option::Option<MetricSetting>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutSettingValuesResponse {
