@@ -23,20 +23,11 @@ message PcMetrics {
   double disk = 3;
 }
 
-enum Zone {
-  ZONE_UNSPECIFIED = 0;
-  INFO = 1;
-  CLUSTER = 2;
-}
-
 enum Target {
   TARGET_UNSPECIFIED = 0;
   SAFE = 1;
   WARN = 2;
   DANG = 3;
-  CPU = 4;
-  MEMORY = 5;
-  DISK = 6;
 }
 
 // ========== Backup 專用型別 ==========
@@ -64,9 +55,8 @@ message GetAllInfoResponse {
 }
 
 message GetInfoRequest {
-  Zone zone = 1;
-  Target target = 2;
-  optional string uuid = 3;
+  Target target = 1;
+  optional string uuid = 2;
 }
 message GetInfoResponse {
   map<string, PcMetrics> pcs = 1;

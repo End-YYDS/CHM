@@ -30,11 +30,11 @@ async fn _post_info_get(
         let trimmed = u.trim().to_string();
         (!trimmed.is_empty()).then_some(trimmed)
     });
-    let req = restful::GetInfoRequest {
-        zone: restful::Zone::from(payload.zone) as i32,
-        target: restful::Target::from(payload.target) as i32,
-        uuid,
-    };
+    let target = payload
+        .target
+        .map(|t| restful::Target::from(t) as i32)
+        .unwrap_or(restful::Target::Unspecified as i32);
+    let req = restful::GetInfoRequest { target, uuid };
     let resp = client.get_info(req).await?.into_inner();
     Ok(web::Json(InfoGetResponse::from(resp)))
 }

@@ -569,6 +569,14 @@ impl RestfulService for ControllerRestfulServer {
         } else {
             None
         };
+        let requested_target =
+            restful::Target::try_from(req.target).unwrap_or(restful::Target::Unspecified);
+        let status_filter = match requested_target {
+            restful::Target::Safe => Some(NodeStatus::Safe),
+            restful::Target::Warn => Some(NodeStatus::Warn),
+            restful::Target::Dang => Some(NodeStatus::Danger),
+            _ => None,
+        };
 
         let snapshots = self
             .collect_agent_snapshots(target_uuid)
@@ -578,6 +586,12 @@ impl RestfulService for ControllerRestfulServer {
 
         let mut pcs = HashMap::new();
         for snapshot in snapshots {
+            let status = classify_snapshot(&snapshot, &thresholds);
+            if let Some(expected) = status_filter {
+                if status != expected {
+                    continue;
+                }
+            }
             pcs.insert(
                 snapshot.uuid.clone(),
                 PcMetrics {

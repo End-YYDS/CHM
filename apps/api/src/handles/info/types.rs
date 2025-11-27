@@ -34,22 +34,12 @@ pub struct GetAllInfoResponse {
 /// POST /api/info/get
 #[derive(Debug, Deserialize)]
 pub struct InfoGetRequest {
-    /// "info" 或 "cluster"
-    #[serde(rename = "Zone")]
-    pub zone:   Zone,
-    /// safe / warn / dang / Cpu / Memory / Disk
+    /// safe / warn / dang
     #[serde(rename = "Target")]
-    pub target: Target,
+    pub target: Option<Target>,
     /// None 代表全部；Some(uuid) 代表指定主機
     #[serde(rename = "Uuid", default, deserialize_with = "none_if_string_none")]
     pub uuid:   Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Zone {
-    info,
-    cluster,
 }
 
 #[derive(Debug, Deserialize)]
@@ -60,12 +50,6 @@ pub enum Target {
     Warn,
     #[serde(rename = "dang")]
     Dang,
-    #[serde(rename = "Cpu")]
-    Cpu,
-    #[serde(rename = "Memory")]
-    Memory,
-    #[serde(rename = "Disk")]
-    Disk,
 }
 
 #[derive(Debug, Serialize, Clone, Copy, Default)]
@@ -120,24 +104,12 @@ impl From<restful::GetInfoResponse> for InfoGetResponse {
     }
 }
 
-impl From<Zone> for restful::Zone {
-    fn from(value: Zone) -> Self {
-        match value {
-            Zone::info => restful::Zone::Info,
-            Zone::cluster => restful::Zone::Cluster,
-        }
-    }
-}
-
 impl From<Target> for restful::Target {
     fn from(value: Target) -> Self {
         match value {
             Target::Safe => restful::Target::Safe,
             Target::Warn => restful::Target::Warn,
             Target::Dang => restful::Target::Dang,
-            Target::Cpu => restful::Target::Cpu,
-            Target::Memory => restful::Target::Memory,
-            Target::Disk => restful::Target::Disk,
         }
     }
 }

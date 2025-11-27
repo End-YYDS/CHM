@@ -52,11 +52,9 @@ pub struct GetAllInfoResponse {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetInfoRequest {
-    #[prost(enumeration = "Zone", tag = "1")]
-    pub zone:   i32,
-    #[prost(enumeration = "Target", tag = "2")]
+    #[prost(enumeration = "Target", tag = "1")]
     pub target: i32,
-    #[prost(string, optional, tag = "3")]
+    #[prost(string, optional, tag = "2")]
     pub uuid:   ::core::option::Option<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -3943,44 +3941,11 @@ pub struct RestartSshResponse {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
-pub enum Zone {
-    Unspecified = 0,
-    Info = 1,
-    Cluster = 2,
-}
-impl Zone {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
-    pub fn as_str_name(&self) -> &'static str {
-        match self {
-            Self::Unspecified => "ZONE_UNSPECIFIED",
-            Self::Info => "INFO",
-            Self::Cluster => "CLUSTER",
-        }
-    }
-    /// Creates an enum from field names used in the ProtoBuf definition.
-    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-        match value {
-            "ZONE_UNSPECIFIED" => Some(Self::Unspecified),
-            "INFO" => Some(Self::Info),
-            "CLUSTER" => Some(Self::Cluster),
-            _ => None,
-        }
-    }
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
-#[repr(i32)]
 pub enum Target {
     Unspecified = 0,
     Safe = 1,
     Warn = 2,
     Dang = 3,
-    Cpu = 4,
-    Memory = 5,
-    Disk = 6,
 }
 impl Target {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -3994,9 +3959,6 @@ impl Target {
             Self::Safe => "SAFE",
             Self::Warn => "WARN",
             Self::Dang => "DANG",
-            Self::Cpu => "CPU",
-            Self::Memory => "MEMORY",
-            Self::Disk => "DISK",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -4006,9 +3968,6 @@ impl Target {
             "SAFE" => Some(Self::Safe),
             "WARN" => Some(Self::Warn),
             "DANG" => Some(Self::Dang),
-            "CPU" => Some(Self::Cpu),
-            "MEMORY" => Some(Self::Memory),
-            "DISK" => Some(Self::Disk),
             _ => None,
         }
     }
