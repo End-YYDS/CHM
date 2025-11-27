@@ -21,6 +21,17 @@ message PcMetrics {
   double cpu = 1;
   double memory = 2;
   double disk = 3;
+  InfoStatus cpu_status = 4;
+  InfoStatus memory_status = 5;
+  InfoStatus disk_status = 6;
+}
+
+enum InfoStatus {
+  INFO_STATUS_UNSPECIFIED = 0;
+  INFO_STATUS_SAFE = 1;
+  INFO_STATUS_WARN = 2;
+  INFO_STATUS_DANG = 3;
+  INFO_STATUS_UNKNOWN = 4;
 }
 
 enum Target {

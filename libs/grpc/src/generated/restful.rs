@@ -21,11 +21,17 @@ pub struct ClusterSummary {
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct PcMetrics {
     #[prost(double, tag = "1")]
-    pub cpu:    f64,
+    pub cpu:           f64,
     #[prost(double, tag = "2")]
-    pub memory: f64,
+    pub memory:        f64,
     #[prost(double, tag = "3")]
-    pub disk:   f64,
+    pub disk:          f64,
+    #[prost(enumeration = "InfoStatus", tag = "4")]
+    pub cpu_status:    i32,
+    #[prost(enumeration = "InfoStatus", tag = "5")]
+    pub memory_status: i32,
+    #[prost(enumeration = "InfoStatus", tag = "6")]
+    pub disk_status:   i32,
 }
 /// ========== Login ==========
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -3938,6 +3944,36 @@ pub struct RestartSshRequest {
 pub struct RestartSshResponse {
     #[prost(message, optional, tag = "1")]
     pub result: ::core::option::Option<super::common::ActionResult>,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum InfoStatus {
+    Unspecified = 0,
+    Safe = 1,
+    Warn = 2,
+    Dang = 3,
+    Unknown = 4,
+}
+impl InfoStatus {
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "INFO_STATUS_UNSPECIFIED",
+            Self::Safe => "INFO_STATUS_SAFE",
+            Self::Warn => "INFO_STATUS_WARN",
+            Self::Dang => "INFO_STATUS_DANG",
+            Self::Unknown => "INFO_STATUS_UNKNOWN",
+        }
+    }
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "INFO_STATUS_UNSPECIFIED" => Some(Self::Unspecified),
+            "INFO_STATUS_SAFE" => Some(Self::Safe),
+            "INFO_STATUS_WARN" => Some(Self::Warn),
+            "INFO_STATUS_DANG" => Some(Self::Dang),
+            "INFO_STATUS_UNKNOWN" => Some(Self::Unknown),
+            _ => None,
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]

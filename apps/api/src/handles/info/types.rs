@@ -1,7 +1,7 @@
 use chm_cluster_utils::none_if_string_none;
 use chm_grpc::restful;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, convert::TryFrom};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, Default)]
 pub struct InfoCounts {
@@ -55,11 +55,30 @@ pub enum Target {
 #[derive(Debug, Serialize, Clone, Copy, Default)]
 pub struct PcMetrics {
     #[serde(rename = "Cpu")]
-    pub cpu:    f64,
+    pub cpu:         f64,
     #[serde(rename = "Memory")]
-    pub memory: f64,
+    pub memory:      f64,
     #[serde(rename = "Disk")]
-    pub disk:   f64,
+    pub disk:        f64,
+    #[serde(rename = "Cpu_status")]
+    pub cpu_status:  StatusLabel,
+    #[serde(rename = "Mem_status")]
+    pub mem_status:  StatusLabel,
+    #[serde(rename = "Disk_status")]
+    pub disk_status: StatusLabel,
+}
+
+#[derive(Debug, Serialize, Clone, Copy, Default)]
+pub enum StatusLabel {
+    #[serde(rename = "safe")]
+    Safe,
+    #[serde(rename = "warn")]
+    Warn,
+    #[serde(rename = "dang")]
+    Dang,
+    #[serde(rename = "unknown")]
+    #[default]
+    Unknown,
 }
 
 #[derive(Debug, Serialize)]
@@ -84,7 +103,26 @@ impl From<restful::ClusterSummary> for ClusterSummary {
 
 impl From<restful::PcMetrics> for PcMetrics {
     fn from(value: restful::PcMetrics) -> Self {
-        Self { cpu: value.cpu, memory: value.memory, disk: value.disk }
+        fn convert_status(raw: i32) -> StatusLabel {
+            let status =
+                restful::InfoStatus::try_from(raw).unwrap_or(restful::InfoStatus::Unknown);
+            match status {
+                restful::InfoStatus::Safe => StatusLabel::Safe,
+                restful::InfoStatus::Warn => StatusLabel::Warn,
+                restful::InfoStatus::Dang => StatusLabel::Dang,
+                restful::InfoStatus::Unknown | restful::InfoStatus::Unspecified => {
+                    StatusLabel::Unknown
+                }
+            }
+        }
+        Self {
+            cpu:         value.cpu,
+            memory:      value.memory,
+            disk:        value.disk,
+            cpu_status:  convert_status(value.cpu_status),
+            mem_status:  convert_status(value.memory_status),
+            disk_status: convert_status(value.disk_status),
+        }
     }
 }
 

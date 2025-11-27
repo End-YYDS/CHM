@@ -264,6 +264,14 @@ fn classify_snapshot(snapshot: &AgentSnapshot, threshold: &InfoThresholds) -> No
     *[cpu, memory, disk].iter().max().unwrap_or(&NodeStatus::Safe)
 }
 
+fn node_status_to_info_status(status: NodeStatus) -> restful::InfoStatus {
+    match status {
+        NodeStatus::Safe => restful::InfoStatus::Safe,
+        NodeStatus::Warn => restful::InfoStatus::Warn,
+        NodeStatus::Danger => restful::InfoStatus::Dang,
+    }
+}
+
 // TODO: 由RestFul Server 為Client 調用Controller RestFul gRPC介面
 #[derive(Debug)]
 pub struct ControllerRestfulServer {
@@ -586,7 +594,11 @@ impl RestfulService for ControllerRestfulServer {
 
         let mut pcs = HashMap::new();
         for snapshot in snapshots {
-            let status = classify_snapshot(&snapshot, &thresholds);
+            let cpu_status = classify_metric(snapshot.cpu, &thresholds.cpu);
+            let memory_status = classify_metric(snapshot.mem, &thresholds.memory);
+            let disk_status = classify_metric(snapshot.disk, &thresholds.disk);
+            let status =
+                *[cpu_status, memory_status, disk_status].iter().max().unwrap_or(&NodeStatus::Safe);
             if let Some(expected) = status_filter {
                 if status != expected {
                     continue;
@@ -595,9 +607,12 @@ impl RestfulService for ControllerRestfulServer {
             pcs.insert(
                 snapshot.uuid.clone(),
                 PcMetrics {
-                    cpu:    (snapshot.cpu * 100.0).round() / 100.0,
-                    memory: (snapshot.mem * 100.0).round() / 100.0,
-                    disk:   (snapshot.disk * 100.0).round() / 100.0,
+                    cpu:           (snapshot.cpu * 100.0).round() / 100.0,
+                    memory:        (snapshot.mem * 100.0).round() / 100.0,
+                    disk:          (snapshot.disk * 100.0).round() / 100.0,
+                    cpu_status:    node_status_to_info_status(cpu_status) as i32,
+                    memory_status: node_status_to_info_status(memory_status) as i32,
+                    disk_status:   node_status_to_info_status(disk_status) as i32,
                 },
             );
         }
