@@ -96,7 +96,7 @@ async fn installed(
         .map(|(uuid, info)| (uuid, convert_common_info(info)))
         .collect::<HashMap<_, _>>();
     let length = usize::try_from(resp.length).unwrap_or(pcs_map.len());
-    Ok(web::Json(stalledResponse { pcs: Pcs { uuids: pcs_map }, length }))
+    Ok(web::Json(stalledResponse { pcs: Pcs::Installed { uuids: pcs_map }, length }))
 }
 
 #[get("/noinstall")]
@@ -113,10 +113,10 @@ async fn noinstall(
     let pcs_map = resp
         .pcs
         .into_iter()
-        .map(|(uuid, info)| (uuid, convert_common_info(info)))
+        .map(|(uuid, info)| (uuid, info.hostname))
         .collect::<HashMap<_, _>>();
     let length = usize::try_from(resp.length).unwrap_or(pcs_map.len());
-    Ok(web::Json(stalledResponse { pcs: Pcs { uuids: pcs_map }, length }))
+    Ok(web::Json(stalledResponse { pcs: Pcs::NotInstalled { uuids: pcs_map }, length }))
 }
 
 #[post("/install")]

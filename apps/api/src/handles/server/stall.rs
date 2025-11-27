@@ -18,9 +18,10 @@ pub struct stalled_request {
 }
 
 #[derive(Debug, Serialize)]
-pub struct Pcs {
-    #[serde(flatten)]
-    pub uuids: HashMap<String, CommonInfo>,
+#[serde(untagged)]
+pub enum Pcs {
+    Installed { #[serde(flatten)] uuids: HashMap<String, CommonInfo> },
+    NotInstalled { #[serde(flatten)] uuids: HashMap<String, String> },
 }
 
 #[derive(Debug, Serialize)]
