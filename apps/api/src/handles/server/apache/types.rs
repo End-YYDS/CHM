@@ -1,7 +1,4 @@
-use crate::{
-    commons::{CommonInfo, Status},
-    handles::server::apache::logs::Logs,
-};
+use crate::{commons::CommonInfo, handles::server::apache::logs::Logs};
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]

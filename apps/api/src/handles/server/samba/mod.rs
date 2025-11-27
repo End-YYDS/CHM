@@ -31,6 +31,7 @@ fn generate_test_samba_response() -> SambaResponse {
             status:   Status::Active,
             cpu:      10.5,
             memory:   2048.0,
+            ip:       None,
         },
         connections: 15,
         shares:      vec![

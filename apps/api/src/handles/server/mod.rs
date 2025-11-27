@@ -1,8 +1,9 @@
 use actix_web::{get, post, web};
-use std::collections::HashMap;
+use chm_grpc::{common, restful};
+use std::{collections::HashMap, convert::TryFrom};
 
 use crate::{
-    commons::{CommonInfo, ResponseResult, ResponseType, Status},
+    commons::{translate::AppError, CommonInfo, ResponseResult, ResponseType, Status},
     handles::server::{
         apache::apache_scope,
         bind::bind_scope,
@@ -16,6 +17,7 @@ use crate::{
         ssh::ssh_scope,
         stall::{stall_request, stalledResponse, stalled_request, Pcs},
     },
+    AppState, RestfulResult,
 };
 
 mod apache;
@@ -47,47 +49,91 @@ pub fn server_scope() -> actix_web::Scope {
         .service(install)
 }
 
-#[get("/installed")]
-async fn installed(data: web::Json<stalled_request>) -> web::Json<stalledResponse> {
-    let server_name = &data.server;
-    // Example test data
-    let mut data: HashMap<String, CommonInfo> = HashMap::new();
-    let test = CommonInfo {
-        hostname: format!("{server_name}-install-host"),
-        status:   Status::Active,
-        cpu:      0.0,
-        memory:   0.0,
+#[allow(clippy::result_large_err)]
+pub(crate) fn validate_server_name(raw: &str) -> RestfulResult<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::BadRequest("Server 名稱不可為空".into()));
+    }
+    Ok(trimmed.to_string())
+}
+
+pub(crate) fn convert_common_info(info: common::CommonInfo) -> CommonInfo {
+    let status = match common::Status::try_from(info.status).unwrap_or(common::Status::Unspecified)
+    {
+        common::Status::Active => Status::Active,
+        common::Status::Stopped => Status::Stopped,
+        common::Status::Uninstalled => Status::Uninstalled,
+        _ => Status::Stopped,
     };
-    data.insert(String::from("server_name"), test);
-    let pcs = Pcs { uuids: data };
-    let length = pcs.uuids.len();
-    let response = stalledResponse { pcs, length };
-    web::Json(response)
+    let ip = if info.ip.trim().is_empty() { None } else { Some(info.ip) };
+    CommonInfo { hostname: info.hostname, status, cpu: info.cpu, memory: info.memory, ip }
+}
+
+pub(crate) fn convert_action_result(result: common::ActionResult) -> ResponseResult {
+    let r#type = match result.r#type() {
+        common::action_result::Type::Ok => ResponseType::Ok,
+        common::action_result::Type::Err => ResponseType::Err,
+        common::action_result::Type::Unspecified => ResponseType::Unspecified,
+    };
+    ResponseResult { r#type, message: result.message }
+}
+
+#[get("/installed")]
+async fn installed(
+    app_state: web::Data<AppState>,
+    web::Json(payload): web::Json<stalled_request>,
+) -> RestfulResult<web::Json<stalledResponse>> {
+    let server = validate_server_name(&payload.server)?;
+    let mut client = app_state.gclient.clone();
+    let resp = client
+        .get_server_installed_pcs(restful::GetServerInstalledPcsRequest { server })
+        .await?
+        .into_inner();
+    let pcs_map = resp
+        .pcs
+        .into_iter()
+        .map(|(uuid, info)| (uuid, convert_common_info(info)))
+        .collect::<HashMap<_, _>>();
+    let length = usize::try_from(resp.length).unwrap_or(pcs_map.len());
+    Ok(web::Json(stalledResponse { pcs: Pcs::Installed { uuids: pcs_map }, length }))
 }
 
 #[get("/noinstall")]
-async fn noinstall(data: web::Json<stalled_request>) -> web::Json<stalledResponse> {
-    let server_name = &data.server;
-    let test = CommonInfo {
-        hostname: format!("{server_name}-noinstall-host"),
-        status:   Status::Stopped,
-        cpu:      0.0,
-        memory:   0.0,
-    };
-    let mut data = HashMap::new();
-    data.insert(String::from("server_name"), test);
-    // Example test data
-    let pcs = Pcs { uuids: data };
-    let length = pcs.uuids.len();
-    let response = stalledResponse { pcs, length };
-    web::Json(response)
+async fn noinstall(
+    app_state: web::Data<AppState>,
+    web::Json(payload): web::Json<stalled_request>,
+) -> RestfulResult<web::Json<stalledResponse>> {
+    let server = validate_server_name(&payload.server)?;
+    let mut client = app_state.gclient.clone();
+    let resp = client
+        .get_server_not_installed_pcs(restful::GetServerNotInstalledPcsRequest { server })
+        .await?
+        .into_inner();
+    let pcs_map =
+        resp.pcs.into_iter().map(|(uuid, info)| (uuid, info.hostname)).collect::<HashMap<_, _>>();
+    let length = usize::try_from(resp.length).unwrap_or(pcs_map.len());
+    Ok(web::Json(stalledResponse { pcs: Pcs::NotInstalled { uuids: pcs_map }, length }))
 }
 
 #[post("/install")]
-async fn install(data: web::Json<stall_request>) -> web::Json<ResponseResult> {
-    println!("{data:#?}");
-    web::Json(ResponseResult {
-        r#type:  ResponseType::Ok,
-        message: "install successful".to_string(),
-    })
+async fn install(
+    app_state: web::Data<AppState>,
+    web::Json(payload): web::Json<stall_request>,
+) -> RestfulResult<web::Json<ResponseResult>> {
+    let server = validate_server_name(&payload.server)?;
+    if payload.uuids.is_empty() {
+        return Err(AppError::BadRequest("至少需要一個目標 UUID".into()));
+    }
+    let mut client = app_state.gclient.clone();
+    let req = restful::InstallServerRequest {
+        server,
+        uuids: payload.uuids.iter().map(|u| u.trim().to_string()).collect(),
+    };
+    let resp = client.install_server(req).await?.into_inner();
+    let result = resp
+        .result
+        .map(convert_action_result)
+        .unwrap_or(ResponseResult { r#type: ResponseType::Ok, message: String::new() });
+    Ok(web::Json(result))
 }

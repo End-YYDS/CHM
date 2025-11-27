@@ -30,6 +30,7 @@ fn generate_test_nginx_response() -> NginxResponse {
             status:   Status::Active,
             cpu:      1.5,
             memory:   256.0,
+            ip:       None,
         },
         connections: Connections { active: 100, accepted: 5000, handled: 5000, requests: 15000 },
         logs:        Logs {

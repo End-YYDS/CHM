@@ -20,6 +20,9 @@ pub struct Date {
     /// Time
     #[prost(message, optional, tag = "4")]
     pub time:  ::core::option::Option<date::Time>,
+    /// Day of month
+    #[prost(uint64, tag = "5")]
+    pub day:   u64,
 }
 /// Nested message and enum types in `Date`.
 pub mod date {
@@ -89,6 +92,9 @@ pub struct CommonInfo {
     /// Memory usage
     #[prost(double, tag = "4")]
     pub memory:   f64,
+    /// public ip
+    #[prost(string, tag = "5")]
+    pub ip:       ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ErrorLog {
@@ -254,6 +260,8 @@ pub enum Status {
     Active = 1,
     /// stopped
     Stopped = 2,
+    /// not installed
+    Uninstalled = 3,
 }
 impl Status {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -266,6 +274,7 @@ impl Status {
             Self::Unspecified => "STATUS_UNSPECIFIED",
             Self::Active => "ACTIVE",
             Self::Stopped => "STOPPED",
+            Self::Uninstalled => "UNINSTALLED",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.

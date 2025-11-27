@@ -20,11 +20,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let stem = path.file_stem().and_then(|s| s.to_str()).expect("檔名一定要是 valid UTF-8");
         let feature_client = format!("CARGO_FEATURE_{}_CLIENT", stem.to_uppercase());
         let feature_server = format!("CARGO_FEATURE_{}_SERVER", stem.to_uppercase());
-        if env::var(&feature_client).is_err() && env::var(&feature_server).is_err() {
+        let need_client = env::var(&feature_client).is_ok();
+        let need_server = env::var(&feature_server).is_ok();
+        if !need_client && !need_server {
             continue;
         }
-        let want_client = env::var(&feature_client).is_ok();
-        let want_server = env::var(&feature_server).is_ok();
         let generated_rs = out_dir.join(format!("{stem}.rs"));
         if generated_rs.exists() {
             let proto_meta = fs::metadata(&path)?.modified()?;
@@ -38,8 +38,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .out_dir(&out_dir)
             .client_mod_attribute(stem, format!("#[cfg(feature = \"{stem}-client\")]"))
             .server_mod_attribute(stem, format!("#[cfg(feature = \"{stem}-server\")]"))
-            .build_client(want_client)
-            .build_server(want_server)
+            .build_client(true)
+            .build_server(true)
             .compile_protos(&[&path], &[&proto_root, &include_path])?;
     }
     let mut mod_rs = String::new();

@@ -7,8 +7,11 @@ use chm_grpc::{
     agent::{
         self, command_response, AgentCommand, CommandRequest, GetInfoRequest as AgentGetInfoRequest,
     },
-    common::{ResponseResult, ResponseType},
-    restful::{restful_service_server::RestfulService, *},
+    common::{
+        self, action_result, ActionResult, CommonInfo, Date, ErrorLog, LogLevel, Month,
+        ResponseResult, ResponseType, Status as CommonStatus, Week,
+    },
+    restful::{self, restful_service_server::RestfulService, *},
     tonic,
     tonic::{Request, Response, Status},
     tonic_health::{
@@ -21,12 +24,13 @@ use futures::future::join_all;
 use serde_json::json;
 use std::{
     collections::{HashMap, HashSet},
+    convert::TryFrom,
     net::SocketAddr,
     path::PathBuf,
     sync::Arc,
 };
 use tokio::{sync::Semaphore, task::JoinSet};
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 
 #[derive(Debug, Clone)]
 struct AgentSnapshot {
@@ -133,6 +137,114 @@ impl ControllerRestfulServer {
 
         Ok(snapshots)
     }
+
+    async fn collect_server_hosts(
+        &self,
+        server: &str,
+        command: AgentCommand,
+    ) -> Result<HashMap<String, CommonInfo>, Status> {
+        let descriptors = Self::agent_descriptors(None);
+        if descriptors.is_empty() {
+            return Ok(HashMap::new());
+        }
+
+        let concurrency = GlobalConfig::with(|cfg| cfg.extend.concurrency);
+        let permits = if concurrency == 0 { 1 } else { concurrency };
+        let semaphore = Arc::new(Semaphore::new(permits));
+        let mut set = JoinSet::new();
+
+        for descriptor in descriptors {
+            let clients = self.grpc_clients.clone();
+            let semaphore = Arc::clone(&semaphore);
+            let server_name = server.to_string();
+            let uuid = descriptor.uuid.to_string();
+            set.spawn(async move {
+                let permit = match semaphore.acquire_owned().await {
+                    Ok(p) => p,
+                    Err(_) => return Err((uuid.clone(), "semaphore closed".to_string())),
+                };
+                let argument_json = json!({ "Server": server_name }).to_string();
+                let response = clients
+                    .with_agent_uuid_handle(&uuid, move |agent| {
+                        let argument = Some(argument_json.clone());
+                        async move {
+                            let mut client = agent.get_m_client();
+                            let resp = client
+                                .execute_command(CommandRequest {
+                                    command: command as i32,
+                                    argument,
+                                })
+                                .await?;
+                            Ok(resp.into_inner())
+                        }
+                    })
+                    .await;
+                drop(permit);
+
+                match response {
+                    Ok(payload) => match payload.payload {
+                        Some(command_response::Payload::ServerHostInfo(info)) => {
+                            Ok(Some((uuid, convert_server_host_info(info))))
+                        }
+                        Some(command_response::Payload::ReturnInfo(info)) => {
+                            debug!(
+                                %uuid,
+                                server = server_name,
+                                status = info.r#type,
+                                message = info.message,
+                                "server host skipped"
+                            );
+                            Ok(None)
+                        }
+                        other => {
+                            warn!(%uuid, "unexpected payload for server query: {:?}", other);
+                            Ok(None)
+                        }
+                    },
+                    Err(err) => Err((uuid, err.to_string())),
+                }
+            });
+        }
+
+        let mut pcs = HashMap::new();
+        while let Some(join_res) = set.join_next().await {
+            match join_res {
+                Ok(Ok(Some((uuid, info)))) => {
+                    pcs.insert(uuid, info);
+                }
+                Ok(Ok(None)) => {}
+                Ok(Err((uuid, message))) => {
+                    warn!(%uuid, "server host query failed: {message}");
+                }
+                Err(join_err) => error!("Join error while collecting server hosts: {join_err}"),
+            }
+        }
+
+        Ok(pcs)
+    }
+
+    async fn execute_agent_command(
+        &self,
+        uuid: &str,
+        command: AgentCommand,
+        argument: Option<String>,
+    ) -> Result<agent::CommandResponse, Status> {
+        let uuid_owned = uuid.to_string();
+        let argument_owned = argument.clone();
+        self.grpc_clients
+            .with_agent_uuid_handle(&uuid_owned, move |agent| {
+                let argument = argument_owned.clone();
+                async move {
+                    let mut client = agent.get_m_client();
+                    let resp = client
+                        .execute_command(CommandRequest { command: command as i32, argument })
+                        .await?;
+                    Ok(resp.into_inner())
+                }
+            })
+            .await
+            .map_err(|e| Status::internal(e.to_string()))
+    }
 }
 
 fn classify_metric(value: f64, threshold: &MetricThreshold) -> NodeStatus {
@@ -157,6 +269,213 @@ fn classify_snapshot(snapshot: &AgentSnapshot, threshold: &InfoThresholds) -> No
 pub struct ControllerRestfulServer {
     pub grpc_clients: Arc<GrpcClients>,
     pub config:       (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
+}
+
+#[allow(clippy::result_large_err)]
+fn parse_agent_uuid_input(raw: &str) -> Result<(Uuid, String), Status> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err(Status::invalid_argument("必須提供目標主機的 UUID"));
+    }
+    let parsed =
+        Uuid::parse_str(trimmed).map_err(|_| Status::invalid_argument("UUID 格式不正確"))?;
+    Ok((parsed, trimmed.to_string()))
+}
+
+#[allow(clippy::result_large_err)]
+fn parse_apache_action_uuid(uuid: &str, action: &str) -> Result<(Uuid, String), Status> {
+    if uuid.trim().is_empty() {
+        return Err(Status::invalid_argument(format!("{action} 需要提供 UUID")));
+    }
+    parse_agent_uuid_input(uuid)
+}
+
+#[allow(clippy::result_large_err)]
+fn parse_server_name_input(raw: &str) -> Result<String, Status> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err(Status::invalid_argument("Server 名稱不可為空"));
+    }
+    Ok(trimmed.to_string())
+}
+
+#[allow(clippy::result_large_err)]
+fn extract_apache_info(resp: agent::CommandResponse) -> Result<agent::ApacheInfo, Status> {
+    match resp.payload {
+        Some(command_response::Payload::ApacheInfo(info)) => Ok(info),
+        Some(command_response::Payload::ReturnInfo(info)) => Err(Status::internal(info.message)),
+        _ => Err(Status::internal("Agent 傳回未知資料格式")),
+    }
+}
+
+#[allow(clippy::result_large_err)]
+fn extract_return_info(resp: agent::CommandResponse) -> Result<agent::ReturnInfo, Status> {
+    match resp.payload {
+        Some(command_response::Payload::ReturnInfo(info)) => Ok(info),
+        _ => Err(Status::internal("Agent 傳回未知資料格式")),
+    }
+}
+
+fn convert_return_info_to_action_result(info: agent::ReturnInfo) -> ActionResult {
+    let action_type = match info.r#type.to_ascii_uppercase().as_str() {
+        "OK" => action_result::Type::Ok as i32,
+        "ERR" => action_result::Type::Err as i32,
+        _ => action_result::Type::Unspecified as i32,
+    };
+    ActionResult { r#type: action_type, message: info.message }
+}
+
+fn convert_server_host_info(info: agent::ServerHostInfo) -> CommonInfo {
+    let status_enum = agent::server_host_info::Status::try_from(info.status)
+        .unwrap_or(agent::server_host_info::Status::ServerStatusUnspecified);
+    let status = match status_enum {
+        agent::server_host_info::Status::Active => CommonStatus::Active as i32,
+        agent::server_host_info::Status::Stopped => CommonStatus::Stopped as i32,
+        agent::server_host_info::Status::Uninstalled => CommonStatus::Uninstalled as i32,
+        _ => CommonStatus::Unspecified as i32,
+    };
+
+    CommonInfo { hostname: info.hostname, status, cpu: info.cpu, memory: info.memory, ip: info.ip }
+}
+
+fn resolve_server_package(server: &str, info: &agent::SystemInfo) -> Result<&'static str, String> {
+    match server.to_ascii_lowercase().as_str() {
+        "apache" => {
+            let os = info.os_id.to_ascii_lowercase();
+            if is_redhat_family(&os) {
+                Ok("httpd")
+            } else if is_debian_family(&os) {
+                Ok("apache2")
+            } else {
+                Err(format!("不支援在 {os} 上安裝 Apache"))
+            }
+        }
+        _ => Err(format!("{server} 尚未支援安裝")),
+    }
+}
+
+fn is_redhat_family(os: &str) -> bool {
+    matches!(
+        os,
+        "centos" | "rocky" | "rhel" | "almalinux" | "scientific" | "oracle" | "fedora" | "redhat"
+    )
+}
+
+fn is_debian_family(os: &str) -> bool {
+    matches!(os, "debian" | "ubuntu" | "kali" | "linuxmint" | "raspbian" | "elementary" | "pop")
+}
+
+#[allow(clippy::result_large_err)]
+fn convert_agent_apache_info(info: agent::ApacheInfo) -> Result<GetApacheResponse, Status> {
+    let apache_status =
+        agent::ApacheStatus::try_from(info.status).unwrap_or(agent::ApacheStatus::Unspecified);
+    let status = match apache_status {
+        agent::ApacheStatus::Active => CommonStatus::Active as i32,
+        agent::ApacheStatus::Stopped => CommonStatus::Stopped as i32,
+        agent::ApacheStatus::Uninstalled => CommonStatus::Uninstalled as i32,
+        _ => CommonStatus::Unspecified as i32,
+    };
+
+    let logs = info.logs.map(convert_agent_logs);
+    let common_info = Some(CommonInfo {
+        hostname: info.hostname,
+        status,
+        cpu: info.cpu,
+        memory: info.memory,
+        ip: info.ip,
+    });
+
+    Ok(GetApacheResponse { common_info, connections: info.connections, logs })
+}
+
+fn convert_agent_logs(logs: agent::ApacheLogs) -> restful::ApacheLogs {
+    let error_log = logs.error_log.into_iter().map(convert_error_log).collect();
+    let access_log = logs.access_log.into_iter().map(convert_access_log).collect();
+    restful::ApacheLogs {
+        error_log,
+        errlength: logs.errlength,
+        access_log,
+        acclength: logs.acclength,
+    }
+}
+
+fn convert_error_log(entry: agent::ApacheErrorLog) -> ErrorLog {
+    let log_level =
+        agent::ApacheLogLevel::try_from(entry.level).unwrap_or(agent::ApacheLogLevel::Unspecified);
+    let level = match log_level {
+        agent::ApacheLogLevel::Debug => LogLevel::Debug as i32,
+        agent::ApacheLogLevel::Info => LogLevel::Info as i32,
+        agent::ApacheLogLevel::Notice => LogLevel::Notice as i32,
+        agent::ApacheLogLevel::Warn => LogLevel::Warn as i32,
+        agent::ApacheLogLevel::Error => LogLevel::Error as i32,
+        agent::ApacheLogLevel::Crit => LogLevel::Crit as i32,
+        agent::ApacheLogLevel::Alert => LogLevel::Alert as i32,
+        agent::ApacheLogLevel::Emerg => LogLevel::Emerg as i32,
+        _ => LogLevel::Unspecified as i32,
+    };
+
+    ErrorLog {
+        date: entry.date.and_then(convert_apache_date),
+        module: entry.module,
+        level,
+        pid: entry.pid,
+        client: entry.client,
+        message: entry.message,
+    }
+}
+
+fn convert_access_log(entry: agent::ApacheAccessLog) -> restful::ApacheAccessLog {
+    restful::ApacheAccessLog {
+        ip:         entry.ip,
+        date:       entry.date.and_then(convert_apache_date),
+        method:     entry.method,
+        url:        entry.url,
+        protocol:   entry.protocol,
+        status:     entry.status,
+        byte:       entry.byte,
+        referer:    entry.referer,
+        user_agent: entry.user_agent,
+    }
+}
+
+fn convert_apache_date(date: agent::ApacheDate) -> Option<Date> {
+    let year = u64::try_from(date.year).ok()?;
+    let month_enum =
+        agent::ApacheMonth::try_from(date.month).unwrap_or(agent::ApacheMonth::Unspecified);
+    let month = match month_enum {
+        agent::ApacheMonth::Jan => Month::Jan as i32,
+        agent::ApacheMonth::Feb => Month::Feb as i32,
+        agent::ApacheMonth::Mar => Month::Mar as i32,
+        agent::ApacheMonth::Apr => Month::Apr as i32,
+        agent::ApacheMonth::May => Month::May as i32,
+        agent::ApacheMonth::Jun => Month::Jun as i32,
+        agent::ApacheMonth::Jul => Month::Jul as i32,
+        agent::ApacheMonth::Aug => Month::Aug as i32,
+        agent::ApacheMonth::Sep => Month::Sep as i32,
+        agent::ApacheMonth::Oct => Month::Oct as i32,
+        agent::ApacheMonth::Nov => Month::Nov as i32,
+        agent::ApacheMonth::Dec => Month::Dec as i32,
+        _ => Month::Unspecified as i32,
+    };
+
+    let week_enum =
+        agent::ApacheWeek::try_from(date.week).unwrap_or(agent::ApacheWeek::Unspecified);
+    let week = match week_enum {
+        agent::ApacheWeek::Mon => Week::Mon as i32,
+        agent::ApacheWeek::Tue => Week::Tue as i32,
+        agent::ApacheWeek::Wed => Week::Wed as i32,
+        agent::ApacheWeek::Thu => Week::Thu as i32,
+        agent::ApacheWeek::Fri => Week::Fri as i32,
+        agent::ApacheWeek::Sat => Week::Sat as i32,
+        agent::ApacheWeek::Sun => Week::Sun as i32,
+        _ => Week::Unspecified as i32,
+    };
+
+    let time =
+        date.time.map(|t| common::date::Time { hour: u64::from(t.hour), min: u64::from(t.min) });
+    let day = u64::try_from(date.day).ok().unwrap_or(0);
+
+    Some(Date { year, month, week, time, day })
 }
 
 #[tonic::async_trait]
@@ -2356,28 +2675,76 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetApacheRequest>,
     ) -> Result<Response<GetApacheResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let (parsed_uuid, uuid_str) = parse_agent_uuid_input(&req.uuid)?;
+        if !Self::agent_exists(&parsed_uuid) {
+            return Err(Status::not_found("指定的 Agent 不存在"));
+        }
+
+        let response =
+            self.execute_agent_command(&uuid_str, AgentCommand::GetServerApache, None).await?;
+        let info = extract_apache_info(response)?;
+        let converted = convert_agent_apache_info(info)?;
+        Ok(Response::new(converted))
     }
 
     async fn start_apache(
         &self,
         request: Request<StartApacheRequest>,
     ) -> Result<Response<StartApacheResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let inner = req
+            .inner
+            .ok_or_else(|| Status::invalid_argument("start_apache 需要提供 inner 內容"))?;
+        let (parsed_uuid, uuid_str) = parse_apache_action_uuid(&inner.uuid, "start_apache")?;
+        if !Self::agent_exists(&parsed_uuid) {
+            return Err(Status::not_found("指定的 Agent 不存在"));
+        }
+
+        let response =
+            self.execute_agent_command(&uuid_str, AgentCommand::ServerApacheStart, None).await?;
+        let info = extract_return_info(response)?;
+        let action_result = convert_return_info_to_action_result(info);
+        Ok(Response::new(StartApacheResponse { result: Some(action_result) }))
     }
 
     async fn stop_apache(
         &self,
         request: Request<StopApacheRequest>,
     ) -> Result<Response<StopApacheResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let inner =
+            req.inner.ok_or_else(|| Status::invalid_argument("stop_apache 需要提供 inner 內容"))?;
+        let (parsed_uuid, uuid_str) = parse_apache_action_uuid(&inner.uuid, "stop_apache")?;
+        if !Self::agent_exists(&parsed_uuid) {
+            return Err(Status::not_found("指定的 Agent 不存在"));
+        }
+
+        let response =
+            self.execute_agent_command(&uuid_str, AgentCommand::ServerApacheStop, None).await?;
+        let info = extract_return_info(response)?;
+        let action_result = convert_return_info_to_action_result(info);
+        Ok(Response::new(StopApacheResponse { result: Some(action_result) }))
     }
 
     async fn restart_apache(
         &self,
         request: Request<RestartApacheRequest>,
     ) -> Result<Response<RestartApacheResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let inner = req
+            .inner
+            .ok_or_else(|| Status::invalid_argument("restart_apache 需要提供 inner 內容"))?;
+        let (parsed_uuid, uuid_str) = parse_apache_action_uuid(&inner.uuid, "restart_apache")?;
+        if !Self::agent_exists(&parsed_uuid) {
+            return Err(Status::not_found("指定的 Agent 不存在"));
+        }
+
+        let response =
+            self.execute_agent_command(&uuid_str, AgentCommand::ServerApacheRestart, None).await?;
+        let info = extract_return_info(response)?;
+        let action_result = convert_return_info_to_action_result(info);
+        Ok(Response::new(RestartApacheResponse { result: Some(action_result) }))
     }
 
     async fn get_bind_status(
@@ -2552,21 +2919,94 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetServerInstalledPcsRequest>,
     ) -> Result<Response<GetServerInstalledPcsResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let server = parse_server_name_input(&req.server)?;
+        let pcs = self.collect_server_hosts(&server, AgentCommand::GetServerInstall).await?;
+        let length = pcs.len() as u64;
+        Ok(Response::new(GetServerInstalledPcsResponse { pcs, length }))
     }
 
     async fn get_server_not_installed_pcs(
         &self,
         request: Request<GetServerNotInstalledPcsRequest>,
     ) -> Result<Response<GetServerNotInstalledPcsResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let server = parse_server_name_input(&req.server)?;
+        let pcs = self.collect_server_hosts(&server, AgentCommand::GetServerNoninstall).await?;
+        let length = pcs.len() as u64;
+        Ok(Response::new(GetServerNotInstalledPcsResponse { pcs, length }))
     }
 
     async fn install_server(
         &self,
         request: Request<InstallServerRequest>,
     ) -> Result<Response<InstallServerResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let server = parse_server_name_input(&req.server)?;
+        if req.uuids.is_empty() {
+            return Err(Status::invalid_argument("必須提供至少一個 UUID"));
+        }
+        let mut success = Vec::new();
+        let mut failures = Vec::new();
+
+        for raw_uuid in req.uuids {
+            let trimmed = raw_uuid.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+            let (parsed_uuid, uuid_str) = parse_agent_uuid_input(trimmed)?;
+            if !Self::agent_exists(&parsed_uuid) {
+                failures.push(format!("{trimmed}: 指定的 Agent 不存在"));
+                continue;
+            }
+
+            let sysinfo = match self.fetch_agent_system_info(&uuid_str).await {
+                Ok(info) => info,
+                Err(err) => {
+                    failures.push(format!("{uuid_str}: {err}"));
+                    continue;
+                }
+            };
+            let package = match resolve_server_package(&server, &sysinfo) {
+                Ok(pkg) => pkg.to_string(),
+                Err(err) => {
+                    failures.push(format!("{uuid_str}: {err}"));
+                    continue;
+                }
+            };
+
+            let payload = json!({ "Packages": [package] }).to_string();
+            match self
+                .run_software_action(&uuid_str, AgentCommand::SoftwareInstall, Some(payload))
+                .await
+            {
+                Ok(_) => {
+                    success.push(uuid_str);
+                }
+                Err(err) => {
+                    failures.push(format!("{uuid_str}: {err}"));
+                }
+            }
+        }
+
+        let result = if failures.is_empty() {
+            ActionResult {
+                r#type:  action_result::Type::Ok as i32,
+                message: format!("成功安裝 {server} 於 {} 台主機", success.len()),
+            }
+        } else {
+            ActionResult {
+                r#type:  action_result::Type::Err as i32,
+                message: format!(
+                    "{server} 安裝成功 {success_count} 台，失敗 {fail_count} 台: {detail}",
+                    success_count = success.len(),
+                    fail_count = failures.len(),
+                    detail = failures.join("; ")
+                ),
+            }
+        };
+
+        Ok(Response::new(InstallServerResponse { result: Some(result) }))
     }
 
     async fn get_squid(
@@ -2701,6 +3141,14 @@ impl ControllerRestfulServer {
                 }
             }
             _ => Err("Agent response missing ReturnInfo".into()),
+        }
+    }
+
+    async fn fetch_agent_system_info(&self, uuid: &str) -> Result<agent::SystemInfo, String> {
+        let response = self.exec_agent_command(uuid, AgentCommand::GetSystemInfo, None).await?;
+        match response.payload {
+            Some(command_response::Payload::SystemInfo(info)) => Ok(info),
+            _ => Err("Agent response missing system information".into()),
         }
     }
 

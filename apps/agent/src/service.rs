@@ -5,12 +5,15 @@ use crate::{
     execute_cron_delete, execute_cron_update, execute_firewall_add, execute_firewall_delete,
     execute_firewall_edit_policy, execute_firewall_edit_status, execute_netif_add,
     execute_netif_delete, execute_netif_toggle, execute_process_command, execute_reboot,
-    execute_route_add, execute_route_delete, execute_shutdown, execute_software_delete,
-    execute_software_install, file_pdir_download, file_pdir_upload, firewall_info_structured,
+    execute_route_add, execute_route_delete, execute_server_apache_action, execute_shutdown,
+    execute_software_delete, execute_software_install, file_pdir_download, file_pdir_upload,
+    firewall_info_structured, get_server_apache, get_server_install, get_server_noninstall,
     log_info_structured, log_query_structured, netif_info_structured, pdir_info_structured,
-    process_info_structured, route_info_structured, software_info_structured, CronJobs, DnsInfo,
-    FirewallStatus, Logs, NetworkInterfaces, PackageStatus, ParentDirectory, ProcessAction,
-    ProcessInfo, ReturnStatus, RouteTable, SizeUnit, SoftwareInventory, SystemInfo,
+    process_info_structured, route_info_structured, software_info_structured, ApacheAccessLogEntry,
+    ApacheAction, ApacheDate, ApacheErrorLogEntry, ApacheLogLevel, ApacheLogs, ApacheMonth,
+    ApacheServerInfo, ApacheStatus, ApacheWeek, CronJobs, DnsInfo, FirewallStatus, Logs,
+    NetworkInterfaces, PackageStatus, ParentDirectory, ProcessAction, ProcessInfo, ReturnStatus,
+    RouteTable, ServerHostInfo, ServerStatus, SizeUnit, SoftwareInventory, SystemInfo,
 };
 use chm_grpc::tonic::{self, Request, Response, Status};
 use tokio::sync::Semaphore;
@@ -61,6 +64,7 @@ impl AgentCommandExt for proto::AgentCommand {
             proto::AgentCommand::GetSoftware => "get_software",
             proto::AgentCommand::GetLog => "get_log",
             proto::AgentCommand::GetLogQuery => "get_log_query",
+            proto::AgentCommand::GetServerApache => "get_server_apache",
             proto::AgentCommand::SoftwareInstall => "software_install",
             proto::AgentCommand::SoftwareDelete => "software_delete",
             proto::AgentCommand::ProcessStart => "process_start",
@@ -86,6 +90,12 @@ impl AgentCommandExt for proto::AgentCommand {
             proto::AgentCommand::Reboot => "reboot",
             proto::AgentCommand::Shutdown => "shutdown",
             proto::AgentCommand::GetInfo => "get_info",
+            proto::AgentCommand::ServerApacheStart => "server_apache_start",
+            proto::AgentCommand::ServerApacheStop => "server_apache_stop",
+            proto::AgentCommand::ServerApacheRestart => "server_apache_restart",
+            proto::AgentCommand::GetServerInstall => "get_server_install",
+            proto::AgentCommand::GetServerNoninstall => "get_server_noninstall",
+            proto::AgentCommand::GetSystemInfo => "get_system_info",
         }
     }
 }
@@ -214,6 +224,77 @@ impl proto::AgentService for AgentGrpcService {
                 .map_err(|e| Status::internal(format!("task join error: {}", e)))?
                 .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(logs_to_proto(info)))
+            }
+            proto::AgentCommand::GetServerApache => {
+                let sys = self.system();
+                let info = tokio::task::spawn_blocking(move || get_server_apache(sys.as_ref()))
+                    .await
+                    .map_err(|e| Status::internal(format!("task join error: {}", e)))?
+                    .map_err(|e| Status::internal(e.to_string()))?;
+                Ok(Response::new(apache_info_to_proto(info)))
+            }
+            proto::AgentCommand::ServerApacheStart
+            | proto::AgentCommand::ServerApacheStop
+            | proto::AgentCommand::ServerApacheRestart => {
+                let sys = self.system();
+                let action = match command_enum {
+                    proto::AgentCommand::ServerApacheStart => ApacheAction::Start,
+                    proto::AgentCommand::ServerApacheStop => ApacheAction::Stop,
+                    proto::AgentCommand::ServerApacheRestart => ApacheAction::Restart,
+                    _ => unreachable!("only apache actions reach this branch"),
+                };
+                let result = tokio::task::spawn_blocking(move || {
+                    execute_server_apache_action(action, sys.as_ref())
+                })
+                .await
+                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+
+                let response = match result {
+                    Ok(message) => build_return_info(ReturnStatus::Ok, message),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
+                };
+                Ok(Response::new(response))
+            }
+            proto::AgentCommand::GetServerInstall => {
+                let argument = argument.ok_or_else(|| {
+                    Status::invalid_argument("get_server_install requires an argument")
+                })?;
+                let argument_owned = argument.to_string();
+                let sys = self.system();
+                let result = tokio::task::spawn_blocking(move || {
+                    get_server_install(&argument_owned, sys.as_ref())
+                })
+                .await
+                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+
+                let response = match result {
+                    Ok(info) => server_host_info_to_proto(info),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
+                };
+                Ok(Response::new(response))
+            }
+            proto::AgentCommand::GetServerNoninstall => {
+                let argument = argument.ok_or_else(|| {
+                    Status::invalid_argument("get_server_noninstall requires an argument")
+                })?;
+                let argument_owned = argument.to_string();
+                let sys = self.system();
+                let result = tokio::task::spawn_blocking(move || {
+                    get_server_noninstall(&argument_owned, sys.as_ref())
+                })
+                .await
+                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+
+                let response = match result {
+                    Ok(info) => server_host_info_to_proto(info),
+                    Err(err) => build_return_info(ReturnStatus::Err, err),
+                };
+                Ok(Response::new(response))
+            }
+            proto::AgentCommand::GetSystemInfo => {
+                let sys = self.system();
+                let response = system_info_to_proto(sys.as_ref());
+                Ok(Response::new(response))
             }
             proto::AgentCommand::SoftwareInstall => {
                 let argument = argument.ok_or_else(|| {
@@ -814,6 +895,146 @@ fn logs_to_proto(info: Logs) -> proto::CommandResponse {
             length: info.length as u32,
         })),
     }
+}
+
+fn server_host_info_to_proto(info: ServerHostInfo) -> proto::CommandResponse {
+    let status = match info.status {
+        ServerStatus::Active => proto::server_host_info::Status::Active as i32,
+        ServerStatus::Stopped => proto::server_host_info::Status::Stopped as i32,
+    };
+
+    proto::CommandResponse {
+        payload: Some(proto::command_response::Payload::ServerHostInfo(proto::ServerHostInfo {
+            hostname: info.hostname,
+            status,
+            cpu: info.cpu,
+            memory: info.memory,
+            ip: info.ip,
+        })),
+    }
+}
+
+fn system_info_to_proto(sys: &SystemInfo) -> proto::CommandResponse {
+    proto::CommandResponse {
+        payload: Some(proto::command_response::Payload::SystemInfo(proto::SystemInfo {
+            os_id:      sys.os_id.clone(),
+            version_id: sys.version_id.clone(),
+        })),
+    }
+}
+
+fn apache_info_to_proto(info: ApacheServerInfo) -> proto::CommandResponse {
+    proto::CommandResponse {
+        payload: Some(proto::command_response::Payload::ApacheInfo(proto::ApacheInfo {
+            hostname:    info.hostname,
+            status:      apache_status_to_proto(info.status),
+            cpu:         info.cpu,
+            memory:      info.memory,
+            connections: info.connections,
+            ip:          info.ip,
+            logs:        Some(apache_logs_to_proto(info.logs)),
+        })),
+    }
+}
+
+fn apache_logs_to_proto(logs: ApacheLogs) -> proto::ApacheLogs {
+    let error_log = logs.error_log.into_iter().map(apache_error_log_to_proto).collect();
+    let access_log = logs.access_log.into_iter().map(apache_access_log_to_proto).collect();
+    proto::ApacheLogs {
+        error_log,
+        errlength: usize_to_u64(logs.errlength),
+        access_log,
+        acclength: usize_to_u64(logs.acclength),
+    }
+}
+
+fn apache_error_log_to_proto(entry: ApacheErrorLogEntry) -> proto::ApacheErrorLog {
+    proto::ApacheErrorLog {
+        date:    Some(apache_date_to_proto(entry.date)),
+        module:  entry.module,
+        level:   apache_log_level_to_proto(entry.level),
+        pid:     if entry.pid < 0 { 0 } else { entry.pid as u64 },
+        client:  entry.client,
+        message: entry.message,
+    }
+}
+
+fn apache_access_log_to_proto(entry: ApacheAccessLogEntry) -> proto::ApacheAccessLog {
+    proto::ApacheAccessLog {
+        ip:         entry.ip,
+        date:       Some(apache_date_to_proto(entry.date)),
+        method:     entry.method,
+        url:        entry.url,
+        protocol:   entry.protocol,
+        status:     entry.status,
+        byte:       entry.byte,
+        referer:    entry.referer,
+        user_agent: entry.user_agent,
+    }
+}
+
+fn apache_date_to_proto(date: ApacheDate) -> proto::ApacheDate {
+    proto::ApacheDate {
+        year:  date.year,
+        month: apache_month_to_proto(date.month),
+        day:   date.day,
+        week:  apache_week_to_proto(date.week),
+        time:  Some(proto::apache_date::Time { hour: date.time.hour, min: date.time.min }),
+    }
+}
+
+fn apache_status_to_proto(status: ApacheStatus) -> i32 {
+    match status {
+        ApacheStatus::Active => proto::ApacheStatus::Active as i32,
+        ApacheStatus::Stopped => proto::ApacheStatus::Stopped as i32,
+        ApacheStatus::Uninstalled => proto::ApacheStatus::Uninstalled as i32,
+    }
+}
+
+fn apache_log_level_to_proto(level: ApacheLogLevel) -> i32 {
+    match level {
+        ApacheLogLevel::Debug => proto::ApacheLogLevel::Debug as i32,
+        ApacheLogLevel::Info => proto::ApacheLogLevel::Info as i32,
+        ApacheLogLevel::Notice => proto::ApacheLogLevel::Notice as i32,
+        ApacheLogLevel::Warn => proto::ApacheLogLevel::Warn as i32,
+        ApacheLogLevel::Error => proto::ApacheLogLevel::Error as i32,
+        ApacheLogLevel::Crit => proto::ApacheLogLevel::Crit as i32,
+        ApacheLogLevel::Alert => proto::ApacheLogLevel::Alert as i32,
+        ApacheLogLevel::Emerg => proto::ApacheLogLevel::Emerg as i32,
+    }
+}
+
+fn apache_week_to_proto(week: ApacheWeek) -> i32 {
+    match week {
+        ApacheWeek::Mon => proto::ApacheWeek::Mon as i32,
+        ApacheWeek::Tue => proto::ApacheWeek::Tue as i32,
+        ApacheWeek::Wed => proto::ApacheWeek::Wed as i32,
+        ApacheWeek::Thu => proto::ApacheWeek::Thu as i32,
+        ApacheWeek::Fri => proto::ApacheWeek::Fri as i32,
+        ApacheWeek::Sat => proto::ApacheWeek::Sat as i32,
+        ApacheWeek::Sun => proto::ApacheWeek::Sun as i32,
+    }
+}
+
+fn apache_month_to_proto(month: ApacheMonth) -> i32 {
+    match month {
+        ApacheMonth::Jan => proto::ApacheMonth::Jan as i32,
+        ApacheMonth::Feb => proto::ApacheMonth::Feb as i32,
+        ApacheMonth::Mar => proto::ApacheMonth::Mar as i32,
+        ApacheMonth::Apr => proto::ApacheMonth::Apr as i32,
+        ApacheMonth::May => proto::ApacheMonth::May as i32,
+        ApacheMonth::Jun => proto::ApacheMonth::Jun as i32,
+        ApacheMonth::Jul => proto::ApacheMonth::Jul as i32,
+        ApacheMonth::Aug => proto::ApacheMonth::Aug as i32,
+        ApacheMonth::Sep => proto::ApacheMonth::Sep as i32,
+        ApacheMonth::Oct => proto::ApacheMonth::Oct as i32,
+        ApacheMonth::Nov => proto::ApacheMonth::Nov as i32,
+        ApacheMonth::Dec => proto::ApacheMonth::Dec as i32,
+    }
+}
+
+fn usize_to_u64(value: usize) -> u64 {
+    u64::try_from(value).unwrap_or(u64::MAX)
 }
 
 fn package_status_to_proto(status: PackageStatus) -> i32 {

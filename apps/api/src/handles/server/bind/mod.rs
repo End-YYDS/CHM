@@ -26,6 +26,7 @@ async fn bind_root(_data: web::Json<UuidRequest>) -> web::Json<BindResponse> {
             status:   Status::Active,
             cpu:      2.5,
             memory:   512.0,
+            ip:       None,
         },
         connections: 42,
         queries:     Queries { total: 1000, success: 950, nxdomain: 30, refused: 20 },
