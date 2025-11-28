@@ -1,14 +1,13 @@
 use crate::{
     auth::AuthUser,
     commons::{
-        error_logs::{Error_log, Level},
-        CommonInfo, Date, Month, ResponseResult, ResponseType, Status, Time, UuidRequest, Week,
+        CommonInfo, Date, Month, ResponseResult, ResponseType, Status, Time, UuidRequest, Week, error_logs::{Error_log, Level}
     },
-    handles::login::LoginRequest,
+    handles::{chm::mca::types::{RevokeRequest, Revoked, Valid, get_revokeds, get_valids}, login::LoginRequest},
 };
 use utoipa::OpenApi;
 
-// TODO: 將所有有陸游的都需要添加到paths和schemas中
+// TODO: 將所有有路由的都需要添加到paths和schemas中
 
 #[derive(OpenApi)]
 #[openapi(
@@ -18,6 +17,9 @@ use utoipa::OpenApi;
         crate::handles::chm::backup::post_backup_root,
         crate::handles::chm::backup::get_backup_root,
         crate::handles::chm::backup::post_reduction,
+        crate::handles::chm::mca::valid,
+        crate::handles::chm::mca::revoked,
+        crate::handles::chm::mca::revoke,
     ),
     components(
         schemas(
@@ -34,12 +36,18 @@ use utoipa::OpenApi;
             Status,
             CommonInfo,
             LoginRequest,
+            RevokeRequest,
+            Valid,
+            get_valids,
+            Revoked,
+            get_revokeds,
         )
     ),
     tags(
         (name = "Auth", description = "登入 / 身分驗證相關 API"),
-        (name = "System", description = "系統錯誤 / Log 相關 API"),
+        // (name = "System", description = "系統錯誤 / Log 相關 API"),
         (name = "Backup", description = "CHM 備份相關 API"),
+        (name = "MCA", description = "CHM 憑證相關 API"),
     )
 )]
 pub struct ApiDoc;

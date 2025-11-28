@@ -1,4 +1,5 @@
 #![allow(non_camel_case_types)]
+#![allow(dead_code)]
 use crate::{
     commons::{ResponseResult, ResponseType},
     handles::handles_scope,

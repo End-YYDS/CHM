@@ -18,9 +18,11 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct AllSchemas {
-    pub auth:   AuthSchemas,
-    pub common: CommonSchemas,
-    pub login:  LoginSchemas,
+    pub auth:       AuthSchemas,
+    pub common:     CommonSchemas,
+    pub login:      LoginSchemas,
+    pub chm_backup: ChmBackupSchemas,
+    pub chm_mca:    ChmMcaSchemas,
 }
 
 /// auth.rs相關的 JSON Schema
@@ -63,4 +65,15 @@ pub struct ChmBackupSchemas {
     pub get_backups_request:  GetBackupsRequest,
     pub get_backups_response: GetBackupsResponse,
     pub reduction_request:    ReductionRequest,
+}
+
+/// handles/chm/mca 相關的 JSON Schema
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
+pub struct ChmMcaSchemas {
+    pub revoke_request: crate::handles::chm::mca::types::RevokeRequest,
+    pub valid:          crate::handles::chm::mca::types::Valid,
+    pub get_valids:     crate::handles::chm::mca::types::get_valids,
+    pub revoked:        crate::handles::chm::mca::types::Revoked,
+    pub get_revokeds:   crate::handles::chm::mca::types::get_revokeds,
 }
