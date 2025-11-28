@@ -1,9 +1,14 @@
 use std::{net::SocketAddr, str::FromStr};
 
 use crate::{
-    AppState, RestfulResult, commons::{ResponseResult, translate::AppError}, handles::chm::pc_manager::types::{
-        DePatchVxlanid, DePutVxlanid, DeletePcGroupRequest, DeletePcRequest, DeletePcResponse, GetPcgroupResponseResult, PCManagerRequest, PatchPcgroupRequest, PcInformation, PostPcgroupRequest, PutPcgroupRequest, RebootPcResponse, ShutdownPcResponse, SpecificRequest, UuidsRequest
-    }
+    commons::{translate::AppError, ResponseResult},
+    handles::chm::pc_manager::types::{
+        DePatchVxlanid, DePutVxlanid, DeletePcGroupRequest, DeletePcRequest, DeletePcResponse,
+        GetPcgroupResponseResult, PCManagerRequest, PatchPcgroupRequest, PcInformation,
+        PostPcgroupRequest, PutPcgroupRequest, RebootPcResponse, ShutdownPcResponse,
+        SpecificRequest, UuidsRequest,
+    },
+    AppState, RestfulResult,
 };
 use actix_web::{delete, get, patch, post, put, web, Scope};
 use chm_grpc::restful::{
