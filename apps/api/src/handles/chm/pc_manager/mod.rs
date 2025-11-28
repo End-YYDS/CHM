@@ -1,13 +1,9 @@
 use std::{net::SocketAddr, str::FromStr};
 
 use crate::{
-    commons::{translate::AppError, ResponseResult},
-    handles::chm::pc_manager::types::{
-        DeletePcGroupRequest, DeletePcRequest, DeletePcResponse, GetPcgroupResponseResult,
-        PCManagerRequest, PatchPcgroupRequest, PcInformation, PostPcgroupRequest,
-        PutPcgroupRequest, RebootPcResponse, ShutdownPcResponse, SpecificRequest, UuidsRequest,
-    },
-    AppState, RestfulResult,
+    AppState, RestfulResult, commons::{ResponseResult, translate::AppError}, handles::chm::pc_manager::types::{
+        DePatchVxlanid, DePutVxlanid, DeletePcGroupRequest, DeletePcRequest, DeletePcResponse, GetPcgroupResponseResult, PCManagerRequest, PatchPcgroupRequest, PcInformation, PostPcgroupRequest, PutPcgroupRequest, RebootPcResponse, ShutdownPcResponse, SpecificRequest, UuidsRequest
+    }
 };
 use actix_web::{delete, get, patch, post, put, web, Scope};
 use chm_grpc::restful::{
@@ -21,11 +17,11 @@ pub mod types;
 pub fn pc_manager_scope() -> Scope {
     web::scope("/pc")
         .service(delete_pc)
-        .service(add)
-        .service(all)
-        .service(specific)
-        .service(reboot)
-        .service(shutdown)
+        .service(add_pc)
+        .service(get_all_pc)
+        .service(get_specific_pc)
+        .service(reboot_pc)
+        .service(shutdown_pc)
 }
 
 pub fn pcgroup_scope() -> Scope {
@@ -39,7 +35,12 @@ pub fn pcgroup_scope() -> Scope {
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(delete_pc, add, all, specific, reboot, shutdown, post_pcgroup, get_pcgroup, put_pcgroup, patch_pcgroup, delete_pcgroup),
+    paths(delete_pc, add_pc, get_all_pc, get_specific_pc, reboot_pc, shutdown_pc, post_pcgroup, get_pcgroup, put_pcgroup, patch_pcgroup, delete_pcgroup),
+    components(schemas(
+        DePutVxlanid,
+        DePatchVxlanid,
+
+    )),
     tags(
         (name = "PC Manager", description = "CHM PC 管理相關 API")
     )
@@ -60,7 +61,7 @@ pub struct PcManagerApiDoc;
     )
 )]
 #[post("/add")]
-async fn add(
+async fn add_pc(
     app_state: web::Data<AppState>,
     web::Json(data): web::Json<PCManagerRequest>,
 ) -> RestfulResult<web::Json<ResponseResult>> {
@@ -90,7 +91,7 @@ async fn add(
     path = "/chm/pc/all",
     tag = "PC Manager",
     responses(
-        (status = 200, description = "取得所有主機", body = ResponseResult),
+        (status = 200, description = "取得所有主機", body = PcInformation),
         (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
                 "Type": "Err",
                 "Message": "Internal Server Error"
@@ -98,7 +99,7 @@ async fn add(
     )
 )]
 #[get("/all")]
-async fn all(app_state: web::Data<AppState>) -> RestfulResult<web::Json<PcInformation>> {
+async fn get_all_pc(app_state: web::Data<AppState>) -> RestfulResult<web::Json<PcInformation>> {
     let mut client = app_state.gclient.clone();
     let resp = client
         .get_all_pcs(GetAllPcsRequest {})
@@ -125,7 +126,7 @@ async fn all(app_state: web::Data<AppState>) -> RestfulResult<web::Json<PcInform
     )
 )]
 #[get("/specific")]
-async fn specific(
+async fn get_specific_pc(
     app_state: web::Data<AppState>,
     web::Query(data): web::Query<SpecificRequest>,
 ) -> RestfulResult<web::Json<PcInformation>> {
@@ -179,7 +180,7 @@ async fn delete_pc(
     )
 )]
 #[post("/reboot")]
-async fn reboot(
+async fn reboot_pc(
     app_state: web::Data<AppState>,
     web::Json(data): web::Json<UuidsRequest>,
 ) -> RestfulResult<web::Json<RebootPcResponse>> {
@@ -204,7 +205,7 @@ async fn reboot(
     )
 )]
 #[post("/shutdown")]
-async fn shutdown(
+async fn shutdown_pc(
     app_state: web::Data<AppState>,
     web::Json(data): web::Json<UuidsRequest>,
 ) -> RestfulResult<web::Json<ShutdownPcResponse>> {
