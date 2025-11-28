@@ -1,33 +1,38 @@
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 pub mod error_logs;
 pub mod translate;
 
-#[derive(Debug, Deserialize)]
+/// 帶 UUID 的請求結構體
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct UuidRequest {
     #[serde(rename = "Uuid", alias = "Uuid", alias = "uuid")]
     pub uuid: String,
 }
 
-#[derive(Debug, Serialize)]
+/// 回應類型枚舉
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub enum ResponseType {
-    #[serde(rename = "Ok")]
     Ok,
-    #[serde(rename = "Err")]
     Err,
-    #[serde(rename = "Unspecified")]
     Unspecified,
 }
 
-#[derive(Debug, Serialize)]
+/// 回應結果結構體
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct ResponseResult {
-    #[serde(rename = "Type")]
     pub r#type:  ResponseType,
-    #[serde(rename = "Message")]
     pub message: String,
 }
 
-#[derive(Debug, Serialize)]
+/// 月份枚舉
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub enum Month {
     Jan,
     Feb,
@@ -43,7 +48,9 @@ pub enum Month {
     Dec,
 }
 
-#[derive(Debug, Serialize)]
+/// 星期枚舉
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub enum Week {
     Mon,
     Tue,
@@ -54,48 +61,42 @@ pub enum Week {
     Sun,
 }
 
-#[derive(Debug, Serialize)]
+/// 時間結構體
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct Time {
-    #[serde(rename = "Hour")]
     pub hour: i64,
-    #[serde(rename = "Min")]
     pub min:  i64,
 }
 
-#[derive(Debug, Serialize)]
+/// 日期结构体
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct Date {
-    #[serde(rename = "Year")]
     pub year:  i64,
-    #[serde(rename = "Month")]
     pub month: Month,
-    #[serde(rename = "Day")]
     pub day:   i64,
-    #[serde(rename = "Week")]
     pub week:  Week,
-    #[serde(rename = "Time")]
     pub time:  Time,
 }
 
-#[derive(Debug, Serialize)]
+/// 狀態枚舉
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub enum Status {
-    #[serde(rename = "active")]
     Active,
-    #[serde(rename = "stopped")]
     Stopped,
-    #[serde(rename = "uninstalled")]
     Uninstalled,
 }
 
-#[derive(Debug, Serialize)]
+/// 通用信息結構體
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct CommonInfo {
-    #[serde(rename = "Hostname")]
     pub hostname: String,
-    #[serde(rename = "Status")]
     pub status:   Status,
-    #[serde(rename = "Cpu")]
     pub cpu:      f64,
-    #[serde(rename = "Memory")]
     pub memory:   f64,
-    #[serde(rename = "Ip", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub ip:       Option<String>,
 }

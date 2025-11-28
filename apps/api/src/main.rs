@@ -2,19 +2,17 @@ use actix_cors::Cors;
 use actix_session::{
     config::{PersistentSession, TtlExtensionPolicy},
     storage::CookieSessionStore,
-    Session, SessionMiddleware,
+    SessionMiddleware,
 };
 use actix_web::{
-    body::MessageBody,
     cookie::{time::Duration as ac_Duration, Key, SameSite},
-    dev::{ServiceRequest, ServiceResponse},
     http::header,
-    middleware::{self, from_fn, Logger, Next},
-    web, App, Error, FromRequest, HttpServer,
+    middleware::Logger,
+    web, App, HttpServer,
 };
 use api_server::{
-    commons::{ResponseResult, ResponseType},
-    config, configure_app, ApiResult, AppState, CertInfo, GlobalConfig, ID, NEED_EXAMPLE,
+    config, configure_app, openapi::ApiDoc, ApiResult, AppState, CertInfo, GlobalConfig, ID,
+    NEED_EXAMPLE,
 };
 use argh::FromArgs;
 use chm_cert_utils::CertUtils;
@@ -38,6 +36,8 @@ use std::{
     sync::{atomic::Ordering::Relaxed, Arc},
     time::Duration,
 };
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 #[derive(Debug, FromArgs)]
 /// API 主程式參數
 pub struct Args {
@@ -102,54 +102,8 @@ async fn main() -> ApiResult<()> {
     builder.set_private_key_file(key_path, SslFiletype::PEM)?;
     builder.set_certificate_file(cert_path, SslFiletype::PEM)?;
     let key = Key::from(&secure_key_bytes);
-    fn is_public(req: &ServiceRequest) -> bool {
-        let path = req.path();
-        let m = req.method().as_str();
-        if m == "OPTIONS" {
-            return true;
-        }
-        matches!((m, path), ("POST", "/api/login"))
-    }
-    async fn auth_md(
-        req: ServiceRequest,
-        next: Next<impl MessageBody + 'static>,
-    ) -> Result<ServiceResponse<impl MessageBody>, Error> {
-        if is_public(&req) {
-            let res = next.call(req).await?;
-            return Ok(res.map_into_left_body());
-        }
 
-        let session = match Session::extract(req.request()).await {
-            Ok(s) => s,
-            Err(_) => {
-                let (r, _) = req.into_parts();
-                let resp = HttpResponse::Unauthorized().json(ResponseResult {
-                    r#type:  ResponseType::Err,
-                    message: "Session 取得失敗，請重新登入".to_string(),
-                });
-                let sr = ServiceResponse::new(r, resp.map_into_right_body());
-                return Ok(sr);
-            }
-        };
-
-        let logged_in = matches!(session.get::<String>("uid"), Ok(Some(_)))
-            || matches!(session.get::<i64>("uid"), Ok(Some(_)));
-
-        if !logged_in {
-            let (r, _) = req.into_parts();
-            let resp = HttpResponse::Unauthorized().json(ResponseResult {
-                r#type:  ResponseType::Err,
-                message: "驗證失敗，請重新登入".to_string(),
-            });
-            let sr = ServiceResponse::new(r, resp.map_into_right_body());
-            return Ok(sr);
-        }
-
-        let res = next.call(req).await?;
-        Ok(res.map_into_left_body())
-    }
     HttpServer::new(move || {
-        let auth_gate = from_fn(auth_md);
         let cors = Cors::default()
             .allowed_origin(&frontend_origin)
             .allowed_methods(vec!["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"])
@@ -168,18 +122,21 @@ async fn main() -> ApiResult<()> {
             .cookie_same_site(same_site)
             .session_lifecycle(lifecycle)
             .build();
-        App::new()
+        let app = App::new()
             .app_data(web::JsonConfig::default().error_handler(|err, _req| {
                 tracing::error!(?err, "JSON deserialization error");
                 actix_web::error::ErrorBadRequest(err)
             }))
             .app_data(Data::new(AppState { gclient: grpc_client.clone() }))
-            .wrap(middleware::NormalizePath::trim())
             .wrap(Logger::default())
             .wrap(cors)
-            .wrap(auth_gate)
             .wrap(session_mw)
-            .configure(configure_app)
+            .configure(configure_app);
+        #[cfg(debug_assertions)]
+        let app = app.service(
+            SwaggerUi::new("/docs/{_:.*}").url("/api-doc/openapi.json", ApiDoc::openapi()),
+        );
+        app
     })
     .bind_openssl(addr, builder)?
     .run()

@@ -1,11 +1,11 @@
 use crate::commons::{Date, Month, ResponseResult, ResponseType, Time, Week};
-use actix_web::{post, web, Scope};
+use actix_web::{get, post, web, Scope};
 
 mod types;
-use crate::handles::chm::backup::types::{
-    GetBackupsRequest, GetBackupsResponse, InnerGetBackupResponse, ReductionRequest,
+pub use types::{
+    BackupRequest, BackupResponse, GetBackupsRequest, GetBackupsResponse, InnerGetBackupResponse,
+    ReductionRequest,
 };
-use types::{BackupRequest, BackupResponse};
 // const BACKUP_DIR: &str = "/var/chm/backups"; // 依你環境調整
 //
 // // === Utils ===
@@ -81,7 +81,17 @@ use types::{BackupRequest, BackupResponse};
 //     }
 // }
 
-async fn _post_backup_root(data: web::Json<BackupRequest>) -> web::Json<BackupResponse> {
+#[utoipa::path(
+    post,
+    path = "/api/chm/backup",
+    tag = "Backup",
+    request_body = BackupRequest,
+    responses(
+        (status = 200, body = BackupResponse),
+    )
+)]
+#[post("")]
+async fn post_backup_root(data: web::Json<BackupRequest>) -> web::Json<BackupResponse> {
     println!("{data:#?}");
     let is_local = matches!(data.r#type, types::BackupLocation::Local);
     web::Json(BackupResponse {
@@ -94,7 +104,17 @@ async fn _post_backup_root(data: web::Json<BackupRequest>) -> web::Json<BackupRe
     })
 }
 
-async fn _get_backup_root(data: web::Json<GetBackupsRequest>) -> web::Json<GetBackupsResponse> {
+#[utoipa::path(
+    get,
+    path = "/api/chm/backup",
+    tag = "Backup",
+    request_body = GetBackupsRequest,
+    responses(
+        (status = 200, body = GetBackupsResponse),
+    )
+)]
+#[get("")]
+async fn get_backup_root(data: web::Json<GetBackupsRequest>) -> web::Json<GetBackupsResponse> {
     dbg!(data);
     let backups = vec![InnerGetBackupResponse {
         name:  "Test1".to_string(),
@@ -123,6 +143,15 @@ async fn _get_backup_root(data: web::Json<GetBackupsRequest>) -> web::Json<GetBa
 //     Ok(nf)
 // }
 
+#[utoipa::path(
+    post,
+    path = "/api/chm/backup/reduction",
+    tag = "Backup",
+    request_body = ReductionRequest,
+    responses(
+        (status = 200, body = ResponseResult),
+    )
+)]
 #[post("/reduction")]
 async fn post_reduction(data: web::Json<ReductionRequest>) -> web::Json<ResponseResult> {
     println!("{data:#?}");
@@ -133,11 +162,6 @@ async fn post_reduction(data: web::Json<ReductionRequest>) -> web::Json<Response
 }
 
 pub fn backup_scope() -> Scope {
-    web::scope("/backup")
-        .route("", web::post().to(_post_backup_root))
-        .route("/", web::post().to(_post_backup_root))
-        .route("", web::get().to(_get_backup_root))
-        .route("/", web::get().to(_get_backup_root))
-        .service(post_reduction)
+    web::scope("/backup").service(post_backup_root).service(get_backup_root).service(post_reduction)
     // .service(download_backup) // GET /api/chm/backup/{id}/file
 }

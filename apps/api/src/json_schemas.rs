@@ -1,0 +1,66 @@
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    auth::AuthUser,
+    commons::{
+        error_logs::{Error_log, Level},
+        CommonInfo, Date, Month, ResponseResult, ResponseType, Status, Time, UuidRequest, Week,
+    },
+    handles::{
+        chm::backup::{
+            BackupRequest, BackupResponse, GetBackupsRequest, GetBackupsResponse, ReductionRequest,
+        },
+        login::LoginRequest,
+    },
+};
+/// 所有的 JSON Schema 集合
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
+pub struct AllSchemas {
+    pub auth:   AuthSchemas,
+    pub common: CommonSchemas,
+    pub login:  LoginSchemas,
+}
+
+/// auth.rs相關的 JSON Schema
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
+pub struct AuthSchemas {
+    pub auth_user: AuthUser,
+}
+
+/// commons 相關的 JSON Schema
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
+pub struct CommonSchemas {
+    pub level:           Level,
+    pub error_log:       Error_log,
+    pub uuid_request:    UuidRequest,
+    pub response_type:   ResponseType,
+    pub response_result: ResponseResult,
+    pub month:           Month,
+    pub week:            Week,
+    pub time:            Time,
+    pub date:            Date,
+    pub status:          Status,
+    pub common_info:     CommonInfo,
+}
+
+/// handles/login 相關的 JSON Schema
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
+pub struct LoginSchemas {
+    pub login_request: LoginRequest,
+}
+
+/// handles/chm/backup 相關的 JSON Schema
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
+pub struct ChmBackupSchemas {
+    pub backup_request:       BackupRequest,
+    pub backup_response:      BackupResponse,
+    pub get_backups_request:  GetBackupsRequest,
+    pub get_backups_response: GetBackupsResponse,
+    pub reduction_request:    ReductionRequest,
+}

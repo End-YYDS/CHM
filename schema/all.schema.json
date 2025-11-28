@@ -1,0 +1,343 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AllSchemas",
+  "description": "所有的 JSON Schema 集合",
+  "type": "object",
+  "properties": {
+    "Auth": {
+      "$ref": "#/$defs/AuthUser"
+    },
+    "Common": {
+      "$ref": "#/$defs/CommonSchemas"
+    },
+    "Login": {
+      "$ref": "#/$defs/LoginSchemas"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "Auth",
+    "Common",
+    "Login"
+  ],
+  "$defs": {
+    "AuthUser": {
+      "description": "認證使用者資訊",
+      "type": "object",
+      "properties": {
+        "Role": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Uid": {
+          "type": "string"
+        },
+        "Username": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Uid"
+      ]
+    },
+    "CommonInfo": {
+      "description": "通用信息結構體",
+      "type": "object",
+      "properties": {
+        "Cpu": {
+          "type": "number",
+          "format": "double"
+        },
+        "Hostname": {
+          "type": "string"
+        },
+        "Ip": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Memory": {
+          "type": "number",
+          "format": "double"
+        },
+        "Status": {
+          "$ref": "#/$defs/Status"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Hostname",
+        "Status",
+        "Cpu",
+        "Memory"
+      ]
+    },
+    "CommonSchemas": {
+      "description": "commons 相關的 JSON Schema",
+      "type": "object",
+      "properties": {
+        "CommonInfo": {
+          "$ref": "#/$defs/CommonInfo"
+        },
+        "Date": {
+          "$ref": "#/$defs/Date"
+        },
+        "ErrorLog": {
+          "$ref": "#/$defs/Error_log"
+        },
+        "Level": {
+          "$ref": "#/$defs/Level"
+        },
+        "Month": {
+          "$ref": "#/$defs/Month"
+        },
+        "ResponseResult": {
+          "$ref": "#/$defs/ResponseResult"
+        },
+        "ResponseType": {
+          "$ref": "#/$defs/ResponseType"
+        },
+        "Status": {
+          "$ref": "#/$defs/Status"
+        },
+        "Time": {
+          "$ref": "#/$defs/Time"
+        },
+        "UuidRequest": {
+          "$ref": "#/$defs/UuidRequest"
+        },
+        "Week": {
+          "$ref": "#/$defs/Week"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Level",
+        "ErrorLog",
+        "UuidRequest",
+        "ResponseType",
+        "ResponseResult",
+        "Month",
+        "Week",
+        "Time",
+        "Date",
+        "Status",
+        "CommonInfo"
+      ]
+    },
+    "Date": {
+      "description": "日期结构体",
+      "type": "object",
+      "properties": {
+        "Day": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Month": {
+          "$ref": "#/$defs/Month"
+        },
+        "Time": {
+          "$ref": "#/$defs/Time"
+        },
+        "Week": {
+          "$ref": "#/$defs/Week"
+        },
+        "Year": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Year",
+        "Month",
+        "Day",
+        "Week",
+        "Time"
+      ]
+    },
+    "Error_log": {
+      "description": "錯誤日志结构体",
+      "type": "object",
+      "properties": {
+        "Client": {
+          "type": "string"
+        },
+        "Date": {
+          "$ref": "#/$defs/Date"
+        },
+        "Level": {
+          "$ref": "#/$defs/Level"
+        },
+        "Message": {
+          "type": "string"
+        },
+        "Module": {
+          "type": "string"
+        },
+        "Pid": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Date",
+        "Module",
+        "Level",
+        "Pid",
+        "Client",
+        "Message"
+      ]
+    },
+    "Level": {
+      "description": "日志等级",
+      "type": "string",
+      "enum": [
+        "debug",
+        "info",
+        "notice",
+        "warn",
+        "error",
+        "crit",
+        "alert",
+        "emerg"
+      ]
+    },
+    "LoginRequest": {
+      "description": "登入請求",
+      "type": "object",
+      "properties": {
+        "Password": {
+          "type": "string"
+        },
+        "Username": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Username",
+        "Password"
+      ]
+    },
+    "LoginSchemas": {
+      "description": "handles/login 相關的 JSON Schema",
+      "type": "object",
+      "properties": {
+        "LoginRequest": {
+          "$ref": "#/$defs/LoginRequest"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "LoginRequest"
+      ]
+    },
+    "Month": {
+      "description": "月份枚舉",
+      "type": "string",
+      "enum": [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+      ]
+    },
+    "ResponseResult": {
+      "description": "回應結果結構體",
+      "type": "object",
+      "properties": {
+        "Message": {
+          "type": "string"
+        },
+        "Type": {
+          "$ref": "#/$defs/ResponseType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Type",
+        "Message"
+      ]
+    },
+    "ResponseType": {
+      "description": "回應類型枚舉",
+      "type": "string",
+      "enum": [
+        "Ok",
+        "Err",
+        "Unspecified"
+      ]
+    },
+    "Status": {
+      "description": "狀態枚舉",
+      "type": "string",
+      "enum": [
+        "Active",
+        "Stopped",
+        "Uninstalled"
+      ]
+    },
+    "Time": {
+      "description": "時間結構體",
+      "type": "object",
+      "properties": {
+        "Hour": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Min": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Hour",
+        "Min"
+      ]
+    },
+    "UuidRequest": {
+      "description": "帶 UUID 的請求結構體",
+      "type": "object",
+      "properties": {
+        "Uuid": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Uuid"
+      ]
+    },
+    "Week": {
+      "description": "星期枚舉",
+      "type": "string",
+      "enum": [
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat",
+        "Sun"
+      ]
+    }
+  }
+}

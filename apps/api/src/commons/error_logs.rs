@@ -1,9 +1,13 @@
 use crate::commons::Date;
-use serde::Serialize;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
+/// 日志等级
 #[allow(non_camel_case_types)]
 #[allow(unused)]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub enum Level {
     debug,
     info,
@@ -15,8 +19,10 @@ pub enum Level {
     emerg,
 }
 
+/// 錯誤日志结构体
 #[allow(non_camel_case_types)]
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct Error_log {
     #[serde(rename = "Date")]
     pub date:    Date,
