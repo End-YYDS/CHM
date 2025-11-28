@@ -21,12 +21,17 @@ message PcMetrics {
   double cpu = 1;
   double memory = 2;
   double disk = 3;
+  InfoStatus cpu_status = 4;
+  InfoStatus memory_status = 5;
+  InfoStatus disk_status = 6;
 }
 
-enum Zone {
-  ZONE_UNSPECIFIED = 0;
-  INFO = 1;
-  CLUSTER = 2;
+enum InfoStatus {
+  INFO_STATUS_UNSPECIFIED = 0;
+  INFO_STATUS_SAFE = 1;
+  INFO_STATUS_WARN = 2;
+  INFO_STATUS_DANG = 3;
+  INFO_STATUS_UNKNOWN = 4;
 }
 
 enum Target {
@@ -34,9 +39,6 @@ enum Target {
   SAFE = 1;
   WARN = 2;
   DANG = 3;
-  CPU = 4;
-  MEMORY = 5;
-  DISK = 6;
 }
 
 // ========== Backup 專用型別 ==========
@@ -64,9 +66,8 @@ message GetAllInfoResponse {
 }
 
 message GetInfoRequest {
-  Zone zone = 1;
-  Target target = 2;
-  optional string uuid = 3;
+  Target target = 1;
+  optional string uuid = 2;
 }
 message GetInfoResponse {
   map<string, PcMetrics> pcs = 1;
@@ -529,13 +530,17 @@ message PutIpModeResponse {
 
 // =================== 設定警告數值 ===================
 
+message MetricSetting {
+  double warn = 1;
+  double dang = 2;
+}
+
 // GET /api/chm/setting/values
 message GetSettingValuesRequest {}
 message Values {
-  double cpu_usage = 1;
-  double disk_usage = 2;
-  double memory = 3;
-  double network = 4;
+  MetricSetting cpu_usage = 1;
+  MetricSetting disk_usage = 2;
+  MetricSetting memory = 3;
 }
 message GetSettingValuesResponse {
   Values values = 1;
@@ -543,10 +548,9 @@ message GetSettingValuesResponse {
 
 // PUT /api/chm/setting/values  (單一或整筆更新 -> 使用 optional 欄位)
 message PutSettingValuesRequest {
-  optional double cpu_usage = 1;
-  optional double disk_usage = 2;
-  optional double memory = 3;
-  optional double network = 4;
+  optional MetricSetting cpu_usage = 1;
+  optional MetricSetting disk_usage = 2;
+  optional MetricSetting memory = 3;
 }
 message PutSettingValuesResponse {
   enum ResultType {

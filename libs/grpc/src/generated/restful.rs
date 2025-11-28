@@ -21,11 +21,17 @@ pub struct ClusterSummary {
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct PcMetrics {
     #[prost(double, tag = "1")]
-    pub cpu:    f64,
+    pub cpu:           f64,
     #[prost(double, tag = "2")]
-    pub memory: f64,
+    pub memory:        f64,
     #[prost(double, tag = "3")]
-    pub disk:   f64,
+    pub disk:          f64,
+    #[prost(enumeration = "InfoStatus", tag = "4")]
+    pub cpu_status:    i32,
+    #[prost(enumeration = "InfoStatus", tag = "5")]
+    pub memory_status: i32,
+    #[prost(enumeration = "InfoStatus", tag = "6")]
+    pub disk_status:   i32,
 }
 /// ========== Login ==========
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -52,11 +58,9 @@ pub struct GetAllInfoResponse {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetInfoRequest {
-    #[prost(enumeration = "Zone", tag = "1")]
-    pub zone:   i32,
-    #[prost(enumeration = "Target", tag = "2")]
+    #[prost(enumeration = "Target", tag = "1")]
     pub target: i32,
-    #[prost(string, optional, tag = "3")]
+    #[prost(string, optional, tag = "2")]
     pub uuid:   ::core::option::Option<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -907,32 +911,35 @@ pub mod put_ip_mode_response {
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct GetSettingValuesRequest {}
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct Values {
+pub struct MetricSetting {
     #[prost(double, tag = "1")]
-    pub cpu_usage:  f64,
+    pub warn: f64,
     #[prost(double, tag = "2")]
-    pub disk_usage: f64,
-    #[prost(double, tag = "3")]
-    pub memory:     f64,
-    #[prost(double, tag = "4")]
-    pub network:    f64,
+    pub dang: f64,
 }
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Values {
+    #[prost(message, optional, tag = "1")]
+    pub cpu_usage:  ::core::option::Option<MetricSetting>,
+    #[prost(message, optional, tag = "2")]
+    pub disk_usage: ::core::option::Option<MetricSetting>,
+    #[prost(message, optional, tag = "3")]
+    pub memory:     ::core::option::Option<MetricSetting>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetSettingValuesResponse {
     #[prost(message, optional, tag = "1")]
     pub values: ::core::option::Option<Values>,
 }
 /// PUT /api/chm/setting/values  (單一或整筆更新 -> 使用 optional 欄位)
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutSettingValuesRequest {
-    #[prost(double, optional, tag = "1")]
-    pub cpu_usage:  ::core::option::Option<f64>,
-    #[prost(double, optional, tag = "2")]
-    pub disk_usage: ::core::option::Option<f64>,
-    #[prost(double, optional, tag = "3")]
-    pub memory:     ::core::option::Option<f64>,
-    #[prost(double, optional, tag = "4")]
-    pub network:    ::core::option::Option<f64>,
+    #[prost(message, optional, tag = "1")]
+    pub cpu_usage:  ::core::option::Option<MetricSetting>,
+    #[prost(message, optional, tag = "2")]
+    pub disk_usage: ::core::option::Option<MetricSetting>,
+    #[prost(message, optional, tag = "3")]
+    pub memory:     ::core::option::Option<MetricSetting>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutSettingValuesResponse {
@@ -3943,30 +3950,30 @@ pub struct RestartSshResponse {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
-pub enum Zone {
+pub enum InfoStatus {
     Unspecified = 0,
-    Info = 1,
-    Cluster = 2,
+    Safe = 1,
+    Warn = 2,
+    Dang = 3,
+    Unknown = 4,
 }
-impl Zone {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+impl InfoStatus {
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            Self::Unspecified => "ZONE_UNSPECIFIED",
-            Self::Info => "INFO",
-            Self::Cluster => "CLUSTER",
+            Self::Unspecified => "INFO_STATUS_UNSPECIFIED",
+            Self::Safe => "INFO_STATUS_SAFE",
+            Self::Warn => "INFO_STATUS_WARN",
+            Self::Dang => "INFO_STATUS_DANG",
+            Self::Unknown => "INFO_STATUS_UNKNOWN",
         }
     }
-    /// Creates an enum from field names used in the ProtoBuf definition.
     pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
         match value {
-            "ZONE_UNSPECIFIED" => Some(Self::Unspecified),
-            "INFO" => Some(Self::Info),
-            "CLUSTER" => Some(Self::Cluster),
+            "INFO_STATUS_UNSPECIFIED" => Some(Self::Unspecified),
+            "INFO_STATUS_SAFE" => Some(Self::Safe),
+            "INFO_STATUS_WARN" => Some(Self::Warn),
+            "INFO_STATUS_DANG" => Some(Self::Dang),
+            "INFO_STATUS_UNKNOWN" => Some(Self::Unknown),
             _ => None,
         }
     }
@@ -3978,9 +3985,6 @@ pub enum Target {
     Safe = 1,
     Warn = 2,
     Dang = 3,
-    Cpu = 4,
-    Memory = 5,
-    Disk = 6,
 }
 impl Target {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -3994,9 +3998,6 @@ impl Target {
             Self::Safe => "SAFE",
             Self::Warn => "WARN",
             Self::Dang => "DANG",
-            Self::Cpu => "CPU",
-            Self::Memory => "MEMORY",
-            Self::Disk => "DISK",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -4006,9 +4007,6 @@ impl Target {
             "SAFE" => Some(Self::Safe),
             "WARN" => Some(Self::Warn),
             "DANG" => Some(Self::Dang),
-            "CPU" => Some(Self::Cpu),
-            "MEMORY" => Some(Self::Memory),
-            "DISK" => Some(Self::Disk),
             _ => None,
         }
     }
