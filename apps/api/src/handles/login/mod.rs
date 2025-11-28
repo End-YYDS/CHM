@@ -8,7 +8,6 @@ use crate::{
 use actix_session::Session;
 use actix_web::{get, post, web, HttpResponse};
 use chm_grpc::{common::ResponseType as gResponseType, restful::LoginRequest as gLoginRequest};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::{OpenApi, ToSchema};
 
@@ -19,11 +18,11 @@ use utoipa::{OpenApi, ToSchema};
         (name = "Auth", description = "登入 / 身分驗證相關 API")
     )
 )]
-pub struct AuthApi;
+pub struct LoginApiDocs;
 
 #[utoipa::path(
     post,
-    path = "/api/login",
+    path = "/login",
     tag = "Auth",
     request_body = LoginRequest,
     responses(
@@ -90,7 +89,7 @@ async fn test_login(_auth: crate::auth::RequireLogin) -> impl actix_web::Respond
 
 #[utoipa::path(
     get,
-    path = "/api/login/me",
+    path = "/login/me",
     tag = "Auth",
     responses(
         (status = 200, description = "登入資料取得成功", body = AuthUser,example = json!({
@@ -125,7 +124,7 @@ pub fn login_scope() -> actix_web::Scope {
 }
 
 /// 登入請求
-#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct LoginRequest {
     username: String,

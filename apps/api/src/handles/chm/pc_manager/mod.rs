@@ -44,11 +44,11 @@ pub fn pcgroup_scope() -> Scope {
         (name = "PC Manager", description = "CHM PC 管理相關 API")
     )
 )]
-pub struct PcManagerApi;
+pub struct PcManagerApiDoc;
 
 #[utoipa::path(
     post,
-    path = "/api/chm/pc/add",
+    path = "/chm/pc/add",
     tag = "PC Manager",
     request_body = PCManagerRequest,
     responses(
@@ -87,7 +87,7 @@ async fn add(
 
 #[utoipa::path(
     get,
-    path = "/api/chm/pc/all",
+    path = "/chm/pc/all",
     tag = "PC Manager",
     responses(
         (status = 200, description = "取得所有主機", body = ResponseResult),
@@ -111,7 +111,7 @@ async fn all(app_state: web::Data<AppState>) -> RestfulResult<web::Json<PcInform
 
 #[utoipa::path(
     get,
-    path = "/api/chm/pc/specific",
+    path = "/chm/pc/specific",
     tag = "PC Manager",
     params(
         SpecificRequest
@@ -142,7 +142,7 @@ async fn specific(
 
 #[utoipa::path(
     delete,
-    path = "/api/chm/pc",
+    path = "/chm/pc",
     tag = "PC Manager",
     request_body = DeletePcRequest,
     responses(
@@ -167,7 +167,7 @@ async fn delete_pc(
 
 #[utoipa::path(
     post,
-    path = "/api/chm/pc/reboot",
+    path = "/chm/pc/reboot",
     tag = "PC Manager",
     request_body = UuidsRequest,
     responses(
@@ -192,7 +192,7 @@ async fn reboot(
 
 #[utoipa::path(
     post,
-    path = "/api/chm/pc/shutdown",
+    path = "/chm/pc/shutdown",
     tag = "PC Manager",
     request_body = UuidsRequest,
     responses(
@@ -217,7 +217,7 @@ async fn shutdown(
 
 #[utoipa::path(
     post,
-    path = "/api/chm/pcgroup",
+    path = "/chm/pcgroup",
     tag = "PC Manager",
     request_body = PostPcgroupRequest,
     responses(
@@ -247,7 +247,7 @@ async fn post_pcgroup(
 
 #[utoipa::path(
     get,
-    path = "/api/chm/pcgroup",
+    path = "/chm/pcgroup",
     tag = "PC Manager",
     responses(
         (status = 200, description = "取得所有PC群組資訊", body = GetPcgroupResponseResult),
@@ -273,7 +273,7 @@ async fn get_pcgroup(
 
 #[utoipa::path(
     put,
-    path = "/api/chm/pcgroup",
+    path = "/chm/pcgroup",
     tag = "PC Manager",
     request_body = PutPcgroupRequest,
     responses(
@@ -299,7 +299,7 @@ async fn put_pcgroup(
 
 #[utoipa::path(
     patch,
-    path = "/api/chm/pcgroup",
+    path = "/chm/pcgroup",
     tag = "PC Manager",
     request_body = PatchPcgroupRequest,
     responses(
@@ -325,7 +325,7 @@ async fn patch_pcgroup(
 
 #[utoipa::path(
     delete,
-    path = "/api/chm/pcgroup",
+    path = "/chm/pcgroup",
     tag = "PC Manager",
     request_body = DeletePcGroupRequest,
     responses(

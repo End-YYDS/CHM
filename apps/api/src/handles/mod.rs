@@ -7,7 +7,7 @@ mod file;
 mod firewall;
 mod info;
 pub mod login;
-mod logout;
+pub mod logout;
 mod logs;
 mod network;
 mod process;

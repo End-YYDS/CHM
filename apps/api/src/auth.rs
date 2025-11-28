@@ -2,7 +2,6 @@ use actix_session::Session;
 use actix_web::{
     dev::Payload, error::ErrorUnauthorized, Error, FromRequest, HttpMessage, HttpRequest,
 };
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::future::{ready, Ready};
 use utoipa::ToSchema;
@@ -11,7 +10,7 @@ use utoipa::ToSchema;
 pub struct RequireLogin;
 
 /// 認證使用者資訊
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct AuthUser {
     pub uid:      String,

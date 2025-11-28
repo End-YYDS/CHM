@@ -25,11 +25,11 @@ pub fn mca_scope() -> Scope {
         (name = "Mca", description = "CHM 憑證相關 API")
     )
 )]
-pub struct McaApi;
+pub struct McaApiDoc;
 
 #[utoipa::path(
     get,
-    path = "/api/chm/mCA/valid",
+    path = "/chm/mCA/valid",
     tag = "Mca",
     responses(
         (status = 200, description = "取得有效憑證列表", body = get_valids),
@@ -52,7 +52,7 @@ async fn valid(app_state: web::Data<AppState>) -> RestfulResult<web::Json<get_va
 
 #[utoipa::path(
     get,
-    path = "/api/chm/mCA/revoked",
+    path = "/chm/mCA/revoked",
     tag = "Mca",
     responses(
         (status = 200, description = "取得吊銷憑證列表", body = get_revokeds),
@@ -75,7 +75,7 @@ async fn revoked(app_state: web::Data<AppState>) -> RestfulResult<web::Json<get_
 
 #[utoipa::path(
     post,
-    path = "/api/chm/mCA/revoke",
+    path = "/chm/mCA/revoke",
     tag = "Mca",
     request_body = RevokeRequest,
     responses(

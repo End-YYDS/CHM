@@ -89,11 +89,11 @@ use utoipa::OpenApi;
         (name = "Backup", description = "CHM 備份相關 API")
     )
 )]
-pub struct BackupApi;
+pub struct BackupApiDoc;
 
 #[utoipa::path(
     post,
-    path = "/api/chm/backup",
+    path = "/chm/backup",
     tag = "Backup",
     request_body = BackupRequest,
     responses(
@@ -116,7 +116,7 @@ async fn post_backup_root(data: web::Json<BackupRequest>) -> web::Json<BackupRes
 
 #[utoipa::path(
     get,
-    path = "/api/chm/backup",
+    path = "/chm/backup",
     tag = "Backup",
     request_body = GetBackupsRequest,
     responses(
@@ -155,7 +155,7 @@ async fn get_backup_root(data: web::Json<GetBackupsRequest>) -> web::Json<GetBac
 
 #[utoipa::path(
     post,
-    path = "/api/chm/backup/reduction",
+    path = "/chm/backup/reduction",
     tag = "Backup",
     request_body = ReductionRequest,
     responses(

@@ -108,9 +108,6 @@ run-controller args="":
 run-api args="":
     @RUST_LOG=info,CHM_API=info,api_server=debug,chm_cluster_utils=debug cargo run -p api_server --bin CHM_API -- {{ args }}
 
-run-gen-schema:
-    @cargo run -p api_server --bin gen_schema -F schema && cp schema/all.schema.json ../Frontend-Web/schema && cd ../Frontend-Web && pnpm gen:types && cd -
-
 run-agentd args="":
     @RUST_LOG=info,agent=info,CHM_agentd=debug cargo run -p agent --bin CHM_agentd -- {{ args }}
 

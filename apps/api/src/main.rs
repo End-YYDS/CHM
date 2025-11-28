@@ -10,9 +10,10 @@ use actix_web::{
     middleware::Logger,
     web, App, HttpServer,
 };
+#[cfg(debug_assertions)]
+use api_server::openapi::build_openapi;
 use api_server::{
-    config, configure_app, openapi::ApiDoc, ApiResult, AppState, CertInfo, GlobalConfig, ID,
-    NEED_EXAMPLE,
+    config, configure_app, ApiResult, AppState, CertInfo, GlobalConfig, ID, NEED_EXAMPLE,
 };
 use argh::FromArgs;
 use chm_cert_utils::CertUtils;
@@ -36,7 +37,6 @@ use std::{
     sync::{atomic::Ordering::Relaxed, Arc},
     time::Duration,
 };
-use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 #[derive(Debug, FromArgs)]
 /// API 主程式參數
@@ -133,9 +133,8 @@ async fn main() -> ApiResult<()> {
             .wrap(session_mw)
             .configure(configure_app);
         #[cfg(debug_assertions)]
-        let app = app.service(
-            SwaggerUi::new("/docs/{_:.*}").url("/api-doc/openapi.json", ApiDoc::openapi()),
-        );
+        let app = app
+            .service(SwaggerUi::new("/docs/{_:.*}").url("/api-doc/openapi.json", build_openapi()));
         app
     })
     .bind_openssl(addr, builder)?

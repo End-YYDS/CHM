@@ -1,4 +1,3 @@
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
@@ -6,7 +5,7 @@ pub mod error_logs;
 pub mod translate;
 
 /// 帶 UUID 的請求結構體
-#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct UuidRequest {
     #[serde(rename = "Uuid", alias = "Uuid", alias = "uuid")]
@@ -14,7 +13,7 @@ pub struct UuidRequest {
 }
 
 /// 回應類型枚舉
-#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub enum ResponseType {
     Ok,
@@ -23,7 +22,7 @@ pub enum ResponseType {
 }
 
 /// 回應結果結構體
-#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct ResponseResult {
     pub r#type:  ResponseType,
@@ -31,7 +30,7 @@ pub struct ResponseResult {
 }
 
 /// 月份枚舉
-#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub enum Month {
     Jan,
@@ -49,7 +48,7 @@ pub enum Month {
 }
 
 /// 星期枚舉
-#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub enum Week {
     Mon,
@@ -62,7 +61,7 @@ pub enum Week {
 }
 
 /// 時間結構體
-#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct Time {
     pub hour: i64,
@@ -70,7 +69,7 @@ pub struct Time {
 }
 
 /// 日期结构体
-#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct Date {
     pub year:  i64,
@@ -81,7 +80,7 @@ pub struct Date {
 }
 
 /// 狀態枚舉
-#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub enum Status {
     Active,
@@ -90,7 +89,7 @@ pub enum Status {
 }
 
 /// 通用信息結構體
-#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct CommonInfo {
     pub hostname: String,
