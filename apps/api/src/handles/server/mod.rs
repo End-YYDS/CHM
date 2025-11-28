@@ -20,17 +20,17 @@ use crate::{
     AppState, RestfulResult,
 };
 
-mod apache;
-mod bind;
-mod dhcp;
-mod ftp;
-mod ldap;
-mod mysql;
-mod nginx;
-mod samba;
-mod squid;
-mod ssh;
-mod stall;
+pub mod apache;
+pub mod bind;
+pub mod dhcp;
+pub mod ftp;
+pub mod ldap;
+pub mod mysql;
+pub mod nginx;
+pub mod samba;
+pub mod squid;
+pub mod ssh;
+pub mod stall;
 
 pub fn server_scope() -> actix_web::Scope {
     web::scope("/server")

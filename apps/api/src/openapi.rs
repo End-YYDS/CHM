@@ -5,7 +5,11 @@ use utoipa::{
 };
 
 use crate::handles::{
-    chm::{backup::BackupApiDoc, mca::McaApiDoc, pc_manager::PcManagerApiDoc}, info::InfoApiDoc, login::LoginApiDocs, logout::LogoutApiDocs
+    chm::{backup::BackupApiDoc, mca::McaApiDoc, pc_manager::PcManagerApiDoc},
+    info::InfoApiDoc,
+    login::LoginApiDocs,
+    logout::LogoutApiDocs,
+    server::apache::ServerApacheApiDoc,
 };
 pub fn build_openapi() -> OpenApi {
     let mut doc = LoginApiDocs::openapi();
@@ -14,6 +18,7 @@ pub fn build_openapi() -> OpenApi {
     doc.merge(McaApiDoc::openapi());
     doc.merge(PcManagerApiDoc::openapi());
     doc.merge(InfoApiDoc::openapi());
+    doc.merge(ServerApacheApiDoc::openapi());
 
     doc.servers = Some(vec![Server::new("/api")]);
     doc

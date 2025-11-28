@@ -1,11 +1,11 @@
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{IntoParams, ToSchema};
 
 pub mod error_logs;
 pub mod translate;
 
 /// 帶 UUID 的請求結構體
-#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, IntoParams)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct UuidRequest {
     #[serde(rename = "Uuid", alias = "Uuid", alias = "uuid")]
