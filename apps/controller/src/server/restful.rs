@@ -264,6 +264,38 @@ fn classify_snapshot(snapshot: &AgentSnapshot, threshold: &InfoThresholds) -> No
     *[cpu, memory, disk].iter().max().unwrap_or(&NodeStatus::Safe)
 }
 
+fn node_status_to_info_status(status: NodeStatus) -> restful::InfoStatus {
+    match status {
+        NodeStatus::Safe => restful::InfoStatus::Safe,
+        NodeStatus::Warn => restful::InfoStatus::Warn,
+        NodeStatus::Danger => restful::InfoStatus::Dang,
+    }
+}
+
+fn threshold_to_metric_setting(threshold: &MetricThreshold) -> restful::MetricSetting {
+    restful::MetricSetting { warn: threshold.warn, dang: threshold.danger }
+}
+
+fn validate_metric_setting(setting: &restful::MetricSetting) -> Result<(), &'static str> {
+    if !setting.warn.is_finite() || !setting.dang.is_finite() {
+        return Err("warn and dang must be finite numbers");
+    }
+    if setting.warn < 0.0 || setting.dang < 0.0 {
+        return Err("warn and dang must be non-negative");
+    }
+    if setting.warn >= setting.dang {
+        return Err("dang must be greater than warn");
+    }
+    Ok(())
+}
+
+fn metric_setting_to_threshold(
+    setting: &restful::MetricSetting,
+) -> Result<MetricThreshold, &'static str> {
+    validate_metric_setting(setting)?;
+    Ok(MetricThreshold { warn: setting.warn, danger: setting.dang })
+}
+
 // TODO: 由RestFul Server 為Client 調用Controller RestFul gRPC介面
 #[derive(Debug)]
 pub struct ControllerRestfulServer {
@@ -569,6 +601,14 @@ impl RestfulService for ControllerRestfulServer {
         } else {
             None
         };
+        let requested_target =
+            restful::Target::try_from(req.target).unwrap_or(restful::Target::Unspecified);
+        let status_filter = match requested_target {
+            restful::Target::Safe => Some(NodeStatus::Safe),
+            restful::Target::Warn => Some(NodeStatus::Warn),
+            restful::Target::Dang => Some(NodeStatus::Danger),
+            _ => None,
+        };
 
         let snapshots = self
             .collect_agent_snapshots(target_uuid)
@@ -578,12 +618,25 @@ impl RestfulService for ControllerRestfulServer {
 
         let mut pcs = HashMap::new();
         for snapshot in snapshots {
+            let cpu_status = classify_metric(snapshot.cpu, &thresholds.cpu);
+            let memory_status = classify_metric(snapshot.mem, &thresholds.memory);
+            let disk_status = classify_metric(snapshot.disk, &thresholds.disk);
+            let status =
+                *[cpu_status, memory_status, disk_status].iter().max().unwrap_or(&NodeStatus::Safe);
+            if let Some(expected) = status_filter {
+                if status != expected {
+                    continue;
+                }
+            }
             pcs.insert(
                 snapshot.uuid.clone(),
                 PcMetrics {
-                    cpu:    (snapshot.cpu * 100.0).round() / 100.0,
-                    memory: (snapshot.mem * 100.0).round() / 100.0,
-                    disk:   (snapshot.disk * 100.0).round() / 100.0,
+                    cpu:           (snapshot.cpu * 100.0).round() / 100.0,
+                    memory:        (snapshot.mem * 100.0).round() / 100.0,
+                    disk:          (snapshot.disk * 100.0).round() / 100.0,
+                    cpu_status:    node_status_to_info_status(cpu_status) as i32,
+                    memory_status: node_status_to_info_status(memory_status) as i32,
+                    disk_status:   node_status_to_info_status(disk_status) as i32,
                 },
             );
         }
@@ -1507,14 +1560,57 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetSettingValuesRequest>,
     ) -> Result<Response<GetSettingValuesResponse>, Status> {
-        todo!()
+        let _ = request;
+        let thresholds = GlobalConfig::with(|cfg| cfg.extend.info_thresholds.clone());
+        let values = Values {
+            cpu_usage:  Some(threshold_to_metric_setting(&thresholds.cpu)),
+            disk_usage: Some(threshold_to_metric_setting(&thresholds.disk)),
+            memory:     Some(threshold_to_metric_setting(&thresholds.memory)),
+        };
+        Ok(Response::new(GetSettingValuesResponse { values: Some(values) }))
     }
 
     async fn put_setting_values(
         &self,
         request: Request<PutSettingValuesRequest>,
     ) -> Result<Response<PutSettingValuesResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let mut thresholds = GlobalConfig::with(|cfg| cfg.extend.info_thresholds.clone());
+        let mut changed = false;
+
+        if let Some(cpu) = req.cpu_usage {
+            thresholds.cpu =
+                metric_setting_to_threshold(&cpu).map_err(Status::invalid_argument)?;
+            changed = true;
+        }
+        if let Some(disk) = req.disk_usage {
+            thresholds.disk =
+                metric_setting_to_threshold(&disk).map_err(Status::invalid_argument)?;
+            changed = true;
+        }
+        if let Some(memory) = req.memory {
+            thresholds.memory =
+                metric_setting_to_threshold(&memory).map_err(Status::invalid_argument)?;
+            changed = true;
+        }
+
+        if !changed {
+            return Err(Status::invalid_argument("No setting values provided"));
+        }
+
+        GlobalConfig::update_with(|cfg| {
+            cfg.extend.info_thresholds = thresholds.clone();
+        });
+        GlobalConfig::save_config()
+            .await
+            .map_err(|e| Status::internal(format!("Failed to save config: {e}")))?;
+        GlobalConfig::send_reload();
+
+        let resp = PutSettingValuesResponse {
+            r#type:  put_setting_values_response::ResultType::Ok as i32,
+            message: "Setting values updated".to_string(),
+        };
+        Ok(Response::new(resp))
     }
 
     async fn get_users(
