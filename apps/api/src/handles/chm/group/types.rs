@@ -36,10 +36,7 @@ pub struct PutGroupsRequest {
 #[derive(Debug, Deserialize, Clone, Default, ToSchema)]
 #[serde(default, rename_all = "PascalCase")]
 pub struct PatchGroupEntry {
-    #[serde(
-        default,
-        deserialize_with = "chm_cluster_utils::none_if_string_none"
-    )]
+    #[serde(default, deserialize_with = "chm_cluster_utils::none_if_string_none")]
     pub groupname: Option<String>,
     pub users:     Option<Vec<String>>,
 }
