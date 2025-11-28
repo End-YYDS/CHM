@@ -44,7 +44,8 @@ pub fn pcgroup_scope() -> Scope {
     components(schemas(
         DePutVxlanid,
         DePatchVxlanid,
-
+        PatchPcgroupRequest,
+        PutPcgroupRequest,
     )),
     tags(
         (name = "PC Manager", description = "CHM PC 管理相關 API")

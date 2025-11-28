@@ -26,7 +26,7 @@ pub struct CreateGroupRequest {
 
 // PUT /api/chm/group
 #[derive(Debug, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields, rename_all = "PascalCase")]
+#[serde(rename_all = "PascalCase")]
 pub struct PutGroupsRequest {
     #[serde(flatten)]
     pub data: HashMap<String, GroupEntry>,
@@ -34,20 +34,18 @@ pub struct PutGroupsRequest {
 
 // PATCH /api/chm/group
 #[derive(Debug, Deserialize, Clone, Default, ToSchema)]
-#[serde(deny_unknown_fields, default, rename_all = "PascalCase")]
+#[serde(default, rename_all = "PascalCase")]
 pub struct PatchGroupEntry {
     #[serde(
         default,
-        rename = "Groupname",
         deserialize_with = "chm_cluster_utils::none_if_string_none"
     )]
     pub groupname: Option<String>,
-    #[serde(rename = "Users")]
     pub users:     Option<Vec<String>>,
 }
 
 #[derive(Debug, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields, rename_all = "PascalCase")]
+#[serde(rename_all = "PascalCase")]
 pub struct PatchGroupsRequest {
     #[serde(flatten)]
     pub groups: HashMap<String, PatchGroupEntry>,

@@ -74,28 +74,28 @@ pub struct GetPcgroupResponseResult {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields, rename_all = "PascalCase")]
+#[serde(rename_all = "PascalCase")]
 pub struct DePutVxlanid {
     pub groupname: String,
     pub pcs:       Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields, rename_all = "PascalCase")]
+#[serde(rename_all = "PascalCase")]
 pub struct PutPcgroupRequest {
     #[serde(flatten)]
     pub data: HashMap<String, DePutVxlanid>,
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields, rename_all = "PascalCase", untagged)]
+#[serde(rename_all = "PascalCase", untagged)]
 pub enum DePatchVxlanid {
     Groupname { groupname: String },
     Pcs { pcs: Vec<String> },
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-#[serde(deny_unknown_fields, rename_all = "PascalCase")]
+#[serde(rename_all = "PascalCase")]
 pub struct PatchPcgroupRequest {
     #[serde(flatten)]
     pub data: HashMap<String, DePatchVxlanid>,
