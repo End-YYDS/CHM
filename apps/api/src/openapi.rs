@@ -1,9 +1,13 @@
 use crate::{
     auth::AuthUser,
     commons::{
-        CommonInfo, Date, Month, ResponseResult, ResponseType, Status, Time, UuidRequest, Week, error_logs::{Error_log, Level}
+        error_logs::{Error_log, Level},
+        CommonInfo, Date, Month, ResponseResult, ResponseType, Status, Time, UuidRequest, Week,
     },
-    handles::{chm::mca::types::{RevokeRequest, Revoked, Valid, get_revokeds, get_valids}, login::LoginRequest},
+    handles::{
+        chm::mca::types::{get_revokeds, get_valids, RevokeRequest, Revoked, Valid},
+        login::LoginRequest,
+    },
 };
 use utoipa::OpenApi;
 
