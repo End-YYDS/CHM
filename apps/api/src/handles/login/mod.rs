@@ -10,7 +10,16 @@ use actix_web::{get, post, web, HttpResponse};
 use chm_grpc::{common::ResponseType as gResponseType, restful::LoginRequest as gLoginRequest};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
+use utoipa::{OpenApi, ToSchema};
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(login, me),
+    tags(
+        (name = "Auth", description = "登入 / 身分驗證相關 API")
+    )
+)]
+pub struct AuthApi;
 
 #[utoipa::path(
     post,

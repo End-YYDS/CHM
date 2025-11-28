@@ -8,6 +8,7 @@ use chm_grpc::{
     restful::{GetValidCertsRequest, RevokeCertRequest},
     tonic,
 };
+use utoipa::OpenApi;
 
 mod translate;
 pub mod types;
@@ -17,10 +18,19 @@ pub fn mca_scope() -> Scope {
     web::scope("/mCA").service(valid).service(revoked).service(revoke)
 }
 
+#[derive(OpenApi)]
+#[openapi(
+    paths(valid, revoked, revoke),
+    tags(
+        (name = "Mca", description = "CHM 憑證相關 API")
+    )
+)]
+pub struct McaApi;
+
 #[utoipa::path(
     get,
     path = "/api/chm/mCA/valid",
-    tag = "MCA",
+    tag = "Mca",
     responses(
         (status = 200, description = "取得有效憑證列表", body = get_valids),
         (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
@@ -43,7 +53,7 @@ async fn valid(app_state: web::Data<AppState>) -> RestfulResult<web::Json<get_va
 #[utoipa::path(
     get,
     path = "/api/chm/mCA/revoked",
-    tag = "MCA",
+    tag = "Mca",
     responses(
         (status = 200, description = "取得吊銷憑證列表", body = get_revokeds),
         (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
@@ -66,7 +76,7 @@ async fn revoked(app_state: web::Data<AppState>) -> RestfulResult<web::Json<get_
 #[utoipa::path(
     post,
     path = "/api/chm/mCA/revoke",
-    tag = "MCA",
+    tag = "Mca",
     request_body = RevokeRequest,
     responses(
         (status = 200, description = "憑證吊銷成功", body = ResponseResult,example = json!({

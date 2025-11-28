@@ -8,8 +8,17 @@ use crate::{
         CommonInfo, Date, Month, ResponseResult, ResponseType, Status, Time, UuidRequest, Week,
     },
     handles::{
-        chm::backup::{
-            BackupRequest, BackupResponse, GetBackupsRequest, GetBackupsResponse, ReductionRequest,
+        chm::{
+            backup::{
+                BackupRequest, BackupResponse, GetBackupsRequest, GetBackupsResponse,
+                ReductionRequest,
+            },
+            pc_manager::types::{
+                DePatchVxlanid, DePutVxlanid, DeletePcGroupRequest, DeletePcRequest,
+                DeletePcResponse, GetPcgroupResponseResult, PCManagerRequest, PatchPcgroupRequest,
+                PcInformation, PostPcgroupRequest, PutPcgroupRequest, RebootPcResponse,
+                ShutdownPcResponse, SpecificRequest, Uuid, UuidsRequest, Vxlanid,
+            },
         },
         login::LoginRequest,
     },
@@ -18,11 +27,12 @@ use crate::{
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct AllSchemas {
-    pub auth:       AuthSchemas,
-    pub common:     CommonSchemas,
-    pub login:      LoginSchemas,
-    pub chm_backup: ChmBackupSchemas,
-    pub chm_mca:    ChmMcaSchemas,
+    pub auth:           AuthSchemas,
+    pub common:         CommonSchemas,
+    pub login:          LoginSchemas,
+    pub chm_backup:     ChmBackupSchemas,
+    pub chm_mca:        ChmMcaSchemas,
+    pub chm_pc_manager: ChmPcManagerSchemas,
 }
 
 /// auth.rs相關的 JSON Schema
@@ -76,4 +86,27 @@ pub struct ChmMcaSchemas {
     pub get_valids:     crate::handles::chm::mca::types::get_valids,
     pub revoked:        crate::handles::chm::mca::types::Revoked,
     pub get_revokeds:   crate::handles::chm::mca::types::get_revokeds,
+}
+
+/// handles/chm/pc_manager 相關的 JSON Schema
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
+pub struct ChmPcManagerSchemas {
+    pub pc_manager_request: PCManagerRequest,
+    pub uuid: Uuid,
+    pub pc_info: PcInformation,
+    pub spectific_request: SpecificRequest,
+    pub delete_pc_request: DeletePcRequest,
+    pub delete_pc_response: DeletePcResponse,
+    pub uuids_request: UuidsRequest,
+    pub post_pc_group_request: PostPcgroupRequest,
+    pub vxlan_id: Vxlanid,
+    pub get_pc_group_response_result: GetPcgroupResponseResult,
+    pub de_put_vxlan_id: DePutVxlanid,
+    pub put_pc_group_request: PutPcgroupRequest,
+    pub de_patch_vxlan_id: DePatchVxlanid,
+    pub patch_pc_group_request: PatchPcgroupRequest,
+    pub delete_pc_group_request: DeletePcGroupRequest,
+    pub reboot_pc_response: RebootPcResponse,
+    pub shutdown_pc_response: ShutdownPcResponse,
 }

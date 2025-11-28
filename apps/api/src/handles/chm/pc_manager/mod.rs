@@ -13,6 +13,7 @@ use actix_web::{delete, get, patch, post, put, web, Scope};
 use chm_grpc::restful::{
     CreatePcGroupRequest, GetAllPcsRequest, GetPcGroupsRequest, GetSpecificPcsRequest,
 };
+use utoipa::OpenApi;
 
 mod translate;
 pub mod types;
@@ -36,6 +37,28 @@ pub fn pcgroup_scope() -> Scope {
         .service(delete_pcgroup)
 }
 
+#[derive(OpenApi)]
+#[openapi(
+    paths(delete_pc, add, all, specific, reboot, shutdown, post_pcgroup, get_pcgroup, put_pcgroup, patch_pcgroup, delete_pcgroup),
+    tags(
+        (name = "PC Manager", description = "CHM PC 管理相關 API")
+    )
+)]
+pub struct PcManagerApi;
+
+#[utoipa::path(
+    post,
+    path = "/api/chm/pc/add",
+    tag = "PC Manager",
+    request_body = PCManagerRequest,
+    responses(
+        (status = 200, description = "添加成功", body = ResponseResult),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[post("/add")]
 async fn add(
     app_state: web::Data<AppState>,
@@ -62,6 +85,18 @@ async fn add(
     Ok(web::Json(resp))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/chm/pc/all",
+    tag = "PC Manager",
+    responses(
+        (status = 200, description = "取得所有主機", body = ResponseResult),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[get("/all")]
 async fn all(app_state: web::Data<AppState>) -> RestfulResult<web::Json<PcInformation>> {
     let mut client = app_state.gclient.clone();
@@ -74,10 +109,24 @@ async fn all(app_state: web::Data<AppState>) -> RestfulResult<web::Json<PcInform
     Ok(web::Json(resp))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/chm/pc/specific",
+    tag = "PC Manager",
+    params(
+        SpecificRequest
+    ),
+    responses(
+        (status = 200, description = "取得特定主機", body = PcInformation),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[get("/specific")]
 async fn specific(
     app_state: web::Data<AppState>,
-    // web::Json(data): web::Json<SpecificRequest>,
     web::Query(data): web::Query<SpecificRequest>,
 ) -> RestfulResult<web::Json<PcInformation>> {
     let mut client = app_state.gclient.clone();
@@ -91,6 +140,19 @@ async fn specific(
     Ok(web::Json(resp))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/chm/pc",
+    tag = "PC Manager",
+    request_body = DeletePcRequest,
+    responses(
+        (status = 200, description = "刪除特定主機", body = DeletePcResponse),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[delete("")]
 async fn delete_pc(
     app_state: web::Data<AppState>,
@@ -103,6 +165,19 @@ async fn delete_pc(
     Ok(web::Json(resp))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/chm/pc/reboot",
+    tag = "PC Manager",
+    request_body = UuidsRequest,
+    responses(
+        (status = 200, description = "重啟特定主機", body = RebootPcResponse),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[post("/reboot")]
 async fn reboot(
     app_state: web::Data<AppState>,
@@ -115,6 +190,19 @@ async fn reboot(
     Ok(web::Json(resp))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/chm/pc/shutdown",
+    tag = "PC Manager",
+    request_body = UuidsRequest,
+    responses(
+        (status = 200, description = "關閉特定主機", body = ShutdownPcResponse),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[post("/shutdown")]
 async fn shutdown(
     app_state: web::Data<AppState>,
@@ -127,6 +215,19 @@ async fn shutdown(
     Ok(web::Json(resp))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/chm/pcgroup",
+    tag = "PC Manager",
+    request_body = PostPcgroupRequest,
+    responses(
+        (status = 200, description = "新增Group", body = ResponseResult),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[post("")]
 async fn post_pcgroup(
     app_state: web::Data<AppState>,
@@ -144,6 +245,18 @@ async fn post_pcgroup(
     Ok(web::Json(resp))
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/chm/pcgroup",
+    tag = "PC Manager",
+    responses(
+        (status = 200, description = "取得所有PC群組資訊", body = GetPcgroupResponseResult),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[get("")]
 async fn get_pcgroup(
     app_state: web::Data<AppState>,
@@ -158,6 +271,19 @@ async fn get_pcgroup(
     Ok(web::Json(resp))
 }
 
+#[utoipa::path(
+    put,
+    path = "/api/chm/pcgroup",
+    tag = "PC Manager",
+    request_body = PutPcgroupRequest,
+    responses(
+        (status = 200, description = "更新整筆Group", body = ResponseResult),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[put("")]
 async fn put_pcgroup(
     app_state: web::Data<AppState>,
@@ -171,6 +297,19 @@ async fn put_pcgroup(
     Ok(web::Json(resp))
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/chm/pcgroup",
+    tag = "PC Manager",
+    request_body = PatchPcgroupRequest,
+    responses(
+        (status = 200, description = "更新整筆Group", body = ResponseResult),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[patch("")]
 async fn patch_pcgroup(
     app_state: web::Data<AppState>,
@@ -184,6 +323,19 @@ async fn patch_pcgroup(
     Ok(web::Json(resp))
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/chm/pcgroup",
+    tag = "PC Manager",
+    request_body = DeletePcGroupRequest,
+    responses(
+        (status = 200, description = "刪除Group", body = ResponseResult),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[delete("")]
 async fn delete_pcgroup(
     app_state: web::Data<AppState>,

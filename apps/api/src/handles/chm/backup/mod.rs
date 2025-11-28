@@ -6,6 +6,7 @@ pub use types::{
     BackupRequest, BackupResponse, GetBackupsRequest, GetBackupsResponse, InnerGetBackupResponse,
     ReductionRequest,
 };
+use utoipa::OpenApi;
 // const BACKUP_DIR: &str = "/var/chm/backups"; // 依你環境調整
 //
 // // === Utils ===
@@ -80,6 +81,15 @@ pub use types::{
 //         }
 //     }
 // }
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(post_backup_root, get_backup_root, post_reduction),
+    tags(
+        (name = "Backup", description = "CHM 備份相關 API")
+    )
+)]
+pub struct BackupApi;
 
 #[utoipa::path(
     post,
