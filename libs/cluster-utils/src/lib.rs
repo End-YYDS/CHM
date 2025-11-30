@@ -14,10 +14,10 @@ pub type CHMResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiResponse<T = Value> {
     pub message: String,
-    pub ok:      bool,
+    pub ok: bool,
     #[serde(flatten)]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub data:    Option<T>,
+    pub data: Option<T>,
 }
 impl<T> ApiResponse<T> {
     #[inline]
@@ -76,15 +76,15 @@ impl FromStr for ServiceKind {
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceDescriptor {
-    pub kind:        ServiceKind,
-    pub uri:         String,
+    pub kind: ServiceKind,
+    pub uri: String,
     #[serde(default, deserialize_with = "crate::none_if_string_none")]
     pub health_name: Option<String>,
-    pub is_server:   bool,
+    pub is_server: bool,
     // #[serde(default, deserialize_with = "crate::none_if_string_none")]
     // pub inner_domain_name: Option<String>,
-    pub hostname:    String,
-    pub uuid:        Uuid,
+    pub hostname: String,
+    pub uuid: Uuid,
 }
 impl PartialEq for ServiceDescriptor {
     fn eq(&self, other: &Self) -> bool {
@@ -105,21 +105,21 @@ impl Hash for ServiceDescriptor {
 pub enum InitData {
     Bootstrap {
         root_ca_pem: Vec<u8>,
-        con_uuid:    Uuid,
+        con_uuid: Uuid,
     },
     Finalize {
-        id:              Uuid,
-        cert_pem:        Vec<u8>,
-        chain_pem:       Vec<Vec<u8>>,
-        controller_pem:  Vec<u8>,
+        id: Uuid,
+        cert_pem: Vec<u8>,
+        chain_pem: Vec<Vec<u8>>,
+        controller_pem: Vec<u8>,
         controller_uuid: Uuid, // TODO: 添加從mDHCP 中取得的IP及VNI,寫入Config中
     },
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BootstrapResp {
-    pub csr_pem:      Vec<u8>,
-    pub socket:       SocketAddrV4,
+    pub csr_pem: Vec<u8>,
+    pub socket: SocketAddrV4,
     pub service_desp: ServiceDescriptor,
 }
 
@@ -174,6 +174,7 @@ pub mod _reexports {
         web::{post, resource, Data, Json, ServiceConfig},
         HttpMessage, HttpRequest, HttpResponse, Responder,
     };
+    pub use chm_dns_resolver::get_local_hostname;
     pub use tokio::{
         fs,
         sync::{mpsc::Sender, RwLock},

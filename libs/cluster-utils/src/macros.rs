@@ -233,7 +233,7 @@ macro_rules! software_init_define {
                         uri:         format!("https://{}:{}", carry.uuid, carry.server_addr.port()),
                         health_name: $health_name,
                         is_server:   $is_server,
-                        hostname:    GlobalConfig::with(|cfg| cfg.server.hostname.clone()),
+                        hostname:    carry.server_hostname.clone(),
                         uuid:        carry.uuid,
                     };
                     let resp = BootstrapResp { csr_pem, socket: carry.server_addr, service_desp };
@@ -335,7 +335,7 @@ macro_rules! software_init_define {
                         uri:         format!("https://{}:{}", carry.uuid, carry.server_addr.port()),
                         health_name: $health_name,
                         is_server:   $is_server,
-                        hostname:    ID.to_string(),
+                        hostname:    carry.server_hostname.clone(),
                         uuid:        carry.uuid,
                     };
                     let resp = BootstrapResp { csr_pem, socket: carry.server_addr, service_desp };
@@ -377,6 +377,7 @@ macro_rules! server_init {
     () => {{
         use chm_cert_utils::CertUtils;
         use chm_grpc::tonic::{Request, Status};
+        use $crate::_reexports::get_local_hostname;
         fn check_is_controller(
             controller_args: (String, String),
         ) -> impl FnMut(Request<()>) -> Result<Request<()>, Status> + Clone + Send + 'static
@@ -403,7 +404,7 @@ macro_rules! server_init {
                 Ok(req)
             }
         }
-        let (addr, rootca, cert_info, otp_len, otp_time, self_uuid, key_path, cert_path) =
+        let (addr, rootca, cert_info, otp_len, otp_time, self_uuid, key_path, cert_path,hostname) =
             GlobalConfig::with(|cfg| {
                 let host: Ipv4Addr = cfg.server.host.clone().parse().unwrap_or(Ipv4Addr::LOCALHOST);
                 let port = cfg.server.port;
@@ -414,6 +415,7 @@ macro_rules! server_init {
                 let uuid = cfg.server.unique_id;
                 let key_path = cfg.certificate.client_key.clone();
                 let cert_path = cfg.certificate.client_cert.clone();
+                let hostname = cfg.server.hostname.clone();
                 (
                     SocketAddrV4::new(host, port),
                     rootca,
@@ -423,6 +425,7 @@ macro_rules! server_init {
                     uuid,
                     key_path,
                     cert_path,
+                    hostname,
                 )
             });
         let (key, x509_cert) = CertUtils::generate_self_signed_cert(
@@ -439,7 +442,7 @@ macro_rules! server_init {
         let carry = InitCarry::new(
             rootca.clone(),
             self_uuid,
-            crate::ID.to_string(),
+            hostname.clone(),
             addr,
             key.clone(),
             cert_info.clone(),

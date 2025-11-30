@@ -677,6 +677,7 @@ dependencies = [
  "chm-cluster-utils",
  "chm-config_bus",
  "chm-crl_cache",
+ "chm-dns_resolver",
  "chm-grpc",
  "chm-project_const",
  "chrono",
