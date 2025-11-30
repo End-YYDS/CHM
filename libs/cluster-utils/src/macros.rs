@@ -233,7 +233,7 @@ macro_rules! software_init_define {
                         uri:         format!("https://{}:{}", carry.uuid, carry.server_addr.port()),
                         health_name: $health_name,
                         is_server:   $is_server,
-                        hostname:    ID.to_string(),
+                        hostname:    GlobalConfig::with(|cfg| cfg.server.hostname.clone()),
                         uuid:        carry.uuid,
                     };
                     let resp = BootstrapResp { csr_pem, socket: carry.server_addr, service_desp };
