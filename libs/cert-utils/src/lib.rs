@@ -295,7 +295,7 @@ impl CertUtils {
         if !cert_path.exists() {
             return Err(format!("憑證檔案 {} 不存在", cert_path.display()).into());
         }
-        let key_path = Path::new("certs").join(format!("{cert_name}.key"));
+        let key_path = ProjectConst::certs_path().join(format!("{cert_name}.key"));
         if !key_path.exists() {
             return Err(format!("金鑰檔案 {} 不存在", key_path.display()).into());
         }
