@@ -22,7 +22,7 @@ const DNS_SERVICE_FQN: &str = "dns.DnsService";
 #[derive(Debug)]
 pub struct DnsResolver {
     dns_address: String,
-    client:      DnsServiceClient<Channel>,
+    client: DnsServiceClient<Channel>,
 }
 pub enum DnsQuery {
     Hostname(String),
@@ -320,8 +320,6 @@ pub async fn lookup_cached(
     lookup_host_via_minidns(&resolver, &host).await
 }
 
-pub fn get_local_hostname() -> Result<String> {
-    let hostname = hostname::get()?;
-    let hostname_str = hostname.into_string().map_err(|_| "無法將主機名稱轉換為字串")?;
-    Ok(hostname_str)
+pub fn get_local_hostname() -> String {
+    hostname::get().unwrap_or("chm-no-hostname".into()).to_string_lossy().into_owned()
 }
