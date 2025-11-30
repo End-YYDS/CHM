@@ -36,7 +36,7 @@ mod unix_main {
     }
 
     pub async fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        //TODO: 之後要將這裡的hostd改成不吃參數的版本
+        // TODO: 之後要將這裡的hostd改成不吃參數的版本
         init_tracing();
 
         let args: Args = argh::from_env();
