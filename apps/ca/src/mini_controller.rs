@@ -15,28 +15,28 @@ use uuid::Uuid;
 
 #[derive(Serialize)]
 struct SignedCertResponse {
-    root_ca: Vec<u8>,
-    cert: Vec<u8>,
-    chain: Vec<Vec<u8>>,
-    ca_hostname: String,
-    port: u16,
+    root_ca:      Vec<u8>,
+    cert:         Vec<u8>,
+    chain:        Vec<Vec<u8>>,
+    ca_hostname:  String,
+    port:         u16,
     service_desp: ServiceDescriptor,
 }
 
 #[derive(Debug, Clone, Deserialize)]
 struct InitRequest {
     csr_cert: Vec<u8>,
-    days: u32,
-    uuid: Uuid,
+    days:     u32,
+    uuid:     Uuid,
 }
 
 #[derive(Clone)]
 struct AppState {
     cert_process: Arc<CertificateProcess>,
-    unique_id: Uuid,
-    hostname: String,
-    socket: SocketAddrV4,
-    root_ca: Vec<u8>,
+    unique_id:    Uuid,
+    hostname:     String,
+    socket:       SocketAddrV4,
+    root_ca:      Vec<u8>,
 }
 async fn init_data_handler(
     _req: &HttpRequest,
@@ -72,12 +72,12 @@ async fn init_data_handler(
         return ControlFlow::Break(api_resp!(InternalServerError "儲存設定失敗"));
     }
     let service_desp = ServiceDescriptor {
-        kind: ServiceKind::Mca,
-        uri: format!("https://{}:{}", state.socket.ip(), state.socket.port()),
+        kind:        ServiceKind::Mca,
+        uri:         format!("https://{}:{}", state.socket.ip(), state.socket.port()),
         health_name: Some("ca.CA".to_string()),
-        hostname: get_local_hostname(),
-        is_server: true,
-        uuid: state.unique_id,
+        hostname:    get_local_hostname(),
+        is_server:   true,
+        uuid:        state.unique_id,
     };
     ControlFlow::Continue(SignedCertResponse {
         root_ca: state.root_ca.clone(),
@@ -90,8 +90,8 @@ async fn init_data_handler(
 }
 declare_init_route!(init_data_handler, data = InitRequest, extras = (state: Arc<AppState>), ret = SignedCertResponse);
 pub struct MiniController {
-    sign_cert: Option<SignedCert>,
-    private_key: Option<PrivateKey>,
+    sign_cert:    Option<SignedCert>,
+    private_key:  Option<PrivateKey>,
     cert_process: Arc<CertificateProcess>,
 }
 impl MiniController {
@@ -136,11 +136,11 @@ impl MiniController {
         .with_otp_rotate_every(otp_time)
         .add_configurer(init_route())
         .with_app_data(AppState {
-            root_ca: root_ca_bytes,
+            root_ca:      root_ca_bytes,
             cert_process: self.cert_process.clone(),
-            unique_id: id,
-            hostname: hostname.clone(),
-            socket: addr,
+            unique_id:    id,
+            hostname:     hostname.clone(),
+            socket:       addr,
         });
         match init_server.init().await {
             ControlFlow::Continue(()) => {
