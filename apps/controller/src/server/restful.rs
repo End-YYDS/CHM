@@ -1579,8 +1579,7 @@ impl RestfulService for ControllerRestfulServer {
         let mut changed = false;
 
         if let Some(cpu) = req.cpu_usage {
-            thresholds.cpu =
-                metric_setting_to_threshold(&cpu).map_err(Status::invalid_argument)?;
+            thresholds.cpu = metric_setting_to_threshold(&cpu).map_err(Status::invalid_argument)?;
             changed = true;
         }
         if let Some(disk) = req.disk_usage {

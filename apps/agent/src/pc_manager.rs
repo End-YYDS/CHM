@@ -1,8 +1,8 @@
 use crate::{execute_host_body, last_non_empty_line, ReturnInfo, ReturnStatus};
 
-fn run_power_command(command: &str, success_message: &str) -> ReturnInfo {
+async fn run_power_command(command: &str, success_message: &str) -> ReturnInfo {
     let script = format!("{command}\n");
-    match execute_host_body(&script) {
+    match execute_host_body(&script).await {
         Ok(result) => {
             if result.status == 0 {
                 ReturnInfo { status: ReturnStatus::Ok, message: success_message.to_string() }
@@ -22,12 +22,12 @@ fn run_power_command(command: &str, success_message: &str) -> ReturnInfo {
     }
 }
 
-pub fn execute_reboot() -> ReturnInfo {
+pub async fn execute_reboot() -> ReturnInfo {
     // ReturnInfo { type_field: "OK".to_string(), message: "reboot
     // 指令已送出".to_string() }
-    run_power_command("reboot", "reboot 指令已送出")
+    run_power_command("reboot", "reboot 指令已送出").await
 }
 
-pub fn execute_shutdown() -> ReturnInfo {
-    run_power_command("shutdown -h now", "shutdown 指令已送出")
+pub async fn execute_shutdown() -> ReturnInfo {
+    run_power_command("shutdown -h now", "shutdown 指令已送出").await
 }

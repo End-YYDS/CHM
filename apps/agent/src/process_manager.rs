@@ -89,12 +89,8 @@ struct ProcessStatusDto {
     boot:   bool,
 }
 
-/// Convert HostD response into structured ProcessInfo
-pub fn process_info_structured(_sys: &SystemInfo) -> io::Result<ProcessInfo> {
-    let cmd = make_sysinfo_command("process_list");
-    let output = send_to_hostd(&cmd)?;
-
-    let dto: ProcessInfoDto = serde_json::from_str(&output).map_err(|e| {
+fn parse_process_info(output: &str) -> io::Result<ProcessInfo> {
+    let dto: ProcessInfoDto = serde_json::from_str(output).map_err(|e| {
         io::Error::new(
             io::ErrorKind::InvalidData,
             format!("failed to parse process info JSON: {}", e),
@@ -113,7 +109,13 @@ pub fn process_info_structured(_sys: &SystemInfo) -> io::Result<ProcessInfo> {
     Ok(ProcessInfo { length: entries.len(), entries })
 }
 
-pub fn execute_process_command(
+pub async fn process_info_structured(_sys: &SystemInfo) -> io::Result<ProcessInfo> {
+    let cmd = make_sysinfo_command("process_list");
+    let output = send_to_hostd(&cmd).await?;
+    parse_process_info(&output)
+}
+
+pub async fn execute_process_command(
     action: ProcessAction,
     argument: Option<&str>,
     sys: &SystemInfo,
@@ -131,7 +133,7 @@ pub fn execute_process_command(
 
     let body = format!("{}\nprintf '%s\\n' {}\n", command, shell_quote(&success_message));
 
-    let result = execute_host_body(&body)?;
+    let result = execute_host_body(&body).await?;
     if result.status == 0 {
         let message = last_non_empty_line(&result.output)
             .map(|line| line.to_string())

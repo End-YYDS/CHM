@@ -82,7 +82,7 @@ struct DirectoryEntryDto {
     modified: String,
 }
 
-pub fn pdir_info_structured(argument: Option<&str>) -> io::Result<ParentDirectory> {
+pub async fn pdir_info_structured(argument: Option<&str>) -> io::Result<ParentDirectory> {
     let directory = parse_pdir_argument(argument)?;
     let payload = GetPdirRequest { directory: &directory };
     let payload_json = serde_json::to_string(&payload).map_err(|e| {
@@ -93,7 +93,7 @@ pub fn pdir_info_structured(argument: Option<&str>) -> io::Result<ParentDirector
     })?;
 
     let cmd = make_sysinfo_command_with_argument("pdir_status", &payload_json);
-    let output = send_to_hostd(&cmd)?;
+    let output = send_to_hostd(&cmd).await?;
 
     if let Ok(info) = serde_json::from_str::<ReturnInfo>(&output) {
         return Err(io::Error::other(info.message));
@@ -153,7 +153,7 @@ fn convert_parent_directory(dto: ParentDirectoryDto) -> io::Result<ParentDirecto
     Ok(ParentDirectory { length, files })
 }
 
-pub fn file_pdir_upload(path: &str, file_base64: &str) -> Result<(), String> {
+pub async fn file_pdir_upload(path: &str, file_base64: &str) -> Result<(), String> {
     let full_path = normalize_absolute_path(path)?;
     let decoded = general_purpose::STANDARD
         .decode(file_base64)
@@ -179,8 +179,9 @@ pub fn file_pdir_upload(path: &str, file_base64: &str) -> Result<(), String> {
     script.push_str("chmod 0644 \"$TMP_FILE\"\n");
     script.push_str(&format!("mv \"$TMP_FILE\" {}\n", shell_quote(&full_path)));
 
-    let result =
-        execute_host_body(&script).map_err(|e| format!("file_pdir_upload host error: {}", e))?;
+    let result = execute_host_body(&script)
+        .await
+        .map_err(|e| format!("file_pdir_upload host error: {}", e))?;
     if result.status != 0 {
         let message = if result.output.trim().is_empty() {
             format!("upload failed with status {}", result.status)
@@ -193,7 +194,7 @@ pub fn file_pdir_upload(path: &str, file_base64: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub fn file_pdir_download(path: &str, filename: &str) -> Result<String, String> {
+pub async fn file_pdir_download(path: &str, filename: &str) -> Result<String, String> {
     let full_path = join_path_filename(path, filename)?;
     let command = format!(
         "if [ ! -f {} ]; then printf 'NOTFOUND\\n'; exit 1; fi\nbase64 {} | tr -d '\n'\n",
@@ -201,8 +202,9 @@ pub fn file_pdir_download(path: &str, filename: &str) -> Result<String, String> 
         shell_quote(&full_path)
     );
 
-    let result =
-        execute_host_body(&command).map_err(|e| format!("file_pdir_download host error: {}", e))?;
+    let result = execute_host_body(&command)
+        .await
+        .map_err(|e| format!("file_pdir_download host error: {}", e))?;
 
     if result.status != 0 {
         if result.output.trim() == "NOTFOUND" {

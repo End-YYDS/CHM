@@ -21,8 +21,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(unix)]
 use tokio::{
     net::UnixStream,
-    runtime::{Builder, Handle},
-    sync::{Mutex, OnceCell},
+    sync::{OnceCell, RwLock, Semaphore},
 };
 #[cfg(unix)]
 use tower::service_fn;
@@ -46,6 +45,9 @@ pub const DEFAULT_OTP_LEN: usize = 6;
 // ==================================
 pub const DEFAULT_INFO_CONCURRENCY: usize = 4;
 pub const DEFAULT_FILE_CONCURRENCY: usize = 4;
+pub const DEFAULT_HOSTD_GET_CONCURRENCY: usize = 8;
+pub const DEFAULT_HOSTD_COMMAND_CONCURRENCY: usize = 2;
+pub const DEFAULT_SOFTWARE_CONCURRENCY: usize = 1;
 pub const DEFAULT_GET_TIMEOUT_SECS: u64 = 10;
 pub const DEFAULT_COMMAND_TIMEOUT_SECS: u64 = 60;
 
@@ -64,21 +66,27 @@ pub struct ControllerSettings {
 #[serde(rename_all = "PascalCase")]
 pub struct AgentExtension {
     #[serde(default = "AgentExtension::default_socket_path")]
-    pub socket_path:          PathBuf,
+    pub socket_path:               PathBuf,
     #[serde(default = "AgentExtension::default_info_concurrency")]
-    pub info_concurrency:     usize,
+    pub info_concurrency:          usize,
     #[serde(default = "AgentExtension::default_file_concurrency")]
-    pub file_concurrency:     usize,
+    pub file_concurrency:          usize,
+    #[serde(default = "AgentExtension::default_hostd_get_concurrency")]
+    pub hostd_get_concurrency:     usize,
+    #[serde(default = "AgentExtension::default_hostd_command_concurrency")]
+    pub hostd_command_concurrency: usize,
+    #[serde(default = "AgentExtension::default_software_concurrency")]
+    pub software_concurrency:      usize,
     #[serde(default = "AgentExtension::default_get_timeout_secs")]
-    pub get_timeout_secs:     u64,
+    pub get_timeout_secs:          u64,
     #[serde(default = "AgentExtension::default_command_timeout_secs")]
-    pub command_timeout_secs: u64,
+    pub command_timeout_secs:      u64,
     #[serde(default)]
-    pub controller:           ControllerSettings,
+    pub controller:                ControllerSettings,
     #[serde(default = "AgentExtension::default_run_as_user")]
-    pub run_as_user:          String,
+    pub run_as_user:               String,
     #[serde(default = "AgentExtension::default_run_as_group")]
-    pub run_as_group:         String,
+    pub run_as_group:              String,
 }
 
 impl AgentExtension {
@@ -92,6 +100,18 @@ impl AgentExtension {
 
     fn default_file_concurrency() -> usize {
         DEFAULT_FILE_CONCURRENCY
+    }
+
+    fn default_hostd_get_concurrency() -> usize {
+        DEFAULT_HOSTD_GET_CONCURRENCY
+    }
+
+    fn default_hostd_command_concurrency() -> usize {
+        DEFAULT_HOSTD_COMMAND_CONCURRENCY
+    }
+
+    fn default_software_concurrency() -> usize {
+        DEFAULT_SOFTWARE_CONCURRENCY
     }
 
     fn default_get_timeout_secs() -> u64 {
@@ -114,14 +134,17 @@ impl AgentExtension {
 impl Default for AgentExtension {
     fn default() -> Self {
         Self {
-            socket_path:          Self::default_socket_path(),
-            info_concurrency:     Self::default_info_concurrency(),
-            file_concurrency:     Self::default_file_concurrency(),
-            get_timeout_secs:     Self::default_get_timeout_secs(),
-            command_timeout_secs: Self::default_command_timeout_secs(),
-            controller:           ControllerSettings::default(),
-            run_as_user:          Self::default_run_as_user(),
-            run_as_group:         Self::default_run_as_group(),
+            socket_path:               Self::default_socket_path(),
+            info_concurrency:          Self::default_info_concurrency(),
+            file_concurrency:          Self::default_file_concurrency(),
+            hostd_get_concurrency:     Self::default_hostd_get_concurrency(),
+            hostd_command_concurrency: Self::default_hostd_command_concurrency(),
+            software_concurrency:      Self::default_software_concurrency(),
+            get_timeout_secs:          Self::default_get_timeout_secs(),
+            command_timeout_secs:      Self::default_command_timeout_secs(),
+            controller:                ControllerSettings::default(),
+            run_as_user:               Self::default_run_as_user(),
+            run_as_group:              Self::default_run_as_group(),
         }
     }
 }
@@ -142,6 +165,33 @@ pub fn file_concurrency_limit() -> usize {
     let value = crate::globals::GlobalConfig::with(|cfg| cfg.extend.file_concurrency);
     if value == 0 {
         DEFAULT_FILE_CONCURRENCY
+    } else {
+        value
+    }
+}
+
+pub fn hostd_get_concurrency_limit() -> usize {
+    let value = crate::globals::GlobalConfig::with(|cfg| cfg.extend.hostd_get_concurrency);
+    if value == 0 {
+        DEFAULT_HOSTD_GET_CONCURRENCY
+    } else {
+        value
+    }
+}
+
+pub fn hostd_command_concurrency_limit() -> usize {
+    let value = crate::globals::GlobalConfig::with(|cfg| cfg.extend.hostd_command_concurrency);
+    if value == 0 {
+        DEFAULT_HOSTD_COMMAND_CONCURRENCY
+    } else {
+        value
+    }
+}
+
+pub fn software_concurrency_limit() -> usize {
+    let value = crate::globals::GlobalConfig::with(|cfg| cfg.extend.software_concurrency);
+    if value == 0 {
+        DEFAULT_SOFTWARE_CONCURRENCY
     } else {
         value
     }
@@ -318,36 +368,102 @@ pub struct ReturnInfo {
 #[cfg(unix)]
 type HostdClient = HostdServiceClient<Channel>;
 #[cfg(unix)]
-static HOSTD_CLIENT: OnceCell<Mutex<Option<HostdClient>>> = OnceCell::const_new();
+struct HostdClientPool {
+    channel:         RwLock<Option<Channel>>,
+    socket_path:     PathBuf,
+    get_sem:         Semaphore,
+    command_sem:     Semaphore,
+    connect_timeout: Duration,
+    get_timeout:     Duration,
+    command_timeout: Duration,
+}
 
 #[cfg(unix)]
-async fn connect_hostd_client() -> io::Result<HostdClient> {
-    let (path, get_timeout_secs, command_timeout_secs) = GlobalConfig::with(|cfg| {
-        (
-            cfg.extend.socket_path.clone(),
-            cfg.extend.get_timeout_secs.max(1),
-            cfg.extend.command_timeout_secs.max(1),
-        )
-    });
-    let path = Arc::new(path);
-    let endpoint = Endpoint::from_static("http://[::]:50059")
-        .connect_timeout(Duration::from_secs(5))
-        .timeout(Duration::from_secs(get_timeout_secs.max(command_timeout_secs)));
-    let connector = service_fn(move |_: Uri| {
-        let path = Arc::clone(&path);
-        async move {
-            let stream = UnixStream::connect(&*path).await.map_err(io::Error::other)?;
-            Ok::<_, io::Error>(TokioIo::new(stream))
+impl HostdClientPool {
+    fn from_config() -> Self {
+        let (socket_path, get_timeout_secs, command_timeout_secs, get_limit, command_limit) =
+            GlobalConfig::with(|cfg| {
+                (
+                    cfg.extend.socket_path.clone(),
+                    cfg.extend.get_timeout_secs.max(1),
+                    cfg.extend.command_timeout_secs.max(1),
+                    cfg.extend.hostd_get_concurrency,
+                    cfg.extend.hostd_command_concurrency,
+                )
+            });
+
+        let get_limit = if get_limit == 0 { DEFAULT_HOSTD_GET_CONCURRENCY } else { get_limit };
+        let command_limit =
+            if command_limit == 0 { DEFAULT_HOSTD_COMMAND_CONCURRENCY } else { command_limit };
+
+        Self {
+            channel: RwLock::new(None),
+            socket_path,
+            get_sem: Semaphore::new(get_limit),
+            command_sem: Semaphore::new(command_limit),
+            connect_timeout: Duration::from_secs(5),
+            get_timeout: Duration::from_secs(get_timeout_secs),
+            command_timeout: Duration::from_secs(command_timeout_secs),
         }
-    });
+    }
 
-    let channel = endpoint
-        .connect_with_connector(connector)
-        .await
-        .map_err(|err| io::Error::new(io::ErrorKind::ConnectionRefused, err))?;
+    fn semaphore(&self, is_get: bool) -> &Semaphore {
+        if is_get {
+            &self.get_sem
+        } else {
+            &self.command_sem
+        }
+    }
 
-    Ok(HostdServiceClient::new(channel))
+    async fn make_client(&self) -> io::Result<HostdClient> {
+        let channel = self.channel().await?;
+        Ok(HostdServiceClient::new(channel))
+    }
+
+    async fn channel(&self) -> io::Result<Channel> {
+        if let Some(channel) = self.channel.read().await.as_ref() {
+            return Ok(channel.clone());
+        }
+        self.reconnect().await
+    }
+
+    async fn reconnect(&self) -> io::Result<Channel> {
+        let mut guard = self.channel.write().await;
+        if let Some(channel) = guard.as_ref() {
+            return Ok(channel.clone());
+        }
+        let channel = self.build_channel().await?;
+        *guard = Some(channel.clone());
+        Ok(channel)
+    }
+
+    async fn build_channel(&self) -> io::Result<Channel> {
+        let path = Arc::new(self.socket_path.clone());
+        let endpoint = Endpoint::from_static("http://[::]:50059")
+            .connect_timeout(self.connect_timeout)
+            .timeout(self.get_timeout.max(self.command_timeout));
+        let connector = service_fn(move |_: Uri| {
+            let path = Arc::clone(&path);
+            async move {
+                let stream = UnixStream::connect(&*path).await.map_err(io::Error::other)?;
+                Ok::<_, io::Error>(TokioIo::new(stream))
+            }
+        });
+
+        endpoint
+            .connect_with_connector(connector)
+            .await
+            .map_err(|err| io::Error::new(io::ErrorKind::ConnectionRefused, err))
+    }
+
+    async fn invalidate(&self) {
+        let mut guard = self.channel.write().await;
+        *guard = None;
+    }
 }
+
+#[cfg(unix)]
+static HOSTD_POOL: OnceCell<HostdClientPool> = OnceCell::const_new();
 
 #[cfg(unix)]
 fn status_to_io_error(status: Status) -> io::Error {
@@ -363,91 +479,59 @@ fn status_to_io_error(status: Status) -> io::Error {
 }
 
 #[cfg(unix)]
-pub async fn send_to_hostd_async(real_command: &RealCommand) -> io::Result<String> {
-    let mutex = HOSTD_CLIENT.get_or_init(|| async { Mutex::new(None) }).await;
-    let mut guard = mutex.lock().await;
+pub async fn send_to_hostd(real_command: &RealCommand) -> io::Result<String> {
+    let pool = HOSTD_POOL.get_or_init(|| async { HostdClientPool::from_config() }).await;
+    let permit = pool
+        .semaphore(real_command.is_get)
+        .acquire()
+        .await
+        .map_err(|_| io::Error::other("HostD semaphore closed"))?;
 
-    if guard.is_none() {
-        *guard = Some(connect_hostd_client().await?);
-    }
+    let mut client = pool.make_client().await?;
+    let timeout = if real_command.is_get { pool.get_timeout } else { pool.command_timeout };
 
-    let client = guard.as_mut().expect("HostD client must be initialized");
-
-    let (get_timeout, command_timeout) = GlobalConfig::with(|cfg| {
-        (
-            Duration::from_secs(cfg.extend.get_timeout_secs.max(1)),
-            Duration::from_secs(cfg.extend.command_timeout_secs.max(1)),
-        )
-    });
-
-    if real_command.is_get {
+    let result = if real_command.is_get {
         let request = crate::hostd::proto::SysInfoRequest { command: real_command.command.clone() };
-        match tokio::time::timeout(get_timeout, client.run_sys_info(request)).await {
-            Ok(result) => match result {
-                Ok(resp) => Ok(resp.into_inner().output.trim().to_string()),
-                Err(status) => {
-                    if matches!(status.code(), Code::Unavailable | Code::Internal) {
-                        *guard = None;
-                    }
-                    Err(status_to_io_error(status))
+        match tokio::time::timeout(timeout, client.run_sys_info(request)).await {
+            Ok(Ok(resp)) => Ok(resp.into_inner().output.trim().to_string()),
+            Ok(Err(status)) => {
+                if matches!(status.code(), Code::Unavailable | Code::Internal) {
+                    pool.invalidate().await;
                 }
-            },
+                Err(status_to_io_error(status))
+            }
             Err(_) => {
-                tracing::warn!("HostD run_sys_info timed out after {:?}", get_timeout);
-                *guard = None;
-                Err(io::Error::new(io::ErrorKind::TimedOut, "HostD sysinfo RPC timeout"))
+                tracing::warn!("HostD run_sys_info timed out after {:?}", timeout);
+                pool.invalidate().await;
+                Err(io::Error::new(io::ErrorKind::TimedOut, "HostD RPC timeout"))
             }
         }
     } else {
         let request =
             crate::hostd::proto::HostCommandRequest { command: real_command.command.clone() };
-        match tokio::time::timeout(command_timeout, client.run_host_command(request)).await {
-            Ok(result) => match result {
-                Ok(resp) => {
-                    let inner = resp.into_inner();
-                    let payload =
-                        if !inner.stdout.trim().is_empty() { inner.stdout } else { inner.stderr };
-                    Ok(payload.trim().to_string())
+        match tokio::time::timeout(timeout, client.run_host_command(request)).await {
+            Ok(Ok(resp)) => {
+                let inner = resp.into_inner();
+                let payload =
+                    if !inner.stdout.trim().is_empty() { inner.stdout } else { inner.stderr };
+                Ok(payload.trim().to_string())
+            }
+            Ok(Err(status)) => {
+                if matches!(status.code(), Code::Unavailable | Code::Internal) {
+                    pool.invalidate().await;
                 }
-                Err(status) => {
-                    if matches!(status.code(), Code::Unavailable | Code::Internal) {
-                        *guard = None;
-                    }
-                    Err(status_to_io_error(status))
-                }
-            },
+                Err(status_to_io_error(status))
+            }
             Err(_) => {
-                tracing::warn!("HostD run_host_command timed out after {:?}", command_timeout);
-                *guard = None;
-                Err(io::Error::new(io::ErrorKind::TimedOut, "HostD command RPC timeout"))
+                tracing::warn!("HostD run_host_command timed out after {:?}", timeout);
+                pool.invalidate().await;
+                Err(io::Error::new(io::ErrorKind::TimedOut, "HostD RPC timeout"))
             }
         }
-    }
-}
+    };
+    drop(permit);
 
-#[cfg(not(unix))]
-pub async fn send_to_hostd_async(_real_command: &RealCommand) -> io::Result<String> {
-    Err(io::Error::new(io::ErrorKind::Unsupported, "AgentD 僅支援在 Unix-like 平台執行"))
-}
-
-#[cfg(unix)]
-pub fn send_to_hostd(real_command: &RealCommand) -> io::Result<String> {
-    match Handle::try_current() {
-        Ok(handle) => {
-            tokio::task::block_in_place(|| handle.block_on(send_to_hostd_async(real_command)))
-        }
-        Err(_) => Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .map_err(io::Error::other)?
-            .block_on(send_to_hostd_async(real_command)),
-    }
-}
-
-#[cfg(not(unix))]
-pub fn send_to_hostd(real_command: &RealCommand) -> io::Result<String> {
-    let _ = real_command;
-    Err(io::Error::new(io::ErrorKind::Unsupported, "AgentD 僅支援在 Unix-like 平台執行"))
+    result
 }
 
 pub fn make_sysinfo_command(keyword: &str) -> RealCommand {
@@ -466,7 +550,7 @@ pub fn make_sysinfo_command_with_argument(keyword: &str, argument_json: &str) ->
     RealCommand { command, is_get: true, response_kind: ResponseKind::Raw }
 }
 
-pub fn execute_host_body(body: &str) -> Result<HostCommandOutput, String> {
+pub async fn execute_host_body(body: &str) -> Result<HostCommandOutput, String> {
     let payload = wrap_body_for_host(body);
     let real = RealCommand {
         command:       payload,
@@ -474,7 +558,7 @@ pub fn execute_host_body(body: &str) -> Result<HostCommandOutput, String> {
         response_kind: ResponseKind::Raw,
     };
 
-    let raw = send_to_hostd(&real).map_err(|e| e.to_string())?;
+    let raw = send_to_hostd(&real).await.map_err(|e| e.to_string())?;
     parse_status_payload(&raw)
 }
 
