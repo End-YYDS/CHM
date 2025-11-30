@@ -2,6 +2,7 @@ set shell := ["bash", "-cu"]
 set dotenv-load := true
 
 SED := `if command -v gsed &> /dev/null; then echo gsed; else echo sed; fi`
+CONTAINER := `if command -v podman &> /dev/null; then echo podman; elif command -v docker &> /dev/null; then echo docker; else echo "ERROR: neither podman nor docker found" >&2; exit 1;fi`
 CA_DATABASE_URL := env_var('CA_DATABASE_URL')
 DNS_DATABASE_URL := env_var('DNS_DATABASE_URL')
 LDAP_DATABASE_URL := env_var('LDAP_DATABASE_URL')
@@ -99,7 +100,7 @@ run-ca args="":
     @DATABASE_URL={{ CA_DATABASE_URL }} RUST_LOG=info,ca=debug,CHMmCA=debug  cargo run -p ca --bin CHMmCA -- {{ args }}
 
 run-dns args="":
-    @podman start CHM-DNS || true
+    @{{CONTAINER}} start CHM-DNS || true
     @DATABASE_URL={{ DNS_DATABASE_URL }} RUST_LOG=info,dns=debug,CHMmDNS=debug cargo run -p dns --bin CHMmDNS -- {{ args }}
 
 run-controller args="":
@@ -167,7 +168,7 @@ run-r-ca args="":
     @DATABASE_URL={{ CA_DATABASE_URL }} RUST_LOG=ca=info,CHM_CA=info  cargo run -p ca --bin CHM_CA -r -- {{ args }}
 
 run-r-dns args="":
-    @podman start CHM-DNS || true
+    @{{CONTAINER}} start CHM-DNS || true
     @DATABASE_URL={{ DNS_DATABASE_URL }} RUST_LOG=dns=info,CHM_mDNSd=info cargo run -p dns --bin CHM_mDNSd -r -- {{ args }}
 
 run-r-controller args="":
