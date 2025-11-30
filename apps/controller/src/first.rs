@@ -7,39 +7,39 @@ use chm_project_const::{uuid::Uuid, ProjectConst};
 use serde::{Deserialize, Serialize};
 use url::Url;
 struct FirstStart {
-    inner: Default_ClientCluster,
+    inner:     Default_ClientCluster,
     self_uuid: Uuid,
 }
 struct FirstStartParams {
-    base_url: String,
+    base_url:  String,
     self_uuid: Uuid,
-    mdns_url: String,
+    mdns_url:  String,
 }
 #[derive(Debug, Deserialize)]
 struct SignedCertResponse {
-    root_ca: Vec<u8>,
-    cert: Vec<u8>,
-    chain: Vec<Vec<u8>>,
-    ca_hostname: String,
-    port: u16,
+    root_ca:      Vec<u8>,
+    cert:         Vec<u8>,
+    chain:        Vec<Vec<u8>>,
+    ca_hostname:  String,
+    port:         u16,
     service_desp: ServiceDescriptor,
 }
 
 #[derive(Debug, Clone, Serialize)]
 struct InitData {
     csr_cert: Vec<u8>,
-    days: u32,
-    uuid: Uuid,
+    days:     u32,
+    uuid:     Uuid,
 }
 #[allow(unused)]
 #[derive(Debug)]
 struct InitOutput {
-    root_ca: Vec<u8>,
-    private_key: Vec<u8>,
-    cert: Vec<u8>,
-    cert_chain: Vec<Vec<u8>>,
-    ca_hostname: String,
-    ca_port: u16,
+    root_ca:      Vec<u8>,
+    private_key:  Vec<u8>,
+    cert:         Vec<u8>,
+    cert_chain:   Vec<Vec<u8>>,
+    ca_hostname:  String,
+    ca_port:      u16,
     service_desp: ServiceDescriptor,
 }
 impl FirstStart {
@@ -90,12 +90,12 @@ impl FirstStart {
         let payload = InitData { csr_cert, days: 365, uuid: self.self_uuid }; // TODO: 添加新的欄位VNI
         let resp: SignedCertResponse = init_with!(self.inner, payload, as SignedCertResponse)?;
         Ok(InitOutput {
-            root_ca: resp.root_ca,
-            private_key: pri_key,
-            cert: resp.cert,
-            cert_chain: resp.chain,
-            ca_hostname: resp.ca_hostname,
-            ca_port: resp.port,
+            root_ca:      resp.root_ca,
+            private_key:  pri_key,
+            cert:         resp.cert,
+            cert_chain:   resp.chain,
+            ca_hostname:  resp.ca_hostname,
+            ca_port:      resp.port,
             service_desp: resp.service_desp,
         })
     }
