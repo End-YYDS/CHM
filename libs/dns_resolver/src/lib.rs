@@ -319,3 +319,9 @@ pub async fn lookup_cached(
 ) -> std::result::Result<SocketAddr, Box<dyn StdError + Send + Sync>> {
     lookup_host_via_minidns(&resolver, &host).await
 }
+
+pub fn get_local_hostname() -> Result<String> {
+    let hostname = hostname::get()?;
+    let hostname_str = hostname.into_string().map_err(|_| "無法將主機名稱轉換為字串")?;
+    Ok(hostname_str)
+}
