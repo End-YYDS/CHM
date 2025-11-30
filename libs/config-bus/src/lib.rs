@@ -43,7 +43,14 @@ macro_rules! declare_config {
                 pub dns_server: String,
             }
             impl Server {
-                fn default_hostname() -> String { get_local_hostname() }
+                fn default_hostname() -> String {
+                    if cfg!(debug_assertions) {
+                        crate::ID.into()
+                    }
+                    else {
+                        get_local_hostname()
+                    }
+                }
                 fn default_host() -> String {
                     #[cfg(debug_assertions)]
                     {
@@ -220,7 +227,12 @@ macro_rules! declare_config {
             }
             impl Server {
                 fn default_hostname() -> String {
-                    get_local_hostname()
+                    if cfg!(debug_assertions) {
+                        crate::ID.into()
+                    }
+                    else {
+                        get_local_hostname()
+                    }
                 }
                 fn default_host() -> String {
                     #[cfg(debug_assertions)]
