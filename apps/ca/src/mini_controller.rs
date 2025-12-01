@@ -71,13 +71,14 @@ async fn init_data_handler(
         tracing::error!("儲存設定失敗: {:?}", e);
         return ControlFlow::Break(api_resp!(InternalServerError "儲存設定失敗"));
     }
+    let hostname = if cfg!(debug_assertions) { ID.to_string() } else { get_local_hostname() };
     let service_desp = ServiceDescriptor {
-        kind:        ServiceKind::Mca,
-        uri:         format!("https://{}:{}", state.socket.ip(), state.socket.port()),
+        kind: ServiceKind::Mca,
+        uri: format!("https://{}:{}", state.socket.ip(), state.socket.port()),
         health_name: Some("ca.CA".to_string()),
-        hostname:    get_local_hostname(),
-        is_server:   true,
-        uuid:        state.unique_id,
+        hostname,
+        is_server: true,
+        uuid: state.unique_id,
     };
     ControlFlow::Continue(SignedCertResponse {
         root_ca: state.root_ca.clone(),
