@@ -47,3 +47,16 @@ Import-Module cargo-chm
 ```text
 CHM_{ID}__{結構名稱}___{欄位名稱}
 ```
+## OpenSSL Vendored
+### Need
+- perl
+- perl-FindBin
+- musl-gcc
+- perl-IPC-Cmd
+- perl-Time-Piece
+
+### Command
+```shell
+sudo ln -s /usr/bin/musl-gcc /usr/bin/x86_64-linux-musl-gcc
+rustup target add x86_64-unknown-linux-musl
+```

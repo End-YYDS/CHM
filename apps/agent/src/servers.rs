@@ -280,12 +280,11 @@ fn round_two(value: f64) -> f64 {
     (value * 100.0).round() / 100.0
 }
 
-/// Collect Apache metrics and logs through HostD.
-pub fn get_server_apache(sys: &SystemInfo) -> io::Result<ApacheServerInfo> {
+pub async fn get_server_apache(sys: &SystemInfo) -> io::Result<ApacheServerInfo> {
     let config = ApacheConfig::for_system(sys);
-    let hostname = fetch_hostname()?;
-    let ip = fetch_public_ip()?;
-    let presence = detect_service_presence(config.service_name);
+    let hostname = fetch_hostname().await?;
+    let ip = fetch_public_ip().await?;
+    let presence = detect_service_presence(config.service_name).await;
     if matches!(presence, Ok(ServicePresence::NotFound)) {
         return Ok(ApacheServerInfo {
             hostname,
@@ -305,14 +304,14 @@ pub fn get_server_apache(sys: &SystemInfo) -> io::Result<ApacheServerInfo> {
     let status = match presence {
         Ok(ServicePresence::Active) => ApacheStatus::Active,
         Ok(ServicePresence::Inactive) => ApacheStatus::Stopped,
-        _ => fetch_service_status(&config)?,
+        _ => fetch_service_status(&config).await?,
     };
-    let (cpu_raw, memory_raw) = fetch_cpu_memory(&config)?;
+    let (cpu_raw, memory_raw) = fetch_cpu_memory(&config).await?;
     let cpu = round_two(cpu_raw);
     let memory = round_two(memory_raw);
-    let connections = fetch_connection_count()?;
-    let error_lines = fetch_log_lines(config.error_log, ERROR_LOG_LINE_LIMIT)?;
-    let access_lines = fetch_log_lines(config.access_log, ACCESS_LOG_LINE_LIMIT)?;
+    let connections = fetch_connection_count().await?;
+    let error_lines = fetch_log_lines(config.error_log, ERROR_LOG_LINE_LIMIT).await?;
+    let access_lines = fetch_log_lines(config.access_log, ACCESS_LOG_LINE_LIMIT).await?;
     let error_log = parse_error_log_entries(&error_lines);
     let access_log = parse_access_log_entries(&access_lines);
     let logs = ApacheLogs {
@@ -325,29 +324,38 @@ pub fn get_server_apache(sys: &SystemInfo) -> io::Result<ApacheServerInfo> {
     Ok(ApacheServerInfo { hostname, status, cpu, memory, connections, ip, logs })
 }
 
-/// Return host info if the specified server is installed.
-pub fn get_server_install(argument: &str, sys: &SystemInfo) -> Result<ServerHostInfo, String> {
+pub async fn get_server_install(
+    argument: &str,
+    sys: &SystemInfo,
+) -> Result<ServerHostInfo, String> {
     let server = parse_server_argument(argument)?;
     let service = resolve_service_name(&server, sys);
-    let presence =
-        detect_service_presence(&service).map_err(|e| format!("{server} query error: {e}"))?;
+    let presence = detect_service_presence(&service)
+        .await
+        .map_err(|e| format!("{server} query error: {e}"))?;
     match presence {
         ServicePresence::Active => collect_server_host_info(ServerStatus::Active, sys)
+            .await
             .map_err(|e| format!("failed to collect host info: {e}")),
         ServicePresence::Inactive => collect_server_host_info(ServerStatus::Stopped, sys)
+            .await
             .map_err(|e| format!("failed to collect host info: {e}")),
         ServicePresence::NotFound => Err(format!("{server} not installed")),
     }
 }
 
-/// Return host info if the specified server is not installed.
-pub fn get_server_noninstall(argument: &str, sys: &SystemInfo) -> Result<ServerHostInfo, String> {
+pub async fn get_server_noninstall(
+    argument: &str,
+    sys: &SystemInfo,
+) -> Result<ServerHostInfo, String> {
     let server = parse_server_argument(argument)?;
     let service = resolve_service_name(&server, sys);
-    let presence =
-        detect_service_presence(&service).map_err(|e| format!("{server} query error: {e}"))?;
+    let presence = detect_service_presence(&service)
+        .await
+        .map_err(|e| format!("{server} query error: {e}"))?;
     match presence {
         ServicePresence::NotFound => collect_server_host_info(ServerStatus::Stopped, sys)
+            .await
             .map_err(|e| format!("failed to collect host info: {e}")),
         ServicePresence::Active | ServicePresence::Inactive => {
             Err(format!("{server} already installed"))
@@ -372,24 +380,27 @@ fn resolve_service_name(server: &str, sys: &SystemInfo) -> String {
     }
 }
 
-fn collect_server_host_info(status: ServerStatus, sys: &SystemInfo) -> io::Result<ServerHostInfo> {
-    let hostname = fetch_hostname()?;
+async fn collect_server_host_info(
+    status: ServerStatus,
+    sys: &SystemInfo,
+) -> io::Result<ServerHostInfo> {
+    let hostname = fetch_hostname().await?;
     let config = ApacheConfig::for_system(sys);
-    let (cpu_raw, memory_raw) = fetch_cpu_memory(&config)?;
+    let (cpu_raw, memory_raw) = fetch_cpu_memory(&config).await?;
     let cpu = round_two(cpu_raw);
     let memory = round_two(memory_raw);
-    let ip = fetch_public_ip()?;
+    let ip = fetch_public_ip().await?;
     Ok(ServerHostInfo { hostname, status, cpu, memory, ip })
 }
 
-fn detect_service_presence(service: &str) -> io::Result<ServicePresence> {
+async fn detect_service_presence(service: &str) -> io::Result<ServicePresence> {
     let svc = shell_quote(service);
     let script = format!(
         "systemctl status {svc} >/dev/null 2>&1\ncode=$?\nif [ \"$code\" -eq 4 ]; then\n  printf \
          '%s\\n' 'notfound'\n  exit 0\nfi\nstate=$(systemctl is-active {svc} 2>/dev/null || \
          true)\nprintf '%s\\n' \"$state\"\n"
     );
-    let output = run_host_command(&script, "systemctl query")?;
+    let output = run_host_command(&script, "systemctl query").await?;
     let trimmed = output.trim();
     Ok(match trimmed {
         "active" => ServicePresence::Active,
@@ -398,7 +409,7 @@ fn detect_service_presence(service: &str) -> io::Result<ServicePresence> {
     })
 }
 
-pub fn execute_server_apache_action(
+pub async fn execute_server_apache_action(
     action: ApacheAction,
     sys: &SystemInfo,
 ) -> Result<String, String> {
@@ -409,6 +420,7 @@ pub fn execute_server_apache_action(
     let body = format!("{command}\nprintf '%s\\n' {}\n", shell_quote(&success_message));
 
     let result = execute_host_body(&body)
+        .await
         .map_err(|err| format!("{} host error: {}", action.command_name(), err))?;
 
     if result.status == 0 {
@@ -423,17 +435,17 @@ pub fn execute_server_apache_action(
     }
 }
 
-fn fetch_hostname() -> io::Result<String> {
-    let output = run_host_command("hostname\n", "hostname lookup")?;
+async fn fetch_hostname() -> io::Result<String> {
+    let output = run_host_command("hostname\n", "hostname lookup").await?;
     Ok(output.trim().to_string())
 }
 
-fn fetch_service_status(config: &ApacheConfig) -> io::Result<ApacheStatus> {
+async fn fetch_service_status(config: &ApacheConfig) -> io::Result<ApacheStatus> {
     let service = shell_quote(config.service_name);
     let script = format!(
         "status=$(systemctl is-active {service} 2>/dev/null || true)\nprintf '%s\\n' \"$status\"\n"
     );
-    let output = run_host_command(&script, "apache service status")?;
+    let output = run_host_command(&script, "apache service status").await?;
     let normalized = output.trim().to_ascii_lowercase();
     Ok(if normalized == "active" || normalized == "running" {
         ApacheStatus::Active
@@ -442,10 +454,10 @@ fn fetch_service_status(config: &ApacheConfig) -> io::Result<ApacheStatus> {
     })
 }
 
-fn fetch_cpu_memory(config: &ApacheConfig) -> io::Result<(f64, f64)> {
+async fn fetch_cpu_memory(config: &ApacheConfig) -> io::Result<(f64, f64)> {
     let process = shell_quote(config.process_name);
     let script = format!("ps --no-headers -C {process} -o %cpu,%mem 2>/dev/null || true\n");
-    let output = run_host_command(&script, "apache resource usage")?;
+    let output = run_host_command(&script, "apache resource usage").await?;
 
     let mut total_cpu = 0.0f64;
     let mut total_mem = 0.0f64;
@@ -468,7 +480,7 @@ fn fetch_cpu_memory(config: &ApacheConfig) -> io::Result<(f64, f64)> {
     Ok((total_cpu, total_mem))
 }
 
-fn fetch_connection_count() -> io::Result<i64> {
+async fn fetch_connection_count() -> io::Result<i64> {
     let script = r#"
 count=0
 if command -v ss >/dev/null 2>&1; then
@@ -480,7 +492,7 @@ else
 fi
 printf '%s\n' "$count"
 "#;
-    let output = run_host_command(script, "apache connection count")?;
+    let output = run_host_command(script, "apache connection count").await?;
     let trimmed = output.trim();
     if trimmed.is_empty() {
         return Ok(0);
@@ -490,8 +502,8 @@ printf '%s\n' "$count"
     })
 }
 
-fn fetch_public_ip() -> io::Result<String> {
-    if let Ok(Some(ip)) = fetch_sysinfo_local_ip() {
+async fn fetch_public_ip() -> io::Result<String> {
+    if let Ok(Some(ip)) = fetch_sysinfo_local_ip().await {
         return Ok(ip);
     }
 
@@ -507,14 +519,14 @@ if [ -z "$ip_addr" ]; then
 fi
 printf '%s\n' "$ip_addr"
 "#;
-    let output = run_host_command(script, "apache public ip")?;
+    let output = run_host_command(script, "apache public ip").await?;
     let trimmed = output.trim();
     Ok(if trimmed.is_empty() { "0.0.0.0".to_string() } else { trimmed.to_string() })
 }
 
-fn fetch_sysinfo_local_ip() -> io::Result<Option<String>> {
+async fn fetch_sysinfo_local_ip() -> io::Result<Option<String>> {
     let cmd = make_sysinfo_command("local_ip");
-    match send_to_hostd(&cmd) {
+    match send_to_hostd(&cmd).await {
         Ok(output) => {
             let trimmed = output.trim();
             if trimmed.is_empty() {
@@ -527,11 +539,11 @@ fn fetch_sysinfo_local_ip() -> io::Result<Option<String>> {
     }
 }
 
-fn fetch_log_lines(path: &str, limit: usize) -> io::Result<Vec<String>> {
+async fn fetch_log_lines(path: &str, limit: usize) -> io::Result<Vec<String>> {
     let log_path = shell_quote(path);
     let script =
         format!("LOG={log_path}\nif [ -f \"$LOG\" ]; then\n  tail -n {limit} \"$LOG\"\nfi\n");
-    let output = run_host_command(&script, path)?;
+    let output = run_host_command(&script, path).await?;
     Ok(output.lines().map(|line| line.to_string()).collect())
 }
 
@@ -688,8 +700,9 @@ fn extract_bracket_content(text: &str) -> Option<String> {
     Some(rest[..end].to_string())
 }
 
-fn run_host_command(script: &str, context: &str) -> io::Result<String> {
+async fn run_host_command(script: &str, context: &str) -> io::Result<String> {
     let result = execute_host_body(script)
+        .await
         .map_err(|err| io::Error::other(format!("{context} host error: {err}")))?;
     if result.status != 0 {
         let output = result.output.trim();

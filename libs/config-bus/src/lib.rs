@@ -3,7 +3,7 @@
 pub mod _reexports {
     pub use arc_swap::ArcSwap;
     pub use chm_config_loader::{load_config, store_config};
-    pub use chm_dns_resolver::DnsResolver;
+    pub use chm_dns_resolver::{get_local_hostname, DnsResolver};
     pub use chm_project_const::{uuid::Uuid, ProjectConst};
     pub use humantime_serde;
     pub use serde::{Deserialize, Serialize};
@@ -20,8 +20,7 @@ macro_rules! declare_config {
                 path::PathBuf,time::Duration,
             };
             use $crate::_reexports::{
-                load_config, store_config, Deserialize, DnsResolver, ProjectConst, Relaxed, Serialize,
-                Uuid,humantime_serde,
+                load_config, store_config, Deserialize, DnsResolver, ProjectConst, Relaxed, Serialize, Uuid,humantime_serde, get_local_hostname,
             };
             pub type ConfigResult<T> =
                 core::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -44,7 +43,14 @@ macro_rules! declare_config {
                 pub dns_server: String,
             }
             impl Server {
-                fn default_hostname() -> String { crate::ID.into() }
+                fn default_hostname() -> String {
+                    if cfg!(debug_assertions) {
+                        crate::ID.into()
+                    }
+                    else {
+                        get_local_hostname()
+                    }
+                }
                 fn default_host() -> String {
                     #[cfg(debug_assertions)]
                     {
@@ -133,8 +139,8 @@ macro_rules! declare_config {
                         state: "Taiwan".into(),
                         locality: "Taipei".into(),
                         org: "CHM-INIT".into(),
-                        cn: crate::ID.into(),
-                        san: vec!["127.0.0.1".into(), "localhost".into(),format!("{}.chm.com", crate::ID)],
+                        cn: get_local_hostname(),
+                        san: vec!["127.0.0.1".into(), "localhost".into(),format!("{}.chm.com", get_local_hostname())],
                         days: 1,
                     }
                 }
@@ -199,7 +205,7 @@ macro_rules! declare_config {
             };
             use $crate::_reexports::{
                 load_config, store_config, Deserialize, DnsResolver, Serialize,
-                ProjectConst, Uuid, Relaxed,humantime_serde,
+                ProjectConst, Uuid, Relaxed,humantime_serde,get_local_hostname,
             };
             pub type ConfigResult<T> = core::result::Result<T, Box<dyn std::error::Error + Send + Sync>>;
             #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -221,7 +227,12 @@ macro_rules! declare_config {
             }
             impl Server {
                 fn default_hostname() -> String {
-                    crate::ID.into()
+                    if cfg!(debug_assertions) {
+                        crate::ID.into()
+                    }
+                    else {
+                        get_local_hostname()
+                    }
                 }
                 fn default_host() -> String {
                     #[cfg(debug_assertions)]
@@ -321,8 +332,8 @@ macro_rules! declare_config {
                         state:    "Taiwan".into(),
                         locality: "Taipei".into(),
                         org:      "CHM-INIT".into(),
-                        cn:       crate::ID.into(),
-                        san:      vec!["127.0.0.1".into(), "localhost".into(),format!("{}.chm.com", crate::ID)],
+                        cn:       get_local_hostname(),
+                        san:      vec!["127.0.0.1".into(), "localhost".into(),format!("{}.chm.com", get_local_hostname())],
                         days:     1,
                     }
                 }
@@ -406,7 +417,9 @@ macro_rules! declare_config {
 macro_rules! declare_config_bus {
     () => {
         pub(crate) mod globals {
-            use $crate::_reexports::{load_config, store_config, watch, Arc, ArcSwap, OnceLock};
+            use $crate::_reexports::{
+                get_local_hostname, load_config, store_config, watch, Arc, ArcSwap, OnceLock,
+            };
             #[derive(Debug)]
             pub struct GlobalConfig;
             static GLOBALS: OnceLock<ArcSwap<crate::config::Settings>> = OnceLock::new();

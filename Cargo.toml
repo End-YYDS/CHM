@@ -57,8 +57,8 @@ humantime-serde = "1.1.1"
 hyper-util = { version = "0.1.17", features = ["tokio", "client"] }
 ipnetwork = "0.21.1"
 num_cpus = "1.17.0"
-openssl = "0.10.72"
-openssl-sys = "0.9.109"
+openssl = { version = "0.10.72", features = ["vendored"] }
+openssl-sys = { version = "0.9.109", features = ["vendored"] }
 prost = "0.13.5"
 prost-types = "0.13.5"
 rand = { version = "0.9.1", features = ["os_rng"] }
@@ -88,6 +88,7 @@ tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
 url = "2.5.4"
 uuid = { version = "1.17.0", features = ["v4", "serde"] }
+hostname = "0.4.2"
 [profile.release]
 opt-level = "s"
 strip = true

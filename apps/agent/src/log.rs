@@ -74,9 +74,9 @@ struct LogEntryDto {
     messages: String,
 }
 
-pub fn log_info_structured(_sys: &SystemInfo) -> io::Result<Logs> {
+pub async fn log_info_structured(_sys: &SystemInfo) -> io::Result<Logs> {
     let cmd = make_sysinfo_command("log_status");
-    let output = send_to_hostd(&cmd)?;
+    let output = send_to_hostd(&cmd).await?;
 
     if let Ok(info) = serde_json::from_str::<ReturnInfo>(&output) {
         return Err(io::Error::other(info.message));
@@ -92,7 +92,7 @@ pub fn log_info_structured(_sys: &SystemInfo) -> io::Result<Logs> {
     convert_logs(dto)
 }
 
-pub fn log_query_structured(argument: Option<&str>) -> io::Result<Logs> {
+pub async fn log_query_structured(argument: Option<&str>) -> io::Result<Logs> {
     let argument = argument.ok_or_else(|| {
         io::Error::new(io::ErrorKind::InvalidInput, "get_log_query requires an argument")
     })?;
@@ -121,7 +121,7 @@ pub fn log_query_structured(argument: Option<&str>) -> io::Result<Logs> {
     })?;
 
     let cmd = make_sysinfo_command_with_argument("log_query", &payload_json);
-    let output = send_to_hostd(&cmd)?;
+    let output = send_to_hostd(&cmd).await?;
 
     if let Ok(info) = serde_json::from_str::<ReturnInfo>(&output) {
         return Err(io::Error::other(info.message));

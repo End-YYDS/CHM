@@ -247,9 +247,9 @@ struct RouteDeleteArg {
     destination: String,
 }
 
-pub fn netif_info_structured(_sys: &SystemInfo) -> io::Result<NetworkInterfaces> {
+pub async fn netif_info_structured(_sys: &SystemInfo) -> io::Result<NetworkInterfaces> {
     let cmd = make_sysinfo_command("netif_status");
-    let output = send_to_hostd(&cmd)?;
+    let output = send_to_hostd(&cmd).await?;
 
     if let Ok(dto) = serde_json::from_str::<NetworkInterfacesDto>(&output) {
         return Ok(convert_network_interfaces(dto));
@@ -265,9 +265,9 @@ pub fn netif_info_structured(_sys: &SystemInfo) -> io::Result<NetworkInterfaces>
     ))
 }
 
-pub fn route_info_structured(_sys: &SystemInfo) -> io::Result<RouteTable> {
+pub async fn route_info_structured(_sys: &SystemInfo) -> io::Result<RouteTable> {
     let cmd = make_sysinfo_command("route_status");
-    let output = send_to_hostd(&cmd)?;
+    let output = send_to_hostd(&cmd).await?;
 
     if let Ok(dto) = serde_json::from_str::<RouteTableDto>(&output) {
         return Ok(convert_route_table(dto));
@@ -283,9 +283,9 @@ pub fn route_info_structured(_sys: &SystemInfo) -> io::Result<RouteTable> {
     ))
 }
 
-pub fn dns_info_structured(_sys: &SystemInfo) -> io::Result<DnsInfo> {
+pub async fn dns_info_structured(_sys: &SystemInfo) -> io::Result<DnsInfo> {
     let cmd = make_sysinfo_command("dns_status");
-    let output = send_to_hostd(&cmd)?;
+    let output = send_to_hostd(&cmd).await?;
 
     if let Ok(dto) = serde_json::from_str::<DnsInfoDto>(&output) {
         return Ok(convert_dns_info(dto));
@@ -301,7 +301,7 @@ pub fn dns_info_structured(_sys: &SystemInfo) -> io::Result<DnsInfo> {
     ))
 }
 
-pub fn execute_netif_add(argument: &str, sys: &SystemInfo) -> Result<String, String> {
+pub async fn execute_netif_add(argument: &str, sys: &SystemInfo) -> Result<String, String> {
     let mut payload: NetifAddArg = serde_json::from_str(argument)
         .map_err(|e| format!("netif_add payload parse error: {}", e))?;
 
@@ -317,7 +317,7 @@ pub fn execute_netif_add(argument: &str, sys: &SystemInfo) -> Result<String, Str
         return Err("netif_add does not support creating Physical interfaces".to_string());
     }
 
-    if interface_exists(sys, &payload.nid)? {
+    if interface_exists(sys, &payload.nid).await? {
         return Err(format!("interface {} already exists", payload.nid));
     }
 
@@ -335,7 +335,7 @@ pub fn execute_netif_add(argument: &str, sys: &SystemInfo) -> Result<String, Str
         None
     };
 
-    run_ip_command_str(
+    let create_result = run_ip_command_str(
         sys,
         &[
             "link".to_string(),
@@ -345,33 +345,46 @@ pub fn execute_netif_add(argument: &str, sys: &SystemInfo) -> Result<String, Str
             "dummy".to_string(),
         ],
     )
-    .map_err(|e| format!("failed to create interface {}: {}", payload.nid, e))?;
-
-    let cleanup = |err: String, name: &str| {
-        let _ = run_ip_command(sys, &["link", "delete", "dev", name]);
-        err
-    };
+    .await;
+    if let Err(err) = create_result {
+        return Err(format!("failed to create interface {}: {}", payload.nid, err));
+    }
 
     if let Some(mac_value) = mac.as_ref() {
         let err = format!("failed to set MAC on {}", payload.nid);
-        run_ip_command(sys, &["link", "set", "dev", payload.nid.as_str(), "address", mac_value])
-            .map_err(|e| cleanup(format!("{}: {}", err, e), &payload.nid))?;
+        if let Err(e) =
+            run_ip_command(sys, &["link", "set", "dev", payload.nid.as_str(), "address", mac_value])
+                .await
+        {
+            return Err(cleanup_link(sys, &payload.nid, format!("{}: {}", err, e)).await);
+        }
     }
 
     if payload.mtu > 0 {
         let mtu_string = payload.mtu.to_string();
         let err = format!("failed to set MTU on {}", payload.nid);
-        run_ip_command(
+        if let Err(e) = run_ip_command(
             sys,
             &["link", "set", "dev", payload.nid.as_str(), "mtu", mtu_string.as_str()],
         )
-        .map_err(|e| cleanup(format!("{}: {}", err, e), &payload.nid))?;
+        .await
+        {
+            return Err(cleanup_link(sys, &payload.nid, format!("{}: {}", err, e)).await);
+        }
     }
 
     if let Some(ip_value) = ipv4.as_ref() {
-        let prefix_value = prefix.ok_or_else(|| {
-            cleanup("netif_add internal error: missing prefix".to_string(), &payload.nid)
-        })?;
+        let prefix_value = match prefix {
+            Some(value) => value,
+            None => {
+                return Err(cleanup_link(
+                    sys,
+                    &payload.nid,
+                    "netif_add internal error: missing prefix".to_string(),
+                )
+                .await)
+            }
+        };
         let cidr = format!("{}/{}", ip_value, prefix_value);
         let mut args = vec![
             "addr".to_string(),
@@ -386,21 +399,32 @@ pub fn execute_netif_add(argument: &str, sys: &SystemInfo) -> Result<String, Str
             args.push(broadcast_value.to_string());
         }
 
-        run_ip_command_str(sys, &args).map_err(|e| {
-            cleanup(format!("failed to set IPv4 on {}: {}", payload.nid, e), &payload.nid)
-        })?;
+        if let Err(e) = run_ip_command_str(sys, &args).await {
+            return Err(cleanup_link(
+                sys,
+                &payload.nid,
+                format!("failed to set IPv4 on {}: {}", payload.nid, e),
+            )
+            .await);
+        }
     }
 
     if matches!(payload.status, NetifStatusArg::Up) {
-        run_ip_command(sys, &["link", "set", "dev", payload.nid.as_str(), "up"]).map_err(|e| {
-            cleanup(format!("failed to bring {} up: {}", payload.nid, e), &payload.nid)
-        })?;
+        if let Err(e) =
+            run_ip_command(sys, &["link", "set", "dev", payload.nid.as_str(), "up"]).await
+        {
+            return Err(cleanup_link(
+                sys,
+                &payload.nid,
+                format!("failed to bring {} up: {}", payload.nid, e),
+            )
+            .await);
+        }
     }
 
     Ok(format!("netif_add: interface {} created", payload.nid))
 }
-
-pub fn execute_netif_delete(argument: &str, sys: &SystemInfo) -> Result<String, String> {
+pub async fn execute_netif_delete(argument: &str, sys: &SystemInfo) -> Result<String, String> {
     let mut payload: NetifDeleteArg = serde_json::from_str(argument)
         .map_err(|e| format!("netif_delete payload parse error: {}", e))?;
 
@@ -409,17 +433,18 @@ pub fn execute_netif_delete(argument: &str, sys: &SystemInfo) -> Result<String, 
         return Err("netif_delete requires a non-empty Nid".to_string());
     }
 
-    if !interface_exists(sys, &payload.nid)? {
+    if !interface_exists(sys, &payload.nid).await? {
         return Err(format!("interface {} not found", payload.nid));
     }
 
     run_ip_command(sys, &["link", "delete", "dev", payload.nid.as_str()])
+        .await
         .map_err(|e| format!("failed to delete interface {}: {}", payload.nid, e))?;
 
     Ok(format!("netif_delete: interface {} removed", payload.nid))
 }
 
-pub fn execute_netif_toggle(
+pub async fn execute_netif_toggle(
     argument: &str,
     sys: &SystemInfo,
     bring_up: bool,
@@ -432,12 +457,13 @@ pub fn execute_netif_toggle(
         return Err("netif command requires a non-empty Nid".to_string());
     }
 
-    if !interface_exists(sys, &payload.nid)? {
+    if !interface_exists(sys, &payload.nid).await? {
         return Err(format!("interface {} not found", payload.nid));
     }
 
     let action = if bring_up { "up" } else { "down" };
     run_ip_command(sys, &["link", "set", "dev", payload.nid.as_str(), action])
+        .await
         .map_err(|e| format!("failed to bring {} {}: {}", payload.nid, action, e))?;
 
     Ok(if bring_up {
@@ -447,7 +473,7 @@ pub fn execute_netif_toggle(
     })
 }
 
-pub fn execute_route_add(argument: &str, sys: &SystemInfo) -> Result<String, String> {
+pub async fn execute_route_add(argument: &str, sys: &SystemInfo) -> Result<String, String> {
     let command: RouteAddArg = serde_json::from_str(argument)
         .map_err(|e| format!("route_add payload parse error: {}", e))?;
 
@@ -488,12 +514,14 @@ pub fn execute_route_add(argument: &str, sys: &SystemInfo) -> Result<String, Str
         args.push(src.to_string());
     }
 
-    run_ip_command_str(sys, &args).map_err(|e| format!("route_add execution error: {}", e))?;
+    run_ip_command_str(sys, &args)
+        .await
+        .map_err(|e| format!("route_add execution error: {}", e))?;
 
     Ok(format!("route_add: route {} created", destination))
 }
 
-pub fn execute_route_delete(argument: &str, sys: &SystemInfo) -> Result<String, String> {
+pub async fn execute_route_delete(argument: &str, sys: &SystemInfo) -> Result<String, String> {
     let command: RouteDeleteArg = serde_json::from_str(argument)
         .map_err(|e| format!("route_delete payload parse error: {}", e))?;
 
@@ -503,6 +531,7 @@ pub fn execute_route_delete(argument: &str, sys: &SystemInfo) -> Result<String, 
     }
 
     run_ip_command_str(sys, &["route".to_string(), "del".to_string(), destination.clone()])
+        .await
         .map_err(|e| format!("route_delete execution error: {}", e))?;
 
     Ok(format!("route_delete: route {} removed", destination))
@@ -595,23 +624,23 @@ impl NetworkInterfaceState {
     }
 }
 
-fn interface_exists(sys: &SystemInfo, name: &str) -> Result<bool, String> {
+async fn interface_exists(sys: &SystemInfo, name: &str) -> Result<bool, String> {
     let commands = family_commands(sys);
     let body = format!("{} link show dev {}\n", commands.ip, shell_quote(name));
-    let result = execute_host_body(&body)?;
+    let result = execute_host_body(&body).await?;
     Ok(result.status == 0)
 }
 
-fn run_ip_command(sys: &SystemInfo, args: &[&str]) -> Result<(), String> {
+async fn run_ip_command(sys: &SystemInfo, args: &[&str]) -> Result<(), String> {
     let arg_list = args.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-    run_ip_command_str(sys, &arg_list)
+    run_ip_command_str(sys, &arg_list).await
 }
 
-fn run_ip_command_str(sys: &SystemInfo, args: &[String]) -> Result<(), String> {
+async fn run_ip_command_str(sys: &SystemInfo, args: &[String]) -> Result<(), String> {
     let joined = join_shell_args(args);
     let commands = family_commands(sys);
     let body = format!("{} {}\n", commands.ip, joined);
-    let result = execute_host_body(&body)?;
+    let result = execute_host_body(&body).await?;
     if result.status == 0 {
         Ok(())
     } else if result.output.trim().is_empty() {
@@ -619,6 +648,11 @@ fn run_ip_command_str(sys: &SystemInfo, args: &[String]) -> Result<(), String> {
     } else {
         Err(result.output.trim().to_string())
     }
+}
+
+async fn cleanup_link(sys: &SystemInfo, name: &str, err: String) -> String {
+    let _ = run_ip_command(sys, &["link", "delete", "dev", name]).await;
+    err
 }
 
 fn netmask_to_prefix(netmask: &str) -> Result<u32, String> {

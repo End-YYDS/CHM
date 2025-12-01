@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::{ConResult, GlobalConfig};
+use crate::{ConResult, GlobalConfig, ID};
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{atomic_write, init_with, Default_ClientCluster, ServiceDescriptor};
 use chm_project_const::{uuid::Uuid, ProjectConst};
@@ -103,13 +103,8 @@ impl FirstStart {
 
 pub async fn first_run(ca_url: String, otp_code: Option<String>) -> ConResult<()> {
     tracing::info!("第一次啟動，正在初始化...");
-    let (self_uuid, self_hostname, root_ca, mdns_url) = GlobalConfig::with(|cfg| {
-        (
-            cfg.server.unique_id,
-            cfg.server.hostname.clone(),
-            cfg.certificate.root_ca.clone(),
-            cfg.server.dns_server.clone(),
-        )
+    let (self_uuid, root_ca, mdns_url) = GlobalConfig::with(|cfg| {
+        (cfg.server.unique_id, cfg.certificate.root_ca.clone(), cfg.server.dns_server.clone())
     });
     let mut conn = FirstStart::new(FirstStartParams { base_url: ca_url, self_uuid, mdns_url });
     conn.inner = conn.inner.with_otp_code(otp_code);
@@ -124,10 +119,10 @@ pub async fn first_run(ca_url: String, otp_code: Option<String>) -> ConResult<()
             .insert(service_desp);
     });
     atomic_write(&root_ca, &output.root_ca).await?;
-    CertUtils::save_cert(&self_hostname, &output.private_key, &output.cert)
+    CertUtils::save_cert(ID, &output.private_key, &output.cert)
         .map_err(|e| format!("儲存憑證失敗：{e}"))
         .inspect_err(|e| tracing::error!(?e))?;
-    tracing::info!("已儲存憑證與私鑰：{name}.pem / {name}.key", name = self_hostname);
+    tracing::info!("已儲存憑證與私鑰：{name}.pem / {name}.key", name = ID);
 
     GlobalConfig::save_config().await?;
     GlobalConfig::reload_config().await?;
