@@ -174,6 +174,7 @@ pub mod _reexports {
         web::{post, resource, Data, Json, ServiceConfig},
         HttpMessage, HttpRequest, HttpResponse, Responder,
     };
+    pub use chm_dns_resolver::get_local_hostname;
     pub use tokio::{
         fs,
         sync::{mpsc::Sender, RwLock},

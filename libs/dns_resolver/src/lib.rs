@@ -319,3 +319,7 @@ pub async fn lookup_cached(
 ) -> std::result::Result<SocketAddr, Box<dyn StdError + Send + Sync>> {
     lookup_host_via_minidns(&resolver, &host).await
 }
+
+pub fn get_local_hostname() -> String {
+    hostname::get().unwrap_or("chm-no-hostname".into()).to_string_lossy().into_owned()
+}

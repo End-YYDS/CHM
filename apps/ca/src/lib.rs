@@ -10,6 +10,7 @@ use crate::{
 pub use crate::{config::config, globals::GlobalConfig};
 use chm_cert_utils::CertUtils;
 use chm_config_bus::{declare_config, declare_config_bus};
+use chm_dns_resolver::get_local_hostname;
 use chm_grpc::{
     ca::ca_server::CaServer,
     crl::crl_server,
@@ -369,8 +370,15 @@ pub async fn ca_grpc_cert(cert_handler: &CertificateProcess, uid: Uuid) -> CaRes
         "Taipei",
         "Taipei",
         "CHM Organization",
-        "ca.chm.com",
-        ["127.0.0.1", self_ip.as_str(), "ca.chm.com", "mca.chm.com", uid.to_string().as_str()],
+        get_local_hostname().as_str(),
+        [
+            "127.0.0.1",
+            self_ip.as_str(),
+            "ca.chm.com",
+            "mca.chm.com",
+            uid.to_string().as_str(),
+            get_local_hostname().as_str(),
+        ],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;
