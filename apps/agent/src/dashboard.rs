@@ -12,13 +12,13 @@ pub struct AgentInfo {
 }
 
 /// Convert HostD response into structured AgentInfo
-pub fn agent_info_structured(_sys: &SystemInfo) -> io::Result<AgentInfo> {
+pub async fn agent_info_structured(_sys: &SystemInfo) -> io::Result<AgentInfo> {
     let requests = ["cpu_status", "memory_status", "disk_status"];
     let mut values = Vec::new();
 
     for keyword in &requests {
         let cmd = make_sysinfo_command(keyword);
-        let output = send_to_hostd(&cmd)?;
+        let output = send_to_hostd(&cmd).await?;
         let numeric = output.trim().trim_end_matches('%');
         let value = numeric.parse::<f32>().map_err(|_| {
             io::Error::new(

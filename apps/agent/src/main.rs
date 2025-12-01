@@ -2,7 +2,7 @@
 use agent::drop_privileges;
 use agent::{
     config, detect_linux_info, file_concurrency_limit, info_concurrency_limit,
-    make_sysinfo_command, send_to_hostd_async,
+    make_sysinfo_command, send_to_hostd,
     service::{AgentGrpcService, FileGrpcService, InfoGrpcService},
     CertInfo, GlobalConfig, ID, NEED_EXAMPLE,
 };
@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let hostd_path = GlobalConfig::with(|cfg| cfg.extend.socket_path.clone()).display().to_string();
 
     let health_command = make_sysinfo_command("cpu_status");
-    send_to_hostd_async(&health_command).await.map_err(|err| {
+    send_to_hostd(&health_command).await.map_err(|err| {
         tracing::error!("[AgentD] HostD 健康檢查失敗: {err}");
         err
     })?;

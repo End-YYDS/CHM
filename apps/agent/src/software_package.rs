@@ -7,10 +7,11 @@ use std::{
 
 use crate::{
     execute_host_body, family_key, join_shell_args, last_non_empty_line, make_sysinfo_command,
-    send_to_hostd, shell_quote, ReturnInfo, SystemInfo,
+    send_to_hostd, shell_quote, software_concurrency_limit, ReturnInfo, SystemInfo,
 };
 use serde::Deserialize;
 use serde_json;
+use tokio::sync::{OnceCell, Semaphore};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PackageStatus {
@@ -67,6 +68,8 @@ impl PackageAction {
     }
 }
 
+static SOFTWARE_SEMAPHORE: OnceCell<Semaphore> = OnceCell::const_new();
+
 #[derive(Deserialize)]
 struct SoftwareInventoryDto {
     #[serde(rename = "Packages")]
@@ -93,9 +96,9 @@ struct SoftwareDeleteArg {
     packages: Vec<String>,
 }
 
-pub fn software_info_structured(_sys: &SystemInfo) -> io::Result<SoftwareInventory> {
+pub async fn software_info_structured(_sys: &SystemInfo) -> io::Result<SoftwareInventory> {
     let cmd = make_sysinfo_command("software_status");
-    let output = send_to_hostd(&cmd)?;
+    let output = send_to_hostd(&cmd).await?;
 
     if let Ok(info) = serde_json::from_str::<ReturnInfo>(&output) {
         return Err(io::Error::other(info.message));
@@ -111,12 +114,12 @@ pub fn software_info_structured(_sys: &SystemInfo) -> io::Result<SoftwareInvento
     convert_software_inventory(dto)
 }
 
-pub fn execute_software_delete(argument: &str, sys: &SystemInfo) -> Result<String, String> {
-    run_software_action(PackageAction::Remove, argument, sys)
+pub async fn execute_software_delete(argument: &str, sys: &SystemInfo) -> Result<String, String> {
+    run_software_action(PackageAction::Remove, argument, sys).await
 }
 
-pub fn execute_software_install(argument: &str, sys: &SystemInfo) -> Result<String, String> {
-    run_software_action(PackageAction::Install, argument, sys)
+pub async fn execute_software_install(argument: &str, sys: &SystemInfo) -> Result<String, String> {
+    run_software_action(PackageAction::Install, argument, sys).await
 }
 
 fn convert_software_inventory(dto: SoftwareInventoryDto) -> io::Result<SoftwareInventory> {
@@ -135,7 +138,7 @@ fn convert_software_inventory(dto: SoftwareInventoryDto) -> io::Result<SoftwareI
     Ok(SoftwareInventory { packages })
 }
 
-fn run_software_action(
+async fn run_software_action(
     action: PackageAction,
     argument: &str,
     sys: &SystemInfo,
@@ -158,10 +161,15 @@ fn run_software_action(
     let success_message = format!("{}: {}", action.display_name(), packages.join(", "));
     let body = format!("{}\nprintf '%s\\n' {}\n", command, shell_quote(&success_message));
 
-    let result = execute_host_body(&body)?;
+    let semaphore = SOFTWARE_SEMAPHORE
+        .get_or_init(|| async { Semaphore::new(software_concurrency_limit()) })
+        .await;
+    let _permit =
+        semaphore.acquire().await.map_err(|_| "software operation semaphore closed".to_string())?;
+    let result = execute_host_body(&body).await?;
     let command_output = result.output.clone();
     if result.status == 0 {
-        if let Err(verification_error) = verify_package_state(action, &packages, manager) {
+        if let Err(verification_error) = verify_package_state(action, &packages, manager).await {
             let mut message = verification_error;
             if !command_output.trim().is_empty() {
                 message = format!("{}\nInstaller output:\n{}", message, command_output.trim());
@@ -268,13 +276,13 @@ fn detect_package_manager(sys: &SystemInfo) -> Result<PackageManagerKind, String
     }
 }
 
-fn verify_package_state(
+async fn verify_package_state(
     action: PackageAction,
     packages: &[String],
     manager: PackageManagerKind,
 ) -> Result<(), String> {
     let script = build_verification_script(action, packages, manager);
-    let result = execute_host_body(&script)?;
+    let result = execute_host_body(&script).await?;
 
     if result.status != 0 {
         let output = result.output.trim();

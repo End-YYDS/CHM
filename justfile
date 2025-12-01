@@ -214,6 +214,12 @@ build-release:
     @[[ ! -f "{{ DB_FOLDER }}/dhcp.db" ]] && just create-dhcp-db || true
     @SQLX_OFFLINE=true cargo build --workspace --release
 
+build-release-musl:
+    @[[ ! -f "{{ DB_FOLDER }}/cert_store.db" ]] && just create-ca-db || true
+    @[[ ! -f "{{ DB_FOLDER }}/ids.db" ]] && just create-ldap-db || true
+    @[[ ! -f "{{ DB_FOLDER }}/dhcp.db" ]] && just create-dhcp-db || true
+    @SQLX_OFFLINE=true cargo build --workspace --release --target x86_64-unknown-linux-musl
+
 release-all:
     @just sqlx-prepare
     @just build-release

@@ -65,10 +65,9 @@ struct CronDeleteArg {
     pub id: String,
 }
 
-/// Convert HostD response into structured CronJobs
-pub fn cron_info_structured(_sys: &SystemInfo) -> io::Result<CronJobs> {
+pub async fn cron_info_structured(_sys: &SystemInfo) -> io::Result<CronJobs> {
     let cmd = make_sysinfo_command("cron_jobs");
-    let output = send_to_hostd(&cmd)?;
+    let output = send_to_hostd(&cmd).await?;
 
     if let Ok(jobs) = serde_json::from_str::<CronJobs>(&output) {
         return Ok(jobs);
@@ -84,7 +83,7 @@ pub fn cron_info_structured(_sys: &SystemInfo) -> io::Result<CronJobs> {
     ))
 }
 
-pub fn execute_cron_add(argument: &str, sys: &SystemInfo) -> Result<String, String> {
+pub async fn execute_cron_add(argument: &str, sys: &SystemInfo) -> Result<String, String> {
     let job_input: CronJobInput = serde_json::from_str(argument)
         .map_err(|e| format!("cron_add payload parse error: {}", e))?;
 
@@ -101,28 +100,28 @@ pub fn execute_cron_add(argument: &str, sys: &SystemInfo) -> Result<String, Stri
         username: job_input.username,
     };
 
-    let mut lines = load_user_crontab(sys, &job.username)?;
+    let mut lines = load_user_crontab(sys, &job.username).await?;
     if find_job_index(&lines, &job.id).is_some() {
         return Err(format!("cron job {} already exists", job.id));
     }
 
     let line = render_cron_line(&job)?;
     lines.push(line);
-    save_user_crontab(sys, &job.username, &lines)?;
+    save_user_crontab(sys, &job.username, &lines).await?;
 
     Ok(format!("cron_add: created job {} for {}", job.id, job.username))
 }
 
-pub fn execute_cron_delete(argument: &str, sys: &SystemInfo) -> Result<String, String> {
+pub async fn execute_cron_delete(argument: &str, sys: &SystemInfo) -> Result<String, String> {
     let id = parse_cron_delete_argument(Some(argument))?;
-    let (username, mut lines, index) = locate_job_by_id(sys, &id)?;
+    let (username, mut lines, index) = locate_job_by_id(sys, &id).await?;
     lines.remove(index);
-    save_user_crontab(sys, &username, &lines)?;
+    save_user_crontab(sys, &username, &lines).await?;
 
     Ok(format!("cron_delete: removed job {}", id))
 }
 
-pub fn execute_cron_update(argument: &str, sys: &SystemInfo) -> Result<String, String> {
+pub async fn execute_cron_update(argument: &str, sys: &SystemInfo) -> Result<String, String> {
     let jobs_map: HashMap<String, CronJobInput> = serde_json::from_str(argument)
         .map_err(|e| format!("cron_update payload parse error: {}", e))?;
 
@@ -145,7 +144,7 @@ pub fn execute_cron_update(argument: &str, sys: &SystemInfo) -> Result<String, S
 
     let mut updated = 0usize;
     for (username, jobs) in grouped {
-        let mut lines = load_user_crontab(sys, &username)?;
+        let mut lines = load_user_crontab(sys, &username).await?;
         let mut changed = false;
 
         for job in jobs {
@@ -159,7 +158,7 @@ pub fn execute_cron_update(argument: &str, sys: &SystemInfo) -> Result<String, S
         }
 
         if changed {
-            save_user_crontab(sys, &username, &lines)?;
+            save_user_crontab(sys, &username, &lines).await?;
         }
     }
 
@@ -186,10 +185,10 @@ fn parse_cron_delete_argument(argument: Option<&str>) -> Result<String, String> 
     }
 }
 
-fn load_user_crontab(sys: &SystemInfo, username: &str) -> Result<Vec<String>, String> {
+async fn load_user_crontab(sys: &SystemInfo, username: &str) -> Result<Vec<String>, String> {
     let commands = family_commands(sys);
     let body = format!("{} -u {} -l\n", commands.crontab, shell_quote(username));
-    let result = execute_host_body(&body)?;
+    let result = execute_host_body(&body).await?;
 
     match result.status {
         0 => Ok(result.output.lines().map(|l| l.to_string()).collect()),
@@ -205,7 +204,11 @@ fn load_user_crontab(sys: &SystemInfo, username: &str) -> Result<Vec<String>, St
     }
 }
 
-fn save_user_crontab(sys: &SystemInfo, username: &str, lines: &[String]) -> Result<(), String> {
+async fn save_user_crontab(
+    sys: &SystemInfo,
+    username: &str,
+    lines: &[String],
+) -> Result<(), String> {
     let mut content = lines.join("\n");
     if !content.is_empty() {
         content.push('\n');
@@ -221,7 +224,7 @@ fn save_user_crontab(sys: &SystemInfo, username: &str, lines: &[String]) -> Resu
         shell_quote(username)
     );
 
-    let result = execute_host_body(&body)?;
+    let result = execute_host_body(&body).await?;
     if result.status == 0 {
         Ok(())
     } else {
@@ -250,9 +253,12 @@ fn extract_metadata(line: &str) -> Option<CronMeta> {
     serde_json::from_str(meta_str).ok()
 }
 
-fn locate_job_by_id(sys: &SystemInfo, id: &str) -> Result<(String, Vec<String>, usize), String> {
-    for user in list_candidate_users(sys)? {
-        let lines = load_user_crontab(sys, &user)?;
+async fn locate_job_by_id(
+    sys: &SystemInfo,
+    id: &str,
+) -> Result<(String, Vec<String>, usize), String> {
+    for user in list_candidate_users(sys).await? {
+        let lines = load_user_crontab(sys, &user).await?;
         if let Some(index) = find_job_index(&lines, id) {
             return Ok((user, lines, index));
         }
@@ -261,7 +267,7 @@ fn locate_job_by_id(sys: &SystemInfo, id: &str) -> Result<(String, Vec<String>, 
     Err(format!("cron job {} not found", id))
 }
 
-fn list_candidate_users(_sys: &SystemInfo) -> Result<Vec<String>, String> {
+async fn list_candidate_users(_sys: &SystemInfo) -> Result<Vec<String>, String> {
     let script =
         "found=0\nfor dir in /var/spool/cron /var/spool/cron/crontabs; do\n  if [ -d \"$dir\" ]; \
          then\n    for file in \"$dir\"/*; do\n      if [ -f \"$file\" ]; then\n        basename \
@@ -270,7 +276,7 @@ fn list_candidate_users(_sys: &SystemInfo) -> Result<Vec<String>, String> {
          username_env=\"${USERNAME-}\"\n  if [ -n \"$username_env\" ] && [ \"$username_env\" != \
          \"$user_env\" ]; then\n    echo \"$username_env\"\n  fi\nfi\n";
 
-    let result = execute_host_body(script)?;
+    let result = execute_host_body(script).await?;
     if result.status != 0 {
         let message = if result.output.trim().is_empty() {
             format!("failed to list cron users (status {})", result.status)
