@@ -62,7 +62,7 @@ fn action_scope() -> actix_web::Scope {
 #[utoipa::path(
     post,
     path = "/server/apache/action/start",
-    tag = "Backup",
+    tag = "Apache",
     request_body = UuidRequest,
     responses(
         (status = 200, body = ResponseResult),
@@ -87,7 +87,7 @@ async fn action_start(
 #[utoipa::path(
     post,
     path = "/server/apache/action/stop",
-    tag = "Backup",
+    tag = "Apache",
     request_body = UuidRequest,
     responses(
         (status = 200, body = ResponseResult),
@@ -112,7 +112,7 @@ async fn action_stop(
 #[utoipa::path(
     post,
     path = "/server/apache/action/restart",
-    tag = "Backup",
+    tag = "Apache",
     request_body = UuidRequest,
     responses(
         (status = 200, body = ResponseResult),

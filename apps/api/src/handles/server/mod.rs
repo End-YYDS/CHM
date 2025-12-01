@@ -1,6 +1,7 @@
 use actix_web::{get, post, web};
 use chm_grpc::{common, restful};
 use std::{collections::HashMap, convert::TryFrom};
+use utoipa::OpenApi;
 
 use crate::{
     commons::{translate::AppError, CommonInfo, ResponseResult, ResponseType, Status},
@@ -44,10 +45,19 @@ pub fn server_scope() -> actix_web::Scope {
         .service(samba_scope())
         .service(squid_scope())
         .service(ssh_scope())
-        .service(installed)
-        .service(noinstall)
-        .service(install)
+        .service(get_installed)
+        .service(get_noinstall)
+        .service(post_install)
 }
+
+#[derive(OpenApi)]
+#[openapi(
+    paths(get_installed, get_noinstall, post_install),
+    tags(
+        (name = "Server List", description = "Server List相關 API")
+    )
+)]
+pub struct ServerApiDoc;
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn validate_server_name(raw: &str) -> RestfulResult<String> {
@@ -79,10 +89,21 @@ pub(crate) fn convert_action_result(result: common::ActionResult) -> ResponseRes
     ResponseResult { r#type, message: result.message }
 }
 
+#[utoipa::path(
+    get,
+    path = "/server/installed",
+    params(
+        stalled_request
+    ),
+    tag = "Server List",
+    responses(
+        (status = 200, body = stalledResponse),
+    )
+)]
 #[get("/installed")]
-async fn installed(
+async fn get_installed(
     app_state: web::Data<AppState>,
-    web::Json(payload): web::Json<stalled_request>,
+    web::Query(payload): web::Query<stalled_request>,
 ) -> RestfulResult<web::Json<stalledResponse>> {
     let server = validate_server_name(&payload.server)?;
     let mut client = app_state.gclient.clone();
@@ -99,8 +120,19 @@ async fn installed(
     Ok(web::Json(stalledResponse { pcs: Pcs::Installed { uuids: pcs_map }, length }))
 }
 
+#[utoipa::path(
+    get,
+    path = "/server/noinstall",
+    params(
+        stalled_request
+    ),
+    tag = "Server List",
+    responses(
+        (status = 200, body = stalledResponse),
+    )
+)]
 #[get("/noinstall")]
-async fn noinstall(
+async fn get_noinstall(
     app_state: web::Data<AppState>,
     web::Json(payload): web::Json<stalled_request>,
 ) -> RestfulResult<web::Json<stalledResponse>> {
@@ -116,8 +148,17 @@ async fn noinstall(
     Ok(web::Json(stalledResponse { pcs: Pcs::NotInstalled { uuids: pcs_map }, length }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/server/install",
+    tag = "Server List",
+    request_body = stall_request,
+    responses(
+        (status = 200, body = ResponseResult),
+    )
+)]
 #[post("/install")]
-async fn install(
+async fn post_install(
     app_state: web::Data<AppState>,
     web::Json(payload): web::Json<stall_request>,
 ) -> RestfulResult<web::Json<ResponseResult>> {
