@@ -88,7 +88,7 @@ pub struct PutPcgroupRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
-#[serde(rename_all = "PascalCase", untagged)]
+#[serde(rename_all = "PascalCase")]
 pub enum DePatchVxlanid {
     Groupname { groupname: String },
     Pcs { pcs: Vec<String> },
