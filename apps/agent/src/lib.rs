@@ -26,7 +26,7 @@ use tokio::{
 #[cfg(unix)]
 use tower::service_fn;
 #[cfg(unix)]
-use users::{get_group_by_name, get_user_by_name};
+use uzers::{get_group_by_name, get_user_by_name};
 use uuid::Uuid;
 
 pub use crate::{

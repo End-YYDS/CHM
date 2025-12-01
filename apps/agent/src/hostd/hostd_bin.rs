@@ -19,7 +19,7 @@ mod unix_main {
     use tokio::{fs, net::UnixListener, signal, sync::Semaphore};
     use tokio_stream::wrappers::UnixListenerStream;
     use tracing::{error, info, warn};
-    use users::get_group_by_name;
+    use uzers::get_group_by_name;
 
     #[derive(FromArgs, Debug, Clone)]
     /// HostD 執行參數
