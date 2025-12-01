@@ -140,96 +140,78 @@ impl proto::AgentService for AgentGrpcService {
         match command_enum {
             proto::AgentCommand::GetProcess => {
                 let sys = self.system();
-                let info =
-                    tokio::task::spawn_blocking(move || process_info_structured(sys.as_ref()))
-                        .await
-                        .map_err(|e| Status::internal(format!("task join error: {}", e)))?
-                        .map_err(|e| Status::internal(e.to_string()))?;
+                let info = process_info_structured(sys.as_ref())
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(process_info_to_proto(info)))
             }
             proto::AgentCommand::GetCron => {
                 let sys = self.system();
-                let info = tokio::task::spawn_blocking(move || cron_info_structured(sys.as_ref()))
+                let info = cron_info_structured(sys.as_ref())
                     .await
-                    .map_err(|e| Status::internal(format!("task join error: {}", e)))?
                     .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(cron_info_to_proto(info)))
             }
             proto::AgentCommand::GetFirewall => {
                 let sys = self.system();
-                let info =
-                    tokio::task::spawn_blocking(move || firewall_info_structured(sys.as_ref()))
-                        .await
-                        .map_err(|e| Status::internal(format!("task join error: {}", e)))?
-                        .map_err(|e| Status::internal(e.to_string()))?;
+                let info = firewall_info_structured(sys.as_ref())
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(firewall_info_to_proto(info)))
             }
             proto::AgentCommand::GetNetif => {
                 let sys = self.system();
-                let info = tokio::task::spawn_blocking(move || netif_info_structured(sys.as_ref()))
+                let info = netif_info_structured(sys.as_ref())
                     .await
-                    .map_err(|e| Status::internal(format!("task join error: {}", e)))?
                     .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(netif_info_to_proto(info)))
             }
             proto::AgentCommand::GetRoute => {
                 let sys = self.system();
-                let info = tokio::task::spawn_blocking(move || route_info_structured(sys.as_ref()))
+                let info = route_info_structured(sys.as_ref())
                     .await
-                    .map_err(|e| Status::internal(format!("task join error: {}", e)))?
                     .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(route_info_to_proto(info)))
             }
             proto::AgentCommand::GetDns => {
                 let sys = self.system();
-                let info = tokio::task::spawn_blocking(move || dns_info_structured(sys.as_ref()))
+                let info = dns_info_structured(sys.as_ref())
                     .await
-                    .map_err(|e| Status::internal(format!("task join error: {}", e)))?
                     .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(dns_info_to_proto(info)))
             }
             proto::AgentCommand::GetPdir => {
                 let argument_owned = argument.map(|s| s.to_string());
-                let info = tokio::task::spawn_blocking(move || {
-                    pdir_info_structured(argument_owned.as_deref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?
-                .map_err(|e| Status::internal(e.to_string()))?;
+                let info = pdir_info_structured(argument_owned.as_deref())
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(parent_directory_to_proto(info)))
             }
             proto::AgentCommand::GetSoftware => {
                 let sys = self.system();
-                let info =
-                    tokio::task::spawn_blocking(move || software_info_structured(sys.as_ref()))
-                        .await
-                        .map_err(|e| Status::internal(format!("task join error: {}", e)))?
-                        .map_err(|e| Status::internal(e.to_string()))?;
+                let info = software_info_structured(sys.as_ref())
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(software_inventory_to_proto(info)))
             }
             proto::AgentCommand::GetLog => {
                 let sys = self.system();
-                let info = tokio::task::spawn_blocking(move || log_info_structured(sys.as_ref()))
+                let info = log_info_structured(sys.as_ref())
                     .await
-                    .map_err(|e| Status::internal(format!("task join error: {}", e)))?
                     .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(logs_to_proto(info)))
             }
             proto::AgentCommand::GetLogQuery => {
                 let argument_owned = argument.map(|s| s.to_string());
-                let info = tokio::task::spawn_blocking(move || {
-                    log_query_structured(argument_owned.as_deref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?
-                .map_err(|e| Status::internal(e.to_string()))?;
+                let info = log_query_structured(argument_owned.as_deref())
+                    .await
+                    .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(logs_to_proto(info)))
             }
             proto::AgentCommand::GetServerApache => {
                 let sys = self.system();
-                let info = tokio::task::spawn_blocking(move || get_server_apache(sys.as_ref()))
+                let info = get_server_apache(sys.as_ref())
                     .await
-                    .map_err(|e| Status::internal(format!("task join error: {}", e)))?
                     .map_err(|e| Status::internal(e.to_string()))?;
                 Ok(Response::new(apache_info_to_proto(info)))
             }
@@ -243,11 +225,7 @@ impl proto::AgentService for AgentGrpcService {
                     proto::AgentCommand::ServerApacheRestart => ApacheAction::Restart,
                     _ => unreachable!("only apache actions reach this branch"),
                 };
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_server_apache_action(action, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_server_apache_action(action, sys.as_ref()).await;
 
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
@@ -261,11 +239,7 @@ impl proto::AgentService for AgentGrpcService {
                 })?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    get_server_install(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = get_server_install(&argument_owned, sys.as_ref()).await;
 
                 let response = match result {
                     Ok(info) => server_host_info_to_proto(info),
@@ -279,11 +253,7 @@ impl proto::AgentService for AgentGrpcService {
                 })?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    get_server_noninstall(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = get_server_noninstall(&argument_owned, sys.as_ref()).await;
 
                 let response = match result {
                     Ok(info) => server_host_info_to_proto(info),
@@ -302,11 +272,7 @@ impl proto::AgentService for AgentGrpcService {
                 })?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_software_install(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_software_install(&argument_owned, sys.as_ref()).await;
 
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
@@ -320,11 +286,7 @@ impl proto::AgentService for AgentGrpcService {
                 })?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_software_delete(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_software_delete(&argument_owned, sys.as_ref()).await;
 
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
@@ -351,11 +313,12 @@ impl proto::AgentService for AgentGrpcService {
                     _ => unreachable!("only process actions reach this branch"),
                 };
                 let argument_owned = argument.map(|s| s.to_string());
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_process_command(process_action, argument_owned.as_deref(), sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_process_command(
+                    process_action,
+                    argument_owned.as_deref(),
+                    sys.as_ref(),
+                )
+                .await;
 
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
@@ -368,11 +331,7 @@ impl proto::AgentService for AgentGrpcService {
                     .ok_or_else(|| Status::invalid_argument("cron_add requires an argument"))?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_cron_add(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_cron_add(&argument_owned, sys.as_ref()).await;
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
                     Err(err) => build_return_info(ReturnStatus::Err, err),
@@ -384,11 +343,7 @@ impl proto::AgentService for AgentGrpcService {
                     .ok_or_else(|| Status::invalid_argument("cron_delete requires an argument"))?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_cron_delete(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_cron_delete(&argument_owned, sys.as_ref()).await;
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
                     Err(err) => build_return_info(ReturnStatus::Err, err),
@@ -400,11 +355,7 @@ impl proto::AgentService for AgentGrpcService {
                     .ok_or_else(|| Status::invalid_argument("cron_update requires an argument"))?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_cron_update(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_cron_update(&argument_owned, sys.as_ref()).await;
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
                     Err(err) => build_return_info(ReturnStatus::Err, err),
@@ -416,11 +367,7 @@ impl proto::AgentService for AgentGrpcService {
                     .ok_or_else(|| Status::invalid_argument("firewall_add requires an argument"))?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_firewall_add(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_firewall_add(&argument_owned, sys.as_ref()).await;
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
                     Err(err) => build_return_info(ReturnStatus::Err, err),
@@ -433,11 +380,7 @@ impl proto::AgentService for AgentGrpcService {
                 })?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_firewall_delete(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_firewall_delete(&argument_owned, sys.as_ref()).await;
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
                     Err(err) => build_return_info(ReturnStatus::Err, err),
@@ -450,11 +393,7 @@ impl proto::AgentService for AgentGrpcService {
                 })?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_firewall_edit_status(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_firewall_edit_status(&argument_owned, sys.as_ref()).await;
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
                     Err(err) => build_return_info(ReturnStatus::Err, err),
@@ -467,11 +406,7 @@ impl proto::AgentService for AgentGrpcService {
                 })?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_firewall_edit_policy(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_firewall_edit_policy(&argument_owned, sys.as_ref()).await;
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
                     Err(err) => build_return_info(ReturnStatus::Err, err),
@@ -483,11 +418,7 @@ impl proto::AgentService for AgentGrpcService {
                     .ok_or_else(|| Status::invalid_argument("netif_add requires an argument"))?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_netif_add(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_netif_add(&argument_owned, sys.as_ref()).await;
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
                     Err(err) => build_return_info(ReturnStatus::Err, err),
@@ -499,11 +430,7 @@ impl proto::AgentService for AgentGrpcService {
                     .ok_or_else(|| Status::invalid_argument("netif_delete requires an argument"))?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_netif_delete(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_netif_delete(&argument_owned, sys.as_ref()).await;
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
                     Err(err) => build_return_info(ReturnStatus::Err, err),
@@ -515,11 +442,7 @@ impl proto::AgentService for AgentGrpcService {
                     .ok_or_else(|| Status::invalid_argument("netif_up requires an argument"))?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_netif_toggle(&argument_owned, sys.as_ref(), true)
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_netif_toggle(&argument_owned, sys.as_ref(), true).await;
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
                     Err(err) => build_return_info(ReturnStatus::Err, err),
@@ -531,11 +454,7 @@ impl proto::AgentService for AgentGrpcService {
                     .ok_or_else(|| Status::invalid_argument("netif_down requires an argument"))?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_netif_toggle(&argument_owned, sys.as_ref(), false)
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_netif_toggle(&argument_owned, sys.as_ref(), false).await;
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
                     Err(err) => build_return_info(ReturnStatus::Err, err),
@@ -547,11 +466,7 @@ impl proto::AgentService for AgentGrpcService {
                     .ok_or_else(|| Status::invalid_argument("route_add requires an argument"))?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_route_add(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_route_add(&argument_owned, sys.as_ref()).await;
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
                     Err(err) => build_return_info(ReturnStatus::Err, err),
@@ -563,11 +478,7 @@ impl proto::AgentService for AgentGrpcService {
                     .ok_or_else(|| Status::invalid_argument("route_delete requires an argument"))?;
                 let argument_owned = argument.to_string();
                 let sys = self.system();
-                let result = tokio::task::spawn_blocking(move || {
-                    execute_route_delete(&argument_owned, sys.as_ref())
-                })
-                .await
-                .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let result = execute_route_delete(&argument_owned, sys.as_ref()).await;
                 let response = match result {
                     Ok(message) => build_return_info(ReturnStatus::Ok, message),
                     Err(err) => build_return_info(ReturnStatus::Err, err),
@@ -575,15 +486,11 @@ impl proto::AgentService for AgentGrpcService {
                 Ok(Response::new(response))
             }
             proto::AgentCommand::Reboot => {
-                let info = tokio::task::spawn_blocking(execute_reboot)
-                    .await
-                    .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let info = execute_reboot().await;
                 Ok(Response::new(return_info_to_proto(info)))
             }
             proto::AgentCommand::Shutdown => {
-                let info = tokio::task::spawn_blocking(execute_shutdown)
-                    .await
-                    .map_err(|e| Status::internal(format!("task join error: {}", e)))?;
+                let info = execute_shutdown().await;
                 Ok(Response::new(return_info_to_proto(info)))
             }
             _ => Err(Status::unimplemented(format!("unsupported command: {}", command_name))),
@@ -604,9 +511,8 @@ impl proto::AgentInfoService for InfoGrpcService {
             .map_err(|_| Status::resource_exhausted("too many concurrent get_info requests"))?;
 
         let sys = self.system();
-        let info = tokio::task::spawn_blocking(move || agent_info_structured(sys.as_ref()))
+        let info = agent_info_structured(sys.as_ref())
             .await
-            .map_err(|e| Status::internal(format!("task join error: {}", e)))?
             .map_err(|e| Status::internal(e.to_string()))?;
         drop(permit);
 
@@ -649,7 +555,7 @@ impl proto::AgentFileService for FileGrpcService {
             return Err(Status::invalid_argument("File content cannot be empty"));
         }
 
-        let response = match file_pdir_upload(path, file_content) {
+        let response = match file_pdir_upload(path, file_content).await {
             Ok(()) => proto::ReturnInfo {
                 r#type:  "OK".to_string(),
                 message: "upload success".to_string(),
@@ -678,7 +584,7 @@ impl proto::AgentFileService for FileGrpcService {
             return Err(Status::invalid_argument("Path and Filename cannot be empty"));
         }
 
-        let result = match file_pdir_download(path, filename) {
+        let result = match file_pdir_download(path, filename).await {
             Ok(content) => proto::file_download_response::Result::File(content),
             Err(err) => proto::file_download_response::Result::ReturnInfo(proto::ReturnInfo {
                 r#type:  "ERR".to_string(),

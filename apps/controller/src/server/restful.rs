@@ -1579,8 +1579,7 @@ impl RestfulService for ControllerRestfulServer {
         let mut changed = false;
 
         if let Some(cpu) = req.cpu_usage {
-            thresholds.cpu =
-                metric_setting_to_threshold(&cpu).map_err(Status::invalid_argument)?;
+            thresholds.cpu = metric_setting_to_threshold(&cpu).map_err(Status::invalid_argument)?;
             changed = true;
         }
         if let Some(disk) = req.disk_usage {
@@ -3076,9 +3075,19 @@ impl RestfulService for ControllerRestfulServer {
                 .run_software_action(&uuid_str, AgentCommand::SoftwareInstall, Some(payload))
                 .await
             {
-                Ok(_) => {
-                    success.push(uuid_str);
-                }
+                Ok(_) => match server.to_ascii_lowercase().as_str() {
+                    "apache" => match self
+                        .execute_agent_command(&uuid_str, AgentCommand::ServerApacheStart, None)
+                        .await
+                    {
+                        Ok(_) => success.push(uuid_str),
+                        Err(err) => {
+                            failures
+                                .push(format!("{uuid_str}: 安裝成功但啟動失敗: {}", err.message()));
+                        }
+                    },
+                    _ => success.push(uuid_str),
+                },
                 Err(err) => {
                     failures.push(format!("{uuid_str}: {err}"));
                 }
