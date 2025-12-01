@@ -34,8 +34,13 @@ pub struct PutGroupsRequest {
 
 // PATCH /api/chm/group
 #[derive(Debug, Deserialize, Clone, Default)]
+#[serde()]
 pub struct PatchGroupEntry {
-    #[serde(rename = "Groupname")]
+    #[serde(
+        default,
+        rename = "Groupname",
+        deserialize_with = "chm_cluster_utils::none_if_string_none"
+    )]
     pub groupname: Option<String>,
     #[serde(rename = "Users")]
     pub users:     Option<Vec<String>>,
@@ -43,8 +48,10 @@ pub struct PatchGroupEntry {
 
 #[derive(Debug, Deserialize)]
 pub struct PatchGroupsRequest {
-    pub gid01: Option<PatchGroupEntry>,
+    // pub gid01: Option<PatchGroupEntry>,
     // 或改為 HashMap<String, PatchGroupEntry>
+    #[serde(flatten)]
+    pub groups: HashMap<String, PatchGroupEntry>,
 }
 
 // DELETE /api/chm/group

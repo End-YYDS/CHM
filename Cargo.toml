@@ -1,8 +1,10 @@
 [workspace]
 members = [
+  "apps/agent",
   "apps/api",
   "apps/ca",
   "apps/controller",
+  "apps/dhcp",
   "apps/dns",
   "apps/ldap",
   "libs/cert-utils",
@@ -14,6 +16,7 @@ members = [
   "libs/grpc",
   "libs/password",
   "libs/project_const",
+  "libs/vxlan",
 ]
 resolver = "2"
 [workspace.package]
@@ -25,7 +28,11 @@ actix-cors = "0.7.1"
 actix-multipart = "0.7.2"
 actix-session = { version = "0.11.0", features = ["cookie-session"] }
 actix-tls = { version = "3.4.0", features = ["openssl"] }
-actix-web = { version = "4.11.0", features = ["openssl", "cookies", "secure-cookies"] }
+actix-web = { version = "4.11.0", features = [
+  "openssl",
+  "cookies",
+  "secure-cookies",
+] }
 arc-swap = "1.7.1"
 argh = "0.1.13"
 argon2 = { version = "0.5.3", features = ["std"] }
@@ -48,17 +55,27 @@ futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
 humantime = "2.2.0"
 humantime-serde = "1.1.1"
 hyper-util = { version = "0.1.17", features = ["tokio", "client"] }
+ipnetwork = "0.21.1"
 num_cpus = "1.17.0"
-openssl = "0.10.72"
-openssl-sys = "0.9.109"
+openssl = { version = "0.10.72", features = ["vendored"] }
+openssl-sys = { version = "0.9.109", features = ["vendored"] }
 prost = "0.13.5"
 prost-types = "0.13.5"
 rand = { version = "0.9.1", features = ["os_rng"] }
 reqwest = { version = "0.12.20", features = ["json", "rustls-tls"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.142"
-sqlx = { version = "0.8.6", features = ["sqlite", "postgres", "uuid", "ipnetwork", "macros", "chrono", "runtime-tokio", "migrate"] }
-sysinfo = "0.37.1"
+sqlx = { version = "0.8.6", features = [
+  "sqlite",
+  "postgres",
+  "uuid",
+  "ipnetwork",
+  "macros",
+  "chrono",
+  "runtime-tokio",
+  "migrate",
+] }
+sysinfo = "0.37.2"
 thiserror = "2.0.12"
 tokio = { version = "1.43.0", default-features = false }
 tokio-util = "0.7.16"
@@ -71,6 +88,7 @@ tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt"] }
 url = "2.5.4"
 uuid = { version = "1.17.0", features = ["v4", "serde"] }
+hostname = "0.4.2"
 [profile.release]
 opt-level = "s"
 strip = true

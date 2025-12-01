@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO zones (name, vni, network, broadcast, subnet_mask) VALUES (?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "66a2d425cac36e2b54301d3226fa5efd2f4682781d3c560cc919e0f9a4a12779"
+}

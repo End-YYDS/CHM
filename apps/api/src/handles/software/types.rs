@@ -34,21 +34,23 @@ pub struct GetSoftwareResponse {
 }
 
 /// POST /api/software 請求
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
+#[serde(default)]
 pub struct InstallRequest {
-    #[serde(rename = "uuid")]
+    #[serde(rename = "uuid", alias = "Uuid", alias = "UUID")]
     pub uuids:    Vec<String>,
     #[serde(rename = "Packages")]
-    pub packages: Vec<String>,
+    pub packages: Option<Vec<String>>,
 }
 
 /// DELETE /api/software 請求
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default)]
+#[serde(default)]
 pub struct DeleteRequest {
-    #[serde(rename = "uuid")]
+    #[serde(rename = "uuid", alias = "Uuid", alias = "UUID")]
     pub uuids:    Vec<String>,
-    #[serde(rename = "Package")]
-    pub packages: Vec<String>,
+    #[serde(rename = "Package", alias = "Packages", alias = "package")]
+    pub packages: Option<Vec<String>>,
 }
 
 /// 安裝/刪除的結果

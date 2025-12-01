@@ -2,7 +2,7 @@ mod communication;
 pub mod first;
 mod server;
 mod supervisor;
-use crate::communication::{ClientHandle, GrpcClients};
+use crate::communication::GrpcClients;
 pub use crate::{config::config, globals::GlobalConfig};
 use argh::FromArgs;
 use chm_cluster_utils::{
@@ -14,15 +14,14 @@ use dashmap::DashMap;
 use first::first_run;
 use serde::{Deserialize, Serialize};
 use std::{
-    collections::{HashMap, HashSet},
-    io,
-    io::Write,
+    collections::HashSet,
+    io::{self, Write},
     path::PathBuf,
     sync::{atomic::AtomicBool, Arc},
+    time::Duration,
 };
 use url::Url;
 
-pub type ClientMap = HashMap<ServiceKind, ClientHandle>;
 pub type ConResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
 pub static NEED_EXAMPLE: AtomicBool = AtomicBool::new(false);
 pub const ID: &str = "CHMcd";
@@ -102,19 +101,96 @@ pub struct RemoveService {
     /// OTP 驗證碼
     #[argh(option, short = 'p')]
     pub otp_code: Option<String>,
+
+    /// 服務種類
+    #[argh(option, short = 't')]
+    pub kind: String,
+
+    /// 確認刪除
+    #[argh(switch, short = 'y')]
+    pub confirm: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub struct ControllerExtension {
     #[serde(default)]
-    pub services_pool: ServicesPool,
+    pub services_pool:    ServicesPool,
+    #[serde(default = "ControllerExtension::default_sign_days")]
+    pub sign_days:        u32,
+    #[serde(default = "ControllerExtension::default_concurrency")]
+    pub concurrency:      usize,
+    #[serde(default = "ControllerExtension::default_service_attempts")]
+    pub service_attempts: usize,
     #[serde(default)]
-    pub sign_days:     u32,
+    pub info_thresholds:  InfoThresholds,
+    #[serde(with = "humantime_serde", default = "ControllerExtension::default_quarantine")]
+    pub quarantine:       Duration,
+}
+impl ControllerExtension {
+    pub fn default_concurrency() -> usize {
+        10
+    }
+    pub fn default_sign_days() -> u32 {
+        10
+    }
+    pub fn default_service_attempts() -> usize {
+        3
+    }
+    pub fn default_quarantine() -> Duration {
+        Duration::from_secs(15)
+    }
 }
 impl Default for ControllerExtension {
     fn default() -> Self {
-        Self { services_pool: Default::default(), sign_days: 10 }
+        Self {
+            services_pool:    Default::default(),
+            sign_days:        Self::default_sign_days(),
+            concurrency:      Self::default_concurrency(),
+            service_attempts: Self::default_service_attempts(),
+            quarantine:       Self::default_quarantine(),
+            info_thresholds:  InfoThresholds::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct InfoThresholds {
+    #[serde(default)]
+    pub cpu:    MetricThreshold,
+    #[serde(default)]
+    pub memory: MetricThreshold,
+    #[serde(default)]
+    pub disk:   MetricThreshold,
+}
+
+impl Default for InfoThresholds {
+    fn default() -> Self {
+        Self {
+            cpu:    MetricThreshold::new(70.0, 90.0),
+            memory: MetricThreshold::new(70.0, 90.0),
+            disk:   MetricThreshold::new(80.0, 95.0),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct MetricThreshold {
+    pub warn:   f64,
+    pub danger: f64,
+}
+
+impl MetricThreshold {
+    pub const fn new(warn: f64, danger: f64) -> Self {
+        Self { warn, danger }
+    }
+}
+
+impl Default for MetricThreshold {
+    fn default() -> Self {
+        Self::new(70.0, 90.0)
     }
 }
 #[derive(Debug, Deserialize, Serialize, Default, Clone)]
@@ -186,15 +262,29 @@ pub async fn entry(args: Args) -> ConResult<()> {
             GlobalConfig::save_config().await?;
             GlobalConfig::reload_config().await?;
             tracing::debug!("Controller UUID 已寫入服務池");
-            let (has_ca, has_dns) = GlobalConfig::with(|cfg| {
+            let (has_ca, has_dns, default_port) = GlobalConfig::with(|cfg| {
                 let m = &cfg.extend.services_pool.services;
                 let has_ca = m.get(&ServiceKind::Mca).map(|v| !v.is_empty()).unwrap_or(false);
                 let has_dns = m.get(&ServiceKind::Dns).map(|v| !v.is_empty()).unwrap_or(false);
-                (has_ca, has_dns)
+                let default_port = cfg.server.port;
+                (has_ca, has_dns, default_port)
             });
             if !has_ca {
-                let ca_url = hostip
+                let mut ca_url = hostip
                     .unwrap_or_else(|| ask_for_ca_url().as_str().trim_end_matches('/').to_string());
+                let ip_port = Url::parse(&ca_url).expect("必須為正常Url");
+                if ip_port.port().is_none() {
+                    let scheme = ip_port.scheme();
+                    let new_host = if scheme != "https" {
+                        panic!("僅支援 https:// 開頭的網址");
+                    } else {
+                        ip_port.host_str().expect("無法解析主機名稱").to_string()
+                    };
+                    ca_url = format!("{scheme}://{new_host}:{default_port}");
+                    tracing::warn!(
+                        "目標網址未指定 Port，已自動補上預設 Port 11209，新的目標網址為: {ca_url}"
+                    );
+                }
                 first_run(ca_url, ca_otp_code).await?;
             }
             if !has_dns {
@@ -213,28 +303,32 @@ pub async fn entry(args: Args) -> ConResult<()> {
                     (controller_name, controller_ip, controller_uuid, ca_set)
                 });
             let gclient = Arc::new(GrpcClients::connect_all(false).await?);
-            let dns_client = gclient.dns().ok_or("DNS client not initialized")?;
-            tracing::debug!("將 Controller 資訊加入 DNS 伺服器...");
-            {
-                let full_fqdn = format!("{controller_name}.chm.com");
-                dns_client.add_host(full_fqdn, controller_ip, controller_uuid).await?;
-                tracing::debug!("Controller 資訊已加入 DNS 伺服器");
-            }
-            {
-                if let Some(ca_set) = ca_desp {
-                    for ca in ca_set.iter() {
-                        let full_fqdn = format!("{}.chm.com", ca.hostname);
-                        let ca_ip = Url::parse(&ca.uri)
-                            .map_err(|e| format!("解析 CA URI 時發生錯誤: {e}"))?
-                            .host_str()
-                            .ok_or("無法從 CA URI 中取得主機名稱")?
-                            .to_string();
-                        dns_client.add_host(full_fqdn, ca_ip, ca.uuid).await?;
-                        tracing::debug!("CA {} 資訊已加入 DNS 伺服器", ca.hostname);
-                    }
+            gclient
+                .with_dns_handle(|dns| async move {
+                    let full_fqdn = format!("{controller_name}.chm.com");
+                    tracing::debug!("將 Controller 資訊加入 DNS 伺服器...");
+                    dns.add_host(full_fqdn, controller_ip.clone(), controller_uuid).await
+                })
+                .await?;
+            tracing::debug!("Controller 資訊已加入 DNS 伺服器");
+            if let Some(ca_set) = ca_desp {
+                for ca in ca_set.iter() {
+                    let full_fqdn = format!("{}.chm.com", ca.hostname);
+                    let ca_ip = Url::parse(&ca.uri)
+                        .map_err(|e| format!("解析 CA URI 時發生錯誤: {e}"))
+                        .inspect_err(|e| tracing::error!(?e))?
+                        .host_str()
+                        .ok_or("無法從 CA URI 中取得主機名稱")?
+                        .to_string();
+                    tracing::debug!("將 CA {} 資訊加入 DNS 伺服器", ca.hostname);
+                    gclient
+                        .with_dns_handle(|dns| async move {
+                            dns.add_host(full_fqdn, ca_ip, ca.uuid).await
+                        })
+                        .await?;
+                    tracing::debug!("CA {} 資訊已加入 DNS 伺服器", ca.hostname);
                 }
             }
-
             atomic_write(&marker_path, b"done").await?;
             tracing::debug!("第一次執行檢查完成");
             Ok(())
@@ -243,7 +337,6 @@ pub async fn entry(args: Args) -> ConResult<()> {
             Ok(())
         };
     }
-
     let gclient = Arc::new(GrpcClients::connect_all(false).await?);
     match args.cmd.unwrap_or_default() {
         Command::Add(AddService { hostip, otp_code }) => {
@@ -253,20 +346,18 @@ pub async fn entry(args: Args) -> ConResult<()> {
             tracing::info!("服務新增完成");
             Ok(())
         }
-        Command::Remove(RemoveService { .. }) => {
+        Command::Remove(RemoveService { hostip, otp_code, kind, confirm }) => {
             // Todo: 刪除Config中的配置，及mca憑證吊銷，data/.CHM_API.done刪除
-
-            // let node = Node::new(hostip, otp_code, clients.clone());
-            // tracing::debug!("準備刪除服務...");
-            // node.remove().await?;
-            // tracing::info!("服務刪除完成");
-            // return Ok(());
-            todo!()
+            let node = Node::new(hostip, otp_code, gclient.clone(), config.clone());
+            tracing::debug!("準備刪除服務...");
+            node.remove(&kind, confirm).await?;
+            tracing::info!("服務刪除完成");
+            Ok(())
         }
         Command::Init(Init { .. }) => Ok(()),
         Command::Serve(Serve {}) => {
             tracing::info!("正在啟動Controller...");
-            supervisor::run_supervised(gclient.clone()).await?;
+            supervisor::run_supervised(gclient.clone(), config.clone()).await?;
             Ok(())
         }
     }
@@ -287,14 +378,48 @@ impl Node {
         gclient: Arc<GrpcClients>,
         config: (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
     ) -> Self {
-        let host = hostip.unwrap_or_else(|| {
+        let default_port = GlobalConfig::with(|cfg| cfg.server.port);
+        let mut host = hostip.unwrap_or_else(|| {
             print!("請輸入目標主機名稱或IP網址(https://開頭): ");
             io::stdout().flush().unwrap();
             let mut input = String::new();
             io::stdin().read_line(&mut input).unwrap();
             format!("https://{}", input.trim())
         });
-        let dns_server = GlobalConfig::with(|cfg| cfg.server.dns_server.clone());
+        let mut ip_port = match Url::parse(&host) {
+            Ok(url) => Ok(url),
+            Err(url::ParseError::RelativeUrlWithoutBase) => Url::parse(&format!("https://{host}")),
+            Err(e) => Err(e),
+        }
+        .expect("Url -> IP 失敗，請確認輸入的網址格式正確");
+        if ip_port.port().is_none() {
+            let scheme = ip_port.scheme();
+            if scheme != "https" {
+                panic!("僅支援 https:// 開頭的網址");
+            } else {
+                ip_port.host_str().expect("無法解析主機名稱").to_string()
+            };
+            let _ = ip_port.set_port(Some(ProjectConst::SOFTWARE_PORT));
+            tracing::warn!(
+                "目標網址未指定 Port，已自動補上預設 Port 11209，新的目標網址為: {host}"
+            );
+        }
+        host = ip_port.to_string();
+        host = host.trim_end_matches('/').to_string();
+        let mut dns_server = GlobalConfig::with(|cfg| cfg.server.dns_server.clone());
+        let ip_port = Url::parse(&dns_server).expect("必須為正常Url");
+        if ip_port.port().is_none() {
+            let scheme = ip_port.scheme();
+            let new_host = if scheme != "https" {
+                panic!("僅支援 https:// 開頭的網址");
+            } else {
+                ip_port.host_str().expect("無法解析主機名稱").to_string()
+            };
+            dns_server = format!("{scheme}://{new_host}:{default_port}");
+            tracing::warn!(
+                "目標網址未指定 Port，已自動補上預設 Port 11209，新的目標網址為: {dns_server}"
+            );
+        }
         let wclient = Default_ClientCluster::new(
             host.clone(),
             Some(dns_server),
@@ -313,21 +438,29 @@ impl Node {
             con_uuid:    GlobalConfig::with(|cfg| cfg.server.unique_id),
         };
         tracing::debug!("傳送 Bootstrap 請求到目標服務...");
-        let first_step = init_with!(self.wclient, payload, as chm_cluster_utils::BootstrapResp)?;
+        let first_step = init_with!(self.wclient, payload, as chm_cluster_utils::BootstrapResp)?; // TODO: 將預設VNI傳送過去
         tracing::debug!("Bootstrap完成，取得CSR，準備向CA請求簽發憑證...");
         let sign_days = GlobalConfig::with(|cfg| cfg.extend.sign_days);
-        let ca = self.gclient.ca().ok_or("CA client not initialized")?;
-        let certs = ca.sign_certificate(first_step.csr_pem.clone(), sign_days).await?;
+        let (cert_pem, chain_pem) = self
+            .gclient
+            .with_ca_handle(|ca| async move {
+                ca.sign_certificate(first_step.csr_pem.clone(), sign_days).await
+            })
+            .await?;
         let (controller_cert, controller_uuid) =
             GlobalConfig::with(|cfg| (cfg.certificate.client_cert.clone(), cfg.server.unique_id));
         let controller_pem = tokio::fs::read(controller_cert).await?;
         let payload = InitData::Finalize {
+            // TODO: 添加 VNI
+            // 資訊，需要先與mDHCP問，有什麼可以用，先保留，等到後面交換結束時材真的消耗
             id: first_step.service_desp.uuid,
-            cert_pem: certs.0,
-            chain_pem: certs.1,
+            cert_pem,
+            chain_pem,
             controller_pem,
             controller_uuid,
         };
+        // TODO: 消耗標準 -> controller 重啟後送grpc 檢查，確認服務可用,
+        // 因為Services的IP 會變成內網IP
         tracing::debug!("傳送 Finalize 請求到目標服務...");
         init_with!(self.wclient, payload)?;
         tracing::debug!("Finalize完成，將服務資訊寫入配置檔...");
@@ -343,39 +476,126 @@ impl Node {
         GlobalConfig::reload_config().await?;
         if !is_dns {
             tracing::debug!("將服務資訊加入 DNS 伺服器...");
-            let dns_client = self.gclient.dns().ok_or("DNS client not initialized")?;
             let full_fqdn = format!("{}.chm.com", first_step.service_desp.hostname);
-            dns_client
-                .add_host(
-                    full_fqdn,
-                    first_step.socket.ip().to_string(),
-                    first_step.service_desp.uuid,
-                )
+            // TODO: 多個服務之間需要有同步機制，避免資料不一致
+            // TODO:  IP 會變成mDHCP 分配的內網IP
+            self.gclient
+                .with_dns_handle(|dns| async move {
+                    dns.add_host(
+                        full_fqdn,
+                        first_step.socket.ip().to_string(),
+                        first_step.service_desp.uuid,
+                    )
+                    .await
+                })
                 .await?;
             tracing::info!("服務資訊已加入 DNS 伺服器");
         }
+        GlobalConfig::reload_config().await?;
         Ok(())
     }
-    pub async fn _remove(&self) -> ConResult<()> {
-        Ok(())
-    }
-}
-
-#[macro_export]
-macro_rules! build_clients {
-    ($channels:expr, { $($kind:ident => $variant:ident($ctor:path)),+ $(,)? }) => {{
-        use std::collections::HashMap;
-        let mut out: HashMap<$crate::ServiceKind, $crate::ClientHandle> = HashMap::new();
-        $(
-            if let Some(ch) = $channels.get(&$crate::ServiceKind::$kind) {
-                out.insert($crate::ServiceKind::$kind, $crate::ClientHandle::$variant($ctor(ch.clone())));
-            } else {
-                ::tracing::warn!(
-                    "channel for {:?} not found; skip building client",
-                    $crate::ServiceKind::$kind
-                );
+    pub async fn remove(&self, kind: &str, confirm: bool) -> ConResult<()> {
+        // TODO: 檢查是否為[CA] [DNS] 服務中最後一個，如果是就看cli有沒有傳confirm參數，
+        // TODO: 沒有則禁止刪除只有CLI可以刪除基礎服務
+        // 0. 驗證完之後取得服務資訊 (X)
+        // 1. 從配置檔刪除服務資訊 (O)
+        // 2. 向CA請求吊銷憑證 (O)
+        // 3. 刪除data/.{ID}.done標記檔 (X)
+        // 4. 從DNS伺服器刪除服務資訊 (O)
+        // 5. 通知目標服務刪除本身憑證及資料，並重新啟動初始化程序 (X)
+        let kind = kind.parse()?;
+        let (want_delete_hostname, want_delete_uuid, want_delete_uri) = GlobalConfig::with(|cfg| {
+            let d_uuid = cfg.extend.services_pool.services.get(&kind).and_then(|set| {
+                set.iter().find(|desc| desc.uri == self.host).map(|desc| desc.uuid)
+            });
+            let d_hostname = cfg.extend.services_pool.services.get(&kind).and_then(|set| {
+                set.iter().find(|desc| desc.hostname == self.host).map(|desc| desc.hostname.clone())
+            });
+            let d_uri = cfg.extend.services_pool.services.get(&kind).and_then(|set| {
+                set.iter().find(|desc| desc.uri == self.host).map(|desc| desc.uri.clone())
+            });
+            (d_hostname, d_uuid, d_uri)
+        });
+        if want_delete_hostname.is_none() || want_delete_uuid.is_none() || want_delete_uri.is_none()
+        {
+            return Err(format!("在服務池中找不到指定的服務: {kind} @ {}", self.host).into());
+        }
+        let want_delete_hostname = want_delete_hostname.unwrap();
+        let want_delete_uuid = want_delete_uuid.unwrap();
+        let want_delete_uri = want_delete_uri.unwrap();
+        let want_delete_hostname = format!("{want_delete_hostname}.chm.com");
+        GlobalConfig::update_with(|cfg| {
+            if matches!(kind, ServiceKind::Mca | ServiceKind::Dns) {
+                let services_map = &cfg.extend.services_pool.services;
+                if let Some(entry) = services_map.get(&kind) {
+                    if entry.len() <= 1 && !confirm {
+                        panic!("無法刪除最後一個基礎服務，請使用 -y 參數確認刪除");
+                    }
+                }
             }
-        )+
-        out
-    }};
+            match cfg.extend.services_pool.services.get_mut(&kind) {
+                Some(mut entry) => {
+                    entry.retain(|desc| desc.uri != want_delete_uri);
+                }
+                None => {
+                    tracing::error!("服務池中找不到指定的服務種類: {kind}");
+                }
+            }
+        });
+        GlobalConfig::save_config().await?;
+        GlobalConfig::send_reload();
+        let mut revoked_ok_or_not_found = false;
+        tracing::debug!("向 CA 伺服器請求吊銷憑證...");
+        let get_cert_res = self
+            .gclient
+            .with_ca_handle(|ca| async move {
+                ca.get_certificate_by_common_name(want_delete_hostname.clone()).await
+            })
+            .await;
+
+        match get_cert_res {
+            Ok(Some(cert)) => {
+                let serial = cert.serial;
+                let ret = self
+                    .gclient
+                    .with_ca_handle(|ca| async move {
+                        ca.mark_certificate_as_revoked(serial, Some("Node Removed!")).await
+                    })
+                    .await;
+                match ret {
+                    Ok(true) => {
+                        tracing::info!("憑證已吊銷");
+                        revoked_ok_or_not_found = true;
+                    }
+                    Ok(false) => {
+                        tracing::warn!("憑證吊銷失敗，請確認憑證是否存在");
+                    }
+                    Err(e) => {
+                        tracing::warn!("吊銷請求失敗：{e}");
+                    }
+                }
+            }
+            Ok(None) => {
+                tracing::warn!("未找到欲刪除服務的憑證，跳過憑證吊銷步驟");
+                revoked_ok_or_not_found = true;
+            }
+            Err(e) => {
+                tracing::warn!("查詢憑證失敗：{e}");
+            }
+        }
+        tracing::debug!("從 DNS 伺服器刪除服務資訊...");
+        let deleted = self
+            .gclient
+            .with_dns_handle(|dns| async move { dns.delete_host(want_delete_uuid).await })
+            .await?;
+        if deleted {
+            tracing::info!("服務資訊已從 DNS 伺服器刪除");
+        } else {
+            tracing::warn!("服務資訊從 DNS 伺服器刪除失敗，請確認服務是否存在");
+        }
+        if !revoked_ok_or_not_found && matches!(kind, ServiceKind::Mca) {
+            tracing::warn!("CA 憑證未成功吊銷；請手動確認 CA 狀態");
+        }
+        Ok(())
+    }
 }

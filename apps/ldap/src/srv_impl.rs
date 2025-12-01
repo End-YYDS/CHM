@@ -4,9 +4,10 @@ use crate::{
     globals::GlobalConfig,
 };
 use chm_grpc::ldap::{
-    AuthRequest, AuthResponse, GenericResponse, GroupDetailResponse, GroupListResponse,
-    GroupRequest, ModifyUserRequest, ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest,
-    UserIdRequest, UserListResponse, UserRequest, WebRoleDetailResponse,
+    AuthRequest, AuthResponse, GenericResponse, GroupDetailResponse, GroupIdRequest,
+    GroupListResponse, GroupNameResponse, GroupRequest, ModifyGroupNameRequest, ModifyUserRequest,
+    ToggleUserStatusRequest, UserDetailResponse, UserGroupRequest, UserIdRequest, UserListResponse,
+    UserRequest, WebRoleDetailResponse,
 };
 use ldap3::{Ldap, LdapError, Mod, Scope, SearchEntry};
 use std::collections::{HashMap, HashSet};
@@ -217,6 +218,35 @@ pub(crate) async fn list_user_impl(ldap: &mut Ldap) -> SrvResult<Vec<String>> {
     Ok(users)
 }
 
+async fn get_user_groups_by_uid(
+    ldap: &mut Ldap,
+    uid: &str,
+) -> SrvResult<(Vec<String>, Vec<String>)> {
+    let gbase = groups_base();
+    let filter = format!("(memberUid={uid})");
+
+    let (results, _) =
+        ldap.search(&gbase, Scope::OneLevel, &filter, vec!["cn", "gidNumber"]).await?.success()?;
+
+    let mut group_names = Vec::new();
+    let mut gids = Vec::new();
+
+    for e in results {
+        let entry = SearchEntry::construct(e);
+        if let Some(name) = entry.attrs.get("cn").and_then(|v| v.first()) {
+            group_names.push(name.to_string());
+        }
+        if let Some(gid) = entry.attrs.get("gidNumber").and_then(|v| v.first()) {
+            // 去重
+            if !gids.iter().any(|g| g == gid) {
+                gids.push(gid.to_string());
+            }
+        }
+    }
+
+    Ok((gids, group_names))
+}
+
 pub(crate) async fn search_user_impl(
     ldap: &mut Ldap,
     req: UserIdRequest,
@@ -227,31 +257,42 @@ pub(crate) async fn search_user_impl(
         Ok((res, _)) => res,
         Err(_) => return Err(LdapServiceError::UserNotFound(req.uid.to_string())),
     };
+    if results.is_empty() {
+        return Err(LdapServiceError::UserNotFound(req.uid.to_string()));
+    }
     let entry = SearchEntry::construct(results[0].clone());
     let attrs = &entry.attrs;
+    let primary_gid = attrs.get("gidNumber").and_then(|v| v.first()).cloned();
+    let (mut all_gids, mut groups) = get_user_groups_by_uid(ldap, &req.uid).await?;
+    if let Some(pg) = primary_gid.clone() {
+        if let Some(pos) = all_gids.iter().position(|g| g == &pg) {
+            let gid = all_gids.remove(pos);
+            all_gids.insert(0, gid);
+        } else {
+            all_gids.insert(0, pg.clone());
+        }
+        if let Ok(gr) = get_group_name_impl(ldap, GroupIdRequest { gid_number: pg }).await {
+            if !groups.iter().any(|name| name == &gr.group_name) {
+                groups.insert(0, gr.group_name);
+            }
+        }
+    }
     let resp = UserDetailResponse {
-        uid:            attrs.get("uid").and_then(|v| v.first()).cloned().unwrap_or_default(),
-        cn:             attrs.get("cn").and_then(|v| v.first()).cloned().unwrap_or_default(),
-        sn:             attrs.get("sn").and_then(|v| v.first()).cloned().unwrap_or_default(),
-        uid_number:     attrs.get("uidNumber").and_then(|v| v.first()).cloned().unwrap_or_default(),
-        gid_number:     attrs.get("gidNumber").and_then(|v| v.first()).cloned().unwrap_or_default(),
+        uid: attrs.get("uid").and_then(|v| v.first()).cloned().unwrap_or_default(),
+        cn: attrs.get("cn").and_then(|v| v.first()).cloned().unwrap_or_default(),
+        sn: attrs.get("sn").and_then(|v| v.first()).cloned().unwrap_or_default(),
+        uid_number: attrs.get("uidNumber").and_then(|v| v.first()).cloned().unwrap_or_default(),
+        gid_number: all_gids,
+        groups,
         home_directory: attrs
             .get("homeDirectory")
             .and_then(|v| v.first())
             .cloned()
             .unwrap_or_default(),
-        login_shell:    attrs
-            .get("loginShell")
-            .and_then(|v| v.first())
-            .cloned()
-            .unwrap_or_default(),
-        given_name:     attrs.get("givenName").and_then(|v| v.first()).cloned().unwrap_or_default(),
-        display_name:   attrs
-            .get("displayName")
-            .and_then(|v| v.first())
-            .cloned()
-            .unwrap_or_default(),
-        gecos:          attrs.get("gecos").and_then(|v| v.first()).cloned().unwrap_or_default(),
+        login_shell: attrs.get("loginShell").and_then(|v| v.first()).cloned().unwrap_or_default(),
+        given_name: attrs.get("givenName").and_then(|v| v.first()).cloned().unwrap_or_default(),
+        display_name: attrs.get("displayName").and_then(|v| v.first()).cloned().unwrap_or_default(),
+        gecos: attrs.get("gecos").and_then(|v| v.first()).cloned().unwrap_or_default(),
     };
     Ok(resp)
 }
@@ -271,7 +312,14 @@ pub(crate) async fn authenticate_user_impl(
         Err(_) => return Ok(AuthResponse { success: false, message: "User not found".into() }),
     };
 
-    let entry = SearchEntry::construct(results[0].clone());
+    let result_entry = match results.first() {
+        Some(e) => e,
+        None => {
+            return Ok(AuthResponse { success: false, message: "User not found".into() });
+        }
+    };
+
+    let entry = SearchEntry::construct(result_entry.clone());
     if let Some(vals) = entry.attrs.get("shadowExpire") {
         if let Some(v) = vals.first() {
             if is_shadow_locked(v) {
@@ -385,6 +433,44 @@ pub(crate) async fn search_group_impl(
     };
     Ok(resp)
 }
+
+pub(crate) async fn get_group_name_impl(
+    ldap: &mut Ldap,
+    req: GroupIdRequest,
+) -> SrvResult<GroupNameResponse> {
+    let gbase = groups_base();
+    let filter = format!("(gidNumber={})", req.gid_number);
+    if let Some(se) = search_one(ldap, &gbase, Scope::Subtree, &filter, vec!["cn"]).await? {
+        if let Some(vals) = se.attrs.get("cn") {
+            if let Some(v) = vals.first() {
+                return Ok(GroupNameResponse { group_name: v.to_string() });
+            }
+        }
+    }
+    Err(LdapServiceError::GroupNotFound(format!(
+        "Group with gidNumber '{}' not found",
+        req.gid_number
+    )))
+}
+
+pub(crate) async fn modify_group_name_impl(
+    ldap: &mut Ldap,
+    req: ModifyGroupNameRequest,
+) -> SrvResult<GenericResponse> {
+    let gbase = groups_base();
+    let old_dn = format!("cn={},{}", req.old_name, gbase);
+    let new_rdn = format!("cn={}", req.new_name);
+    let filter = format!("(cn={})", req.new_name);
+    if search_one(ldap, &gbase, Scope::OneLevel, &filter, vec!["dn"]).await?.is_some() {
+        return Err(LdapServiceError::GroupAlreadyExists(req.new_name.clone()));
+    }
+    ldap.modifydn(&old_dn, &new_rdn, true, None).await?.success()?;
+    Ok(GenericResponse {
+        success: true,
+        message: format!("Group name changed from '{}' to '{}'.", req.old_name, req.new_name),
+    })
+}
+
 pub(crate) async fn list_group_impl(ldap: &mut Ldap) -> SrvResult<GroupListResponse> {
     let gbase = groups_base();
     let results = match ldap

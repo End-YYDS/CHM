@@ -1,20 +1,25 @@
-use actix_web::{get, post, web, Scope};
+use std::{net::SocketAddr, str::FromStr};
 
 use crate::{
-    commons::{ResponseResult, ResponseType},
+    commons::{translate::AppError, ResponseResult},
     handles::chm::pc_manager::types::{
         DeletePcGroupRequest, DeletePcRequest, DeletePcResponse, GetPcgroupResponseResult,
         PCManagerRequest, PatchPcgroupRequest, PcInformation, PostPcgroupRequest,
-        PutPcgroupRequest, SpecificRequest, Uuid, UuidsRequest,
+        PutPcgroupRequest, RebootPcResponse, ShutdownPcResponse, SpecificRequest, UuidsRequest,
     },
+    AppState, RestfulResult,
+};
+use actix_web::{delete, get, patch, post, put, web, Scope};
+use chm_grpc::restful::{
+    CreatePcGroupRequest, GetAllPcsRequest, GetPcGroupsRequest, GetSpecificPcsRequest,
 };
 
+mod translate;
 pub mod types;
 
 pub fn pc_manager_scope() -> Scope {
     web::scope("/pc")
-        .route("", web::delete().to(delete_pc))
-        .route("/", web::delete().to(delete_pc))
+        .service(delete_pc)
         .service(add)
         .service(all)
         .service(specific)
@@ -24,116 +29,174 @@ pub fn pc_manager_scope() -> Scope {
 
 pub fn pcgroup_scope() -> Scope {
     web::scope("/pcgroup")
-        .route("", web::post().to(post_pcgroup))
-        .route("/", web::post().to(post_pcgroup))
-        .route("", web::get().to(get_pcgroup))
-        .route("/", web::get().to(get_pcgroup))
-        .route("", web::put().to(put_pcgroup))
-        .route("/", web::put().to(put_pcgroup))
-        .route("", web::patch().to(patch_pcgroup))
-        .route("/", web::patch().to(patch_pcgroup))
-        .route("", web::delete().to(delete_pcgroup))
-        .route("/", web::delete().to(delete_pcgroup))
+        .service(post_pcgroup)
+        .service(get_pcgroup)
+        .service(put_pcgroup)
+        .service(patch_pcgroup)
+        .service(delete_pcgroup)
 }
 
 #[post("/add")]
-async fn add(data: web::Json<PCManagerRequest>) -> web::Json<ResponseResult> {
-    println!("{data:#?}");
-    web::Json(ResponseResult { r#type: ResponseType::Ok, message: "Post PC Manager".to_string() })
+async fn add(
+    app_state: web::Data<AppState>,
+    web::Json(data): web::Json<PCManagerRequest>,
+) -> RestfulResult<web::Json<ResponseResult>> {
+    dbg!(&data);
+    fn is_valid_ip(input: &str) -> bool {
+        SocketAddr::from_str(input).is_ok()
+    }
+    if !is_valid_ip(data.ip.as_str()) {
+        return Err(AppError::InvalidIpAddress(data.ip.to_string()));
+    }
+    let mut client = app_state.gclient.clone();
+    let data: chm_grpc::restful::AddPcRequest = data.into();
+    dbg!(&data);
+    let resp = client
+        .add_pc(data)
+        .await
+        .inspect_err(|e| tracing::error!(?e))?
+        .into_inner()
+        .result
+        .unwrap()
+        .into();
+    Ok(web::Json(resp))
 }
 
 #[get("/all")]
-async fn all() -> web::Json<PcInformation> {
-    let mut pcs_map = std::collections::HashMap::new();
-    pcs_map.insert(
-        "uuid1".to_string(),
-        Uuid {
-            hostname: "localhost1".to_string(),
-            ip:       "127.0.0.1".to_string(),
-            status:   true,
-        },
-    );
-    web::Json(PcInformation { pcs: pcs_map, length: 1 })
+async fn all(app_state: web::Data<AppState>) -> RestfulResult<web::Json<PcInformation>> {
+    let mut client = app_state.gclient.clone();
+    let resp = client
+        .get_all_pcs(GetAllPcsRequest {})
+        .await
+        .inspect_err(|e| tracing::error!(?e))?
+        .into_inner()
+        .into();
+    Ok(web::Json(resp))
 }
-
-// #[get("/specific")]
-// async fn specific(data: actix_web::web::Query<SpecificRequest>) ->
-// web::Json<PcInformation> {     dbg!(&data);
-//     web::Json(PcInformation {
-//         pcs:    Pcs {
-//             uuid: Uuid { hostname: "localhost2".to_string(), ip:
-// "127.0.0.1".to_string() },         },
-//         length: 1,
-//     })
-// }
 
 #[get("/specific")]
-async fn specific(q: web::Json<SpecificRequest>) -> web::Json<PcInformation> {
-    dbg!(&q);
-    let mut pcs_map = std::collections::HashMap::new();
-    pcs_map.insert(
-        "uuid2".to_string(),
-        Uuid {
-            hostname: "localhost2".to_string(),
-            ip:       "127.0.0.1".to_string(),
-            status:   true,
-        },
-    );
-    web::Json(PcInformation { pcs: pcs_map, length: 1 })
+async fn specific(
+    app_state: web::Data<AppState>,
+    // web::Json(data): web::Json<SpecificRequest>,
+    web::Query(data): web::Query<SpecificRequest>,
+) -> RestfulResult<web::Json<PcInformation>> {
+    let mut client = app_state.gclient.clone();
+    let data: GetSpecificPcsRequest = data.into();
+    let resp = client
+        .get_specific_pcs(data)
+        .await
+        .inspect_err(|e| tracing::error!(?e))?
+        .into_inner()
+        .into();
+    Ok(web::Json(resp))
 }
 
-async fn delete_pc(data: web::Json<DeletePcRequest>) -> web::Json<DeletePcResponse> {
-    dbg!(&data);
-    let mut result_map = std::collections::HashMap::new();
-    for uuid in &data.uuids {
-        result_map.insert(
-            uuid.clone(),
-            ResponseResult { r#type: ResponseType::Ok, message: "Deleted".to_string() },
-        );
-    }
-    web::Json(DeletePcResponse { uuids: result_map })
+#[delete("")]
+async fn delete_pc(
+    app_state: web::Data<AppState>,
+    web::Json(data): web::Json<DeletePcRequest>,
+) -> RestfulResult<web::Json<DeletePcResponse>> {
+    let mut client = app_state.gclient.clone();
+    let data: chm_grpc::restful::DeletePcsRequest = data.into();
+    let resp =
+        client.delete_pcs(data).await.inspect_err(|e| tracing::error!(?e))?.into_inner().into();
+    Ok(web::Json(resp))
 }
 
 #[post("/reboot")]
-async fn reboot(data: web::Json<UuidsRequest>) -> web::Json<ResponseResult> {
-    dbg!(&data);
-    web::Json(ResponseResult { r#type: ResponseType::Ok, message: "Reboot PC".to_string() })
+async fn reboot(
+    app_state: web::Data<AppState>,
+    web::Json(data): web::Json<UuidsRequest>,
+) -> RestfulResult<web::Json<RebootPcResponse>> {
+    let mut client = app_state.gclient.clone();
+    let data: chm_grpc::restful::RebootPcsRequest = data.into();
+    let resp =
+        client.reboot_pcs(data).await.inspect_err(|e| tracing::error!(?e))?.into_inner().into();
+    Ok(web::Json(resp))
 }
 
 #[post("/shutdown")]
-async fn shutdown(data: web::Json<UuidsRequest>) -> web::Json<ResponseResult> {
+async fn shutdown(
+    app_state: web::Data<AppState>,
+    web::Json(data): web::Json<UuidsRequest>,
+) -> RestfulResult<web::Json<ShutdownPcResponse>> {
+    let mut client = app_state.gclient.clone();
+    let data: chm_grpc::restful::ShutdownPcsRequest = data.into();
+    let resp =
+        client.shutdown_pcs(data).await.inspect_err(|e| tracing::error!(?e))?.into_inner().into();
+    Ok(web::Json(resp))
+}
+
+#[post("")]
+async fn post_pcgroup(
+    app_state: web::Data<AppState>,
+    web::Json(data): web::Json<PostPcgroupRequest>,
+) -> RestfulResult<web::Json<ResponseResult>> {
     dbg!(&data);
-    web::Json(ResponseResult { r#type: ResponseType::Ok, message: "Shutdown PC".to_string() })
+    let mut client = app_state.gclient.clone();
+    let data: CreatePcGroupRequest = data.into();
+    let resp = client
+        .create_pc_group(data)
+        .await
+        .inspect_err(|e| tracing::error!(?e))?
+        .into_inner()
+        .into();
+    Ok(web::Json(resp))
 }
 
-async fn post_pcgroup(data: web::Json<PostPcgroupRequest>) -> web::Json<ResponseResult> {
-    println!("{data:#?}");
-    web::Json(ResponseResult { r#type: ResponseType::Ok, message: "Post PC Group".to_string() })
+#[get("")]
+async fn get_pcgroup(
+    app_state: web::Data<AppState>,
+) -> RestfulResult<web::Json<GetPcgroupResponseResult>> {
+    let mut client = app_state.gclient.clone();
+    let resp = client
+        .get_pc_groups(GetPcGroupsRequest {})
+        .await
+        .inspect_err(|e| tracing::error!(?e))?
+        .into_inner()
+        .into();
+    Ok(web::Json(resp))
 }
 
-async fn get_pcgroup() -> web::Json<GetPcgroupResponseResult> {
-    web::Json(GetPcgroupResponseResult {
-        groups: types::Groups {
-            vxlanid: types::Vxlanid {
-                groupname: "group1".to_string(),
-                pcs:       vec!["pc1".to_string(), "pc2".to_string()],
-            },
-        },
-        length: 1,
-    })
-}
-
-async fn put_pcgroup(data: web::Json<PutPcgroupRequest>) -> web::Json<ResponseResult> {
-    println!("{data:#?}");
-    web::Json(ResponseResult { r#type: ResponseType::Ok, message: "Put PC Group".to_string() })
-}
-
-async fn patch_pcgroup(data: web::Json<PatchPcgroupRequest>) -> web::Json<ResponseResult> {
-    println!("{data:#?}");
-    web::Json(ResponseResult { r#type: ResponseType::Ok, message: "Patch PC Group".to_string() })
-}
-
-async fn delete_pcgroup(data: web::Json<DeletePcGroupRequest>) -> web::Json<ResponseResult> {
+#[put("")]
+async fn put_pcgroup(
+    app_state: web::Data<AppState>,
+    web::Json(data): web::Json<PutPcgroupRequest>,
+) -> RestfulResult<web::Json<ResponseResult>> {
     dbg!(&data);
-    web::Json(ResponseResult { r#type: ResponseType::Ok, message: "Delete PC Group".to_string() })
+    let mut client = app_state.gclient.clone();
+    let data: chm_grpc::restful::PutPcGroupRequest = data.into();
+    let resp =
+        client.put_pc_group(data).await.inspect_err(|e| tracing::error!(?e))?.into_inner().into();
+    Ok(web::Json(resp))
+}
+
+#[patch("")]
+async fn patch_pcgroup(
+    app_state: web::Data<AppState>,
+    web::Json(data): web::Json<PatchPcgroupRequest>,
+) -> RestfulResult<web::Json<ResponseResult>> {
+    dbg!(&data);
+    let mut client = app_state.gclient.clone();
+    let data: chm_grpc::restful::PatchPcGroupRequest = data.into();
+    let resp =
+        client.patch_pc_group(data).await.inspect_err(|e| tracing::error!(?e))?.into_inner().into();
+    Ok(web::Json(resp))
+}
+
+#[delete("")]
+async fn delete_pcgroup(
+    app_state: web::Data<AppState>,
+    web::Json(data): web::Json<DeletePcGroupRequest>,
+) -> RestfulResult<web::Json<ResponseResult>> {
+    dbg!(&data);
+    let mut client = app_state.gclient.clone();
+    let data: chm_grpc::restful::DeletePcGroupRequest = data.into();
+    let resp = client
+        .delete_pc_group(data)
+        .await
+        .inspect_err(|e| tracing::error!(?e))?
+        .into_inner()
+        .into();
+    Ok(web::Json(resp))
 }

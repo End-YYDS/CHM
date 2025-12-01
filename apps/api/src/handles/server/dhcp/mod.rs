@@ -33,6 +33,7 @@ fn generate_test_dhcp_response() -> DHCPResponse {
             status:   Status::Active,
             cpu:      1.8,
             memory:   256.0,
+            ip:       None,
         },
         leases:      15,
         logs:        Logs {

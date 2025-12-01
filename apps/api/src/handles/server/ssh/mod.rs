@@ -31,6 +31,7 @@ fn generate_test_ssh_response() -> SSHResponse {
             status:   Status::Active,
             cpu:      12.3,
             memory:   4.5,
+            ip:       None,
         },
         connections: 3,
         last_login:  Last_Login {

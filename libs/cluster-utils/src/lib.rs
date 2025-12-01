@@ -2,9 +2,11 @@ use chm_project_const::uuid::Uuid;
 use serde::{Deserialize, Serialize};
 pub use serde_json::Value;
 use std::{
+    fmt::{Display, Formatter},
     hash::{Hash, Hasher},
     net::SocketAddrV4,
     path::Path,
+    str::FromStr,
 };
 
 pub type CHMResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -42,6 +44,35 @@ pub enum ServiceKind {
     Dhcp,
     Api,
     Agent,
+}
+impl Display for ServiceKind {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            ServiceKind::Controller => "Controller",
+            ServiceKind::Mca => "Mca",
+            ServiceKind::Dns => "Dns",
+            ServiceKind::Ldap => "Ldap",
+            ServiceKind::Dhcp => "Dhcp",
+            ServiceKind::Api => "Api",
+            ServiceKind::Agent => "Agent",
+        };
+        write!(f, "{s}")
+    }
+}
+impl FromStr for ServiceKind {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "controller" => Ok(ServiceKind::Controller),
+            "mca" => Ok(ServiceKind::Mca),
+            "dns" => Ok(ServiceKind::Dns),
+            "ldap" => Ok(ServiceKind::Ldap),
+            "dhcp" => Ok(ServiceKind::Dhcp),
+            "api" => Ok(ServiceKind::Api),
+            "agent" => Ok(ServiceKind::Agent),
+            _ => Err(format!("Unknown service kind: {s}")),
+        }
+    }
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceDescriptor {
@@ -81,7 +112,7 @@ pub enum InitData {
         cert_pem:        Vec<u8>,
         chain_pem:       Vec<Vec<u8>>,
         controller_pem:  Vec<u8>,
-        controller_uuid: Uuid,
+        controller_uuid: Uuid, // TODO: 添加從mDHCP 中取得的IP及VNI,寫入Config中
     },
 }
 
@@ -143,6 +174,7 @@ pub mod _reexports {
         web::{post, resource, Data, Json, ServiceConfig},
         HttpMessage, HttpRequest, HttpResponse, Responder,
     };
+    pub use chm_dns_resolver::get_local_hostname;
     pub use tokio::{
         fs,
         sync::{mpsc::Sender, RwLock},

@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package hostd;
+
+service HostdService {
+  rpc RunSysInfo(SysInfoRequest) returns (SysInfoResponse);
+  rpc RunHostCommand(HostCommandRequest) returns (HostCommandResponse);
+}
+
+message SysInfoRequest {
+  string command = 1;
+}
+
+message SysInfoResponse {
+  string output = 1;
+}
+
+message HostCommandRequest {
+  string command = 1;
+}
+
+message HostCommandResponse {
+  int32 status = 1;
+  string stdout = 2;
+  string stderr = 3;
+}

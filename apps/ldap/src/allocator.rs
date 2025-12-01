@@ -62,7 +62,7 @@ impl Allocator {
             .await?;
         Ok(pool)
     }
-    async fn pool(&self) -> SrvResult<&SqlitePool> {
+    pub async fn pool(&self) -> SrvResult<&SqlitePool> {
         self.pool.get_or_try_init(|| async { self.init_pool().await }).await
     }
     pub async fn alloc_next(&self, kind: &str) -> SrvResult<i64> {

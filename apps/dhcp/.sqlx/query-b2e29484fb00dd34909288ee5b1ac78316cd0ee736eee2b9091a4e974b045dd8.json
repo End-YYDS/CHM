@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT z.id as \"id!\", z.name as \"name!\", z.vni as \"vni!\"\n        FROM zones z\n        JOIN zone_pcs zp ON zp.zone_id = z.id\n        WHERE zp.pc_uuid = ?\n        ORDER BY z.name\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "vni!",
+        "ordinal": 2,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "b2e29484fb00dd34909288ee5b1ac78316cd0ee736eee2b9091a4e974b045dd8"
+}

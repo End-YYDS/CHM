@@ -10,6 +10,7 @@ use crate::{
 pub use crate::{config::config, globals::GlobalConfig};
 use chm_cert_utils::CertUtils;
 use chm_config_bus::{declare_config, declare_config_bus};
+use chm_dns_resolver::get_local_hostname;
 use chm_grpc::{
     ca::ca_server::CaServer,
     crl::crl_server,
@@ -176,9 +177,11 @@ fn get_ssl_info(req: &Request<()>) -> CaResult<(X509, String)> {
         .first()
         .ok_or_else(|| Status::unauthenticated("No peer certificate presented"))?;
     let x509 = X509::from_der(leaf)
-        .map_err(|_| Status::invalid_argument("Peer certificate DER is invalid"))?;
+        .map_err(|_| Status::invalid_argument("Peer certificate DER is invalid"))
+        .inspect_err(|e| tracing::error!(?e))?;
     let serial = CertUtils::cert_serial_sha256(&x509)
-        .map_err(|e| Status::internal(format!("Serial sha256 failed: {e}")))?;
+        .map_err(|e| Status::internal(format!("Serial sha256 failed: {e}")))
+        .inspect_err(|e| tracing::error!(?e))?;
     Ok((x509, serial))
 }
 
@@ -206,11 +209,13 @@ async fn check_controller(
     controller_args: (String, String),
     req: Request<()>,
 ) -> Result<Request<()>, Status> {
-    let (x509, _) =
-        get_ssl_info(&req).map_err(|e| Status::internal(format!("SSL info failed: {e}")))?;
+    let (x509, _) = get_ssl_info(&req)
+        .map_err(|e| Status::internal(format!("SSL info failed: {e}")))
+        .inspect_err(|e| tracing::error!(?e))?;
     let is_ctrl = cert_handler
         .is_controller_cert(&x509, controller_args.clone())
-        .map_err(|e| Status::internal(format!("Controller check failed: {e}")))?;
+        .map_err(|e| Status::internal(format!("Controller check failed: {e}")))
+        .inspect_err(|e| tracing::error!(?e))?;
     if !is_ctrl {
         return Err(Status::permission_denied("Only controller cert is allowed"));
     }
@@ -221,8 +226,9 @@ async fn check_revoke(
     cert_handler: Arc<CertificateProcess>,
     req: Request<()>,
 ) -> Result<Request<()>, Status> {
-    let (_, serial) =
-        get_ssl_info(&req).map_err(|e| Status::internal(format!("SSL info failed: {e}")))?;
+    let (_, serial) = get_ssl_info(&req)
+        .map_err(|e| Status::internal(format!("SSL info failed: {e}")))
+        .inspect_err(|e| tracing::error!(?e))?;
     if cert_handler.get_crl().is_revoked(&serial).await {
         return Err(Status::unauthenticated("Certificate was revoked"));
     }
@@ -256,9 +262,12 @@ pub async fn start_grpc(addr: SocketAddrV4, cert_handler: Arc<CertificateProcess
 
         let (key, cert) = CertUtils::cert_from_path(&cert, &key, None)?;
         let identity = Identity::from_pem(cert, key);
-        let tls = ServerTlsConfig::new().identity(identity).client_ca_root(
+        let mut tls = ServerTlsConfig::new().identity(identity).client_ca_root(
             tonic::transport::Certificate::from_pem(cert_handler.get_ca_cert().to_pem()?),
         );
+        if cfg!(debug_assertions) {
+            tls = tls.use_key_log();
+        }
         // 啟動健康檢查服務
         let (health_reporter, health_service) = health_reporter();
         health_reporter.set_serving::<CaServer<MyCa>>().await;
@@ -354,14 +363,22 @@ pub async fn mini_controller_cert(
 /// # 回傳
 /// * `CaResult<()>` - 返回結果，表示操作是否成功
 pub async fn ca_grpc_cert(cert_handler: &CertificateProcess, uid: Uuid) -> CaResult<()> {
+    let self_ip = GlobalConfig::with(|cfg| cfg.server.host.clone());
     let ca_grpc: (PrivateKey, CsrCert) = CertUtils::generate_csr_with_new_key(
         4096,
         "TW",
         "Taipei",
         "Taipei",
         "CHM Organization",
-        "ca.chm.com",
-        ["127.0.0.1", "ca.chm.com", "mca.chm.com", uid.to_string().as_str()],
+        get_local_hostname().as_str(),
+        [
+            "127.0.0.1",
+            self_ip.as_str(),
+            "ca.chm.com",
+            "mca.chm.com",
+            uid.to_string().as_str(),
+            get_local_hostname().as_str(),
+        ],
     )?;
     let ca_grpc_csr = X509Req::from_pem(&ca_grpc.1)?;
     let ca_grpc_sign: (SignedCert, ChainCerts) = cert_handler.sign_csr(&ca_grpc_csr, 365).await?;

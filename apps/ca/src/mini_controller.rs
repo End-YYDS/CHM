@@ -1,11 +1,16 @@
 use crate::{cert::process::CertificateProcess, globals::GlobalConfig, PrivateKey, SignedCert, ID};
+use actix_web::{
+    web::{Data, Json},
+    HttpRequest, HttpResponse,
+};
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{
     api_resp, declare_init_route, Default_ServerCluster, ServiceDescriptor, ServiceKind,
 };
+use chm_dns_resolver::get_local_hostname;
 use openssl::x509::{X509Req, X509};
 use serde::{Deserialize, Serialize};
-use std::net::SocketAddrV4;
+use std::{net::SocketAddrV4, ops::ControlFlow, path::PathBuf, sync::Arc};
 use uuid::Uuid;
 
 #[derive(Serialize)]
@@ -70,7 +75,7 @@ async fn init_data_handler(
         kind:        ServiceKind::Mca,
         uri:         format!("https://{}:{}", state.socket.ip(), state.socket.port()),
         health_name: Some("ca.CA".to_string()),
-        hostname:    ID.to_string(),
+        hostname:    get_local_hostname(),
         is_server:   true,
         uuid:        state.unique_id,
     };

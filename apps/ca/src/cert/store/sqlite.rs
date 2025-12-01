@@ -219,7 +219,7 @@ impl CertificateStore for SqlConnection {
                 status as "status: CertStatus",
                 cert_der
             FROM certs
-            WHERE subject_cn = ?
+            WHERE subject_cn = ? AND status = 'valid'
             "#,
             common_name
         )

@@ -21,11 +21,17 @@ pub struct ClusterSummary {
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct PcMetrics {
     #[prost(double, tag = "1")]
-    pub cpu:    f64,
+    pub cpu:           f64,
     #[prost(double, tag = "2")]
-    pub memory: f64,
+    pub memory:        f64,
     #[prost(double, tag = "3")]
-    pub disk:   f64,
+    pub disk:          f64,
+    #[prost(enumeration = "InfoStatus", tag = "4")]
+    pub cpu_status:    i32,
+    #[prost(enumeration = "InfoStatus", tag = "5")]
+    pub memory_status: i32,
+    #[prost(enumeration = "InfoStatus", tag = "6")]
+    pub disk_status:   i32,
 }
 /// ========== Login ==========
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -52,11 +58,9 @@ pub struct GetAllInfoResponse {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetInfoRequest {
-    #[prost(enumeration = "Zone", tag = "1")]
-    pub zone:   i32,
-    #[prost(enumeration = "Target", tag = "2")]
+    #[prost(enumeration = "Target", tag = "1")]
     pub target: i32,
-    #[prost(string, optional, tag = "3")]
+    #[prost(string, optional, tag = "2")]
     pub uuid:   ::core::option::Option<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -221,6 +225,9 @@ pub struct PcSimple {
     pub hostname: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub ip:       ::prost::alloc::string::String,
+    /// true: online, false: offline
+    #[prost(bool, tag = "3")]
+    pub status:   bool,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetAllPcsResponse {
@@ -272,8 +279,9 @@ pub struct RebootPcsRequest {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RebootPcsResponse {
-    #[prost(message, optional, tag = "1")]
-    pub result: ::core::option::Option<super::common::ResponseResult>,
+    #[prost(map = "string, message", tag = "1")]
+    pub results:
+        ::std::collections::HashMap<::prost::alloc::string::String, super::common::ResponseResult>,
 }
 /// Shutdown POST /api/chm/pc/shutdown
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -283,8 +291,9 @@ pub struct ShutdownPcsRequest {
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ShutdownPcsResponse {
-    #[prost(message, optional, tag = "1")]
-    pub result: ::core::option::Option<super::common::ResponseResult>,
+    #[prost(map = "string, message", tag = "1")]
+    pub results:
+        ::std::collections::HashMap<::prost::alloc::string::String, super::common::ResponseResult>,
 }
 /// 取得所有 PC 群組資訊 GET /api/chm/pcgroup
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -312,7 +321,7 @@ pub struct CreatePcGroupRequest {
     #[prost(string, tag = "1")]
     pub groupname: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub describe:  ::prost::alloc::string::String,
+    pub cidr:      ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreatePcGroupResponse {
@@ -332,14 +341,28 @@ pub struct PutPcGroupResponse {
     #[prost(message, optional, tag = "1")]
     pub result: ::core::option::Option<super::common::ResponseResult>,
 }
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Pcs {
+    #[prost(string, repeated, tag = "1")]
+    pub pcs: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
 /// 更新 Group 單一內容 PATCH /api/chm/pcgroup
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchPcGroupRequest {
     #[prost(int64, tag = "1")]
-    pub vxlanid:   i64,
-    /// 只更改單一欄位：目前文件僅示範 Groupname
-    #[prost(string, tag = "2")]
-    pub groupname: ::prost::alloc::string::String,
+    pub vxlanid: i64,
+    #[prost(oneof = "patch_pc_group_request::Kind", tags = "2, 3")]
+    pub kind:    ::core::option::Option<patch_pc_group_request::Kind>,
+}
+/// Nested message and enum types in `PatchPcGroupRequest`.
+pub mod patch_pc_group_request {
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Kind {
+        #[prost(string, tag = "2")]
+        Groupname(::prost::alloc::string::String),
+        #[prost(message, tag = "3")]
+        Pcs(super::Pcs),
+    }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchPcGroupResponse {
@@ -888,32 +911,35 @@ pub mod put_ip_mode_response {
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct GetSettingValuesRequest {}
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct Values {
+pub struct MetricSetting {
     #[prost(double, tag = "1")]
-    pub cpu_usage:  f64,
+    pub warn: f64,
     #[prost(double, tag = "2")]
-    pub disk_usage: f64,
-    #[prost(double, tag = "3")]
-    pub memory:     f64,
-    #[prost(double, tag = "4")]
-    pub network:    f64,
+    pub dang: f64,
 }
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Values {
+    #[prost(message, optional, tag = "1")]
+    pub cpu_usage:  ::core::option::Option<MetricSetting>,
+    #[prost(message, optional, tag = "2")]
+    pub disk_usage: ::core::option::Option<MetricSetting>,
+    #[prost(message, optional, tag = "3")]
+    pub memory:     ::core::option::Option<MetricSetting>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetSettingValuesResponse {
     #[prost(message, optional, tag = "1")]
     pub values: ::core::option::Option<Values>,
 }
 /// PUT /api/chm/setting/values  (單一或整筆更新 -> 使用 optional 欄位)
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutSettingValuesRequest {
-    #[prost(double, optional, tag = "1")]
-    pub cpu_usage:  ::core::option::Option<f64>,
-    #[prost(double, optional, tag = "2")]
-    pub disk_usage: ::core::option::Option<f64>,
-    #[prost(double, optional, tag = "3")]
-    pub memory:     ::core::option::Option<f64>,
-    #[prost(double, optional, tag = "4")]
-    pub network:    ::core::option::Option<f64>,
+    #[prost(message, optional, tag = "1")]
+    pub cpu_usage:  ::core::option::Option<MetricSetting>,
+    #[prost(message, optional, tag = "2")]
+    pub disk_usage: ::core::option::Option<MetricSetting>,
+    #[prost(message, optional, tag = "3")]
+    pub memory:     ::core::option::Option<MetricSetting>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PutSettingValuesResponse {
@@ -962,15 +988,27 @@ pub struct UserEntry {
     /// Username
     #[prost(string, tag = "1")]
     pub username:       ::prost::alloc::string::String,
-    /// Group
-    #[prost(string, repeated, tag = "2")]
-    pub group:          ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    /// Home_directory
+    #[prost(string, tag = "2")]
+    pub password:       ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub home_directory: ::prost::alloc::string::String,
-    /// Shell
+    pub cn:             ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
+    pub sn:             ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub home_directory: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
     pub shell:          ::prost::alloc::string::String,
+    #[prost(string, tag = "7")]
+    pub given_name:     ::prost::alloc::string::String,
+    #[prost(string, tag = "8")]
+    pub display_name:   ::prost::alloc::string::String,
+    #[prost(string, tag = "9")]
+    pub gid_number:     ::prost::alloc::string::String,
+    /// Group
+    #[prost(string, repeated, tag = "10")]
+    pub group:          ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, tag = "11")]
+    pub gecos:          ::prost::alloc::string::String,
 }
 /// 取得所有使用者資訊  GET /api/chm/user
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
@@ -987,14 +1025,8 @@ pub struct GetUsersResponse {
 /// 新增 User  POST /api/chm/user
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateUserRequest {
-    #[prost(string, tag = "1")]
-    pub username:       ::prost::alloc::string::String,
-    #[prost(string, repeated, tag = "2")]
-    pub group:          ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    #[prost(string, tag = "3")]
-    pub home_directory: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub shell:          ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "1")]
+    pub user: ::core::option::Option<UserEntry>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateUserResponse {
@@ -1020,13 +1052,26 @@ pub struct PutUsersResponse {
 pub struct UserPatch {
     #[prost(string, optional, tag = "1")]
     pub username:       ::core::option::Option<::prost::alloc::string::String>,
-    /// 若只改 Username，其餘欄位可不帶
-    #[prost(string, repeated, tag = "2")]
-    pub group:          ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "2")]
+    pub password:       ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "3")]
-    pub home_directory: ::core::option::Option<::prost::alloc::string::String>,
+    pub cn:             ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, optional, tag = "4")]
+    pub sn:             ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "5")]
+    pub home_directory: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "6")]
     pub shell:          ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "7")]
+    pub given_name:     ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "8")]
+    pub display_name:   ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "9")]
+    pub gid_number:     ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, repeated, tag = "10")]
+    pub group:          ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "11")]
+    pub gecos:          ::core::option::Option<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchUsersRequest {
@@ -1102,6 +1147,9 @@ pub struct GroupPatch {
     /// 目前只示範可改 Groupname
     #[prost(string, optional, tag = "1")]
     pub groupname: ::core::option::Option<::prost::alloc::string::String>,
+    /// 若未來開放 Users 單獨改，可新增：repeated string users = 2;
+    #[prost(string, repeated, tag = "2")]
+    pub users:     ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PatchGroupsRequest {
@@ -3902,30 +3950,30 @@ pub struct RestartSshResponse {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
-pub enum Zone {
+pub enum InfoStatus {
     Unspecified = 0,
-    Info = 1,
-    Cluster = 2,
+    Safe = 1,
+    Warn = 2,
+    Dang = 3,
+    Unknown = 4,
 }
-impl Zone {
-    /// String value of the enum field names used in the ProtoBuf definition.
-    ///
-    /// The values are not transformed in any way and thus are considered stable
-    /// (if the ProtoBuf definition does not change) and safe for programmatic
-    /// use.
+impl InfoStatus {
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            Self::Unspecified => "ZONE_UNSPECIFIED",
-            Self::Info => "INFO",
-            Self::Cluster => "CLUSTER",
+            Self::Unspecified => "INFO_STATUS_UNSPECIFIED",
+            Self::Safe => "INFO_STATUS_SAFE",
+            Self::Warn => "INFO_STATUS_WARN",
+            Self::Dang => "INFO_STATUS_DANG",
+            Self::Unknown => "INFO_STATUS_UNKNOWN",
         }
     }
-    /// Creates an enum from field names used in the ProtoBuf definition.
     pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
         match value {
-            "ZONE_UNSPECIFIED" => Some(Self::Unspecified),
-            "INFO" => Some(Self::Info),
-            "CLUSTER" => Some(Self::Cluster),
+            "INFO_STATUS_UNSPECIFIED" => Some(Self::Unspecified),
+            "INFO_STATUS_SAFE" => Some(Self::Safe),
+            "INFO_STATUS_WARN" => Some(Self::Warn),
+            "INFO_STATUS_DANG" => Some(Self::Dang),
+            "INFO_STATUS_UNKNOWN" => Some(Self::Unknown),
             _ => None,
         }
     }
@@ -3937,9 +3985,6 @@ pub enum Target {
     Safe = 1,
     Warn = 2,
     Dang = 3,
-    Cpu = 4,
-    Memory = 5,
-    Disk = 6,
 }
 impl Target {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -3953,9 +3998,6 @@ impl Target {
             Self::Safe => "SAFE",
             Self::Warn => "WARN",
             Self::Dang => "DANG",
-            Self::Cpu => "CPU",
-            Self::Memory => "MEMORY",
-            Self::Disk => "DISK",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -3965,9 +4007,6 @@ impl Target {
             "SAFE" => Some(Self::Safe),
             "WARN" => Some(Self::Warn),
             "DANG" => Some(Self::Dang),
-            "CPU" => Some(Self::Cpu),
-            "MEMORY" => Some(Self::Memory),
-            "DISK" => Some(Self::Disk),
             _ => None,
         }
     }

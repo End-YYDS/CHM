@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT zp.pc_uuid\n            FROM zone_pcs AS zp\n            JOIN zones AS z ON z.id = zp.zone_id\n            WHERE z.vni = ?\n            ORDER BY zp.pc_uuid\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "pc_uuid",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f3081c38bc39f94d192ef417f7298d27e38c8abfe8339d705074c8ef2084b01d"
+}

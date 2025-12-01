@@ -1,10 +1,11 @@
 use std::path::PathBuf;
 
-use crate::{ConResult, GlobalConfig};
+use crate::{ConResult, GlobalConfig, ID};
 use chm_cert_utils::CertUtils;
 use chm_cluster_utils::{atomic_write, init_with, Default_ClientCluster, ServiceDescriptor};
 use chm_project_const::{uuid::Uuid, ProjectConst};
 use serde::{Deserialize, Serialize};
+use url::Url;
 struct FirstStart {
     inner:     Default_ClientCluster,
     self_uuid: Uuid,
@@ -43,7 +44,21 @@ struct InitOutput {
 }
 impl FirstStart {
     pub fn new(parms: FirstStartParams) -> Self {
-        let FirstStartParams { base_url, self_uuid, mdns_url } = parms;
+        let FirstStartParams { base_url, self_uuid, mut mdns_url } = parms;
+        let default_port = GlobalConfig::with(|cfg| cfg.server.port);
+        let ip_port = Url::parse(&mdns_url).expect("必須為正常Url");
+        if ip_port.port().is_none() {
+            let scheme = ip_port.scheme();
+            let new_host = if scheme != "https" {
+                panic!("僅支援 https:// 開頭的網址");
+            } else {
+                ip_port.host_str().expect("無法解析主機名稱").to_string()
+            };
+            mdns_url = format!("{scheme}://{new_host}:{default_port}");
+            tracing::warn!(
+                "目標網址未指定 Port，已自動補上預設 Port 11209，新的目標網址為: {mdns_url}"
+            );
+        }
         Self {
             inner: Default_ClientCluster::new(
                 base_url,
@@ -59,18 +74,20 @@ impl FirstStart {
     pub async fn init(&mut self) -> ConResult<InitOutput> {
         let uuid_s = self.self_uuid.to_string();
         let certinfo = GlobalConfig::with(|cfg| cfg.certificate.cert_info.clone());
+        let self_ip = GlobalConfig::with(|cfg| cfg.server.host.clone());
         let mut san_extend = certinfo.san.clone();
         san_extend.push(uuid_s);
+        san_extend.push(self_ip);
         let (pri_key, csr_cert) = CertUtils::generate_csr_with_new_key(
             certinfo.bits,
             &certinfo.country,
             &certinfo.state,
             &certinfo.locality,
             ProjectConst::PROJECT_NAME,
-            &certinfo.cn,
+            format!("{}.chm.com", &certinfo.cn).as_str(),
             san_extend,
         )?;
-        let payload = InitData { csr_cert, days: 365, uuid: self.self_uuid };
+        let payload = InitData { csr_cert, days: 365, uuid: self.self_uuid }; // TODO: 添加新的欄位VNI
         let resp: SignedCertResponse = init_with!(self.inner, payload, as SignedCertResponse)?;
         Ok(InitOutput {
             root_ca:      resp.root_ca,
@@ -86,13 +103,8 @@ impl FirstStart {
 
 pub async fn first_run(ca_url: String, otp_code: Option<String>) -> ConResult<()> {
     tracing::info!("第一次啟動，正在初始化...");
-    let (self_uuid, self_hostname, root_ca, mdns_url) = GlobalConfig::with(|cfg| {
-        (
-            cfg.server.unique_id,
-            cfg.server.hostname.clone(),
-            cfg.certificate.root_ca.clone(),
-            cfg.server.dns_server.clone(),
-        )
+    let (self_uuid, root_ca, mdns_url) = GlobalConfig::with(|cfg| {
+        (cfg.server.unique_id, cfg.certificate.root_ca.clone(), cfg.server.dns_server.clone())
     });
     let mut conn = FirstStart::new(FirstStartParams { base_url: ca_url, self_uuid, mdns_url });
     conn.inner = conn.inner.with_otp_code(otp_code);
@@ -107,9 +119,10 @@ pub async fn first_run(ca_url: String, otp_code: Option<String>) -> ConResult<()
             .insert(service_desp);
     });
     atomic_write(&root_ca, &output.root_ca).await?;
-    CertUtils::save_cert(&self_hostname, &output.private_key, &output.cert)
-        .map_err(|e| format!("儲存憑證失敗：{e}"))?;
-    tracing::info!("已儲存憑證與私鑰：{name}.pem / {name}.key", name = self_hostname);
+    CertUtils::save_cert(ID, &output.private_key, &output.cert)
+        .map_err(|e| format!("儲存憑證失敗：{e}"))
+        .inspect_err(|e| tracing::error!(?e))?;
+    tracing::info!("已儲存憑證與私鑰：{name}.pem / {name}.key", name = ID);
 
     GlobalConfig::save_config().await?;
     GlobalConfig::reload_config().await?;

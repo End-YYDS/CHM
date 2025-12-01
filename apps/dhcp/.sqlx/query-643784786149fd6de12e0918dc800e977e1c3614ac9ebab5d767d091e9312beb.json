@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                id          AS \"id!\",\n                name        AS \"name!\",\n                vni         AS \"vni!\",\n                network     AS \"network!\",\n                broadcast   AS \"broadcast!\",\n                subnet_mask AS \"subnet_mask!\"\n            FROM zones\n            WHERE vni = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "name!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "vni!",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "network!",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "broadcast!",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "subnet_mask!",
+        "ordinal": 5,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "643784786149fd6de12e0918dc800e977e1c3614ac9ebab5d767d091e9312beb"
+}

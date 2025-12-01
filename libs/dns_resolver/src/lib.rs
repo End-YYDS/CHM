@@ -83,6 +83,7 @@ impl DnsResolver {
                     }
                     Err(e) => {
                         tracing::warn!("建立 channel 失敗: {e}，將重試…");
+                        tracing::debug!(error = ?e, "建立 gRPC channel 錯誤詳情");
                         Err(RetryErr::transient(e.into()))
                     }
                 }
@@ -317,4 +318,8 @@ pub async fn lookup_cached(
     host: String,
 ) -> std::result::Result<SocketAddr, Box<dyn StdError + Send + Sync>> {
     lookup_host_via_minidns(&resolver, &host).await
+}
+
+pub fn get_local_hostname() -> String {
+    hostname::get().unwrap_or("chm-no-hostname".into()).to_string_lossy().into_owned()
 }
