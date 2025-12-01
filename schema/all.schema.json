@@ -1,0 +1,1063 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AllSchemas",
+  "description": "所有的 JSON Schema 集合",
+  "type": "object",
+  "properties": {
+    "Auth": {
+      "$ref": "#/$defs/AuthSchemas"
+    },
+    "ChmBackup": {
+      "$ref": "#/$defs/ChmBackupSchemas"
+    },
+    "ChmMca": {
+      "$ref": "#/$defs/ChmMcaSchemas"
+    },
+    "ChmPcManager": {
+      "$ref": "#/$defs/ChmPcManagerSchemas"
+    },
+    "Common": {
+      "$ref": "#/$defs/CommonSchemas"
+    },
+    "Login": {
+      "$ref": "#/$defs/LoginSchemas"
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "Auth",
+    "Common",
+    "Login",
+    "ChmBackup",
+    "ChmMca",
+    "ChmPcManager"
+  ],
+  "$defs": {
+    "AuthSchemas": {
+      "description": "auth.rs相關的 JSON Schema",
+      "type": "object",
+      "properties": {
+        "AuthUser": {
+          "$ref": "#/$defs/AuthUser"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "AuthUser"
+      ]
+    },
+    "AuthUser": {
+      "description": "認證使用者資訊",
+      "type": "object",
+      "properties": {
+        "Role": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Uid": {
+          "type": "string"
+        },
+        "Username": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Uid"
+      ]
+    },
+    "BackupLocation": {
+      "type": "string",
+      "enum": [
+        "Local",
+        "Remote"
+      ]
+    },
+    "BackupRequest": {
+      "type": "object",
+      "properties": {
+        "Name": {
+          "type": "string"
+        },
+        "Type": {
+          "$ref": "#/$defs/BackupLocation"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Type",
+        "Name"
+      ]
+    },
+    "BackupResponse": {
+      "description": "回應結果結構體",
+      "type": "object",
+      "properties": {
+        "DownloadUrl": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Message": {
+          "type": "string"
+        },
+        "Type": {
+          "$ref": "#/$defs/ResponseType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Type",
+        "Message"
+      ]
+    },
+    "ChmBackupSchemas": {
+      "description": "handles/chm/backup 相關的 JSON Schema",
+      "type": "object",
+      "properties": {
+        "BackupRequest": {
+          "$ref": "#/$defs/BackupRequest"
+        },
+        "BackupResponse": {
+          "$ref": "#/$defs/BackupResponse"
+        },
+        "GetBackupsRequest": {
+          "$ref": "#/$defs/GetBackupsRequest"
+        },
+        "GetBackupsResponse": {
+          "$ref": "#/$defs/GetBackupsResponse"
+        },
+        "ReductionRequest": {
+          "$ref": "#/$defs/ReductionRequest"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "BackupRequest",
+        "BackupResponse",
+        "GetBackupsRequest",
+        "GetBackupsResponse",
+        "ReductionRequest"
+      ]
+    },
+    "ChmMcaSchemas": {
+      "description": "handles/chm/mca 相關的 JSON Schema",
+      "type": "object",
+      "properties": {
+        "GetRevokeds": {
+          "$ref": "#/$defs/get_revokeds"
+        },
+        "GetValids": {
+          "$ref": "#/$defs/get_valids"
+        },
+        "RevokeRequest": {
+          "$ref": "#/$defs/RevokeRequest"
+        },
+        "Revoked": {
+          "$ref": "#/$defs/Revoked"
+        },
+        "Valid": {
+          "$ref": "#/$defs/Valid"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "RevokeRequest",
+        "Valid",
+        "GetValids",
+        "Revoked",
+        "GetRevokeds"
+      ]
+    },
+    "ChmPcManagerSchemas": {
+      "description": "handles/chm/pc_manager 相關的 JSON Schema",
+      "type": "object",
+      "properties": {
+        "DePatchVxlanId": {
+          "$ref": "#/$defs/DePatchVxlanid"
+        },
+        "DePutVxlanId": {
+          "$ref": "#/$defs/DePutVxlanid"
+        },
+        "DeletePcGroupRequest": {
+          "$ref": "#/$defs/DeletePcGroupRequest"
+        },
+        "DeletePcRequest": {
+          "$ref": "#/$defs/DeletePcRequest"
+        },
+        "DeletePcResponse": {
+          "$ref": "#/$defs/DeletePcResponse"
+        },
+        "GetPcGroupResponseResult": {
+          "$ref": "#/$defs/GetPcgroupResponseResult"
+        },
+        "PatchPcGroupRequest": {
+          "$ref": "#/$defs/PatchPcgroupRequest"
+        },
+        "PcInfo": {
+          "$ref": "#/$defs/PcInformation"
+        },
+        "PcManagerRequest": {
+          "$ref": "#/$defs/PCManagerRequest"
+        },
+        "PostPcGroupRequest": {
+          "$ref": "#/$defs/PostPcgroupRequest"
+        },
+        "PutPcGroupRequest": {
+          "$ref": "#/$defs/PutPcgroupRequest"
+        },
+        "RebootPcResponse": {
+          "$ref": "#/$defs/RebootPcResponse"
+        },
+        "ShutdownPcResponse": {
+          "$ref": "#/$defs/ShutdownPcResponse"
+        },
+        "SpectificRequest": {
+          "$ref": "#/$defs/SpecificRequest"
+        },
+        "Uuid": {
+          "$ref": "#/$defs/Uuid"
+        },
+        "UuidsRequest": {
+          "$ref": "#/$defs/UuidsRequest"
+        },
+        "VxlanId": {
+          "$ref": "#/$defs/Vxlanid"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "PcManagerRequest",
+        "Uuid",
+        "PcInfo",
+        "SpectificRequest",
+        "DeletePcRequest",
+        "DeletePcResponse",
+        "UuidsRequest",
+        "PostPcGroupRequest",
+        "VxlanId",
+        "GetPcGroupResponseResult",
+        "DePutVxlanId",
+        "PutPcGroupRequest",
+        "DePatchVxlanId",
+        "PatchPcGroupRequest",
+        "DeletePcGroupRequest",
+        "RebootPcResponse",
+        "ShutdownPcResponse"
+      ]
+    },
+    "CommonInfo": {
+      "description": "通用信息結構體",
+      "type": "object",
+      "properties": {
+        "Cpu": {
+          "type": "number",
+          "format": "double"
+        },
+        "Hostname": {
+          "type": "string"
+        },
+        "Ip": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Memory": {
+          "type": "number",
+          "format": "double"
+        },
+        "Status": {
+          "$ref": "#/$defs/Status"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Hostname",
+        "Status",
+        "Cpu",
+        "Memory"
+      ]
+    },
+    "CommonSchemas": {
+      "description": "commons 相關的 JSON Schema",
+      "type": "object",
+      "properties": {
+        "CommonInfo": {
+          "$ref": "#/$defs/CommonInfo"
+        },
+        "Date": {
+          "$ref": "#/$defs/Date"
+        },
+        "ErrorLog": {
+          "$ref": "#/$defs/Error_log"
+        },
+        "Level": {
+          "$ref": "#/$defs/Level"
+        },
+        "Month": {
+          "$ref": "#/$defs/Month"
+        },
+        "ResponseResult": {
+          "$ref": "#/$defs/ResponseResult"
+        },
+        "ResponseType": {
+          "$ref": "#/$defs/ResponseType"
+        },
+        "Status": {
+          "$ref": "#/$defs/Status"
+        },
+        "Time": {
+          "$ref": "#/$defs/Time"
+        },
+        "UuidRequest": {
+          "$ref": "#/$defs/UuidRequest"
+        },
+        "Week": {
+          "$ref": "#/$defs/Week"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Level",
+        "ErrorLog",
+        "UuidRequest",
+        "ResponseType",
+        "ResponseResult",
+        "Month",
+        "Week",
+        "Time",
+        "Date",
+        "Status",
+        "CommonInfo"
+      ]
+    },
+    "Date": {
+      "description": "日期结构体",
+      "type": "object",
+      "properties": {
+        "Day": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Month": {
+          "$ref": "#/$defs/Month"
+        },
+        "Time": {
+          "$ref": "#/$defs/Time"
+        },
+        "Week": {
+          "$ref": "#/$defs/Week"
+        },
+        "Year": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Year",
+        "Month",
+        "Day",
+        "Week",
+        "Time"
+      ]
+    },
+    "DePatchVxlanid": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "groupname": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "groupname"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "pcs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "pcs"
+          ]
+        }
+      ]
+    },
+    "DePutVxlanid": {
+      "type": "object",
+      "properties": {
+        "Groupname": {
+          "type": "string"
+        },
+        "Pcs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Groupname",
+        "Pcs"
+      ]
+    },
+    "DeletePcGroupRequest": {
+      "type": "object",
+      "properties": {
+        "Vxlanid": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Vxlanid"
+      ]
+    },
+    "DeletePcRequest": {
+      "type": "object",
+      "properties": {
+        "Passwords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "Uuids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Uuids",
+        "Passwords"
+      ]
+    },
+    "DeletePcResponse": {
+      "type": "object",
+      "properties": {
+        "Length": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "Pcs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ResponseResult"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Pcs",
+        "Length"
+      ]
+    },
+    "Error_log": {
+      "description": "錯誤日志结构体",
+      "type": "object",
+      "properties": {
+        "Client": {
+          "type": "string"
+        },
+        "Date": {
+          "$ref": "#/$defs/Date"
+        },
+        "Level": {
+          "$ref": "#/$defs/Level"
+        },
+        "Message": {
+          "type": "string"
+        },
+        "Module": {
+          "type": "string"
+        },
+        "Pid": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Date",
+        "Module",
+        "Level",
+        "Pid",
+        "Client",
+        "Message"
+      ]
+    },
+    "GetBackupsRequest": {
+      "type": "object",
+      "properties": {
+        "Limit": {
+          "type": "integer",
+          "format": "uint",
+          "default": 5,
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "GetBackupsResponse": {
+      "type": "object",
+      "properties": {
+        "Backups": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/InnerGetBackupResponse"
+          }
+        },
+        "Length": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Backups",
+        "Length"
+      ]
+    },
+    "GetPcgroupResponseResult": {
+      "type": "object",
+      "properties": {
+        "Groups": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Vxlanid"
+          }
+        },
+        "Length": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Groups",
+        "Length"
+      ]
+    },
+    "InnerGetBackupResponse": {
+      "description": "日期结构体",
+      "type": "object",
+      "properties": {
+        "Day": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Month": {
+          "$ref": "#/$defs/Month"
+        },
+        "Name": {
+          "type": "string"
+        },
+        "Time": {
+          "$ref": "#/$defs/Time"
+        },
+        "Week": {
+          "$ref": "#/$defs/Week"
+        },
+        "Year": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Name",
+        "Year",
+        "Month",
+        "Day",
+        "Week",
+        "Time"
+      ]
+    },
+    "Level": {
+      "description": "日志等级",
+      "type": "string",
+      "enum": [
+        "debug",
+        "info",
+        "notice",
+        "warn",
+        "error",
+        "crit",
+        "alert",
+        "emerg"
+      ]
+    },
+    "LoginRequest": {
+      "description": "登入請求",
+      "type": "object",
+      "properties": {
+        "Password": {
+          "type": "string"
+        },
+        "Username": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Username",
+        "Password"
+      ]
+    },
+    "LoginSchemas": {
+      "description": "handles/login 相關的 JSON Schema",
+      "type": "object",
+      "properties": {
+        "LoginRequest": {
+          "$ref": "#/$defs/LoginRequest"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "LoginRequest"
+      ]
+    },
+    "Month": {
+      "description": "月份枚舉",
+      "type": "string",
+      "enum": [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+      ]
+    },
+    "PCManagerRequest": {
+      "type": "object",
+      "properties": {
+        "Ip": {
+          "type": "string"
+        },
+        "Password": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Ip",
+        "Password"
+      ]
+    },
+    "PatchPcgroupRequest": {
+      "type": "object",
+      "additionalProperties": false
+    },
+    "PcInformation": {
+      "type": "object",
+      "properties": {
+        "Length": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "Pcs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Uuid"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Pcs",
+        "Length"
+      ]
+    },
+    "PostPcgroupRequest": {
+      "type": "object",
+      "properties": {
+        "Cidr": {
+          "type": "string"
+        },
+        "Groupname": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Groupname",
+        "Cidr"
+      ]
+    },
+    "PutPcgroupRequest": {
+      "type": "object",
+      "additionalProperties": false
+    },
+    "RebootPcResponse": {
+      "type": "object",
+      "properties": {
+        "Length": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "Pcs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ResponseResult"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Pcs",
+        "Length"
+      ]
+    },
+    "ReductionRequest": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "Type": {
+              "type": "string",
+              "const": "Remote"
+            },
+            "name": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Type",
+            "name"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "Type": {
+              "type": "string",
+              "const": "Local"
+            },
+            "file": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "Type",
+            "file"
+          ]
+        }
+      ]
+    },
+    "ResponseResult": {
+      "description": "回應結果結構體",
+      "type": "object",
+      "properties": {
+        "Message": {
+          "type": "string"
+        },
+        "Type": {
+          "$ref": "#/$defs/ResponseType"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Type",
+        "Message"
+      ]
+    },
+    "ResponseType": {
+      "description": "回應類型枚舉",
+      "type": "string",
+      "enum": [
+        "Ok",
+        "Err",
+        "Unspecified"
+      ]
+    },
+    "RevokeRequest": {
+      "description": "憑證吊銷請求",
+      "type": "object",
+      "properties": {
+        "Name": {
+          "type": "string"
+        },
+        "Reason": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Name",
+        "Reason"
+      ]
+    },
+    "Revoked": {
+      "description": "憑證吊銷清單(個體)",
+      "type": "object",
+      "properties": {
+        "Number": {
+          "type": "string"
+        },
+        "Reason": {
+          "type": "string"
+        },
+        "Time": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Number",
+        "Time",
+        "Reason"
+      ]
+    },
+    "ShutdownPcResponse": {
+      "type": "object",
+      "properties": {
+        "Length": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "Pcs": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/ResponseResult"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Pcs",
+        "Length"
+      ]
+    },
+    "SpecificRequest": {
+      "type": "object",
+      "properties": {
+        "Uuid": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Uuid"
+      ]
+    },
+    "Status": {
+      "description": "狀態枚舉",
+      "type": "string",
+      "enum": [
+        "Active",
+        "Stopped",
+        "Uninstalled"
+      ]
+    },
+    "Time": {
+      "description": "時間結構體",
+      "type": "object",
+      "properties": {
+        "Hour": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "Min": {
+          "type": "integer",
+          "format": "int64"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Hour",
+        "Min"
+      ]
+    },
+    "Uuid": {
+      "type": "object",
+      "properties": {
+        "Hostname": {
+          "type": "string"
+        },
+        "Ip": {
+          "type": "string"
+        },
+        "Status": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Hostname",
+        "Ip",
+        "Status"
+      ]
+    },
+    "UuidRequest": {
+      "description": "帶 UUID 的請求結構體",
+      "type": "object",
+      "properties": {
+        "Uuid": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Uuid"
+      ]
+    },
+    "UuidsRequest": {
+      "type": "object",
+      "properties": {
+        "Uuids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Uuids"
+      ]
+    },
+    "Valid": {
+      "description": "憑證有效清單(個體)",
+      "type": "object",
+      "properties": {
+        "Name": {
+          "type": "string"
+        },
+        "Period": {
+          "type": "string"
+        },
+        "Signer": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Name",
+        "Signer",
+        "Period"
+      ]
+    },
+    "Vxlanid": {
+      "type": "object",
+      "properties": {
+        "Groupname": {
+          "type": "string"
+        },
+        "Pcs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Groupname",
+        "Pcs"
+      ]
+    },
+    "Week": {
+      "description": "星期枚舉",
+      "type": "string",
+      "enum": [
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat",
+        "Sun"
+      ]
+    },
+    "get_revokeds": {
+      "description": "憑證吊銷清單",
+      "type": "object",
+      "properties": {
+        "Length": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "Revoke": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Revoked"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Revoke",
+        "Length"
+      ]
+    },
+    "get_valids": {
+      "description": "憑證有效清單",
+      "type": "object",
+      "properties": {
+        "Length": {
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        },
+        "Valid": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Valid"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "Valid",
+        "Length"
+      ]
+    }
+  }
+}

@@ -2,6 +2,7 @@ mod translate;
 mod types;
 use actix_web::{delete, get, patch, post, put, web, Scope};
 use std::collections::HashMap;
+use utoipa::OpenApi;
 
 use crate::{
     commons::{translate::AppError, ResponseResult, ResponseType},
@@ -19,18 +20,37 @@ use types::{
 
 pub fn user_scope() -> Scope {
     web::scope("/user")
-        .service(_get_user_root)
-        .service(_post_user_root)
-        .service(_put_user_root)
-        .service(_patch_user_root)
-        .service(_delete_user_root)
+        .service(get_user)
+        .service(post_user)
+        .service(put_user)
+        .service(patch_user)
+        .service(delete_user)
 }
 
+#[derive(OpenApi)]
+#[openapi(
+    paths(get_user, post_user, put_user,patch_user, delete_user),
+    components(schemas(
+        PatchUserEntry,
+        PutUserEntry,
+    )),
+    tags(
+        (name = "Users", description = "使用者 相關 API")
+    )
+)]
+pub struct ChmUserApiDoc;
+
 /// GET /api/chm/user
+#[utoipa::path(
+    get,
+    path = "/chm/user",
+    tag = "Users",
+    responses(
+        (status = 200, body = UsersCollection),
+    )
+)]
 #[get("")]
-async fn _get_user_root(
-    app_state: web::Data<AppState>,
-) -> RestfulResult<web::Json<UsersCollection>> {
+async fn get_user(app_state: web::Data<AppState>) -> RestfulResult<web::Json<UsersCollection>> {
     let mut client = app_state.gclient.clone();
     let resp = client
         .get_users(Grpc_GetUsersRequest {})
@@ -47,8 +67,17 @@ async fn _get_user_root(
 }
 
 /// POST /api/chm/user
+#[utoipa::path(
+    post,
+    path = "/chm/user",
+    tag = "Users",
+    request_body = Web_CreateUserRequest,
+    responses(
+        (status = 200, body = ResponseResult),
+    )
+)]
 #[post("")]
-async fn _post_user_root(
+async fn post_user(
     app_state: web::Data<AppState>,
     payload: web::Json<Web_CreateUserRequest>,
 ) -> RestfulResult<web::Json<ResponseResult>> {
@@ -79,8 +108,17 @@ async fn _post_user_root(
 }
 
 /// PUT /api/chm/user  （整筆）
+#[utoipa::path(
+    put,
+    path = "/chm/user",
+    tag = "Users",
+    request_body = Web_PutUsersRequest,
+    responses(
+        (status = 200, body = ResponseResult),
+    )
+)]
 #[put("")]
-async fn _put_user_root(
+async fn put_user(
     app_state: web::Data<AppState>,
     payload: web::Json<Web_PutUsersRequest>,
 ) -> RestfulResult<web::Json<ResponseResult>> {
@@ -124,8 +162,17 @@ async fn _put_user_root(
 }
 
 /// PATCH /api/chm/user  （單一內容）
+#[utoipa::path(
+    patch,
+    path = "/chm/user",
+    tag = "Users",
+    request_body = PatchUsersRequest,
+    responses(
+        (status = 200, body = ResponseResult),
+    )
+)]
 #[patch("")]
-async fn _patch_user_root(
+async fn patch_user(
     app_state: web::Data<AppState>,
     web::Json(data): web::Json<PatchUsersRequest>,
 ) -> RestfulResult<web::Json<ResponseResult>> {
@@ -180,8 +227,17 @@ async fn _patch_user_root(
 }
 
 /// DELETE /api/chm/user
+#[utoipa::path(
+    delete,
+    path = "/chm/user",
+    tag = "Users",
+    request_body = DeleteUserRequest,
+    responses(
+        (status = 200, body = ResponseResult),
+    )
+)]
 #[delete("")]
-async fn _delete_user_root(
+async fn delete_user(
     app_state: web::Data<AppState>,
     payload: web::Json<DeleteUserRequest>,
 ) -> RestfulResult<web::Json<ResponseResult>> {

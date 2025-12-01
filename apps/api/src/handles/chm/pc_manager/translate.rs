@@ -139,24 +139,29 @@ impl From<PutPcGroupResponse> for ResponseResult {
         resp.result.unwrap().into()
     }
 }
-
 impl From<PatchPcgroupRequest> for PatchPcGroupRequest {
     fn from(req: PatchPcgroupRequest) -> Self {
-        let (vxlanid, data) = req.data.into_iter().next().unwrap();
-        match data {
-            DePatchVxlanid::Groupname { groupname } => Self {
-                vxlanid: vxlanid.parse::<i64>().unwrap_or(-1),
-                kind:    Some(chm_grpc::restful::patch_pc_group_request::Kind::Groupname(
-                    groupname,
-                )),
-            },
-            DePatchVxlanid::Pcs { pcs } => Self {
-                vxlanid: vxlanid.parse::<i64>().unwrap_or(-1),
-                kind:    Some(chm_grpc::restful::patch_pc_group_request::Kind::Pcs(
-                    chm_grpc::restful::Pcs { pcs },
-                )),
-            },
-        }
+        let (vxlanid_str, change) = req
+            .data
+            .into_iter()
+            .next()
+            .expect("PatchPcgroupRequest must contain exactly one entry");
+
+        let vxlanid =
+            vxlanid_str.parse::<i64>().expect("vxlanid in PatchPcgroupRequest must be a valid i64");
+
+        let kind = match change {
+            DePatchVxlanid::Groupname { groupname } => {
+                Some(chm_grpc::restful::patch_pc_group_request::Kind::Groupname(groupname))
+            }
+            DePatchVxlanid::Pcs { pcs } => {
+                Some(chm_grpc::restful::patch_pc_group_request::Kind::Pcs(chm_grpc::restful::Pcs {
+                    pcs,
+                }))
+            }
+        };
+
+        Self { vxlanid, kind }
     }
 }
 

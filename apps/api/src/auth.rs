@@ -2,13 +2,16 @@ use actix_session::Session;
 use actix_web::{
     dev::Payload, error::ErrorUnauthorized, Error, FromRequest, HttpMessage, HttpRequest,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::future::{ready, Ready};
+use utoipa::ToSchema;
 
 #[derive(Debug, Clone, Copy)]
 pub struct RequireLogin;
 
-#[derive(Debug, Clone, Serialize)]
+/// 認證使用者資訊
+#[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct AuthUser {
     pub uid:      String,
     pub username: Option<String>,

@@ -26,25 +26,6 @@ impl From<GrpcResponseResult> for ApiResponseResult {
     }
 }
 
-// #[derive(Debug, Error)]
-// #[error("{0}")]
-// pub struct GrpcError(#[from] Status);
-
-// impl ResponseError for GrpcError {
-//     fn status_code(&self) -> StatusCode {
-//         match self.0.code() {
-//             Code::Cancelled | Code::Unavailable => StatusCode::BAD_GATEWAY,
-//             Code::InvalidArgument | Code::FailedPrecondition =>
-// StatusCode::BAD_REQUEST,             Code::NotFound => StatusCode::NOT_FOUND,
-//             Code::PermissionDenied | Code::Unauthenticated =>
-// StatusCode::UNAUTHORIZED,             _ => StatusCode::INTERNAL_SERVER_ERROR,
-//         }
-//     }
-//     fn error_response(&self) -> HttpResponse {
-//         HttpResponse::build(self.status_code()).body(self.0.message().
-// to_string())     }
-// }
-
 #[derive(Debug, Error)]
 pub enum AppError {
     #[error("gRPC error: {0}")]
@@ -99,7 +80,12 @@ impl ResponseError for AppError {
         }
     }
 
+    // fn error_response(&self) -> HttpResponse {
+    //     HttpResponse::build(self.status_code()).body(self.to_string())
+    // }
     fn error_response(&self) -> HttpResponse {
-        HttpResponse::build(self.status_code()).body(self.to_string())
+        let msg = self.to_string();
+        let body = ApiResponseResult { r#type: ApiResponseType::Err, message: msg };
+        HttpResponse::build(self.status_code()).json(body)
     }
 }

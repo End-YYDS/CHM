@@ -1,62 +1,56 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use utoipa::ToSchema;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct GroupEntry {
-    #[serde(rename = "Groupname")]
     pub groupname: String,
-    #[serde(rename = "Users", default)]
+    #[serde(default)]
     pub users:     Vec<String>, // uid.username（字串）
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct GroupsCollection {
-    #[serde(rename = "Groups")]
     pub groups: HashMap<String, GroupEntry>,
 }
 
 // POST /api/chm/group
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct CreateGroupRequest {
-    #[serde(rename = "Groupname")]
     pub groupname: String,
-    #[serde(rename = "Users")]
     pub users:     Vec<String>,
 }
 
 // PUT /api/chm/group
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(rename_all = "PascalCase")]
 pub struct PutGroupsRequest {
-    // pub gid01: Option<GroupEntry>,
     #[serde(flatten)]
     pub data: HashMap<String, GroupEntry>,
 }
 
 // PATCH /api/chm/group
-#[derive(Debug, Deserialize, Clone, Default)]
-#[serde()]
+#[derive(Debug, Deserialize, Clone, Default, ToSchema)]
+#[serde(default, rename_all = "PascalCase")]
 pub struct PatchGroupEntry {
-    #[serde(
-        default,
-        rename = "Groupname",
-        deserialize_with = "chm_cluster_utils::none_if_string_none"
-    )]
+    #[serde(default, deserialize_with = "chm_cluster_utils::none_if_string_none")]
     pub groupname: Option<String>,
-    #[serde(rename = "Users")]
     pub users:     Option<Vec<String>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(rename_all = "PascalCase")]
 pub struct PatchGroupsRequest {
-    // pub gid01: Option<PatchGroupEntry>,
-    // 或改為 HashMap<String, PatchGroupEntry>
     #[serde(flatten)]
     pub groups: HashMap<String, PatchGroupEntry>,
 }
 
 // DELETE /api/chm/group
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct DeleteGroupRequest {
-    #[serde(rename = "gid")]
     pub gid: String,
 }

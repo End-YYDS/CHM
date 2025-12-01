@@ -1,6 +1,7 @@
 use actix_web::{get, post, web};
 use chm_grpc::{common, restful};
 use std::convert::TryFrom;
+use utoipa::OpenApi;
 
 use crate::{
     commons::{
@@ -18,8 +19,28 @@ use crate::{
 mod logs;
 mod types;
 
+#[derive(OpenApi)]
+#[openapi(
+    paths(get_apache_all, action_start, action_stop,action_restart),
+    tags(
+        (name = "Apache", description = "Apache 相關 API")
+    )
+)]
+pub struct ServerApacheApiDoc;
+
+#[utoipa::path(
+    get,
+    path = "/server/apache",
+    params(
+        UuidRequest
+    ),
+    tag = "Apache",
+    responses(
+        (status = 200, body = ApacheResponse),
+    )
+)]
 #[get("")]
-async fn apache_root(
+async fn get_apache_all(
     app_state: web::Data<AppState>,
     query: web::Query<UuidRequest>,
 ) -> RestfulResult<web::Json<ApacheResponse>> {
@@ -31,13 +52,22 @@ async fn apache_root(
 }
 
 pub fn apache_scope() -> actix_web::Scope {
-    web::scope("/apache").service(apache_root).service(action_scope())
+    web::scope("/apache").service(get_apache_all).service(action_scope())
 }
 
 fn action_scope() -> actix_web::Scope {
     web::scope("/action").service(action_start).service(action_stop).service(action_restart)
 }
 
+#[utoipa::path(
+    post,
+    path = "/server/apache/action/start",
+    tag = "Apache",
+    request_body = UuidRequest,
+    responses(
+        (status = 200, body = ResponseResult),
+    )
+)]
 #[post("/start")]
 async fn action_start(
     app_state: web::Data<AppState>,
@@ -54,6 +84,15 @@ async fn action_start(
     Ok(web::Json(result))
 }
 
+#[utoipa::path(
+    post,
+    path = "/server/apache/action/stop",
+    tag = "Apache",
+    request_body = UuidRequest,
+    responses(
+        (status = 200, body = ResponseResult),
+    )
+)]
 #[post("/stop")]
 async fn action_stop(
     app_state: web::Data<AppState>,
@@ -70,6 +109,15 @@ async fn action_stop(
     Ok(web::Json(result))
 }
 
+#[utoipa::path(
+    post,
+    path = "/server/apache/action/restart",
+    tag = "Apache",
+    request_body = UuidRequest,
+    responses(
+        (status = 200, body = ResponseResult),
+    )
+)]
 #[post("/restart")]
 async fn action_restart(
     app_state: web::Data<AppState>,
