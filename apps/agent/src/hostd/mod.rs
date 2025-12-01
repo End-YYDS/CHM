@@ -24,7 +24,7 @@ use sysinfo::{
     DiskRefreshKind, Disks, MemoryRefreshKind, ProcessRefreshKind, ProcessStatus, System,
 };
 use tokio::{sync::Semaphore, task};
-use users::get_user_by_uid;
+use uzers::get_user_by_uid;
 
 const META_PREFIX: &str = "# agent_meta:";
 const SYSLOG_CANDIDATES: [&str; 2] = ["/var/log/syslog", "/var/log/messages"];
