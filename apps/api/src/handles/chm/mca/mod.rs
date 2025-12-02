@@ -8,14 +8,37 @@ use chm_grpc::{
     restful::{GetValidCertsRequest, RevokeCertRequest},
     tonic,
 };
+use utoipa::OpenApi;
 
 mod translate;
 pub mod types;
 
+/// URL: /api/chm/mCA
 pub fn mca_scope() -> Scope {
     web::scope("/mCA").service(valid).service(revoked).service(revoke)
 }
 
+#[derive(OpenApi)]
+#[openapi(
+    paths(valid, revoked, revoke),
+    tags(
+        (name = "Mca", description = "CHM 憑證相關 API")
+    )
+)]
+pub struct McaApiDoc;
+
+#[utoipa::path(
+    get,
+    path = "/chm/mCA/valid",
+    tag = "Mca",
+    responses(
+        (status = 200, description = "取得有效憑證列表", body = get_valids),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[get("/valid")]
 async fn valid(app_state: web::Data<AppState>) -> RestfulResult<web::Json<get_valids>> {
     let mut client = app_state.gclient.clone();
@@ -27,6 +50,18 @@ async fn valid(app_state: web::Data<AppState>) -> RestfulResult<web::Json<get_va
     Ok(web::Json(resp.into()))
 }
 
+#[utoipa::path(
+    get,
+    path = "/chm/mCA/revoked",
+    tag = "Mca",
+    responses(
+        (status = 200, description = "取得吊銷憑證列表", body = get_revokeds),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[get("/revoked")]
 async fn revoked(app_state: web::Data<AppState>) -> RestfulResult<web::Json<get_revokeds>> {
     let mut client = app_state.gclient.clone();
@@ -38,6 +73,22 @@ async fn revoked(app_state: web::Data<AppState>) -> RestfulResult<web::Json<get_
     Ok(web::Json(resp.into()))
 }
 
+#[utoipa::path(
+    post,
+    path = "/chm/mCA/revoke",
+    tag = "Mca",
+    request_body = RevokeRequest,
+    responses(
+        (status = 200, description = "憑證吊銷成功", body = ResponseResult,example = json!({
+                "Type": "Ok",
+                "Message": "Certificate revoked successfully"
+            })),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[post("/revoke")]
 async fn revoke(
     app_state: web::Data<AppState>,

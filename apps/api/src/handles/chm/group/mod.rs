@@ -2,6 +2,7 @@ mod translate;
 mod types;
 use actix_web::{delete, get, patch, post, put, web, Scope};
 use std::collections::HashMap;
+use utoipa::OpenApi;
 
 use crate::{
     commons::{translate::AppError, ResponseResult, ResponseType},
@@ -12,26 +13,46 @@ use chm_grpc::restful::{
 };
 use types::{
     CreateGroupRequest as Web_CreateUserRequest, DeleteGroupRequest, GroupEntry as Web_GroupEntry,
-    GroupsCollection as Web_GroupsCollection, PatchGroupsRequest as Web_PatchGroupsRequest,
-    PutGroupsRequest as Web_PutGroupsRequest,
+    GroupsCollection as Web_GroupsCollection, PatchGroupEntry as Web_PatchGroupEntry,
+    PatchGroupsRequest as Web_PatchGroupsRequest, PutGroupsRequest as Web_PutGroupsRequest,
 };
 
 pub fn group_scope() -> Scope {
     web::scope("/group")
-        .service(_get_group_root)
-        .service(_post_group_root)
-        .service(_put_group_root)
-        .service(_patch_group_root)
-        .service(_delete_group_root)
+        .service(get_group)
+        .service(post_group)
+        .service(put_group)
+        .service(patch_group)
+        .service(delete_group)
 }
 
+#[derive(OpenApi)]
+#[openapi(
+    paths(get_group, post_group, put_group,patch_group, delete_group),
+    components(schemas(
+        Web_GroupEntry,
+        Web_PatchGroupEntry,
+    )),
+    tags(
+        (name = "Groups", description = "群組 相關 API")
+    )
+)]
+pub struct ChmGroupApiDoc;
+
 /// GET /api/chm/group
+#[utoipa::path(
+    get,
+    path = "/chm/group",
+    tag = "Groups",
+    responses(
+        (status = 200, body = Web_GroupsCollection),
+    )
+)]
 #[get("")]
-async fn _get_group_root(
+async fn get_group(
     app_state: web::Data<AppState>,
 ) -> RestfulResult<web::Json<Web_GroupsCollection>> {
     let mut client = app_state.gclient.clone();
-
     let resp = client
         .get_groups(Grpc_GetGroupsRequest {})
         .await
@@ -46,8 +67,17 @@ async fn _get_group_root(
 }
 
 /// POST /api/chm/group
+#[utoipa::path(
+    post,
+    path = "/chm/group",
+    tag = "Groups",
+    request_body = Web_CreateUserRequest,
+    responses(
+        (status = 200, body = ResponseResult),
+    )
+)]
 #[post("")]
-async fn _post_group_root(
+async fn post_group(
     app_state: web::Data<AppState>,
     payload: web::Json<Web_CreateUserRequest>,
 ) -> RestfulResult<web::Json<ResponseResult>> {
@@ -64,8 +94,17 @@ async fn _post_group_root(
 }
 
 /// PUT /api/chm/group
+#[utoipa::path(
+    put,
+    path = "/chm/group",
+    tag = "Groups",
+    request_body = Web_PutGroupsRequest,
+    responses(
+        (status = 200, body = ResponseResult),
+    )
+)]
 #[put("")]
-async fn _put_group_root(
+async fn put_group(
     app_state: web::Data<AppState>,
     payload: web::Json<Web_PutGroupsRequest>,
 ) -> RestfulResult<web::Json<ResponseResult>> {
@@ -93,8 +132,17 @@ async fn _put_group_root(
     Ok(web::Json(result.into()))
 }
 /// PATCH /api/chm/group
+#[utoipa::path(
+    patch,
+    path = "/chm/group",
+    tag = "Groups",
+    request_body = Web_PatchGroupsRequest,
+    responses(
+        (status = 200, body = ResponseResult),
+    )
+)]
 #[patch("")]
-async fn _patch_group_root(
+async fn patch_group(
     app_state: web::Data<AppState>,
     web::Json(data): web::Json<Web_PatchGroupsRequest>,
 ) -> RestfulResult<web::Json<ResponseResult>> {
@@ -130,8 +178,17 @@ async fn _patch_group_root(
 }
 
 /// DELETE /api/chm/group
+#[utoipa::path(
+    delete,
+    path = "/chm/group",
+    tag = "Groups",
+    request_body = DeleteGroupRequest,
+    responses(
+        (status = 200, body = ResponseResult),
+    )
+)]
 #[delete("")]
-async fn _delete_group_root(
+async fn delete_group(
     app_state: web::Data<AppState>,
     payload: web::Json<DeleteGroupRequest>,
 ) -> RestfulResult<web::Json<ResponseResult>> {

@@ -1,45 +1,44 @@
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
-#[derive(Debug, Deserialize)]
+/// 憑證吊銷請求
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct RevokeRequest {
-    #[serde(rename = "Name")]
     pub name:   String,
-    #[serde(rename = "Reason")]
     pub reason: String,
 }
 
-#[derive(Debug, Serialize)]
+/// 憑證有效清單(個體)
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct Valid {
-    #[serde(rename = "Name")]
     pub name:   String,
-    #[serde(rename = "Signer")]
     pub signer: String,
-    #[serde(rename = "Period")]
     pub period: String,
 }
 
-#[derive(Debug, Serialize)]
+/// 憑證有效清單
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct get_valids {
-    #[serde(rename = "Valid")]
     pub valid:  Vec<Valid>,
-    #[serde(rename = "Length")]
     pub length: usize,
 }
 
-#[derive(Debug, Serialize)]
+/// 憑證吊銷清單(個體)
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct Revoked {
-    #[serde(rename = "Number")]
     pub number: String,
-    #[serde(rename = "Time")]
     pub time:   String,
-    #[serde(rename = "Reason")]
     pub reason: String,
 }
 
-#[derive(Debug, Serialize)]
+/// 憑證吊銷清單
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct get_revokeds {
-    #[serde(rename = "Revoke")]
     pub revoke: Vec<Revoked>,
-    #[serde(rename = "Length")]
     pub length: usize,
 }

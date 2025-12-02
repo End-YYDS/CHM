@@ -1,66 +1,57 @@
 use crate::commons::ResponseResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use utoipa::{IntoParams, ToSchema};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct PCManagerRequest {
-    #[serde(rename = "Ip")]
     pub ip:       String,
-    #[serde(rename = "Password")]
     pub password: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct Uuid {
-    #[serde(rename = "Hostname")]
     pub hostname: String,
-    #[serde(rename = "Ip")]
     pub ip:       String,
-    #[serde(rename = "Status")]
     pub status:   bool,
 }
 
-// #[derive(Debug, Serialize)]
-// pub struct Pcs {
-//     pub uuid: Uuid,
-// }
-
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct PcInformation {
-    #[serde(rename = "Pcs")]
     pub pcs:    HashMap<String, Uuid>,
-    #[serde(rename = "Length")]
     pub length: usize,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema, IntoParams)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct SpecificRequest {
-    #[serde(rename = "Uuid")]
     pub uuid: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct DeletePcRequest {
-    #[serde(rename = "Uuids")]
     pub uuids:     Vec<String>,
-    #[serde(rename = "Passwords")]
     pub passwords: Vec<String>,
 }
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct DeletePcResponse {
-    #[serde(rename = "Pcs")]
     pub pcs:    HashMap<String, ResponseResult>,
-    #[serde(rename = "Length")]
     pub length: usize,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct UuidsRequest {
-    #[serde(rename = "Uuids")]
     pub uuids: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct PostPcgroupRequest {
     #[serde(rename = "Groupname")]
     pub groupname: String,
@@ -68,79 +59,64 @@ pub struct PostPcgroupRequest {
     pub cidr:      String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct Vxlanid {
-    #[serde(rename = "Groupname")]
     pub groupname: String,
-    #[serde(rename = "Pcs")]
     pub pcs:       Vec<String>,
 }
 
-// #[derive(Debug, Serialize)]
-// pub struct Groups {
-//     #[serde(rename = "vxlanid")]
-//     pub vxlanid: Vxlanid,
-// }
-
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct GetPcgroupResponseResult {
-    #[serde(rename = "Groups")]
     pub groups: HashMap<String, Vxlanid>,
-    #[serde(rename = "Length")]
     pub length: usize,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "PascalCase")]
 pub struct DePutVxlanid {
-    #[serde(rename = "Groupname")]
     pub groupname: String,
-    #[serde(rename = "Pcs")]
     pub pcs:       Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "PascalCase")]
 pub struct PutPcgroupRequest {
     #[serde(flatten)]
     pub data: HashMap<String, DePutVxlanid>,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "PascalCase")]
 pub enum DePatchVxlanid {
-    Groupname {
-        #[serde(rename = "Groupname")]
-        groupname: String,
-    },
-    Pcs {
-        #[serde(rename = "Pcs")]
-        pcs: Vec<String>,
-    },
+    Groupname { groupname: String },
+    Pcs { pcs: Vec<String> },
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(rename_all = "PascalCase")]
 pub struct PatchPcgroupRequest {
     #[serde(flatten)]
     pub data: HashMap<String, DePatchVxlanid>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct DeletePcGroupRequest {
-    #[serde(rename = "Vxlanid")]
     pub vxlanid: i64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct RebootPcResponse {
-    #[serde(rename = "Pcs")]
     pub pcs:    HashMap<String, ResponseResult>,
-    #[serde(rename = "Length")]
     pub length: usize,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct ShutdownPcResponse {
-    #[serde(rename = "Pcs")]
     pub pcs:    HashMap<String, ResponseResult>,
-    #[serde(rename = "Length")]
     pub length: usize,
 }

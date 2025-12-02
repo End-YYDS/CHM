@@ -1,18 +1,18 @@
 use actix_web::web::ServiceConfig;
 
 pub mod chm;
-mod config;
-mod cron;
-mod file;
-mod firewall;
-mod info;
+pub mod config;
+pub mod cron;
+pub mod file;
+pub mod firewall;
+pub mod info;
 pub mod login;
-mod logout;
-mod logs;
-mod network;
-mod process;
+pub mod logout;
+pub mod logs;
+pub mod network;
+pub mod process;
 pub mod server;
-mod software;
+pub mod software;
 
 pub fn handles_scope(cfg: &mut ServiceConfig) {
     cfg.service(login::login_scope())

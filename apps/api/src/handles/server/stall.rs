@@ -1,24 +1,24 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use utoipa::{IntoParams, ToSchema};
 
 use crate::commons::CommonInfo;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct stall_request {
-    #[serde(rename = "Server")]
     pub server: String,
-    #[serde(rename = "Uuids")]
     pub uuids:  Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema, IntoParams)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct stalled_request {
-    #[serde(rename = "Server")]
     pub server: String,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(untagged)]
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub enum Pcs {
     Installed {
         #[serde(flatten)]
@@ -30,10 +30,9 @@ pub enum Pcs {
     },
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct stalledResponse {
-    #[serde(rename = "Pcs")]
     pub pcs:    Pcs,
-    #[serde(rename = "Length")]
     pub length: usize,
 }

@@ -1,12 +1,12 @@
 use crate::{commons::CommonInfo, handles::server::apache::logs::Logs};
 use serde::Serialize;
+use utoipa::ToSchema;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
+#[serde(deny_unknown_fields, rename_all = "PascalCase")]
 pub struct ApacheResponse {
     #[serde(flatten)]
     pub common_info: CommonInfo,
-    #[serde(rename = "Connections")]
     pub connections: i64,
-    #[serde(rename = "Logs")]
     pub logs:        Logs,
 }
