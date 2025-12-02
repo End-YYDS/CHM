@@ -34,7 +34,7 @@ jobs:
           cache-on-failure: true
 
       - name: Check format (cargo fmt)
-        run: cargo fmt --all -- --check
+        run: cargo +nightly fmt --all -- --check
 
       - name: Lint with clippy
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
