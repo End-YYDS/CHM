@@ -2,10 +2,17 @@
 set -euo pipefail
 
 ###############################################################################
-# CHM Component Installer
-# - Downloads the latest release of a selected CHM component
-# - Installs the binary into /usr/local/bin
-# - Creates and configures the CHM group and configuration directory
+# CHM Production Installer
+#
+# Description:
+#   Automated deployment script for the CHM ecosystem.
+#   - Fetches and installs release binaries.
+#   - Initializes system groups and directory structures.
+#   - Generates and patches default configurations (based on justfile logic).
+#   - Provisions Systemd unit files for background service management.
+#
+# Usage:
+#   sudo ./chm-install.sh [component_name]
 ###############################################################################
 
 # --------------------------------------------------------------------------- #
@@ -22,11 +29,14 @@ log_error()   { printf "${RED}[ERROR]${RESET} %s\n" "$*" >&2; }
 log_success() { printf "${GREEN}[ OK ]${RESET} %s\n" "$*"; }
 
 # --------------------------------------------------------------------------- #
-# Input Handling
+# Input Validation & Component Selection
 # --------------------------------------------------------------------------- #
 APP_KEY="${1:-}"
 
 if [[ -z "${APP_KEY}" ]]; then
+    echo "---------------------------------------------------------------"
+    echo " CHM Component Selection"
+    echo "---------------------------------------------------------------"
     PS3="Select a component to install (1-8): "
     options=("controller" "api" "ca" "dhcp" "dns" "ldap" "agent" "host" )
 
@@ -44,7 +54,7 @@ fi
 APP_KEY="$(echo "${APP_KEY}" | tr 'A-Z' 'a-z')"
 
 # --------------------------------------------------------------------------- #
-# Component mapping: user input -> release asset/binary name
+# Component Mapping
 # --------------------------------------------------------------------------- #
 declare -A APP_MAP=(
     [dhcp]="CHM_dhcpd"
@@ -65,9 +75,7 @@ if [[ -z "${APP_NAME}" ]]; then
     exit 1
 fi
 
-log_info "Selected component: ${APP_KEY}  (binary name: ${APP_NAME})"
-
-exit 1
+log_info "Initializing installation procedure for: ${APP_NAME} (${APP_KEY})"
 
 # --------------------------------------------------------------------------- #
 # Fetch latest release tag from GitHub
@@ -101,7 +109,8 @@ fi
 # --------------------------------------------------------------------------- #
 # System group and permissions
 # --------------------------------------------------------------------------- #
-log_info "Verifying system group 'CHM'..."
+log_info "Provisioning system environment..."
+
 if getent group CHM >/dev/null 2>&1; then
     log_info "Group 'CHM' already exists."
 else
@@ -113,14 +122,18 @@ else
     fi
 fi
 
-log_info "Adding current user '${USER}' to group 'CHM'..."
-if sudo usermod -aG CHM "${USER}"; then
-    log_success "User '${USER}' added to group 'CHM'."
-    log_warn "Group membership changes apply on next login."
-else
-    log_error "Failed to update group membership for '${USER}'."
-    exit 1
+if ! groups "${USER}" | grep -q "\bCHM\b"; then
+    sudo usermod -aG CHM "${USER}" || true
+    log_info "Added user '${USER}' to group 'CHM'."
 fi
+
+log_info "Configuring directory hierarchy under /etc/CHM..."
+
+sudo install -d -o root -g CHM -m 2775 /etc/CHM
+sudo install -d -o root -g CHM -m 2775 /etc/CHM/db
+sudo install -d -o root -g CHM -m 2775 /etc/CHM/certs
+
+log_success "Directory structure provisioned."
 
 # --------------------------------------------------------------------------- #
 # Install binary
@@ -136,44 +149,115 @@ else
 fi
 
 # --------------------------------------------------------------------------- #
-# Configuration directory
+# Configuration Bootstrap
 # --------------------------------------------------------------------------- #
-log_info "Verifying configuration directory /etc/CHM..."
-if sudo install -d -o root -g CHM -m 2775 /etc/CHM; then
-    log_success "Configuration directory is ready."
+log_info "Bootstrapping configuration files..."
+
+cd /etc/CHM
+
+# Generate default config
+log_info "Executing config generation routine (-i)..."
+if ! sudo "${APP_NAME}" -i >/dev/null 2>&1; then
+    log_info "Capturing stdout to configuration file..."
+    sudo sh -c "${APP_NAME} -i > ${APP_NAME}_config.toml.example" || true
+fi
+
+# Standardize Filenames (Remove .example)
+CONFIG_FILE="${APP_NAME}_config.toml"
+EXAMPLE_FILE=$(find . -maxdepth 1 -name "*config.toml.example" | head -n 1)
+
+if [[ -n "${EXAMPLE_FILE}" ]]; then
+    sudo mv "${EXAMPLE_FILE}" "${CONFIG_FILE}"
+    log_success "Configuration initialized: /etc/CHM/${CONFIG_FILE}"
+elif [[ -f "${CONFIG_FILE}" ]]; then
+    log_info "Existing configuration detected. Skipping generation."
 else
-    log_error "Failed to create configuration directory."
-    exit 1
+    log_warn "Automatic configuration generation incomplete. Manual setup may be required."
+fi
+
+# Patch Configuration Paths
+if [[ -f "${CONFIG_FILE}" ]]; then
+    log_info "Applying production path patches..."
+
+    sudo sed -i 's|"rootCA.pem"|"/etc/CHM/certs/rootCA.pem"|g' "${CONFIG_FILE}"
+    sudo sed -i -E 's|"([a-zA-Z0-9_]+\.db)"|"/etc/CHM/db/\1"|g' "${CONFIG_FILE}"
+
+    log_success "Configuration paths patched for production environment."
 fi
 
 # --------------------------------------------------------------------------- #
-# CA-specific initialization
+# Component-Specific Initialization
 # --------------------------------------------------------------------------- #
 if [[ "${APP_KEY}" == "ca" ]]; then
-    log_info "Component 'ca' selected. Checking Root CA certificate..."
+    ROOT_CA_PATH="/etc/CHM/certs/rootCA.pem"
+    if [[ ! -f "${ROOT_CA_PATH}" ]]; then
+        log_info "Initializing Root Certificate Authority..."
 
-    mkdir -p certs
+        cd /etc/CHM/certs
 
-    if [[ ! -f "certs/rootCA.pem" ]]; then
-        log_warn "Root CA certificate not found (certs/rootCA.pem)."
-        log_info "Initializing Root CA using CHMmCA..."
-
-        # Ensure shell can find the new binary immediately
-        hash -r
-
-        if CHMmCA --root-ca; then
-            log_success "Root CA generated successfully."
+        if sudo CHMmCA --root-ca; then
+            log_success "Root CA generated at: ${ROOT_CA_PATH}"
         else
             log_error "Failed to generate Root CA."
-            exit 1
         fi
     else
-        log_info "Root CA certificate already exists. Skipping generation."
+        log_info "Root CA already exists. Skipping initialization."
     fi
 fi
 
 # --------------------------------------------------------------------------- #
-# Summary
+# Service Registration (Systemd)
 # --------------------------------------------------------------------------- #
-log_success "Installation completed successfully."
-log_info    "You can now run the component using: ${APP_NAME}"
+SERVICE_FILE="/etc/systemd/system/${APP_NAME}.service"
+log_info "Registering Systemd service unit: ${APP_NAME}.service"
+
+
+SERVICE_USER="root"
+
+
+cat <<EOF | sudo tee "${SERVICE_FILE}" > /dev/null
+[Unit]
+Description=CHM Ecosystem Component - ${APP_NAME}
+Documentation=https://github.com/End-YYDS/CHM
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=${SERVICE_USER}
+Group=CHM
+# Critical: Sets the context for config loading
+WorkingDirectory=/etc/CHM
+ExecStart=/usr/local/bin/${APP_NAME}
+Restart=always
+RestartSec=5
+# Environment defaults
+Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+log_success "Service unit created."
+log_info "Reloading system daemon..."
+sudo systemctl daemon-reload
+
+# --------------------------------------------------------------------------- #
+# Post-Installation Summary
+# --------------------------------------------------------------------------- #
+echo ""
+echo "---------------------------------------------------------------"
+echo " Installation Complete"
+echo "---------------------------------------------------------------"
+log_success "Component '${APP_NAME}' has been successfully deployed."
+echo ""
+log_info "Configuration Directory : /etc/CHM"
+log_info "Database Directory      : /etc/CHM/db"
+log_info "Certificate Directory   : /etc/CHM/certs"
+echo ""
+echo "To start the service, run:"
+echo "  sudo systemctl start ${APP_NAME}"
+echo ""
+echo "To enable start-on-boot, run:"
+echo "  sudo systemctl enable ${APP_NAME}"
+echo "---------------------------------------------------------------"
