@@ -1687,19 +1687,21 @@ impl RestfulService for ControllerRestfulServer {
         let username_clone = username.clone();
         self.grpc_clients
             .with_ldap_handle(|ldap| async move {
-                if !user.group.is_empty() {
-                    for group_name in user.group.iter() {
-                        if group_name == &username_clone {
-                            continue;
-                        }
-                        ldap.search_group(group_name.clone())
-                            .await
-                            .map_err(|e| {
-                                Status::not_found(format!("Group {group_name} not found: {e}"))
-                            })
-                            .inspect_err(|e| tracing::error!(?e))?;
-                    }
+                let groups_to_join: HashSet<String> = user
+                    .group
+                    .iter()
+                    .filter(|group_name| *group_name != &username_clone)
+                    .cloned()
+                    .collect();
+
+                // 先查現有群組，避免重複呼叫 add_group 造成 AlreadyExists 錯誤
+                let existing_groups: HashSet<String> =
+                    ldap.list_groups().await?.into_iter().collect();
+
+                for group_name in groups_to_join.iter().filter(|g| !existing_groups.contains(*g)) {
+                    ldap.add_group(group_name.clone()).await?;
                 }
+
                 ldap.add_user(
                     username_clone.clone(),
                     user.password,
@@ -1712,22 +1714,12 @@ impl RestfulService for ControllerRestfulServer {
                     Some(user.gid_number),
                     Some(user.gecos),
                 )
-                .await
-                .inspect_err(|e| tracing::error!(?e))?;
-                for group_name in user.group.iter() {
-                    if group_name == &username_clone {
-                        continue;
-                    }
-                    ldap.add_user_to_group(username_clone.clone(), group_name.clone())
-                        .await
-                        .map_err(|e| {
-                            Status::internal(format!(
-                                "Failed to add user {username_clone} to group {group_name}: {e}"
-                            ))
-                        })
-                        .inspect_err(|e| tracing::error!(?e))?;
+                .await?;
+
+                for group_name in groups_to_join {
+                    ldap.add_user_to_group(username_clone.clone(), group_name.clone()).await?;
                 }
-                Ok(())
+                Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
             })
             .await
             .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
