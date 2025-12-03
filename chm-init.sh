@@ -8,15 +8,6 @@ set -euo pipefail
 # - Creates and configures the CHM group and configuration directory
 ###############################################################################
 
-APP_KEY="${1:-}"
-
-if [[ -z "${APP_KEY}" ]]; then
-    echo "Usage: $0 {dhcp|api|ca|agent|mdns|cd|host|ldap}"
-    exit 1
-fi
-
-APP_KEY="$(echo "${APP_KEY}" | tr 'A-Z' 'a-z')"
-
 # --------------------------------------------------------------------------- #
 # Logging helpers
 # --------------------------------------------------------------------------- #
@@ -31,6 +22,28 @@ log_error()   { printf "${RED}[ERROR]${RESET} %s\n" "$*" >&2; }
 log_success() { printf "${GREEN}[ OK ]${RESET} %s\n" "$*"; }
 
 # --------------------------------------------------------------------------- #
+# Input Handling
+# --------------------------------------------------------------------------- #
+APP_KEY="${1:-}"
+
+if [[ -z "${APP_KEY}" ]]; then
+    PS3="Select a component to install (1-8): "
+    options=("controller" "api" "ca" "dhcp" "dns" "ldap" "agent" "host" )
+
+    select opt in "${options[@]}"; do
+        if [[ -n "$opt" ]]; then
+            APP_KEY=$opt
+            log_info "You selected: $APP_KEY"
+            break
+        else
+            log_warn "Invalid selection. Please try again."
+        fi
+    done
+fi
+
+APP_KEY="$(echo "${APP_KEY}" | tr 'A-Z' 'a-z')"
+
+# --------------------------------------------------------------------------- #
 # Component mapping: user input -> release asset/binary name
 # --------------------------------------------------------------------------- #
 declare -A APP_MAP=(
@@ -38,8 +51,9 @@ declare -A APP_MAP=(
     [api]="CHM_APId"
     [ca]="CHMmCA"
     [agent]="CHM_agentd"
-    [mdns]="CHMmDNS"
+    [dns]="CHMmDNS"
     [cd]="CHMcd"
+    [controller]="CHMcd"
     [host]="CHM_hostd"
     [ldap]="CHM_ldapd"
 )
@@ -48,22 +62,23 @@ APP_NAME="${APP_MAP[${APP_KEY}]:-}"
 
 if [[ -z "${APP_NAME}" ]]; then
     log_error "Unknown component name: ${APP_KEY}"
-    echo "Valid options: dhcp, api, ca, agent, mdns, cd, host, ldap"
     exit 1
 fi
 
 log_info "Selected component: ${APP_KEY}  (binary name: ${APP_NAME})"
 
+exit 1
+
 # --------------------------------------------------------------------------- #
 # Fetch latest release tag from GitHub
 # --------------------------------------------------------------------------- #
-log_info "Retrieving latest release information from GitHub..."
+log_info "Fetching latest release information from GitHub..."
 
 LATEST_TAG="$(curl -fsSL https://api.github.com/repos/End-YYDS/CHM/releases/latest \
     | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/')"
 
 if [[ -z "${LATEST_TAG}" ]]; then
-    log_error "Failed to determine the latest release tag."
+    log_error "Failed to retrieve the latest release tag."
     exit 1
 fi
 
@@ -75,23 +90,23 @@ DOWNLOAD_URL="https://github.com/End-YYDS/CHM/releases/download/${LATEST_TAG}/${
 log_info "Downloading asset: ${ASSET_NAME}"
 log_info "From: ${DOWNLOAD_URL}"
 
-curl -fsSL -o "${APP_NAME}" "${DOWNLOAD_URL}" || {
+if curl -fsSL -o "${APP_NAME}" "${DOWNLOAD_URL}"; then
+    chmod +x "${APP_NAME}"
+    log_success "Download completed."
+else
     log_error "Download failed."
     exit 1
-}
-
-chmod +x "${APP_NAME}"
-log_success "Download completed."
+fi
 
 # --------------------------------------------------------------------------- #
 # System group and permissions
 # --------------------------------------------------------------------------- #
-log_info "Ensuring group 'CHM' exists..."
-if sudo getent group CHM >/dev/null 2>&1; then
+log_info "Verifying system group 'CHM'..."
+if getent group CHM >/dev/null 2>&1; then
     log_info "Group 'CHM' already exists."
 else
     if sudo groupadd CHM; then
-        log_success "Group 'CHM' created."
+        log_success "Group 'CHM' created successfully."
     else
         log_error "Failed to create group 'CHM'."
         exit 1
@@ -101,25 +116,35 @@ fi
 log_info "Adding current user '${USER}' to group 'CHM'..."
 if sudo usermod -aG CHM "${USER}"; then
     log_success "User '${USER}' added to group 'CHM'."
-    log_warn "Group membership will take effect on your next login or new shell."
+    log_warn "Group membership changes apply on next login."
 else
-    log_error "Failed to modify group membership for '${USER}'."
+    log_error "Failed to update group membership for '${USER}'."
     exit 1
 fi
 
 # --------------------------------------------------------------------------- #
 # Install binary
 # --------------------------------------------------------------------------- #
-log_info "Installing binary to /usr/local/bin/${APP_NAME} ..."
-sudo install -o root -g CHM -m 0755 "${APP_NAME}" "/usr/local/bin/${APP_NAME}"
-log_success "Binary installed."
+log_info "Installing binary to /usr/local/bin/${APP_NAME}..."
+if sudo install -o root -g CHM -m 0755 "${APP_NAME}" "/usr/local/bin/${APP_NAME}"; then
+    log_success "Binary installed successfully."
+    # Cleanup downloaded file
+    rm -f "${APP_NAME}"
+else
+    log_error "Failed to install binary."
+    exit 1
+fi
 
 # --------------------------------------------------------------------------- #
 # Configuration directory
 # --------------------------------------------------------------------------- #
-log_info "Ensuring configuration directory /etc/CHM exists..."
-sudo install -d -o root -g CHM -m 2775 /etc/CHM
-log_success "Configuration directory ready."
+log_info "Verifying configuration directory /etc/CHM..."
+if sudo install -d -o root -g CHM -m 2775 /etc/CHM; then
+    log_success "Configuration directory is ready."
+else
+    log_error "Failed to create configuration directory."
+    exit 1
+fi
 
 # --------------------------------------------------------------------------- #
 # CA-specific initialization
@@ -132,8 +157,16 @@ if [[ "${APP_KEY}" == "ca" ]]; then
     if [[ ! -f "certs/rootCA.pem" ]]; then
         log_warn "Root CA certificate not found (certs/rootCA.pem)."
         log_info "Initializing Root CA using CHMmCA..."
-        CHMmCA --root-ca
-        log_success "Root CA generated."
+
+        # Ensure shell can find the new binary immediately
+        hash -r
+
+        if CHMmCA --root-ca; then
+            log_success "Root CA generated successfully."
+        else
+            log_error "Failed to generate Root CA."
+            exit 1
+        fi
     else
         log_info "Root CA certificate already exists. Skipping generation."
     fi
