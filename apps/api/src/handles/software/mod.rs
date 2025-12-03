@@ -1,23 +1,53 @@
+mod translate;
 mod types;
 
-use crate::{commons::translate::AppError, AppState, RestfulResult};
+use crate::{
+    commons::{translate::AppError, ResponseResult},
+    handles::software::translate::ActionResponseExt,
+    AppState, RestfulResult,
+};
 use actix_web::{delete, get, post, web, Scope};
 use chm_grpc::restful::{
-    self, DeleteSoftwareRequest as GrpcDeleteSoftwareRequest,
+    DeleteSoftwareRequest as GrpcDeleteSoftwareRequest,
     GetSoftwareRequest as GrpcGetSoftwareRequest,
     InstallSoftwareRequest as GrpcInstallSoftwareRequest,
 };
-use std::collections::HashMap;
-
+use utoipa::OpenApi;
 use types::*;
 
 pub fn software_scope() -> Scope {
-    web::scope("/software").service(_get_software).service(_post_software).service(_delete_software)
+    web::scope("/software").service(get_software).service(post_software).service(delete_software)
 }
+#[derive(OpenApi)]
+#[openapi(
+    paths(get_software, post_software, delete_software),
+    // components(schemas(
+    //     DePutVxlanid,
+    //     DePatchVxlanid,
+    //     PatchPcgroupRequest,
+    //     PutPcgroupRequest,
+    // )),
+    tags(
+        (name = "Software Manager", description = "Software 管理相關 API")
+    )
+)]
+pub struct SoftWareApiDoc;
 
 /// GET /api/software
+#[utoipa::path(
+    get,
+    path = "/software",
+    tag = "Software Manager",
+    responses(
+        (status = 200, description = "取得所有套件", body = GetSoftwareResponse),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[get("")]
-async fn _get_software(
+async fn get_software(
     app_state: web::Data<AppState>,
 ) -> RestfulResult<web::Json<GetSoftwareResponse>> {
     let mut client = app_state.gclient.clone();
@@ -31,8 +61,21 @@ async fn _get_software(
 }
 
 /// POST /api/software
+#[utoipa::path(
+    post,
+    path = "/software",
+    tag = "Software Manager",
+    request_body = InstallRequest,
+    responses(
+        (status = 200, description = "添加成功", body = ActionResponse),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[post("")]
-async fn _post_software(
+async fn post_software(
     app_state: web::Data<AppState>,
     web::Json(data): web::Json<InstallRequest>,
 ) -> RestfulResult<web::Json<ActionResponse>> {
@@ -52,8 +95,21 @@ async fn _post_software(
 }
 
 /// DELETE /api/software
+#[utoipa::path(
+    delete,
+    path = "/software",
+    tag = "Software Manager",
+    request_body = DeleteRequest,
+    responses(
+        (status = 200, description = "刪除成功", body = ActionResponse),
+        (status = 500, description = "伺服器錯誤", body = ResponseResult,example = json!({
+                "Type": "Err",
+                "Message": "Internal Server Error"
+            })),
+    )
+)]
 #[delete("")]
-async fn _delete_software(
+async fn delete_software(
     app_state: web::Data<AppState>,
     web::Json(data): web::Json<DeleteRequest>,
 ) -> RestfulResult<web::Json<ActionResponse>> {
@@ -70,68 +126,4 @@ async fn _delete_software(
         .try_into_action_response(PackageActionKind::Delete)
         .inspect_err(|e: &AppError| tracing::error!(?e))?;
     Ok(web::Json(resp))
-}
-
-impl From<restful::GetSoftwareResponse> for GetSoftwareResponse {
-    fn from(src: restful::GetSoftwareResponse) -> Self {
-        let pcs = src.pcs.into_iter().map(|(uuid, pkgs)| (uuid, pkgs.into())).collect();
-        Self { pcs }
-    }
-}
-
-impl From<restful::PcPackages> for PcPackages {
-    fn from(src: restful::PcPackages) -> Self {
-        let packages = src.packages.into_iter().map(|(name, info)| (name, info.into())).collect();
-        Self { packages }
-    }
-}
-
-impl From<restful::PackageInfo> for PackageInfo {
-    fn from(src: restful::PackageInfo) -> Self {
-        Self { version: src.version, status: map_status(src.status) }
-    }
-}
-
-enum PackageActionKind {
-    Install,
-    Delete,
-}
-
-trait ActionResponseExt {
-    #[allow(clippy::result_large_err)]
-    fn try_into_action_response(self, kind: PackageActionKind) -> Result<ActionResponse, AppError>;
-}
-
-impl ActionResponseExt for restful::PackageActionResponse {
-    fn try_into_action_response(self, kind: PackageActionKind) -> Result<ActionResponse, AppError> {
-        let length = usize::try_from(self.length)?;
-        let packages = self
-            .packages
-            .into_iter()
-            .map(|(pkg, result)| (pkg, convert_action_result(result, &kind)))
-            .collect::<HashMap<_, _>>();
-        Ok(ActionResponse { packages, length })
-    }
-}
-
-fn convert_action_result(
-    src: restful::PackageActionResult,
-    kind: &PackageActionKind,
-) -> PackageActionResult {
-    match kind {
-        PackageActionKind::Install => {
-            PackageActionResult { installed: src.installed, notinstalled: src.notinstalled }
-        }
-        PackageActionKind::Delete => {
-            PackageActionResult { installed: src.installed, notinstalled: src.notinstalled }
-        }
-    }
-}
-
-fn map_status(status: i32) -> PackageStatus {
-    match restful::PackageStatus::try_from(status).unwrap_or(restful::PackageStatus::Unspecified) {
-        restful::PackageStatus::Installed => PackageStatus::Installed,
-        restful::PackageStatus::Notinstall => PackageStatus::Notinstall,
-        restful::PackageStatus::Unspecified => PackageStatus::Notinstall,
-    }
 }
