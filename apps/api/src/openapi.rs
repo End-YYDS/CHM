@@ -13,6 +13,7 @@ use crate::handles::{
     login::LoginApiDocs,
     logout::LogoutApiDocs,
     server::{apache::ServerApacheApiDoc, ServerApiDoc},
+    software::SoftWareApiDoc,
 };
 pub fn build_openapi() -> OpenApi {
     let mut doc = LoginApiDocs::openapi();
@@ -25,6 +26,7 @@ pub fn build_openapi() -> OpenApi {
     doc.merge(ChmUserApiDoc::openapi());
     doc.merge(ChmGroupApiDoc::openapi());
     doc.merge(ServerApiDoc::openapi());
+    doc.merge(SoftWareApiDoc::openapi());
 
     doc.servers = Some(vec![Server::new("/api")]);
     doc
