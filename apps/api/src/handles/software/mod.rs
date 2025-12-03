@@ -12,8 +12,8 @@ use chm_grpc::restful::{
     GetSoftwareRequest as GrpcGetSoftwareRequest,
     InstallSoftwareRequest as GrpcInstallSoftwareRequest,
 };
-use utoipa::OpenApi;
 use types::*;
+use utoipa::OpenApi;
 
 pub fn software_scope() -> Scope {
     web::scope("/software").service(get_software).service(post_software).service(delete_software)
