@@ -232,11 +232,79 @@ fi
 # --------------------------------------------------------------------------- #
 # Service Registration (Systemd)
 # --------------------------------------------------------------------------- #
-SERVICE_FILE="/etc/systemd/system/${APP_NAME}"
-log_info "Registering Systemd service unit: ${APP_NAME}"
+if [[ "${APP_KEY}" == "agent" ]]; then
+    HOST_SERVICE_FILE="/etc/systemd/system/CHM_hostd.service"
+    log_info "Registering Systemd service unit: CHM_hostd"
+    cat <<EOF | sudo tee "${HOST_SERVICE_FILE}" > /dev/null
+[Unit]
+Description=CHM Ecosystem Component - CHM_hostd
+Documentation=https://github.com/End-YYDS/CHM
+Requires=hostd.socket
+After=hostd.socket
+
+[Service]
+Type=simple
+User=root
+Group=${CHM_GROUP}
+WorkingDirectory=/etc/CHM
+ExecStart=/usr/local/bin/CHM_hostd
+Restart=always
+RestartSec=5
+# Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    HOST_SOCKET_FILE="/etc/systemd/system/CHM_hostd.socket"
+cat <<EOF | sudo tee "${HOST_SOCKET_FILE}" > /dev/null
+[Unit]
+Description=CHM Host Daemon Socket
+After=network.target
+
+[Socket]
+ListenStream=/run/chm/hostd.sock
+
+SocketMode=0660
+SocketUser=root
+SocketGroup=chm
+
+Accept=no
+
+[Install]
+WantedBy=sockets.target
+EOF
+
+    Agent_SERVICE_FILE="/etc/systemd/system/CHM_agentd.service"
+    log_info "Registering Systemd service unit: CHM_agentd"
+    cat <<EOF | sudo tee "${AGENT_SERVICE_FILE}" > /dev/null
+[Unit]
+Description=CHM Ecosystem Component - CHM_agentd
+Documentation=https://github.com/End-YYDS/CHM
+Requires=hostd.socket
+After=hostd.socket
+BindsTo=hostd.service
+PartOf=hostd.service
+
+[Service]
+Type=simple
+User=root
+Group=${CHM_GROUP}
+WorkingDirectory=/etc/CHM
+ExecStart=/usr/local/bin/CHM_agentd
+Restart=on-failure
+RestartSec=5
+# Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target
+EOF
+else
+    SERVICE_FILE="/etc/systemd/system/${APP_NAME}.service"
+    log_info "Registering Systemd service unit: ${APP_NAME}.service"
 
 
-cat <<EOF | sudo tee "${SERVICE_FILE}" > /dev/null
+    cat <<EOF | sudo tee "${SERVICE_FILE}" > /dev/null
 [Unit]
 Description=CHM Ecosystem Component - ${APP_NAME}
 Documentation=https://github.com/End-YYDS/CHM
@@ -253,31 +321,7 @@ ExecStart=/usr/local/bin/${APP_NAME}
 Restart=always
 RestartSec=5
 # Environment defaults
-Environment=RUST_LOG=info
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-if [[ "${APP_KEY}" == "agent" ]]; then
-    HOST_SERVICE_FILE="/etc/systemd/system/CHM_hostd"
-    log_info "Registering Systemd service unit: CHM_hostd"
-    cat <<EOF | sudo tee "${HOST_SERVICE_FILE}" > /dev/null
-[Unit]
-Description=CHM Ecosystem Component - CHM_hostd
-Documentation=https://github.com/End-YYDS/CHM
-After=network-online.target
-Wants=network-online.target
-
-[Service]
-Type=simple
-User=root
-Group=${CHM_GROUP}
-WorkingDirectory=/etc/CHM
-ExecStart=/usr/local/bin/CHM_hostd
-Restart=always
-RestartSec=5
-Environment=RUST_LOG=info
+# Environment=RUST_LOG=info
 
 [Install]
 WantedBy=multi-user.target
@@ -300,12 +344,12 @@ if [[ "${APP_KEY}" == "agent" ]]; then
 
     if sudo systemctl list-unit-files --type=service --no-legend | grep -q "^${host_service}"; then
         log_info "Starting ${host_service} service..."
-        if ! sudo "${host_service}"; then
+        if ! sudo systemctl start "${host_service}.service"; then
             log_error "Failed to start ${host_service}"
             exit 1
         fi
     else
-        log_error "${host_service} not found. Please install host component first."
+        log_error "${host_service}.service not found. Please install host component first."
         exit 1
     fi
 
@@ -316,6 +360,7 @@ if [[ "${APP_KEY}" == "agent" ]]; then
         sleep 1
     done
 
+    //TODO: 改service unit
     if [[ -f "/etc/CHM/${CONFIG_FILE}" ]]; then
         detected_path=$(sudo awk -F'=' '/^SocketPath[[:space:]]*=/{gsub(/"/,"",$2); gsub(/^[[:space:]]+|[[:space:]]+$/,"",$2); print $2; exit}' "/etc/CHM/${CONFIG_FILE}")
         if [[ -n "${detected_path}" ]]; then
@@ -333,7 +378,7 @@ if [[ "${APP_KEY}" == "agent" ]]; then
     if sudo systemctl list-unit-files --type=service --no-legend | grep -q "^${agent_service}"; then
         agent_available=true
         log_info "Starting ${agent_service} service..."
-        if ! sudo "${agent_service}"; then
+        if ! sudo systemctl restart "${agent_service}.service"; then
             log_error "Failed to start ${agent_service}"
             exit 1
         fi
@@ -413,7 +458,7 @@ if [[ "${APP_KEY}" != "host" ]]; then
             fi
         fi
 
-        service_file="/etc/systemd/system/${APP_NAME}"
+        service_file="/etc/systemd/system/${APP_NAME}.service"
         if [[ -f "${service_file}" ]]; then
             sudo sed -i -E "s/^User=.*/User=${CHM_USER}/" "${service_file}"
             sudo sed -i -E "s/^Group=.*/Group=${CHM_GROUP}/" "${service_file}"
@@ -422,7 +467,7 @@ if [[ "${APP_KEY}" != "host" ]]; then
         sudo systemctl daemon-reload
 
         if sudo systemctl is-active --quiet "${APP_NAME}"; then
-            sudo "${APP_NAME}"
+            sudo systemctl restart "${APP_NAME}"
         fi
 
         log_success "Service '${APP_NAME}' will run as '${CHM_USER}:${CHM_GROUP}' (HostD remains root)."
@@ -441,7 +486,8 @@ echo ""
 log_info "Configuration Directory : /etc/CHM"
 log_info "Database Directory      : /etc/CHM/db"
 log_info "Certificate Directory   : /etc/CHM/certs"
+log_info "Configuration File      : /etc/CHM/${CONFIG_FILE}"
 echo ""
 echo "To start the service, run:"
-echo "  ${APP_NAME}"
+echo "  sudo systemctl start ${APP_NAME}"
 echo "---------------------------------------------------------------"
