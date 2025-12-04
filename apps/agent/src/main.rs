@@ -66,25 +66,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     #[cfg(unix)]
     {
-        let (configured_user, configured_group) = GlobalConfig::with(|cfg| {
-            (cfg.extend.run_as_user.clone(), cfg.extend.run_as_group.clone())
-        });
-        let user = configured_user.trim();
-        let group = configured_group.trim();
-        if !user.is_empty() {
-            if let Err(err) = drop_privileges(user, group) {
-                tracing::error!(
-                    "[AgentD] 降權至 {}:{} 失敗: {err}",
+        if cfg!(debug_assertions) {
+            let (configured_user, configured_group) = GlobalConfig::with(|cfg| {
+                (cfg.extend.run_as_user.clone(), cfg.extend.run_as_group.clone())
+            });
+            let user = configured_user.trim();
+            let group = configured_group.trim();
+            if !user.is_empty() {
+                if let Err(err) = drop_privileges(user, group) {
+                    tracing::error!(
+                        "[AgentD] 降權至 {}:{} 失敗: {err}",
+                        user,
+                        if group.is_empty() { "<primary>" } else { group }
+                    );
+                    return Err(err.into());
+                }
+                tracing::info!(
+                    "[AgentD] 已降權為 {}:{}",
                     user,
                     if group.is_empty() { "<primary>" } else { group }
                 );
-                return Err(err.into());
             }
-            tracing::info!(
-                "[AgentD] 已降權為 {}:{}",
-                user,
-                if group.is_empty() { "<primary>" } else { group }
-            );
         }
     }
 
