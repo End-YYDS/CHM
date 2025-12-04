@@ -37,21 +37,32 @@ if [[ -z "${APP_KEY}" ]]; then
     echo "---------------------------------------------------------------"
     echo " CHM Component Selection"
     echo "---------------------------------------------------------------"
-    PS3="Select a component to install (1-8): "
-    options=("controller" "api" "ca" "dhcp" "dns" "ldap" "agent" "host" )
+    options=("controller" "api" "ca" "dhcp" "dns" "ldap" "agent" )
 
-    select opt in "${options[@]}"; do
-        if [[ -n "$opt" ]]; then
-            APP_KEY=$opt
-            log_info "You selected: $APP_KEY"
-            break
-        else
-            log_warn "Invalid selection. Please try again."
-        fi
+    while true; do
+        echo "Select a component to install (1-7):"
+        for idx in "${!options[@]}"; do
+            printf "  %d) %s\n" $((idx + 1)) "${options[$idx]}"
+        done
+        read -r -p "> " choice
+        case "$choice" in
+            1|controller) APP_KEY="controller" ;;
+            2|api)        APP_KEY="api" ;;
+            3|ca)         APP_KEY="ca" ;;
+            4|dhcp)       APP_KEY="dhcp" ;;
+            5|dns)        APP_KEY="dns" ;;
+            6|ldap)       APP_KEY="ldap" ;;
+            7|agent)      APP_KEY="agent" ;;
+            *) log_warn "Invalid selection. Please try again."; continue ;;
+        esac
+        log_info "You selected: ${APP_KEY}"
+        break
     done
 fi
 
 APP_KEY="$(echo "${APP_KEY}" | tr 'A-Z' 'a-z')"
+CHM_GROUP="CHM"
+CHM_USER="chm-user"
 
 # --------------------------------------------------------------------------- #
 # Component Mapping
@@ -64,7 +75,6 @@ declare -A APP_MAP=(
     [dns]="CHMmDNS"
     [cd]="CHMcd"
     [controller]="CHMcd"
-    [host]="CHM_hostd"
     [ldap]="CHM_ldapd"
 )
 
@@ -74,6 +84,9 @@ if [[ -z "${APP_NAME}" ]]; then
     log_error "Unknown component name: ${APP_KEY}"
     exit 1
 fi
+
+SERVICE_USER="root"
+SERVICE_GROUP="${CHM_GROUP}"
 
 log_info "Initializing installation procedure for: ${APP_NAME} (${APP_KEY})"
 
@@ -92,61 +105,72 @@ fi
 
 log_info "Latest release tag: ${LATEST_TAG}"
 
-ASSET_NAME="${APP_NAME}-x86_64-unknown-linux-gnu"
-DOWNLOAD_URL="https://github.com/End-YYDS/CHM/releases/download/${LATEST_TAG}/${ASSET_NAME}"
+download_asset() {
+    local bin_name="$1"
+    local asset_name="${bin_name}-x86_64-unknown-linux-gnu"
+    local url="https://github.com/End-YYDS/CHM/releases/download/${LATEST_TAG}/${asset_name}"
+    log_info "Downloading asset: ${asset_name}"
+    log_info "From: ${url}"
+    if curl -fsSL -o "${bin_name}" "${url}"; then
+        chmod +x "${bin_name}"
+        log_success "Download completed: ${bin_name}"
+    else
+        log_error "Download failed: ${bin_name}"
+        exit 1
+    fi
+}
 
-log_info "Downloading asset: ${ASSET_NAME}"
-log_info "From: ${DOWNLOAD_URL}"
-
-if curl -fsSL -o "${APP_NAME}" "${DOWNLOAD_URL}"; then
-    chmod +x "${APP_NAME}"
-    log_success "Download completed."
-else
-    log_error "Download failed."
-    exit 1
+download_queue=("${APP_NAME}")
+if [[ "${APP_KEY}" == "agent" ]]; then
+    download_queue+=("CHM_hostd")
 fi
+
+for bin in "${download_queue[@]}"; do
+    download_asset "${bin}"
+done
 
 # --------------------------------------------------------------------------- #
 # System group and permissions
 # --------------------------------------------------------------------------- #
 log_info "Provisioning system environment..."
 
-if getent group CHM >/dev/null 2>&1; then
-    log_info "Group 'CHM' already exists."
+if getent group "${CHM_GROUP}" >/dev/null 2>&1; then
+    log_info "Group '${CHM_GROUP}' already exists."
 else
-    if sudo groupadd CHM; then
-        log_success "Group 'CHM' created successfully."
+    if sudo groupadd "${CHM_GROUP}"; then
+        log_success "Group '${CHM_GROUP}' created successfully."
     else
-        log_error "Failed to create group 'CHM'."
+        log_error "Failed to create group '${CHM_GROUP}'."
         exit 1
     fi
 fi
 
-if ! groups "${USER}" | grep -q "\bCHM\b"; then
-    sudo usermod -aG CHM "${USER}" || true
-    log_info "Added user '${USER}' to group 'CHM'."
+if ! groups "${USER}" | grep -q "\b${CHM_GROUP}\b"; then
+    sudo usermod -aG "${CHM_GROUP}" "${USER}" || true
+    log_info "Added user '${USER}' to group '${CHM_GROUP}'."
 fi
 
 log_info "Configuring directory hierarchy under /etc/CHM..."
 
-sudo install -d -o root -g CHM -m 2775 /etc/CHM
-sudo install -d -o root -g CHM -m 2775 /etc/CHM/db
-sudo install -d -o root -g CHM -m 2775 /etc/CHM/certs
+sudo install -d -o root -g "${CHM_GROUP}" -m 2775 /etc/CHM
+sudo install -d -o root -g "${CHM_GROUP}" -m 2775 /etc/CHM/db
+sudo install -d -o root -g "${CHM_GROUP}" -m 2775 /etc/CHM/certs
 
 log_success "Directory structure provisioned."
 
 # --------------------------------------------------------------------------- #
 # Install binary
 # --------------------------------------------------------------------------- #
-log_info "Installing binary to /usr/local/bin/${APP_NAME}..."
-if sudo install -o root -g CHM -m 0755 "${APP_NAME}" "/usr/local/bin/${APP_NAME}"; then
-    log_success "Binary installed successfully."
-    # Cleanup downloaded file
-    rm -f "${APP_NAME}"
-else
-    log_error "Failed to install binary."
-    exit 1
-fi
+for bin in "${download_queue[@]}"; do
+    log_info "Installing binary to /usr/local/bin/${bin}..."
+    if sudo install -o root -g "${CHM_GROUP}" -m 0755 "${bin}" "/usr/local/bin/${bin}"; then
+        log_success "Binary installed successfully: ${bin}"
+        rm -f "${bin}"
+    else
+        log_error "Failed to install binary: ${bin}"
+        exit 1
+    fi
+done
 
 # --------------------------------------------------------------------------- #
 # Configuration Bootstrap
@@ -208,14 +232,79 @@ fi
 # --------------------------------------------------------------------------- #
 # Service Registration (Systemd)
 # --------------------------------------------------------------------------- #
-SERVICE_FILE="/etc/systemd/system/${APP_NAME}.service"
-log_info "Registering Systemd service unit: ${APP_NAME}.service"
+if [[ "${APP_KEY}" == "agent" ]]; then
+    HOST_SERVICE_FILE="/etc/systemd/system/CHM_hostd.service"
+    log_info "Registering Systemd service unit: CHM_hostd"
+    cat <<EOF | sudo tee "${HOST_SERVICE_FILE}" > /dev/null
+[Unit]
+Description=CHM Ecosystem Component - CHM_hostd
+Documentation=https://github.com/End-YYDS/CHM
+Requires=hostd.socket
+After=hostd.socket
+
+[Service]
+Type=simple
+User=root
+Group=${CHM_GROUP}
+WorkingDirectory=/etc/CHM
+ExecStart=/usr/local/bin/CHM_hostd
+Restart=always
+RestartSec=5
+# Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    HOST_SOCKET_FILE="/etc/systemd/system/CHM_hostd.socket"
+cat <<EOF | sudo tee "${HOST_SOCKET_FILE}" > /dev/null
+[Unit]
+Description=CHM Host Daemon Socket
+After=network.target
+
+[Socket]
+ListenStream=/run/chm/hostd.sock
+
+SocketMode=0660
+SocketUser=root
+SocketGroup=chm
+
+Accept=no
+
+[Install]
+WantedBy=sockets.target
+EOF
+
+    Agent_SERVICE_FILE="/etc/systemd/system/CHM_agentd.service"
+    log_info "Registering Systemd service unit: CHM_agentd"
+    cat <<EOF | sudo tee "${AGENT_SERVICE_FILE}" > /dev/null
+[Unit]
+Description=CHM Ecosystem Component - CHM_agentd
+Documentation=https://github.com/End-YYDS/CHM
+Requires=hostd.socket
+After=hostd.socket
+BindsTo=hostd.service
+PartOf=hostd.service
+
+[Service]
+Type=simple
+User=root
+Group=${CHM_GROUP}
+WorkingDirectory=/etc/CHM
+ExecStart=/usr/local/bin/CHM_agentd
+Restart=on-failure
+RestartSec=5
+# Environment=RUST_LOG=info
+
+[Install]
+WantedBy=multi-user.target
+EOF
+else
+    SERVICE_FILE="/etc/systemd/system/${APP_NAME}.service"
+    log_info "Registering Systemd service unit: ${APP_NAME}.service"
 
 
-SERVICE_USER="root"
-
-
-cat <<EOF | sudo tee "${SERVICE_FILE}" > /dev/null
+    cat <<EOF | sudo tee "${SERVICE_FILE}" > /dev/null
 [Unit]
 Description=CHM Ecosystem Component - ${APP_NAME}
 Documentation=https://github.com/End-YYDS/CHM
@@ -225,22 +314,165 @@ Wants=network-online.target
 [Service]
 Type=simple
 User=${SERVICE_USER}
-Group=CHM
+Group=${SERVICE_GROUP}
 # Critical: Sets the context for config loading
 WorkingDirectory=/etc/CHM
 ExecStart=/usr/local/bin/${APP_NAME}
 Restart=always
 RestartSec=5
 # Environment defaults
-Environment=RUST_LOG=info
+# Environment=RUST_LOG=info
 
 [Install]
 WantedBy=multi-user.target
 EOF
+fi
 
 log_success "Service unit created."
 log_info "Reloading system daemon..."
 sudo systemctl daemon-reload
+
+# --------------------------------------------------------------------------- #
+# Start hostd then agentd, ensure connectivity before permission hardening
+# --------------------------------------------------------------------------- #
+connection_ok=false
+agent_available=false
+if [[ "${APP_KEY}" == "agent" ]]; then
+    host_service="CHM_hostd"
+    agent_service="CHM_agentd"
+    SOCKET_PATH="/tmp/agent_hostd.sock"
+
+    if sudo systemctl list-unit-files --type=service --no-legend | grep -q "^${host_service}"; then
+        log_info "Starting ${host_service} service..."
+        if ! sudo systemctl start "${host_service}.service"; then
+            log_error "Failed to start ${host_service}"
+            exit 1
+        fi
+    else
+        log_error "${host_service}.service not found. Please install host component first."
+        exit 1
+    fi
+
+    for _ in {1..15}; do
+        if sudo systemctl is-active --quiet "${host_service}"; then
+            break
+        fi
+        sleep 1
+    done
+
+    //TODO: 改service unit
+    if [[ -f "/etc/CHM/${CONFIG_FILE}" ]]; then
+        detected_path=$(sudo awk -F'=' '/^SocketPath[[:space:]]*=/{gsub(/"/,"",$2); gsub(/^[[:space:]]+|[[:space:]]+$/,"",$2); print $2; exit}' "/etc/CHM/${CONFIG_FILE}")
+        if [[ -n "${detected_path}" ]]; then
+            SOCKET_PATH="${detected_path}"
+        fi
+    fi
+    if [[ -S "${SOCKET_PATH}" ]]; then
+        sudo chown root:"${CHM_GROUP}" "${SOCKET_PATH}" || log_warn "Failed to adjust socket owner: ${SOCKET_PATH}"
+        sudo chmod 770 "${SOCKET_PATH}" || log_warn "Failed to adjust socket permissions: ${SOCKET_PATH}"
+        log_info "Socket ${SOCKET_PATH} permissions set to root:${CHM_GROUP} (770)"
+    else
+        log_warn "Can't find socket ${SOCKET_PATH}, unable to set permissions (HostD may not have created it yet?)"
+    fi
+
+    if sudo systemctl list-unit-files --type=service --no-legend | grep -q "^${agent_service}"; then
+        agent_available=true
+        log_info "Starting ${agent_service} service..."
+        if ! sudo systemctl restart "${agent_service}.service"; then
+            log_error "Failed to start ${agent_service}"
+            exit 1
+        fi
+    else
+        if [[ "${APP_KEY}" == "agent" ]]; then
+            log_error "${agent_service} not found. Please install agent component first."
+            exit 1
+        else
+            log_warn "${agent_service} not found; skipping agent start."
+        fi
+    fi
+
+    if [[ "${agent_available}" == true ]]; then
+        for _ in {1..20}; do
+            if sudo systemctl is-active --quiet "${agent_service}"; then
+                break
+            fi
+            sleep 1
+        done
+
+        log_info "Waiting for AgentD to confirm HostD connectivity..."
+        for _ in {1..30}; do
+        if sudo journalctl -u "${agent_service}" -n 50 --no-pager 2>/dev/null | grep -q "HostD health check passed"; then
+                connection_ok=true
+                break
+            fi
+            sleep 1
+        done
+
+        if [[ "${connection_ok}" == true ]]; then
+            log_success "AgentD connected to HostD; proceeding to permission hardening."
+        else
+            log_warn "AgentD did not confirm successful connection to HostD; skipping permission reset and privilege drop."
+        fi
+    fi
+fi
+
+# --------------------------------------------------------------------------- #
+# Permission reset & privilege drop (Agent only; runs after sudo-required steps)
+# --------------------------------------------------------------------------- #
+if [[ "${APP_KEY}" != "host" ]]; then
+    if [[ "${APP_KEY}" == "agent" && "${connection_ok}" != true ]]; then
+        log_warn "AgentD did not confirm successful connection to HostD; maintaining root execution."
+    else
+        log_info "Finalizing permissions and non-root execution..."
+
+        if id -u "${CHM_USER}" >/dev/null 2>&1; then
+            log_info "User '${CHM_USER}' already exists."
+        else
+            if sudo useradd -r -M -s /usr/sbin/nologin -g "${CHM_GROUP}" "${CHM_USER}"; then
+                log_success "User '${CHM_USER}' created with primary group '${CHM_GROUP}'."
+            else
+                log_error "Failed to create user '${CHM_USER}'."
+                exit 1
+            fi
+        fi
+
+        if [[ "${APP_KEY}" == "agent" ]]; then
+            sudo chown root:"${CHM_GROUP}" /etc/CHM /etc/CHM/db /etc/CHM/certs
+            sudo chmod 2775 /etc/CHM /etc/CHM/db /etc/CHM/certs
+
+            if [[ -n "${CONFIG_FILE:-}" && -f "/etc/CHM/${CONFIG_FILE}" ]]; then
+                sudo chown root:"${CHM_GROUP}" "/etc/CHM/${CONFIG_FILE}"
+                # sudo chmod 660 "/etc/CHM/${CONFIG_FILE}"
+
+                if sudo grep -q '^RunAsUser' "/etc/CHM/${CONFIG_FILE}"; then
+                    sudo sed -i -E "s/^RunAsUser\\s*=\\s*\"[^\"]*\"/RunAsUser = \"${CHM_USER}\"/" "/etc/CHM/${CONFIG_FILE}"
+                else
+                    echo "RunAsUser = \"${CHM_USER}\"" | sudo tee -a "/etc/CHM/${CONFIG_FILE}" > /dev/null
+                fi
+
+                if sudo grep -q '^RunAsGroup' "/etc/CHM/${CONFIG_FILE}"; then
+                    sudo sed -i -E "s/^RunAsGroup\\s*=\\s*\"[^\"]*\"/RunAsGroup = \"${CHM_GROUP}\"/" "/etc/CHM/${CONFIG_FILE}"
+                else
+                    echo "RunAsGroup = \"${CHM_GROUP}\"" | sudo tee -a "/etc/CHM/${CONFIG_FILE}" > /dev/null
+                fi
+            fi
+        fi
+
+        service_file="/etc/systemd/system/${APP_NAME}.service"
+        if [[ -f "${service_file}" ]]; then
+            sudo sed -i -E "s/^User=.*/User=${CHM_USER}/" "${service_file}"
+            sudo sed -i -E "s/^Group=.*/Group=${CHM_GROUP}/" "${service_file}"
+        fi
+
+        sudo systemctl daemon-reload
+
+        if sudo systemctl is-active --quiet "${APP_NAME}"; then
+            sudo systemctl restart "${APP_NAME}"
+        fi
+
+        log_success "Service '${APP_NAME}' will run as '${CHM_USER}:${CHM_GROUP}' (HostD remains root)."
+    fi
+fi
 
 # --------------------------------------------------------------------------- #
 # Post-Installation Summary
@@ -254,10 +486,8 @@ echo ""
 log_info "Configuration Directory : /etc/CHM"
 log_info "Database Directory      : /etc/CHM/db"
 log_info "Certificate Directory   : /etc/CHM/certs"
+log_info "Configuration File      : /etc/CHM/${CONFIG_FILE}"
 echo ""
 echo "To start the service, run:"
 echo "  sudo systemctl start ${APP_NAME}"
-echo ""
-echo "To enable start-on-boot, run:"
-echo "  sudo systemctl enable ${APP_NAME}"
 echo "---------------------------------------------------------------"
