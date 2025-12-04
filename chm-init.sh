@@ -323,11 +323,11 @@ if [[ "${APP_KEY}" == "agent" ]]; then
         fi
     fi
     if [[ -S "${SOCKET_PATH}" ]]; then
-        sudo chown root:"${CHM_GROUP}" "${SOCKET_PATH}" || log_warn "調整 socket 擁有者失敗: ${SOCKET_PATH}"
-        sudo chmod 770 "${SOCKET_PATH}" || log_warn "調整 socket 權限失敗: ${SOCKET_PATH}"
-        log_info "Socket ${SOCKET_PATH} 權限已設為 root:${CHM_GROUP} (770)"
+        sudo chown root:"${CHM_GROUP}" "${SOCKET_PATH}" || log_warn "Failed to adjust socket owner: ${SOCKET_PATH}"
+        sudo chmod 770 "${SOCKET_PATH}" || log_warn "Failed to adjust socket permissions: ${SOCKET_PATH}"
+        log_info "Socket ${SOCKET_PATH} permissions set to root:${CHM_GROUP} (770)"
     else
-        log_warn "找不到 socket ${SOCKET_PATH}，無法設定權限（HostD 尚未建立？）"
+        log_warn "Can't find socket ${SOCKET_PATH}, unable to set permissions (HostD may not have created it yet?)"
     fi
 
     if sudo systemctl list-unit-files --type=service --no-legend | grep -q "^${agent_service}"; then
@@ -356,7 +356,7 @@ if [[ "${APP_KEY}" == "agent" ]]; then
 
         log_info "Waiting for AgentD to confirm HostD connectivity..."
         for _ in {1..30}; do
-        if sudo journalctl -u "${agent_service}" -n 50 --no-pager 2>/dev/null | grep -q "HostD 健康檢查通過"; then
+        if sudo journalctl -u "${agent_service}" -n 50 --no-pager 2>/dev/null | grep -q "HostD health check passed"; then
                 connection_ok=true
                 break
             fi
@@ -366,7 +366,7 @@ if [[ "${APP_KEY}" == "agent" ]]; then
         if [[ "${connection_ok}" == true ]]; then
             log_success "AgentD connected to HostD; proceeding to permission hardening."
         else
-            log_warn "未確認 AgentD 與 HostD 連線成功，跳過權限重設與降權。"
+            log_warn "AgentD did not confirm successful connection to HostD; skipping permission reset and privilege drop."
         fi
     fi
 fi
@@ -376,7 +376,7 @@ fi
 # --------------------------------------------------------------------------- #
 if [[ "${APP_KEY}" != "host" ]]; then
     if [[ "${APP_KEY}" == "agent" && "${connection_ok}" != true ]]; then
-        log_warn "未確認 AgentD 與 HostD 連線成功，維持 root 執行。"
+        log_warn "AgentD did not confirm successful connection to HostD; maintaining root execution."
     else
         log_info "Finalizing permissions and non-root execution..."
 
@@ -443,8 +443,5 @@ log_info "Database Directory      : /etc/CHM/db"
 log_info "Certificate Directory   : /etc/CHM/certs"
 echo ""
 echo "To start the service, run:"
-echo "  ${APP_NAME}"
-echo ""
-echo "To enable start-on-boot, run:"
 echo "  ${APP_NAME}"
 echo "---------------------------------------------------------------"
