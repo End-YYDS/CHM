@@ -144,7 +144,7 @@ run-init password="":
     @just replace "30s" "1h" "{{ CONFIG_FOLDER }}/CHMmDNS_config.toml"
     @just replace 'bind_password = "admin"' 'bind_password = "{{ password }}"' "{{ CONFIG_FOLDER }}/CHM_ldapd_config.toml"
     @just replace "389" "6389" "{{ CONFIG_FOLDER }}/CHM_ldapd_config.toml"
-    @just replace 'RunAsUser = "chm"' 'RunAsUser = "$USER"' "{{ CONFIG_FOLDER }}/CHM_agentd_config.toml"
+    @just replace 'RunAsUser = "chm"' "RunAsUser = \"$USER\"" "{{ CONFIG_FOLDER }}/CHM_agentd_config.toml"
 
 # -------------------------------------------------------------
 #  啟動整個 CHM cluster
@@ -165,120 +165,153 @@ start-cluster:
 
     echo "[*] 啟動 CHM services..."
 
+    # -------------------------------------------------------------
+    # 啟動服務並直接解析 log 取得 OTP 和 Port
+    # -------------------------------------------------------------
     start_service() {
         local name="$1"
         local cmd="$2"
         local log="$LOG_DIR/$name.log"
-        local otp_path="$OTP_DIR/$name.otp"
-        local port_path="$OTP_DIR/$name.port"
         local pid_path="$PID_DIR/$name.pid"
 
         echo "[*] 啟動 $name ..."
-        just "$cmd" >"$log" 2>&1 &
+        setsid bash -c "just '$cmd' >'$log' 2>&1" >/dev/null 2>&1 </dev/null &
         local pid=$!
         echo "$pid" > "$pid_path"
-        echo "[*] $name PID = $pid"
-
-        # watcher
-        {
-            tail -n0 -F "$log" 2>/dev/null &
-            local tail_pid=$!
-
-            while IFS= read -r line < <(tail -n0 -F "$log" 2>/dev/null); do
-                if [[ $line =~ Using[[:space:]]OTP:\ ([a-zA-Z0-9]+) ]]; then
-                    echo "${BASH_REMATCH[1]}" > "$otp_path"
-                    echo "[+] $name OTP: ${BASH_REMATCH[1]}"
-                fi
-
-                if [[ $line =~ listening\ on:\ ([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+) ]]; then
-                    echo "${BASH_REMATCH[1]}" > "$port_path"
-                    echo "[+] $name listening on: ${BASH_REMATCH[1]}"
-                fi
-
-                # ★ Exit condition ★
-                if [[ -s "$otp_path" && -s "$port_path" ]]; then
-                    kill "$tail_pid" 2>/dev/null || true
-                    break
-                fi
-            done
-        } &
+        echo "[+] $name PID = $pid"
     }
 
-    need_port() {
-        case "$1" in
-            ca|dns|ldap|dhcp|api) return 0 ;;
-            *)             return 1 ;;
-        esac
+    # 從 log 中提取資訊
+    extract_info() {
+        local name="$1"
+        local log="$LOG_DIR/$name.log"
+        local otp_path="$OTP_DIR/$name.otp"
+        local port_path="$OTP_DIR/$name.port"
+        local max_wait=30
+        local waited=0
+
+        echo "[*] 等待 $name 啟動..."
+
+        while [[ $waited -lt $max_wait ]]; do
+            if [[ -f "$log" ]]; then
+                # 提取 OTP
+                if [[ ! -f "$otp_path" ]]; then
+                    local otp=$(grep -oP 'Using\s+OTP:\s*\K[A-Za-z0-9]+' "$log" 2>/dev/null | tail -1)
+                    if [[ -n "$otp" ]]; then
+                        echo "$otp" > "$otp_path"
+                    fi
+                fi
+
+                # 提取 Port
+                if [[ ! -f "$port_path" ]]; then
+                    local port=$(grep -oP 'Starting\s+server\s+on\s+\K[0-9.]+:[0-9]+' "$log" 2>/dev/null | tail -1)
+                    if [[ -n "$port" ]]; then
+                        echo "$port" > "$port_path"
+                    fi
+                fi
+
+                # 檢查是否都已取得
+                if [[ -f "$otp_path" && -f "$port_path" ]]; then
+                    echo "[✔] $name 已就緒"
+                    return 0
+                fi
+            fi
+
+            sleep 0.5
+            waited=$((waited + 1))
+        done
+
+        echo "[!] 警告：$name 啟動超時"
+        return 1
     }
 
+    # -------------------------------------------------------------
+    # 啟動所有服務
+    # -------------------------------------------------------------
     for i in "${!services[@]}"; do
         start_service "${services[$i]}" "${commands[$i]}"
     done
 
-    echo "[*] 等待所有服務 OTP / Port..."
+    echo ""
+    echo "[*] 等待所有服務就緒..."
+    echo ""
 
+    # -------------------------------------------------------------
+    # 等待所有服務完成啟動
+    # -------------------------------------------------------------
     for s in "${services[@]}"; do
-        while [[ ! -s "$OTP_DIR/$s.otp" ]]; do sleep 0.1; done
+        extract_info "$s"
     done
 
-    for s in "${services[@]}"; do
-        if need_port "$s"; then
-            while [[ ! -s "$OTP_DIR/$s.port" ]]; do sleep 0.1; done
-        fi
-    done
-
+    # -------------------------------------------------------------
     # 讀取所有 OTP / Port
+    # -------------------------------------------------------------
     CA_OTP=$(<"$OTP_DIR/ca.otp")
     DNS_OTP=$(<"$OTP_DIR/dns.otp")
     LDAP_OTP=$(<"$OTP_DIR/ldap.otp")
     DHCP_OTP=$(<"$OTP_DIR/dhcp.otp")
     API_OTP=$(<"$OTP_DIR/api.otp")
 
+    CA_PORT=$(<"$OTP_DIR/ca.port")
+    DNS_PORT=$(<"$OTP_DIR/dns.port")
     LDAP_PORT=$(<"$OTP_DIR/ldap.port")
     DHCP_PORT=$(<"$OTP_DIR/dhcp.port")
     API_PORT=$(<"$OTP_DIR/api.port")
-    CA_PORT=$(<"$OTP_DIR/ca.port")
-    DNS_PORT=$(<"$OTP_DIR/dns.port")
 
+    echo ""
+    echo "============================"
     echo "---- OTPs ----"
     echo "CA   = $CA_OTP"
     echo "DNS  = $DNS_OTP"
     echo "LDAP = $LDAP_OTP"
     echo "DHCP = $DHCP_OTP"
     echo "API  = $API_OTP"
-    echo
+    echo ""
     echo "---- Ports ----"
+    echo "CA   = $CA_PORT"
+    echo "DNS  = $DNS_PORT"
     echo "LDAP = $LDAP_PORT"
     echo "DHCP = $DHCP_PORT"
     echo "API  = $API_PORT"
-    echo
+    echo "============================"
+    echo ""
 
+    # -------------------------------------------------------------
     # Controller 初始化
+    # -------------------------------------------------------------
     INIT_CMD="init -H https://$CA_PORT -c $CA_OTP -d $DNS_OTP"
     echo "[*] Controller 初始化：$INIT_CMD"
-    just run-controller "$INIT_CMD"
+    just -q run-controller "$INIT_CMD"
 
     echo "[*] 加入 API 節點 ..."
-    just run-controller "add -H https://$API_PORT -p $API_OTP"
+    just -q run-controller "add -H https://$API_PORT -p $API_OTP"
 
-    # Controller add nodes
     echo "[*] 加入 LDAP 節點 ..."
-    just run-controller "add -H https://$LDAP_PORT -p $LDAP_OTP"
+    just -q run-controller "add -H https://$LDAP_PORT -p $LDAP_OTP"
 
     echo "[*] 加入 DHCP 節點 ..."
-    just run-controller "add -H https://$DHCP_PORT -p $DHCP_OTP"
+    just -q run-controller "add -H https://$DHCP_PORT -p $DHCP_OTP"
 
     echo "[*] 全部節點加入完成"
 
     # -------------------------------------------------------------
-    # 🆕 最後：啟動 controller serve
+    # 啟動 Controller serve
     # -------------------------------------------------------------
     echo "[*] 啟動 Controller serve ..."
-    just run-controller 'serve' > "$LOG_DIR/controller.log" 2>&1 &
+    setsid bash -c "just -q run-controller 'serve' >>'$LOG_DIR/controller.log' 2>&1" >/dev/null 2>&1 </dev/null &
     CONTROLLER_PID=$!
     echo "$CONTROLLER_PID" > "$PID_DIR/controller.pid"
+
     echo "[+] Controller serve PID = $CONTROLLER_PID"
+    echo ""
     echo "[✔] CHM cluster 完整啟動完成！"
+    echo "[*] Log 位置：$LOG_DIR"
+    echo "[*] PID 位置：$PID_DIR"
+    echo ""
+
+    # 確保所有輸出都已經完成
+    sleep 0.1
+
 
 # -------------------------------------------------------------
 # 停止整個 cluster：stop-cluster
@@ -303,7 +336,7 @@ stop-cluster:
 
         if kill -0 "$pid" 2>/dev/null; then
             echo "[*] 停止 $svc (PID $pid)"
-            kill "$pid" 2>/dev/null || true
+            kill -9 "$pid" 2>/dev/null || true
         else
             echo "[-] $svc 已不在執行中"
         fi
@@ -377,9 +410,126 @@ logs service:
     echo "[*] (Ctrl-C 結束 tail)"
     tail -n 50 -f "$log_file"
 
+
+
 clean-logs:
     @rm -rf /tmp/chm_logs /tmp/chm_otps /tmp/chm_pids 2>/dev/null || true
     @echo "Cleaned /tmp/chm_logs, /tmp/chm_otps, /tmp/chm_pids"
+
+# -------------------------------------------------------------
+# 背景啟動服務，並且記錄 pid 讓 stop-cluster 可以控制
+# 用法： just run-bg-service api
+# -------------------------------------------------------------
+run-bg-service svc:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    PID_DIR="/tmp/chm_pids"
+    LOG_DIR="/tmp/chm_logs"
+    svc="{{svc}}"
+    mkdir -p "$PID_DIR" "$LOG_DIR"
+    case "$svc" in
+        ca)   cmd="run-ca" ;;
+        dns)  cmd="run-dns" ;;
+        ldap) cmd="run-ldap" ;;
+        dhcp) cmd="run-dhcp" ;;
+        api)  cmd="run-api" ;;
+        controller) cmd="run-controller serve" ;;
+        *)
+            echo "[!] 未知服務：$svc"
+            exit 1
+            ;;
+    esac
+
+    log="$LOG_DIR/$svc.log"
+    pid_file="$PID_DIR/$svc.pid"
+
+    echo "[*] 背景啟動 $svc ..."
+    : > "$log"
+
+    just "$cmd" >"$log" 2>&1 &
+    new_pid=$!
+    echo "$new_pid" > "$pid_file"
+
+    echo "[+] $svc PID = $new_pid"
+    echo "[+] log: $log"
+    echo "[✔] $svc 已在背景執行"
+
+run-api-bg:
+    @just run-bg-service api
+
+run-ca-bg:
+    @just run-bg-service ca
+
+run-dns-bg:
+    @just run-bg-service dns
+
+run-ldap-bg:
+    @just run-bg-service ldap
+
+run-dhcp-bg:
+    @just run-bg-service dhcp
+
+run-controller-bg:
+    @just run-bg-service controller
+
+kill-service svc:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    PID_DIR="/tmp/chm_pids"
+    svc="{{svc}}"
+    pid_file="$PID_DIR/$svc.pid"
+
+    if [[ ! -f "$pid_file" ]]; then
+        echo "[!] 找不到背景執行的 $svc PID"
+        exit 1
+    fi
+    pid=$(<"$pid_file")
+    echo "[*] 停止 $svc (PID $pid)"
+    kill "$pid" 2>/dev/null || true
+
+    echo "[✔] $svc 已停止"
+
+kill-ca:
+    @just kill-service ca
+
+kill-dns:
+    @just kill-service dns
+
+kill-ldap:
+    @just kill-service ldap
+
+kill-dhcp:
+    @just kill-service dhcp
+
+kill-api:
+    @just kill-service api
+
+kill-controller:
+    @just kill-service controller
+
+# -------------------------------------------------------------
+# 強制清除所有佔用 50050~50055 的 Process
+# -------------------------------------------------------------
+kill-ports:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    START_PORT=50050
+    END_PORT=50055
+
+    echo "[*] 尋找所有佔用 ${START_PORT}~${END_PORT} 的 process..."
+    pids=$(lsof -t -iTCP:${START_PORT}-${END_PORT} -sTCP:LISTEN || true)
+    if [[ -z "$pids" ]]; then
+        echo "[✔] 沒有任何 process 佔用 50050~50055"
+        exit 0
+    fi
+    echo "[*] 準備 kill 以下 process："
+    echo "$pids"
+    for pid in $pids; do
+        echo "[*] kill -9 $pid"
+        kill -9 "$pid" 2>/dev/null || true
+    done
+    echo "[✔] 已清除所有佔用 50050~50055 的 process"
 
 clean-certs:
     @find {{ CERT_FOLDER }} -mindepth 1 -not -name ".gitkeep" -print0 | xargs -0 rm -rf
