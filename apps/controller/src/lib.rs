@@ -20,6 +20,7 @@ use std::{
     sync::{atomic::AtomicBool, Arc},
     time::Duration,
 };
+use tokio::sync::RwLock;
 use url::Url;
 
 pub type ConResult<T> = Result<T, Box<dyn std::error::Error + Send + Sync>>;
@@ -289,7 +290,7 @@ pub async fn entry(args: Args) -> ConResult<()> {
             }
             if !has_dns {
                 let dns_server = GlobalConfig::with(|cfg| cfg.server.dns_server.clone());
-                let gclient = Arc::new(GrpcClients::connect_all(true).await?);
+                let gclient = Arc::new(RwLock::new(GrpcClients::connect_all(true).await?));
                 let dns_node = Node::new(Some(dns_server), dns_otp_code, gclient, config.clone());
                 dns_node.add(true).await?;
             }
@@ -337,7 +338,8 @@ pub async fn entry(args: Args) -> ConResult<()> {
             Ok(())
         };
     }
-    let gclient = Arc::new(GrpcClients::connect_all(false).await?);
+    // let gclient = Arc::new(GrpcClients::connect_all(false).await?);
+    let gclient = Arc::new(RwLock::new(GrpcClients::connect_all(false).await?));
     match args.cmd.unwrap_or_default() {
         Command::Add(AddService { hostip, otp_code }) => {
             let node = Node::new(hostip, otp_code, gclient.clone(), config.clone());
@@ -366,7 +368,7 @@ pub async fn entry(args: Args) -> ConResult<()> {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) struct Node {
-    gclient:  Arc<GrpcClients>,
+    gclient:  Arc<RwLock<GrpcClients>>,
     host:     String,
     otp_code: Option<String>,
     wclient:  Default_ClientCluster,
@@ -375,7 +377,7 @@ impl Node {
     pub fn new(
         hostip: Option<String>,
         otp_code: Option<String>,
-        gclient: Arc<GrpcClients>,
+        gclient: Arc<RwLock<GrpcClients>>,
         config: (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
     ) -> Self {
         let default_port = GlobalConfig::with(|cfg| cfg.server.port);
@@ -443,6 +445,8 @@ impl Node {
         let sign_days = GlobalConfig::with(|cfg| cfg.extend.sign_days);
         let (cert_pem, chain_pem) = self
             .gclient
+            .read()
+            .await
             .with_ca_handle(|ca| async move {
                 ca.sign_certificate(first_step.csr_pem.clone(), sign_days).await
             })
@@ -473,13 +477,16 @@ impl Node {
                 .insert(first_step.service_desp.clone());
         });
         GlobalConfig::save_config().await?;
-        GlobalConfig::reload_config().await?;
+        // GlobalConfig::reload_config().await?;
+
         if !is_dns {
             tracing::debug!("將服務資訊加入 DNS 伺服器...");
             let full_fqdn = format!("{}.chm.com", first_step.service_desp.hostname);
             // TODO: 多個服務之間需要有同步機制，避免資料不一致
             // TODO:  IP 會變成mDHCP 分配的內網IP
             self.gclient
+                .read()
+                .await
                 .with_dns_handle(|dns| async move {
                     dns.add_host(
                         full_fqdn,
@@ -491,7 +498,8 @@ impl Node {
                 .await?;
             tracing::info!("服務資訊已加入 DNS 伺服器");
         }
-        GlobalConfig::reload_config().await?;
+        // GlobalConfig::reload_config().await?;
+        GlobalConfig::send_reload();
         Ok(())
     }
     pub async fn remove(&self, kind: &str, confirm: bool) -> ConResult<()> {
@@ -548,6 +556,8 @@ impl Node {
         tracing::debug!("向 CA 伺服器請求吊銷憑證...");
         let get_cert_res = self
             .gclient
+            .read()
+            .await
             .with_ca_handle(|ca| async move {
                 ca.get_certificate_by_common_name(want_delete_hostname.clone()).await
             })
@@ -558,6 +568,8 @@ impl Node {
                 let serial = cert.serial;
                 let ret = self
                     .gclient
+                    .read()
+                    .await
                     .with_ca_handle(|ca| async move {
                         ca.mark_certificate_as_revoked(serial, Some("Node Removed!")).await
                     })
@@ -586,6 +598,8 @@ impl Node {
         tracing::debug!("從 DNS 伺服器刪除服務資訊...");
         let deleted = self
             .gclient
+            .read()
+            .await
             .with_dns_handle(|dns| async move { dns.delete_host(want_delete_uuid).await })
             .await?;
         if deleted {

@@ -29,7 +29,10 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
-use tokio::{sync::Semaphore, task::JoinSet};
+use tokio::{
+    sync::{RwLock, Semaphore},
+    task::JoinSet,
+};
 use tracing::{debug, error, warn};
 
 #[derive(Debug, Clone)]
@@ -101,6 +104,8 @@ impl ControllerRestfulServer {
 
                 let uuid_label = agent_uuid.clone();
                 let snapshot = clients
+                    .read()
+                    .await
                     .with_agent_uuid_handle(&agent_uuid, move |agent| {
                         let uuid_for_snapshot = uuid_label.clone();
                         async move {
@@ -165,6 +170,8 @@ impl ControllerRestfulServer {
                 };
                 let argument_json = json!({ "Server": server_name }).to_string();
                 let response = clients
+                    .read()
+                    .await
                     .with_agent_uuid_handle(&uuid, move |agent| {
                         let argument = Some(argument_json.clone());
                         async move {
@@ -232,6 +239,8 @@ impl ControllerRestfulServer {
         let uuid_owned = uuid.to_string();
         let argument_owned = argument.clone();
         self.grpc_clients
+            .read()
+            .await
             .with_agent_uuid_handle(&uuid_owned, move |agent| {
                 let argument = argument_owned.clone();
                 async move {
@@ -299,7 +308,7 @@ fn metric_setting_to_threshold(
 // TODO: 由RestFul Server 為Client 調用Controller RestFul gRPC介面
 #[derive(Debug)]
 pub struct ControllerRestfulServer {
-    pub grpc_clients: Arc<GrpcClients>,
+    pub grpc_clients: Arc<RwLock<GrpcClients>>,
     pub config:       (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
 }
 
@@ -520,6 +529,8 @@ impl RestfulService for ControllerRestfulServer {
         let req_username_clone = req.username.clone();
         let resp = self
             .grpc_clients
+            .read()
+            .await
             .with_ldap_handle(|ldap| async move {
                 ldap.authenticate_user(req_username_clone, req.password).await
             })
@@ -679,6 +690,8 @@ impl RestfulService for ControllerRestfulServer {
     ) -> Result<Response<GetValidCertsResponse>, Status> {
         let r = self
             .grpc_clients
+            .read()
+            .await
             .with_ca_handle(|ca| async move { ca.get_all_certificates().await })
             .await
             .map_err(|e| Status::internal(format!("Failed to get valid certificates: {e}")))
@@ -702,6 +715,8 @@ impl RestfulService for ControllerRestfulServer {
     ) -> Result<Response<GetRevokedCertsResponse>, Status> {
         let r = self
             .grpc_clients
+            .read()
+            .await
             .with_ca_handle(|ca| async move { ca.get_all_revoked_certificates().await })
             .await
             .map_err(|e| Status::internal(format!("Failed to get revoked certificates: {e}")))
@@ -727,6 +742,8 @@ impl RestfulService for ControllerRestfulServer {
         let name_cloned = name.clone();
         let cert = self
             .grpc_clients
+            .read()
+            .await
             .with_ca_handle(|ca| async move {
                 ca.get_certificate_by_common_name(name_cloned.clone()).await
             })
@@ -738,6 +755,8 @@ impl RestfulService for ControllerRestfulServer {
             None => return Err(Status::not_found(format!("Certificate {name} not found"))),
         };
         self.grpc_clients
+            .read()
+            .await
             .with_ca_handle(|ca| async move {
                 ca.mark_certificate_as_revoked(cert.serial, Some(reason)).await
             })
@@ -758,6 +777,8 @@ impl RestfulService for ControllerRestfulServer {
         .inspect_err(|e| tracing::error!(?e))?;
         let sign_days = GlobalConfig::with(|cfg| cfg.extend.sign_days);
         self.grpc_clients
+            .read()
+            .await
             .with_ca_handle(|ca| async move { ca.sign_certificate(same_name_csr, sign_days).await })
             .await
             .map_err(|e| Status::internal(format!("Failed to sign certificate: {e}")))
@@ -823,7 +844,10 @@ impl RestfulService for ControllerRestfulServer {
             let mut status = false;
 
             if let Some(health_name) = service.health_name.as_deref() {
-                let channels = self.grpc_clients.all_channels(service.kind);
+                let channels = {
+                    let grpc = self.grpc_clients.read().await;
+                    grpc.all_channels(service.kind)
+                };
                 if channels.is_empty() {
                     tracing::warn!(
                         "找不到 {:?} 的任何 channel，略過健康檢查（{}）",
@@ -892,7 +916,10 @@ impl RestfulService for ControllerRestfulServer {
         for service in filtered {
             let mut status = false;
             if let Some(health_name) = service.health_name.as_deref() {
-                let channels = self.grpc_clients.all_channels(service.kind);
+                let channels = {
+                    let grpc = self.grpc_clients.read().await;
+                    grpc.all_channels(service.kind)
+                };
                 if channels.is_empty() {
                     tracing::warn!(
                         "找不到 {:?} 的任何 channel，略過健康檢查（{}）",
@@ -1025,6 +1052,8 @@ impl RestfulService for ControllerRestfulServer {
                     }
                 };
                 let ret = clients
+                    .read()
+                    .await
                     .with_agent_uuid_handle(
                         &uuid,
                         |agent| async move { agent.reboot_system().await },
@@ -1119,6 +1148,8 @@ impl RestfulService for ControllerRestfulServer {
                     }
                 };
                 let ret = clients
+                    .read()
+                    .await
                     .with_agent_uuid_handle(
                         &uuid,
                         |agent| async move { agent.shutdown_system().await },
@@ -1174,6 +1205,8 @@ impl RestfulService for ControllerRestfulServer {
     ) -> Result<Response<GetPcGroupsResponse>, Status> {
         let (groups, length) = self
             .grpc_clients
+            .read()
+            .await
             .with_dhcp_handle(|dhcp| async move {
                 let zones = dhcp
                     .list_zones()
@@ -1209,6 +1242,8 @@ impl RestfulService for ControllerRestfulServer {
         let req = request.into_inner();
         let result = self
             .grpc_clients
+            .read()
+            .await
             .with_dhcp_handle(|dhcp| async move {
                 let vni = dhcp
                     .list_zones()
@@ -1249,6 +1284,8 @@ impl RestfulService for ControllerRestfulServer {
         let req = request.into_inner();
         let final_pcs_resp = self
             .grpc_clients
+            .read()
+            .await
             .with_dhcp_handle(|dhcp| async move {
                 let vxlanid = req.vxlanid;
                 let group = req
@@ -1326,6 +1363,8 @@ impl RestfulService for ControllerRestfulServer {
         let vni = req.vxlanid;
         let result = self
             .grpc_clients
+            .read()
+            .await
             .with_dhcp_handle(|dhcp| async move {
                 let ret = match req.kind {
                     Some(patch_pc_group_request::Kind::Groupname(new_name)) => {
@@ -1411,6 +1450,8 @@ impl RestfulService for ControllerRestfulServer {
         let req = request.into_inner();
         let result = self
             .grpc_clients
+            .read()
+            .await
             .with_dhcp_handle(|dhcp| async move {
                 let vni = req.vxlanid;
                 let zone = dhcp
@@ -1618,6 +1659,8 @@ impl RestfulService for ControllerRestfulServer {
     ) -> Result<Response<GetUsersResponse>, Status> {
         let users = self
             .grpc_clients
+            .read()
+            .await
             .with_ldap_handle(|ldap| async move {
                 let uids = ldap
                     .list_users()
@@ -1686,20 +1729,24 @@ impl RestfulService for ControllerRestfulServer {
         let username = user.username.clone();
         let username_clone = username.clone();
         self.grpc_clients
+            .read()
+            .await
             .with_ldap_handle(|ldap| async move {
-                if !user.group.is_empty() {
-                    for group_name in user.group.iter() {
-                        if group_name == &username_clone {
-                            continue;
-                        }
-                        ldap.search_group(group_name.clone())
-                            .await
-                            .map_err(|e| {
-                                Status::not_found(format!("Group {group_name} not found: {e}"))
-                            })
-                            .inspect_err(|e| tracing::error!(?e))?;
-                    }
+                let groups_to_join: HashSet<String> = user
+                    .group
+                    .iter()
+                    .filter(|group_name| *group_name != &username_clone)
+                    .cloned()
+                    .collect();
+
+                // 先查現有群組，避免重複呼叫 add_group 造成 AlreadyExists 錯誤
+                let existing_groups: HashSet<String> =
+                    ldap.list_groups().await?.into_iter().collect();
+
+                for group_name in groups_to_join.iter().filter(|g| !existing_groups.contains(*g)) {
+                    ldap.add_group(group_name.clone()).await?;
                 }
+
                 ldap.add_user(
                     username_clone.clone(),
                     user.password,
@@ -1712,22 +1759,12 @@ impl RestfulService for ControllerRestfulServer {
                     Some(user.gid_number),
                     Some(user.gecos),
                 )
-                .await
-                .inspect_err(|e| tracing::error!(?e))?;
-                for group_name in user.group.iter() {
-                    if group_name == &username_clone {
-                        continue;
-                    }
-                    ldap.add_user_to_group(username_clone.clone(), group_name.clone())
-                        .await
-                        .map_err(|e| {
-                            Status::internal(format!(
-                                "Failed to add user {username_clone} to group {group_name}: {e}"
-                            ))
-                        })
-                        .inspect_err(|e| tracing::error!(?e))?;
+                .await?;
+
+                for group_name in groups_to_join {
+                    ldap.add_user_to_group(username_clone.clone(), group_name.clone()).await?;
                 }
-                Ok(())
+                Ok::<(), Box<dyn std::error::Error + Send + Sync>>(())
             })
             .await
             .map_err(|e| Status::internal(format!("LDAP Error: {e}")))
@@ -1747,6 +1784,8 @@ impl RestfulService for ControllerRestfulServer {
         let users = req.users;
         let username = self
             .grpc_clients
+            .read()
+            .await
             .with_ldap_handle(|ldap| async move {
                 if users.is_empty() {
                     return Err(
@@ -1904,6 +1943,8 @@ impl RestfulService for ControllerRestfulServer {
 
         let username = self
             .grpc_clients
+            .read()
+            .await
             .with_ldap_handle(|ldap| async move {
                 if users.is_empty() {
                     return Err(
@@ -2016,6 +2057,8 @@ impl RestfulService for ControllerRestfulServer {
         let uid = req.uid;
         let uid_clone = uid.clone();
         self.grpc_clients
+            .read()
+            .await
             .with_ldap_handle(|ldap| async move {
                 ldap.search_user(uid_clone.clone()).await.inspect_err(|e| {
                     tracing::warn!(uid = uid_clone, ?e, "User not found when deleting");
@@ -2054,6 +2097,8 @@ impl RestfulService for ControllerRestfulServer {
     ) -> Result<Response<GetGroupsResponse>, Status> {
         let groups = self
             .grpc_clients
+            .read()
+            .await
             .with_ldap_handle(|ldap| async move {
                 let gids = ldap
                     .list_groups()
@@ -2091,6 +2136,8 @@ impl RestfulService for ControllerRestfulServer {
         let groupname = req.groupname.clone();
         let users = req.users.clone();
         self.grpc_clients
+            .read()
+            .await
             .with_ldap_handle(|ldap| async move {
                 ldap.add_group(groupname.clone())
                     .await
@@ -2124,6 +2171,8 @@ impl RestfulService for ControllerRestfulServer {
     ) -> Result<Response<PutGroupsResponse>, Status> {
         let req = request.into_inner();
         self.grpc_clients
+            .read()
+            .await
             .with_ldap_handle(|ldap| async move {
                 for (old_name, group_info) in req.groups.iter() {
                     let new_name = &group_info.groupname;
@@ -2201,6 +2250,8 @@ impl RestfulService for ControllerRestfulServer {
     ) -> Result<Response<PatchGroupsResponse>, Status> {
         let req = request.into_inner();
         self.grpc_clients
+            .read()
+            .await
             .with_ldap_handle(|ldap| async move {
                 if req.groups.is_empty() {
                     return Err(
@@ -2287,6 +2338,8 @@ impl RestfulService for ControllerRestfulServer {
         let group_name = req.gid;
         let group_name_clone = group_name.clone();
         self.grpc_clients
+            .read()
+            .await
             .with_ldap_handle(|ldap| async move {
                 if let Err(e) = ldap.search_group(group_name_clone.clone()).await {
                     return Err(Status::not_found(format!(
@@ -3204,6 +3257,8 @@ impl ControllerRestfulServer {
         argument: Option<String>,
     ) -> Result<agent::CommandResponse, String> {
         self.grpc_clients
+            .read()
+            .await
             .with_agent_uuid_handle(uuid, move |agent| {
                 let argument = argument.clone();
                 async move {

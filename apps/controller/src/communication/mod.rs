@@ -74,6 +74,11 @@ impl GrpcClients {
     pub async fn connect_all(only_ca: bool) -> ConResult<Self> {
         init_channels_all(only_ca).await
     }
+    // pub async fn reload_from_config(&mut self, only_ca: bool) -> ConResult<()> {
+    //     let new = GrpcClients::connect_all(only_ca).await?;
+    //     *self = new;
+    //     Ok(())
+    // }
     pub fn with_map(map: ClientMap) -> Self {
         let quarantine_ms = GlobalConfig::with(|cfg| cfg.extend.quarantine.as_millis() as u64);
         let rr = map.keys().map(|&k| (k, Arc::new(AtomicUsize::new(0)))).collect();

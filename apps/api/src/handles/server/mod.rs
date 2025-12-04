@@ -134,7 +134,7 @@ async fn get_installed(
 #[get("/noinstall")]
 async fn get_noinstall(
     app_state: web::Data<AppState>,
-    web::Json(payload): web::Json<stalled_request>,
+    web::Query(payload): web::Query<stalled_request>,
 ) -> RestfulResult<web::Json<stalledResponse>> {
     let server = validate_server_name(&payload.server)?;
     let mut client = app_state.gclient.clone();
