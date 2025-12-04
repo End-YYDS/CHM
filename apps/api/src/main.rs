@@ -37,7 +37,9 @@ use std::{
     sync::{atomic::Ordering::Relaxed, Arc},
     time::Duration,
 };
+#[cfg(debug_assertions)]
 use utoipa_swagger_ui::SwaggerUi;
+
 #[derive(Debug, FromArgs)]
 /// API 主程式參數
 pub struct Args {
