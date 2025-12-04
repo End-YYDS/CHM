@@ -15,12 +15,13 @@ use std::{
     path::PathBuf,
     sync::Arc,
 };
+use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
 
 pub mod restful;
 pub async fn start_grpc(
     cancel: CancellationToken,
-    grpc_clients: Arc<GrpcClients>,
+    grpc_clients: Arc<RwLock<GrpcClients>>,
     config: (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
 ) -> ConResult<()> {
     let (ca_path, host, port, hostname) = GlobalConfig::with(|cfg| {

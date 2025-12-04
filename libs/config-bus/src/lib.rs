@@ -139,7 +139,7 @@ macro_rules! declare_config {
                         state: "Taiwan".into(),
                         locality: "Taipei".into(),
                         org: "CHM-INIT".into(),
-                        cn: get_local_hostname(),
+                        cn: if cfg!(debug_assertions) { crate::ID.to_string() } else { get_local_hostname() } ,
                         san: vec!["127.0.0.1".into(), "localhost".into(),format!("{}.chm.com", get_local_hostname())],
                         days: 1,
                     }
@@ -332,7 +332,7 @@ macro_rules! declare_config {
                         state:    "Taiwan".into(),
                         locality: "Taipei".into(),
                         org:      "CHM-INIT".into(),
-                        cn:       get_local_hostname(),
+                        cn:       if cfg!(debug_assertions) {crate::ID.to_string()} else { get_local_hostname() },
                         san:      vec!["127.0.0.1".into(), "localhost".into(),format!("{}.chm.com", get_local_hostname())],
                         days:     1,
                     }

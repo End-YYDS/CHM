@@ -2,6 +2,7 @@
 
 use std::{path::PathBuf, sync::Arc};
 use tokio::{
+    sync::RwLock,
     task::JoinHandle,
     time::{sleep, Duration},
 };
@@ -12,16 +13,28 @@ use crate::{communication::GrpcClients, server::start_grpc, ConResult, GlobalCon
 pub struct GrpcSupervisor {
     handle:   Option<JoinHandle<ConResult<()>>>,
     cancel:   CancellationToken,
-    gclients: Arc<GrpcClients>,
+    gclients: Arc<RwLock<GrpcClients>>,
     config:   (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
 }
 
 impl GrpcSupervisor {
     pub fn new(
-        gclients: Arc<GrpcClients>,
+        gclients: Arc<RwLock<GrpcClients>>,
         config: (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
     ) -> Self {
         Self { handle: None, cancel: CancellationToken::new(), gclients, config }
+    }
+    async fn reload_clients(&self) {
+        match GrpcClients::connect_all(false).await {
+            Ok(new_gc) => {
+                let mut guard = self.gclients.write().await;
+                *guard = new_gc;
+                tracing::info!("gRPC client 連線池已重新載入");
+            }
+            Err(e) => {
+                tracing::error!("重建 gRPC client 連線池失敗: {e}");
+            }
+        }
     }
 
     pub async fn start(&mut self) {
@@ -45,13 +58,14 @@ impl GrpcSupervisor {
 
     pub async fn restart(&mut self, reason: &str) {
         tracing::warn!("重啟 gRPC server，原因：{reason}");
+        self.reload_clients().await;
         self.stop().await;
         self.start().await;
     }
 }
 
 pub async fn run_supervised(
-    grpc_clients: Arc<GrpcClients>,
+    grpc_clients: Arc<RwLock<GrpcClients>>,
     config: (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
 ) -> ConResult<()> {
     let mut sup = GrpcSupervisor::new(grpc_clients, config);
