@@ -397,7 +397,7 @@ if [[ "${APP_KEY}" != "host" ]]; then
 
             if [[ -n "${CONFIG_FILE:-}" && -f "/etc/CHM/${CONFIG_FILE}" ]]; then
                 sudo chown root:"${CHM_GROUP}" "/etc/CHM/${CONFIG_FILE}"
-                sudo chmod 660 "/etc/CHM/${CONFIG_FILE}"
+                # sudo chmod 660 "/etc/CHM/${CONFIG_FILE}"
 
                 if sudo grep -q '^RunAsUser' "/etc/CHM/${CONFIG_FILE}"; then
                     sudo sed -i -E "s/^RunAsUser\\s*=\\s*\"[^\"]*\"/RunAsUser = \"${CHM_USER}\"/" "/etc/CHM/${CONFIG_FILE}"
