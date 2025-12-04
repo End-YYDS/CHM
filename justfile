@@ -274,10 +274,10 @@ start-cluster:
     # 🆕 最後：啟動 controller serve
     # -------------------------------------------------------------
     echo "[*] 啟動 Controller serve ..."
-    just run-controller 'serve' > "$LOG_DIR/controller_serve.log" 2>&1 &
-    CONTROLLER_SERVE_PID=$!
-    echo "$CONTROLLER_SERVE_PID" > "$PID_DIR/controller_serve.pid"
-    echo "[+] Controller serve PID = $CONTROLLER_SERVE_PID"
+    just run-controller 'serve' > "$LOG_DIR/controller.log" 2>&1 &
+    CONTROLLER_PID=$!
+    echo "$CONTROLLER_PID" > "$PID_DIR/controller.pid"
+    echo "[+] Controller serve PID = $CONTROLLER_PID"
     echo "[✔] CHM cluster 完整啟動完成！"
 
 # -------------------------------------------------------------
@@ -361,7 +361,7 @@ logs service:
             ;;
         *)
             echo "[!] 未知的 service: $svc"
-            echo "    可用：ca dns ldap dhcp api controller_serve"
+            echo "    可用：ca dns ldap dhcp api controller"
             exit 1
             ;;
     esac
