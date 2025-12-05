@@ -5,7 +5,7 @@ use chm_cluster_utils::{
     BootstrapResp, InitData, ServiceDescriptor, ServiceKind,
 };
 use chm_grpc::{
-    ldap::ldap_service_server::LdapServiceServer,
+    ldap::{ldap_service_server::LdapServiceServer, UserRequest},
     tonic::{
         codec::CompressionEncoding,
         codegen::InterceptedService,
@@ -15,8 +15,8 @@ use chm_grpc::{
 };
 use chm_project_const::ProjectConst;
 use ldap::{
-    allocator::get_allocator, config, service::MyLdapService, CertInfo, GlobalConfig, ID,
-    NEED_EXAMPLE,
+    add_user_impl, allocator::get_allocator, config, service::MyLdapService, CertInfo,
+    GlobalConfig, ID, NEED_EXAMPLE,
 };
 use std::{
     net::{Ipv4Addr, SocketAddrV4},
@@ -32,6 +32,12 @@ pub struct Args {
     /// 範例配置檔案
     #[argh(switch, short = 'i')]
     pub init_config: bool,
+    /// 創建初始化使用者
+    #[argh(option, short = 'u')]
+    pub user:        Option<String>,
+    /// 創建初始化使用者密碼
+    #[argh(option, short = 'p')]
+    pub password:    Option<String>,
 }
 software_init_define!(
     kind = ServiceKind::Ldap,
@@ -42,7 +48,7 @@ software_init_define!(
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    software_init!(Args);
+    let args = software_init!(Args);
     let (addr, rootca, key_path, cert_path, is_controller) = server_init!();
     let (ldap_url, bind_dn, bind_password) = GlobalConfig::with(|cfg| {
         (
@@ -87,6 +93,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         });
         // TODO: 加入cert_update_tx
         let server = MyLdapService::new(ldap_url.clone(), bind_dn.clone(), bind_password.clone());
+        let marker_path = ProjectConst::data_path().join(format!(".{ID}.done"));
+        if !marker_path.exists() {
+            let user = args.user.clone().unwrap_or("admin".to_string());
+            let password = args.password.clone().unwrap_or("123456".to_string());
+            let init_user_req = UserRequest {
+                uid:            user.clone(),
+                user_password:  password.clone(),
+                cn:             user.clone(),
+                sn:             user.clone(),
+                home_directory: format!("/home/{}", user.clone()),
+                login_shell:    "/bin/bash".to_string(),
+                given_name:     user.clone(),
+                display_name:   user.clone(),
+                gid_number:     "".into(),
+                gecos:          "".into(),
+            };
+            let mgr = server.manager();
+            mgr.with_ldap(|ldap| {
+                let req_cloned = init_user_req.clone();
+                Box::pin(async move { add_user_impl(ldap, req_cloned).await })
+            })
+            .await
+            .map_err(|e| {
+                tracing::error!("初始化使用者建立失敗: {e}");
+                e
+            })?;
+            tracing::info!("初始化使用者建立完成，使用者名稱: {}", user);
+        }
         let raw_ldap = LdapServiceServer::new(server)
             .send_compressed(CompressionEncoding::Zstd)
             .accept_compressed(CompressionEncoding::Zstd);
