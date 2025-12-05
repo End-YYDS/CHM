@@ -105,6 +105,9 @@ impl MyLdapService {
     pub fn new(url: String, bind_dn: String, bind_pw: String) -> Self {
         Self { ldap: Arc::new(LdapManager::new(url, bind_dn, bind_pw)) }
     }
+    pub fn manager(&self) -> Arc<LdapManager> {
+        self.ldap.clone()
+    }
 }
 
 #[async_trait]
