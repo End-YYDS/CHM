@@ -6,6 +6,7 @@ mod srv_impl;
 pub use crate::{
     config::{config, CertInfo},
     globals::GlobalConfig,
+    srv_impl::add_user_impl,
 };
 
 use chm_config_bus::{declare_config, declare_config_bus};

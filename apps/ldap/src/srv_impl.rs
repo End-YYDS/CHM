@@ -131,7 +131,7 @@ async fn ensure_upg_posix_group(ldap: &mut Ldap, uid: &str, gid_number: i64) -> 
     Ok(true)
 }
 
-pub(crate) async fn add_user_impl(ldap: &mut Ldap, req: UserRequest) -> SrvResult<()> {
+pub async fn add_user_impl(ldap: &mut Ldap, req: UserRequest) -> SrvResult<()> {
     let base_dn = base_dn();
     get_allocator().await.reseed_from_ldap(ldap, &base_dn).await?;
     let user_ou = users_base();
