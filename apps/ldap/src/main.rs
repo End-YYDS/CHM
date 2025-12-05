@@ -93,7 +93,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         });
         // TODO: 加入cert_update_tx
         let server = MyLdapService::new(ldap_url.clone(), bind_dn.clone(), bind_password.clone());
-        let marker_path = ProjectConst::data_path().join(format!(".{ID}.done"));
+        let marker_path = ProjectConst::data_path().join(format!(".{ID}.user_init"));
         if !marker_path.exists() {
             let user = args.user.clone().unwrap_or("admin".to_string());
             let password = args.password.clone().unwrap_or("123456".to_string());
@@ -119,6 +119,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 tracing::error!("初始化使用者建立失敗: {e}");
                 e
             })?;
+            atomic_write(&marker_path, b"ok").await?;
             tracing::info!("初始化使用者建立完成，使用者名稱: {}", user);
         }
         let raw_ldap = LdapServiceServer::new(server)
