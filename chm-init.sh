@@ -61,7 +61,7 @@ if [[ -z "${APP_KEY}" ]]; then
 fi
 
 APP_KEY="$(echo "${APP_KEY}" | tr 'A-Z' 'a-z')"
-CHM_GROUP="CHM"
+CHM_GROUP="chm"
 CHM_USER="chm-user"
 
 # --------------------------------------------------------------------------- #
@@ -69,7 +69,7 @@ CHM_USER="chm-user"
 # --------------------------------------------------------------------------- #
 declare -A APP_MAP=(
     [dhcp]="CHM_dhcpd"
-    [api]="CHM_APId"
+    [api]="CHM_API"
     [ca]="CHMmCA"
     [agent]="CHM_agentd"
     [dns]="CHMmDNS"
@@ -187,16 +187,15 @@ if ! sudo "${APP_NAME}" -i >/dev/null 2>&1; then
 fi
 
 # Standardize Filenames (Remove .example)
-CONFIG_FILE="${APP_NAME}_config.toml"
-EXAMPLE_FILE=$(find . -maxdepth 1 -name "*config.toml.example" | head -n 1)
-
-if [[ -n "${EXAMPLE_FILE}" ]]; then
-    sudo mv "${EXAMPLE_FILE}" "${CONFIG_FILE}"
-    log_success "Configuration initialized: /etc/CHM/${CONFIG_FILE}"
-elif [[ -f "${CONFIG_FILE}" ]]; then
-    log_info "Existing configuration detected. Skipping generation."
+CONFIG_FILE="/etc/CHM/config/${APP_NAME}_config.toml"
+files=(/etc/CHM/config/*.example)
+if ((${#files[@]})); then
+  for f in "${files[@]}"; do
+    sudo mv -- "$f" "${f%.example}"
+  done;
+  log_info "Renamed ${#files[@]} file(s)."
 else
-    log_warn "Automatic configuration generation incomplete. Manual setup may be required."
+  log_warn "No *.example files found under /etc/CHM/config to rename."
 fi
 
 # Patch Configuration Paths
@@ -208,6 +207,9 @@ if [[ -f "${CONFIG_FILE}" ]]; then
 
     log_success "Configuration paths patched for production environment."
 fi
+
+# Update DNS server IP
+sudo sed -i "s#^dns_server *= *\"[^\"]*\"#dns_server = \"https://10.0.0.21\"#" "${CONFIG_FILE}"
 
 # --------------------------------------------------------------------------- #
 # Component-Specific Initialization
@@ -227,6 +229,14 @@ if [[ "${APP_KEY}" == "ca" ]]; then
     else
         log_info "Root CA already exists. Skipping initialization."
     fi
+elif [[ "${APP_KEY}" == "dns" ]]; then
+    DNS_CONFIG_PATH="/etc/CHM/config/CHMmDNS_config.toml"
+    read -s -p "Enter a new password for the DNS service database: " NEW_PASSWORD
+    sudo sed -i "s|password = \"\"|password = \"${NEW_PASSWORD}\"|g" "$DNS_CONFIG_PATH"
+elif [[ "${APP_KEY}" == "ldap" ]]; then
+    LDAP_CONFIG_PATH="/etc/CHM/config/CHM_ldapd_config.toml"
+    read -s -p "Enter a new password for the LDAP service database: " NEW_PASSWORD
+    sudo sed -i "s|bind_password = \"admin\"|bind_password = \"${NEW_PASSWORD}\"|g" "${LDAP_CONFIG_PATH}"
 fi
 
 # --------------------------------------------------------------------------- #
@@ -239,8 +249,8 @@ if [[ "${APP_KEY}" == "agent" ]]; then
 [Unit]
 Description=CHM Ecosystem Component - CHM_hostd
 Documentation=https://github.com/End-YYDS/CHM
-Requires=hostd.socket
-After=hostd.socket
+Requires=CHM_hostd.socket
+After=CHM_hostd.socket
 
 [Service]
 Type=simple
@@ -251,6 +261,7 @@ ExecStart=/usr/local/bin/CHM_hostd
 Restart=always
 RestartSec=5
 # Environment=RUST_LOG=info
+UMask=002
 
 [Install]
 WantedBy=multi-user.target
@@ -263,7 +274,7 @@ Description=CHM Host Daemon Socket
 After=network.target
 
 [Socket]
-ListenStream=/run/chm/hostd.sock
+ListenStream=/run/chm/CHM_hostd.sock
 
 SocketMode=0660
 SocketUser=root
@@ -271,20 +282,23 @@ SocketGroup=chm
 
 Accept=no
 
+[Service]
+UMask=002
+
 [Install]
 WantedBy=sockets.target
 EOF
 
-    Agent_SERVICE_FILE="/etc/systemd/system/CHM_agentd.service"
+    AGENT_SERVICE_FILE="/etc/systemd/system/CHM_agentd.service"
     log_info "Registering Systemd service unit: CHM_agentd"
     cat <<EOF | sudo tee "${AGENT_SERVICE_FILE}" > /dev/null
 [Unit]
 Description=CHM Ecosystem Component - CHM_agentd
 Documentation=https://github.com/End-YYDS/CHM
-Requires=hostd.socket
-After=hostd.socket
-BindsTo=hostd.service
-PartOf=hostd.service
+Requires=CHM_hostd.socket
+After=CHM_hostd.socket
+BindsTo=CHM_hostd.service
+PartOf=CHM_hostd.service
 
 [Service]
 Type=simple
@@ -295,6 +309,35 @@ ExecStart=/usr/local/bin/CHM_agentd
 Restart=on-failure
 RestartSec=5
 # Environment=RUST_LOG=info
+UMask=002
+
+[Install]
+WantedBy=multi-user.target
+EOF
+elif [[ "${APP_KEY}" == "controller" ]]; then
+    SERVICE_FILE="/etc/systemd/system/${APP_NAME}.service"
+    log_info "Registering Systemd service unit: ${APP_NAME}.service"
+
+
+    cat <<EOF | sudo tee "${SERVICE_FILE}" > /dev/null
+[Unit]
+Description=CHM Ecosystem Component - ${APP_NAME}
+Documentation=https://github.com/End-YYDS/CHM
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=${SERVICE_USER}
+Group=${SERVICE_GROUP}
+# Critical: Sets the context for config loading
+WorkingDirectory=/etc/CHM
+ExecStart=/usr/local/bin/${APP_NAME} serve
+Restart=always
+RestartSec=5
+# Environment defaults
+# Environment=RUST_LOG=info
+UMask=002
 
 [Install]
 WantedBy=multi-user.target
@@ -322,6 +365,7 @@ Restart=always
 RestartSec=5
 # Environment defaults
 # Environment=RUST_LOG=info
+UMask=002
 
 [Install]
 WantedBy=multi-user.target
@@ -340,9 +384,11 @@ agent_available=false
 if [[ "${APP_KEY}" == "agent" ]]; then
     host_service="CHM_hostd"
     agent_service="CHM_agentd"
-    SOCKET_PATH="/tmp/agent_hostd.sock"
+    # SOCKET_PATH="/tmp/agent_hostd.sock"
+    sudo systemctl list-unit-files --type=service --no-legend | grep -q "^${host_service}";
+    is_exists=$?
 
-    if sudo systemctl list-unit-files --type=service --no-legend | grep -q "^${host_service}"; then
+    if [[ "${is_exists}" -eq 0 ]]; then
         log_info "Starting ${host_service} service..."
         if ! sudo systemctl start "${host_service}.service"; then
             log_error "Failed to start ${host_service}"
@@ -360,23 +406,24 @@ if [[ "${APP_KEY}" == "agent" ]]; then
         sleep 1
     done
 
-    //TODO: 改service unit
-    if [[ -f "/etc/CHM/${CONFIG_FILE}" ]]; then
-        detected_path=$(sudo awk -F'=' '/^SocketPath[[:space:]]*=/{gsub(/"/,"",$2); gsub(/^[[:space:]]+|[[:space:]]+$/,"",$2); print $2; exit}' "/etc/CHM/${CONFIG_FILE}")
-        if [[ -n "${detected_path}" ]]; then
-            SOCKET_PATH="${detected_path}"
-        fi
-    fi
-    if [[ -S "${SOCKET_PATH}" ]]; then
-        sudo chown root:"${CHM_GROUP}" "${SOCKET_PATH}" || log_warn "Failed to adjust socket owner: ${SOCKET_PATH}"
-        sudo chmod 770 "${SOCKET_PATH}" || log_warn "Failed to adjust socket permissions: ${SOCKET_PATH}"
-        log_info "Socket ${SOCKET_PATH} permissions set to root:${CHM_GROUP} (770)"
-    else
-        log_warn "Can't find socket ${SOCKET_PATH}, unable to set permissions (HostD may not have created it yet?)"
-    fi
+    #TODO: 改service unit
+    # if [[ -f "${CONFIG_FILE}" ]]; then
+    #     detected_path=$(sudo awk -F'=' '/^SocketPath[[:space:]]*=/{gsub(/"/,"",$2); gsub(/^[[:space:]]+|[[:space:]]+$/,"",$2); print $2; exit}' "${CONFIG_FILE}")
+    #     if [[ -n "${detected_path}" ]]; then
+    #         SOCKET_PATH="${detected_path}"
+    #     fi
+    # fi
+    # if [[ -S "${SOCKET_PATH}" ]]; then
+    #     sudo chown root:"${CHM_GROUP}" "${SOCKET_PATH}" || log_warn "Failed to adjust socket owner: ${SOCKET_PATH}"
+    #     sudo chmod 770 "${SOCKET_PATH}" || log_warn "Failed to adjust socket permissions: ${SOCKET_PATH}"
+    #     log_info "Socket ${SOCKET_PATH} permissions set to root:${CHM_GROUP} (770)"
+    # else
+    #     log_warn "Can't find socket ${SOCKET_PATH}, unable to set permissions (HostD may not have created it yet?)"
+    # fi
 
-    if sudo systemctl list-unit-files --type=service --no-legend | grep -q "^${agent_service}"; then
-        agent_available=true
+    sudo systemctl list-unit-files --type=service --no-legend | grep -q "^${agent_service}";
+    is_exists=$?
+    if [[ "${is_exists}" -eq 0 ]]; then
         log_info "Starting ${agent_service} service..."
         if ! sudo systemctl restart "${agent_service}.service"; then
             log_error "Failed to start ${agent_service}"
@@ -391,36 +438,33 @@ if [[ "${APP_KEY}" == "agent" ]]; then
         fi
     fi
 
-    if [[ "${agent_available}" == true ]]; then
-        for _ in {1..20}; do
-            if sudo systemctl is-active --quiet "${agent_service}"; then
-                break
-            fi
-            sleep 1
-        done
-
-        log_info "Waiting for AgentD to confirm HostD connectivity..."
-        for _ in {1..30}; do
-        if sudo journalctl -u "${agent_service}" -n 50 --no-pager 2>/dev/null | grep -q "HostD health check passed"; then
-                connection_ok=true
-                break
-            fi
-            sleep 1
-        done
-
-        if [[ "${connection_ok}" == true ]]; then
-            log_success "AgentD connected to HostD; proceeding to permission hardening."
-        else
-            log_warn "AgentD did not confirm successful connection to HostD; skipping permission reset and privilege drop."
-        fi
+    sudo systemctl is-active --quiet CHM_hostd.socket
+    if [[ $? -ne 0 ]]; then
+        log_error "CHM_hostd.socket is not active after hostd start attempt."
+        exit 1
     fi
+    sudo systemctl is-active --quiet "${agent_service}"
+    if [[ $? -ne 0 ]]; then
+        log_error "${agent_service} is not active after start attempt."
+        exit 1
+    fi
+
+
+        # log_info "Waiting for AgentD to confirm HostD connectivity..."
+        # for _ in {1..30}; do
+        # if sudo journalctl -u "${agent_service}" -n 50 --no-pager 2>/dev/null | grep -q "HostD health check passed"; then
+        #         connection_ok=true
+        #         break
+        #     fi
+        #     sleep 1
+        # done
 fi
 
 # --------------------------------------------------------------------------- #
 # Permission reset & privilege drop (Agent only; runs after sudo-required steps)
 # --------------------------------------------------------------------------- #
 if [[ "${APP_KEY}" != "host" ]]; then
-    if [[ "${APP_KEY}" == "agent" && "${connection_ok}" != true ]]; then
+    if [[ "${APP_KEY}" == "agent" ]]; then
         log_warn "AgentD did not confirm successful connection to HostD; maintaining root execution."
     else
         log_info "Finalizing permissions and non-root execution..."
@@ -428,7 +472,7 @@ if [[ "${APP_KEY}" != "host" ]]; then
         if id -u "${CHM_USER}" >/dev/null 2>&1; then
             log_info "User '${CHM_USER}' already exists."
         else
-            if sudo useradd -r -M -s /usr/sbin/nologin -g "${CHM_GROUP}" "${CHM_USER}"; then
+            if sudo useradd --system -r -M -s /usr/sbin/nologin -g "${CHM_GROUP}" "${CHM_USER}"; then
                 log_success "User '${CHM_USER}' created with primary group '${CHM_GROUP}'."
             else
                 log_error "Failed to create user '${CHM_USER}'."
@@ -440,20 +484,20 @@ if [[ "${APP_KEY}" != "host" ]]; then
             sudo chown root:"${CHM_GROUP}" /etc/CHM /etc/CHM/db /etc/CHM/certs
             sudo chmod 2775 /etc/CHM /etc/CHM/db /etc/CHM/certs
 
-            if [[ -n "${CONFIG_FILE:-}" && -f "/etc/CHM/${CONFIG_FILE}" ]]; then
-                sudo chown root:"${CHM_GROUP}" "/etc/CHM/${CONFIG_FILE}"
-                # sudo chmod 660 "/etc/CHM/${CONFIG_FILE}"
+            if [[ -n "${CONFIG_FILE:-}" && -f "${CONFIG_FILE}" ]]; then
+                sudo chown root:"${CHM_GROUP}" "${CONFIG_FILE}"
+                # sudo chmod 660 "${CONFIG_FILE}"
 
-                if sudo grep -q '^RunAsUser' "/etc/CHM/${CONFIG_FILE}"; then
-                    sudo sed -i -E "s/^RunAsUser\\s*=\\s*\"[^\"]*\"/RunAsUser = \"${CHM_USER}\"/" "/etc/CHM/${CONFIG_FILE}"
+                if sudo grep -q '^RunAsUser' "${CONFIG_FILE}"; then
+                    sudo sed -i -E "s/^RunAsUser\\s*=\\s*\"[^\"]*\"/RunAsUser = \"${CHM_USER}\"/" "${CONFIG_FILE}"
                 else
-                    echo "RunAsUser = \"${CHM_USER}\"" | sudo tee -a "/etc/CHM/${CONFIG_FILE}" > /dev/null
+                    echo "RunAsUser = \"${CHM_USER}\"" | sudo tee -a "${CONFIG_FILE}" > /dev/null
                 fi
 
-                if sudo grep -q '^RunAsGroup' "/etc/CHM/${CONFIG_FILE}"; then
-                    sudo sed -i -E "s/^RunAsGroup\\s*=\\s*\"[^\"]*\"/RunAsGroup = \"${CHM_GROUP}\"/" "/etc/CHM/${CONFIG_FILE}"
+                if sudo grep -q '^RunAsGroup' "${CONFIG_FILE}"; then
+                    sudo sed -i -E "s/^RunAsGroup\\s*=\\s*\"[^\"]*\"/RunAsGroup = \"${CHM_GROUP}\"/" "${CONFIG_FILE}"
                 else
-                    echo "RunAsGroup = \"${CHM_GROUP}\"" | sudo tee -a "/etc/CHM/${CONFIG_FILE}" > /dev/null
+                    echo "RunAsGroup = \"${CHM_GROUP}\"" | sudo tee -a "${CONFIG_FILE}" > /dev/null
                 fi
             fi
         fi
@@ -475,6 +519,41 @@ if [[ "${APP_KEY}" != "host" ]]; then
 fi
 
 # --------------------------------------------------------------------------- #
+# Final Edits
+# --------------------------------------------------------------------------- #
+
+if [[ "${APP_KEY}" == "dns" ]]; then
+  cd $HOME
+  curl -O https://raw.githubusercontent.com/End-YYDS/CHM-Dns-Container/main/docker-compose.yml
+#   curl -O https://raw.githubusercontent.com/End-YYDS/CHM-Dns-Container/main/.env.default
+#   mv .env.default .env
+#   sudo sed -i "s#^POSTGRES_PASSWORD *= *\"[^\"]*\"#POSTGRES_PASSWORD = \"${NEW_PASSWORD}\"#" .env
+#   docker compose up -d
+elif [[ "${APP_KEY}" == "ldap" ]]; then
+  cd $HOME
+  curl -O https://raw.githubusercontent.com/End-YYDS/CHM-Ldap-Container/main/docker-compose.yml
+#   curl -O https://raw.githubusercontent.com/End-YYDS/CHM-Ldap-Container/main/.env.default
+#   mv .env.default .env
+#   sudo sed -i "s#^LDAP_ORGANISATION *= *\"[^\"]*\"#LDAP_ORGANISATION = \"CHM Inc.\"#" .env
+#   sudo sed -i "s#^LDAP_DOMAIN *= *\"[^\"]*\"#LDAP_DOMAIN = \"chm.com\"#" .env
+#   sudo sed -i "s#^LDAP_BASE_DN *= *\"[^\"]*\"#LDAP_BASE_DN = \"dc=chm,dc=com\"#" .env
+#   sudo sed -i "s#^LDAP_ADMIN_PASSWORD *= *\"[^\"]*\"#LDAP_ADMIN_PASSWORD = \"${NEW_PASSWORD}\"#" .env
+#   sudo sed -i "s#^LDAP_CONFIG_PASSWORD *= *\"[^\"]*\"#LDAP_CONFIG_PASSWORD = \"${NEW_PASSWORD}\"#" .env
+#   docker compose up -d
+fi
+
+if [[ "${APP_KEY}" == "dns" || "${APP_KEY}" == "ldap" ]]; then
+    curl -O http://192.168.1.6:8080/.env
+    docker compose up -d
+fi
+
+if [[ "${APP_KEY}" == "api" ]]; then
+    sudo sed -i "s#^Controller *= *\"[^\"]*\"#Controller = \"https://10.0.0.10\"#" ${CONFIG_FILE}
+fi
+
+sudo chmod -R 2775 /etc/CHM
+
+# --------------------------------------------------------------------------- #
 # Post-Installation Summary
 # --------------------------------------------------------------------------- #
 echo ""
@@ -486,8 +565,10 @@ echo ""
 log_info "Configuration Directory : /etc/CHM"
 log_info "Database Directory      : /etc/CHM/db"
 log_info "Certificate Directory   : /etc/CHM/certs"
-log_info "Configuration File      : /etc/CHM/${CONFIG_FILE}"
+log_info "Configuration File      : ${CONFIG_FILE}"
 echo ""
 echo "To start the service, run:"
 echo "  sudo systemctl start ${APP_NAME}"
+echo "To check OTP, run:"
+echo "  sudo journalctl -fu ${APP_NAME}"
 echo "---------------------------------------------------------------"
