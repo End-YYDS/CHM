@@ -1,5 +1,6 @@
 use crate::{
     communication::GrpcClients, server::restful::ControllerRestfulServer, ConResult, GlobalConfig,
+    ID,
 };
 use chm_cert_utils::CertUtils;
 use chm_grpc::{
@@ -24,19 +25,14 @@ pub async fn start_grpc(
     grpc_clients: Arc<RwLock<GrpcClients>>,
     config: (Option<PathBuf>, Option<PathBuf>, Option<PathBuf>),
 ) -> ConResult<()> {
-    let (ca_path, host, port, hostname) = GlobalConfig::with(|cfg| {
-        (
-            cfg.certificate.root_ca.clone(),
-            cfg.server.host.clone(),
-            cfg.server.port,
-            cfg.server.hostname.clone(),
-        )
+    let (ca_path, host, port) = GlobalConfig::with(|cfg| {
+        (cfg.certificate.root_ca.clone(), cfg.server.host.clone(), cfg.server.port)
     });
     let ip: IpAddr = host.parse()?;
     let addr = SocketAddr::new(ip, port);
-    tracing::info!("啟動 gRPC 伺服器 在 {addr}");
+
     // Todo: 憑證重載機制
-    let (key, cert) = CertUtils::cert_from_name(&hostname, None)?;
+    let (key, cert) = CertUtils::cert_from_name(ID, None)?;
     let ident = Identity::from_pem(cert, key);
     let ca_cert = CertUtils::load_cert(ca_path)?.to_pem()?;
     let mut tls = ServerTlsConfig::new()
@@ -71,6 +67,7 @@ pub async fn start_grpc(
                 .accept_compressed(CompressionEncoding::Zstd),
         )
         .serve_with_shutdown(addr, shutdown_signal);
+    tracing::info!("啟動 gRPC 伺服器 在 {addr}");
     if let Err(e) = server.await {
         tracing::error!("[gRPC] 啟動失敗: {e:?}");
     }
