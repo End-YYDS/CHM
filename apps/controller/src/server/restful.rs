@@ -51,6 +51,24 @@ enum NodeStatus {
     Danger = 2,
 }
 
+#[allow(clippy::result_large_err)]
+fn parse_socket_addr_with_default_port(
+    addr: &str,
+    default_port: u16,
+) -> Result<SocketAddr, Status> {
+    if let Ok(socket) = addr.parse::<SocketAddr>() {
+        return Ok(socket);
+    }
+    let with_port = if addr.contains(':') {
+        format!("[{}]:{}", addr, default_port)
+    } else {
+        format!("{}:{}", addr, default_port)
+    };
+    with_port.parse::<SocketAddr>().map_err(|e| {
+        Status::invalid_argument(format!("Invalid IP address format for '{}': {}", addr, e))
+    })
+}
+
 impl ControllerRestfulServer {
     fn agent_descriptors(filter: Option<&Uuid>) -> Vec<ServiceDescriptor> {
         GlobalConfig::with(|cfg| {
@@ -798,15 +816,20 @@ impl RestfulService for ControllerRestfulServer {
         use crate::Node;
         let req = request.into_inner();
         // TODO: 預設PC Group 要先在啟動時創建，添加Agent時直接加入預設Group(vni=1)
-        let ip: SocketAddr = req
-            .ip
-            .parse()
-            .map_err(|e| {
-                Status::invalid_argument(format!("Invalid IP address format for '{}': {e}", req.ip))
-            })
-            .inspect_err(|e| tracing::error!(?e))?;
+        // let ip: SocketAddr = req
+        //     .ip
+        //     .parse()
+        //     .map_err(|e| {
+        //         Status::invalid_argument(format!("Invalid IP address format for '{}':
+        // {e}", req.ip))     })
+        //     .inspect_err(|e| tracing::error!(?e))?;
+        let ip = parse_socket_addr_with_default_port(
+            &req.ip,
+            chm_project_const::ProjectConst::SOFTWARE_PORT,
+        )
+        .inspect_err(|e| tracing::error!(?e))?;
         let node_h = Node::new(
-            Some(req.ip),
+            Some(ip.to_string()),
             Some(req.password),
             self.grpc_clients.clone(),
             self.config.clone(),
