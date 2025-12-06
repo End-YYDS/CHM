@@ -37,6 +37,7 @@ use std::{
     sync::{atomic::Ordering::Relaxed, Arc},
     time::Duration,
 };
+use url::Url;
 #[cfg(debug_assertions)]
 use utoipa_swagger_ui::SwaggerUi;
 
@@ -58,23 +59,29 @@ software_init_define!(
 async fn main() -> ApiResult<()> {
     software_init!(Args);
     let (addr, rootca, key_path, cert_path, _check_is_controller) = server_init!();
-    let (controller_addr, frontend_origin, cookie_name, secure_key_bytes, same_site, cookie_secure) =
-        GlobalConfig::with(|cfg| {
-            let controller_addr = cfg.extend.controller.clone();
-            let frontend_origin = cfg.extend.security.frontend_origin.clone();
-            let cookie_name = cfg.extend.security.cookie_name.clone();
-            let secure_key =
-                chm_password::decode_key64_from_base64(cfg.extend.security.session_key.as_str());
-            let same_site = cfg.extend.security.same_site.clone();
-            (
-                controller_addr,
-                frontend_origin,
-                cookie_name,
-                secure_key.expect("無效的 Session Key"),
-                same_site,
-                cfg.extend.security.cookie_secure,
-            )
-        });
+    let (
+        mut controller_addr,
+        frontend_origin,
+        cookie_name,
+        secure_key_bytes,
+        same_site,
+        cookie_secure,
+    ) = GlobalConfig::with(|cfg| {
+        let controller_addr = cfg.extend.controller.clone();
+        let frontend_origin = cfg.extend.security.frontend_origin.clone();
+        let cookie_name = cfg.extend.security.cookie_name.clone();
+        let secure_key =
+            chm_password::decode_key64_from_base64(cfg.extend.security.session_key.as_str());
+        let same_site = cfg.extend.security.same_site.clone();
+        (
+            controller_addr,
+            frontend_origin,
+            cookie_name,
+            secure_key.expect("無效的 Session Key"),
+            same_site,
+            cfg.extend.security.cookie_secure,
+        )
+    });
     let identity = CertUtils::cert_from_path(&cert_path, &key_path, None)?;
     let mut tls =
         ClientTlsConfig::new().identity(Identity::from_pem(identity.1, identity.0)).ca_certificate(
@@ -84,6 +91,28 @@ async fn main() -> ApiResult<()> {
         tls = tls.use_key_log();
     }
     // TODO: 將EndPoint需要先查詢DNS
+    let mut ip_port = match Url::parse(&controller_addr) {
+        Ok(url) => Ok(url),
+        Err(url::ParseError::RelativeUrlWithoutBase) => {
+            Url::parse(&format!("https://{controller_addr}"))
+        }
+        Err(e) => Err(e),
+    }
+    .expect("Url -> IP 失敗，請確認輸入的網址格式正確");
+    if ip_port.port().is_none() {
+        let scheme = ip_port.scheme();
+        if scheme != "https" {
+            panic!("僅支援 https:// 開頭的網址");
+        } else {
+            ip_port.host_str().expect("無法解析主機名稱").to_string()
+        };
+        let _ = ip_port.set_port(Some(ProjectConst::SOFTWARE_PORT));
+        tracing::warn!(
+            "目標網址未指定 Port，已自動補上預設 Port 11209，新的目標網址為: {controller_addr}"
+        );
+    }
+    controller_addr = ip_port.to_string();
+    controller_addr = controller_addr.trim_end_matches('/').to_string();
     let endpoint = Endpoint::from_shared(controller_addr.clone())
         .map_err(|e| format!("無效的 Controller 地址: {e}"))
         .expect("建立 gRPC Endpoint 失敗")
