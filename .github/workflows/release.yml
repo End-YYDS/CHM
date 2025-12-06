@@ -114,7 +114,7 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
 
     env:
       SQLX_OFFLINE: "true"
@@ -131,6 +131,10 @@ jobs:
 
       # - name: Run tests
       #   run: cargo test --workspace --locked
+
+      - name: Install musl tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
 
       - name: Build workspace in release mode
         run: cargo build --workspace --release --locked --target ${{ matrix.target }}
@@ -166,13 +170,18 @@ jobs:
 
           echo "Collected binaries in ${OUT_DIR}:"
           ls -lh "${OUT_DIR}"
-      
+
       - name: Upload binaries as artifact
         uses: actions/upload-artifact@v4
         with:
           name: CHM-${{ matrix.target }}
           path: dist/${{ matrix.target }}/*
           if-no-files-found: error
+
+      - name: Verify static binaries
+        run: |
+          file target/x86_64-unknown-linux-musl/release/CHM_agentd
+          ldd  target/x86_64-unknown-linux-musl/release/CHM_agentd || true
 
   github-release:
     name: Create GitHub Release
