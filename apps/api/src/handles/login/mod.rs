@@ -55,8 +55,8 @@ async fn login(
     let resp = h
         .login(gLoginRequest { username: data.username.clone(), password: data.password })
         .await
-        .map_err(|e| AppError::Forbidden(e.message().to_string()))
-        .inspect_err(|e| tracing::error!(?e))?
+        .inspect_err(|e| tracing::error!("gRPC login error: {e:?}"))
+        .map_err(|e| AppError::Forbidden(e.message().to_string()))?
         .into_inner()
         .result
         .unwrap();
