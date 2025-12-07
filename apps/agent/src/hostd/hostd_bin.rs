@@ -10,16 +10,14 @@ mod unix_main {
     use caps::{CapSet, Capability};
     use chm_grpc::tonic::transport::Server;
     use nix::unistd::{chown, close, geteuid, Gid, Uid};
-    use systemd::daemon::listen_fds;
-    use std::env;
-    use std::os::unix::io::FromRawFd;
     use std::{
-        os::unix::fs::PermissionsExt,
-        os::unix::net::UnixListener as StdUnixListener,
+        env,
+        os::unix::{fs::PermissionsExt, io::FromRawFd, net::UnixListener as StdUnixListener},
         path::Path,
         sync::{atomic::Ordering::Relaxed, Arc},
         time::Duration,
     };
+    use systemd::daemon::listen_fds;
     use tokio::{fs, net::UnixListener, signal, sync::Semaphore};
     use tokio_stream::wrappers::UnixListenerStream;
     use tracing::{error, info, warn};
@@ -222,17 +220,11 @@ mod unix_main {
         env::remove_var("LISTEN_FDS");
         env::remove_var("LISTEN_FDNAMES");
 
-        let label = names_iter
-            .next()
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| format!("fd:{fd}"));
+        let label =
+            names_iter.next().filter(|s| !s.is_empty()).unwrap_or_else(|| format!("fd:{fd}"));
 
-        let listener = unsafe {
-            StdUnixListener::from_raw_fd(fd)
-        };
-        listener
-            .set_nonblocking(true)
-            .context("設定 systemd socket nonblocking 失敗")?;
+        let listener = unsafe { StdUnixListener::from_raw_fd(fd) };
+        listener.set_nonblocking(true).context("設定 systemd socket nonblocking 失敗")?;
 
         Ok(Some((listener, label)))
     }
