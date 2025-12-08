@@ -51,4 +51,3 @@ uzers = "0.12.1"
 uuid = { workspace = true, features = ["v4"] }
 chm-password = { workspace = true }
 nix = { version = "0.30.1", default-features = false, features = ["fs", "user"] }
-systemd = "0.10"

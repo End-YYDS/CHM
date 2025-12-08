@@ -12,16 +12,21 @@ mod unix_main {
     use nix::unistd::{chown, close, geteuid, Gid, Uid};
     use std::{
         env,
-        os::unix::{fs::PermissionsExt, io::FromRawFd, net::UnixListener as StdUnixListener},
+        os::unix::{
+            fs::PermissionsExt,
+            io::{FromRawFd, RawFd},
+            net::UnixListener as StdUnixListener,
+        },
         path::Path,
         sync::{atomic::Ordering::Relaxed, Arc},
         time::Duration,
     };
-    use systemd::daemon::listen_fds;
     use tokio::{fs, net::UnixListener, signal, sync::Semaphore};
     use tokio_stream::wrappers::UnixListenerStream;
     use tracing::{error, info, warn};
     use uzers::get_group_by_name;
+
+    const SD_LISTEN_FDS_START: RawFd = 3;
 
     #[derive(FromArgs, Debug, Clone)]
     /// HostD 執行參數
@@ -199,26 +204,47 @@ mod unix_main {
     }
 
     fn take_systemd_socket() -> Result<Option<(StdUnixListener, String)>> {
-        let fdnames = env::var("LISTEN_FDNAMES").unwrap_or_default();
-        let mut names_iter = fdnames.split(':').map(|s| s.trim().to_string());
+        let listen_pid_env = match env::var("LISTEN_PID") {
+            Ok(val) => val,
+            Err(_) => return Ok(None),
+        };
 
-        let fds = listen_fds(false).context("讀取 systemd socket 失敗")?;
-        if fds.is_empty() {
+        let listen_pid: u32 = listen_pid_env.parse().context("LISTEN_PID 不是有效的數字")?;
+        if listen_pid != std::process::id() {
             return Ok(None);
         }
 
-        let mut iter = fds.iter();
-        let fd = match iter.next() {
-            Some(fd) => fd,
-            None => return Ok(None),
+        let listen_fds_env = match env::var("LISTEN_FDS") {
+            Ok(val) => val,
+            Err(_) => return Ok(None),
         };
-        for extra_fd in iter {
-            let _ = close(extra_fd);
+
+        let listen_fds: RawFd = listen_fds_env.parse().context("LISTEN_FDS 不是有效的數字")?;
+        if listen_fds <= 0 {
+            return Ok(None);
+        }
+
+        let fdnames = env::var("LISTEN_FDNAMES").unwrap_or_default();
+        let mut names_iter = fdnames.split(':').map(|s| s.trim().to_string());
+
+        let mut primary_fd: Option<RawFd> = None;
+        for offset in 0..listen_fds {
+            let fd = SD_LISTEN_FDS_START + offset;
+            if primary_fd.is_none() {
+                primary_fd = Some(fd);
+            } else {
+                let _ = close(fd);
+            }
         }
 
         env::remove_var("LISTEN_PID");
         env::remove_var("LISTEN_FDS");
         env::remove_var("LISTEN_FDNAMES");
+
+        let fd = match primary_fd {
+            Some(fd) => fd,
+            None => return Ok(None),
+        };
 
         let label =
             names_iter.next().filter(|s| !s.is_empty()).unwrap_or_else(|| format!("fd:{fd}"));
