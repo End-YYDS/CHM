@@ -91,7 +91,11 @@ pub struct AgentExtension {
 
 impl AgentExtension {
     fn default_socket_path() -> PathBuf {
-        PathBuf::from("/tmp/agent_hostd.sock")
+        if cfg!(debug_assertions) {
+            PathBuf::from("/tmp/agent_hostd.sock")
+        } else {
+            PathBuf::from("/run/chm/CHM_hostd.sock")
+        }
     }
 
     fn default_info_concurrency() -> usize {
