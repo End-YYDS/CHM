@@ -31,7 +31,7 @@ RESET="\033[0m"
 CHM_GROUP="chm"
 CHM_USER="chm-user"
 INSTALL_DIR="/usr/local/bin"
-CONFIG_ROOT="/etc/CHM"
+APP_ROOT="/etc/CHM"
 
 # Logging Functions
 log_info()    { printf "${BLUE}[INFO]${RESET} %s\n" "$*"; }
@@ -130,19 +130,11 @@ provision_system() {
         fi
     fi
 
-    # 2. Add User to Group
-    if ! groups "${USER}" | grep -q "\b${CHM_GROUP}\b"; then
-        sudo usermod -aG "${CHM_GROUP}" "${USER}" || true
-        log_info "Added current user '${USER}' to group '${CHM_GROUP}'."
-    else
-        log_info "User '${USER}' is already in group '${CHM_GROUP}'."
-    fi
-
-    # 3. Create Directories
-    log_info "Creating directory structure under ${CONFIG_ROOT}..."
-    sudo install -d -o root -g "${CHM_GROUP}" -m 2775 "${CONFIG_ROOT}"
-    sudo install -d -o root -g "${CHM_GROUP}" -m 2775 "${CONFIG_ROOT}/db"
-    sudo install -d -o root -g "${CHM_GROUP}" -m 2775 "${CONFIG_ROOT}/certs"
+    # 2. Create Directories
+    log_info "Creating directory structure under ${APP_ROOT}..."
+    sudo install -d -o root -g "${CHM_GROUP}" -m 2775 "${APP_ROOT}"
+    sudo install -d -o root -g "${CHM_GROUP}" -m 2775 "${APP_ROOT}/db"
+    sudo install -d -o root -g "${CHM_GROUP}" -m 2775 "${APP_ROOT}/certs"
     log_success "Directories created successfully."
 }
 
@@ -206,20 +198,17 @@ fetch_and_install() {
 bootstrap_config() {
     log_section "Configuration Bootstrap"
 
-    cd "${CONFIG_ROOT}"
+    cd "${APP_ROOT}"
 
     # Generate Config
     local bin_path="${INSTALL_DIR}/${APP_NAME}"
 
     log_info "Generating default configuration for ${APP_NAME}..."
-    if ! sudo "${bin_path}" -i >/dev/null 2>&1; then
-        log_info "Direct generation failed/unsupported. Capturing stdout..."
-        sudo sh -c "${bin_path} -i > ${APP_NAME}_config.toml.example" || true
-    fi
+    sudo "${bin_path}" -i
 
     # Rename .example files
-    CONFIG_FILE="${CONFIG_ROOT}/config/${APP_NAME}_config.toml"
-    local files=("${CONFIG_ROOT}"/config/*.example)
+    CONFIG_FILE="${APP_ROOT}/config/${APP_NAME}_config.toml"
+    local files=("${APP_ROOT}"/config/*.example)
 
     # Check if files exist before iterating
     if [[ -e "${files[0]}" ]]; then
@@ -244,6 +233,8 @@ bootstrap_config() {
     else
         log_warn "Config file not found at ${CONFIG_FILE}. Skipping patches."
     fi
+
+    sudo chmod 2775 -R ${APP_ROOT}
 }
 
 # =========================================================================== #
@@ -255,10 +246,10 @@ init_specific_component() {
 
     case "${APP_KEY}" in
         ca)
-            local root_ca_path="${CONFIG_ROOT}/certs/rootCA.pem"
+            local root_ca_path="${APP_ROOT}/certs/rootCA.pem"
             if [[ ! -f "${root_ca_path}" ]]; then
                 log_info "Generating Root CA..."
-                cd "${CONFIG_ROOT}/certs"
+                cd "${APP_ROOT}/certs"
                 if sudo CHMmCA --root-ca; then
                     log_success "Root CA generated."
                 else
@@ -270,11 +261,11 @@ init_specific_component() {
             ;;
         dns)
             # 1. Ask for Username (Default: chm-user)
-            read -r -p "Enter database username [default: chm-user]: " DB_USER
+            read -r -p "Enter database username [default: chm-user]: " DB_USER || true
             DB_USER="${DB_USER:-chm-user}"
 
             # 2. Ask for Password (Default: 12345678)
-            read -s -p "Enter password for the DNS service database [default: 12345678]: " NEW_PASSWORD
+            read -s -p "Enter password for the DNS service database [default: 12345678]: " NEW_PASSWORD || true
             NEW_PASSWORD="${NEW_PASSWORD:-12345678}"
 
             echo ""
@@ -284,16 +275,21 @@ init_specific_component() {
             ;;
         ldap)
             # 1. Ask for Username (Default: admin)
-            read -r -p "Enter LDAP bind username [default: admin]: " LDAP_USER
+            read -r -p "Enter LDAP bind username [default: admin]: " LDAP_USER || true
             LDAP_USER="${LDAP_USER:-admin}"
 
             # 2. Ask for Password (Default: 12345678)
-            read -s -p "Enter password for the LDAP service database [default: 12345678]: " NEW_PASSWORD
+            read -s -p "Enter password for the LDAP service database [default: 12345678]: " NEW_PASSWORD || true
             NEW_PASSWORD="${NEW_PASSWORD:-12345678}"
 
             echo ""
             log_info "Updating LDAP bind password..."
             sudo sed -i "s|bind_password = \"admin\"|bind_password = \"${NEW_PASSWORD}\"|g" "${CONFIG_FILE}"
+
+            if [[ -n "${LDAP_USER:-}" && "${LDAP_USER}" != "admin" ]]; then
+                log_info "Non-default LDAP bind user or password detected. Adding -u -p flag."
+                sudo CHM_ldapd -u ${LDAP_USER} -p ${NEW_PASSWORD}
+            fi
             ;;
         api)
             log_info "Patching API Controller address..."
@@ -327,7 +323,7 @@ After=CHM_hostd.socket
 Type=simple
 User=root
 Group=${CHM_GROUP}
-WorkingDirectory=${CONFIG_ROOT}
+WorkingDirectory=${APP_ROOT}
 ExecStart=${INSTALL_DIR}/CHM_hostd
 Restart=always
 RestartSec=5
@@ -361,7 +357,7 @@ EOF
 Description=CHM Ecosystem Component - CHM_agentd
 Documentation=https://github.com/End-YYDS/CHM
 Requires=CHM_hostd.socket
-After=CHM_hostd.socket
+After=CHM_hostd.service CHM_hostd.socket network-online.target
 BindsTo=CHM_hostd.service
 PartOf=CHM_hostd.service
 
@@ -369,7 +365,7 @@ PartOf=CHM_hostd.service
 Type=simple
 User=root
 Group=${CHM_GROUP}
-WorkingDirectory=${CONFIG_ROOT}
+WorkingDirectory=${APP_ROOT}
 ExecStart=${INSTALL_DIR}/CHM_agentd
 Restart=on-failure
 RestartSec=5
@@ -389,13 +385,6 @@ EOF
             exec_cmd="${exec_cmd} serve"
         fi
 
-        if [[ "${APP_KEY}" == "ldap" ]]; then
-            if [[ -n "${LDAP_USER:-}" && "${LDAP_USER}" != "admin" ]]; then
-                log_info "Non-default LDAP bind user or password detected. Adding -u -p flag."
-                exec_cmd="${exec_cmd} -u ${LDAP_USER} -p ${NEW_PASSWORD}"
-            fi
-        fi
-
         log_info "Creating ${APP_NAME}.service..."
         cat <<EOF | sudo tee "${svc_file}" > /dev/null
 [Unit]
@@ -408,7 +397,7 @@ Wants=network-online.target
 Type=simple
 User=${SERVICE_USER}
 Group=${SERVICE_GROUP}
-WorkingDirectory=${CONFIG_ROOT}
+WorkingDirectory=${APP_ROOT}
 ExecStart=${exec_cmd}
 Restart=always
 RestartSec=5
@@ -520,8 +509,8 @@ apply_permissions() {
             fi
 
             # Directory Ownership
-            sudo chown -R root:"${CHM_GROUP}" "${CONFIG_ROOT}"
-            sudo chmod -R 2775 "${CONFIG_ROOT}"
+            sudo chown -R root:"${CHM_GROUP}" "${APP_ROOT}"
+            sudo chmod -R 2775 "${APP_ROOT}"
 
             # Patch Config
             if [[ -n "${CONFIG_FILE:-}" && -f "${CONFIG_FILE}" ]]; then
@@ -565,27 +554,82 @@ apply_permissions() {
 setup_extras() {
     log_section "Finalizing Setup & Docker Integration"
 
-    cd "$HOME"
-
     if [[ "${APP_KEY}" == "dns" ]]; then
+        sudo mkdir -p /root/DNS
+        # +sudo
+        cd /root/DNS
+
         log_info "Downloading DNS Docker Compose..."
-        curl -O https://raw.githubusercontent.com/End-YYDS/CHM-Dns-Container/main/docker-compose.yml
-        curl -O https://raw.githubusercontent.com/End-YYDS/CHM-Dns-Container/main/.env.default
-        mv .env.default .env
+
+        sudo curl -O https://raw.githubusercontent.com/End-YYDS/CHM-Dns-Container/main/docker-compose.yml
+        sudo curl -O https://raw.githubusercontent.com/End-YYDS/CHM-Dns-Container/main/.env.default
+        sudo mv .env.default .env
+
         sudo sed -i "s#^POSTGRES_USER *= *\"[^\"]*\"#POSTGRES_USER = \"${DB_USER}\"#" .env
         sudo sed -i "s#^POSTGRES_PASSWORD *= *\"[^\"]*\"#POSTGRES_PASSWORD = \"${NEW_PASSWORD}\"#" .env
-        docker compose up -d
+
+        sudo docker compose down -v || true
+        sudo docker compose up -d
     elif [[ "${APP_KEY}" == "ldap" ]]; then
+        sudo mkdir -p /root/LDAP
+        sudo cd /root/LDAP
+
         log_info "Downloading LDAP Docker Compose..."
-        curl -O https://raw.githubusercontent.com/End-YYDS/CHM-Ldap-Container/main/docker-compose.yml
-        curl -O https://raw.githubusercontent.com/End-YYDS/CHM-Ldap-Container/main/.env.default
-        mv .env.default .env
+
+        sudo curl -O https://raw.githubusercontent.com/End-YYDS/CHM-Ldap-Container/main/docker-compose.yml
+        sudo curl -O https://raw.githubusercontent.com/End-YYDS/CHM-Ldap-Container/main/.env.default
+        sudo mv .env.default .env
+
         sudo sed -i "s#^LDAP_ORGANISATION *= *\"[^\"]*\"#LDAP_ORGANISATION = \"CHM Inc.\"#" .env
         sudo sed -i "s#^LDAP_DOMAIN *= *\"[^\"]*\"#LDAP_DOMAIN = \"chm.com\"#" .env
         sudo sed -i "s#^LDAP_BASE_DN *= *\"[^\"]*\"#LDAP_BASE_DN = \"dc=chm,dc=com\"#" .env
         sudo sed -i "s#^LDAP_ADMIN_PASSWORD *= *\"[^\"]*\"#LDAP_ADMIN_PASSWORD = \"${NEW_PASSWORD}\"#" .env
         sudo sed -i "s#^LDAP_CONFIG_PASSWORD *= *\"[^\"]*\"#LDAP_CONFIG_PASSWORD = \"${NEW_PASSWORD}\"#" .env
-        docker compose up -d
+
+        # Check Dependencies
+        log_info "Checking dependencies..."
+        if ! command -v unzip >/dev/null 2>&1; then
+            log_info "Installing 'unzip'..."
+            sudo apt-get update && sudo apt-get install -y unzip
+        fi
+
+        local url="https://raw.githubusercontent.com/End-YYDS/CHM-Ldap-Container/main/bootstrap.zip"
+        local asset_name="bootstrap.zip"
+        local target_dir="/root/LDAP"
+        log_info "Downloading: ${url}"
+        if curl -fsSL -o "${asset_name}" "${url}"; then
+            log_success "Downloaded: ${asset_name}"
+
+            # Unzip
+            if sudo unzip -o -q "${asset_name}" -d "${target_dir}"; then
+                log_success "Extracted successfully."
+            else
+                log_error "Unzip failed."
+                exit 1
+            fi
+
+            log_success "bootstrap.zip deployed to ${target_dir}."
+            rm -f "${asset_name}"
+        else
+            log_error "Download failed."
+            exit 1
+        fi
+
+        sudo docker compose down -v || true
+        sudo rm -rf data || true
+        sudo docker compose up -d --build phpldapadmin
+        for i in {1..15}; do
+            if sudo docker compose exec -T openldap ldapsearch -Y EXTERNAL -H ldapi:/// -s base -b "" dn >/dev/null 2>&1; then
+                log_info "LDAP ready!"
+                break
+            fi
+            log_info "Waiting for LDAP to be ready..."
+            sleep 2
+        done
+        sleep 3
+
+        sudo docker compose exec openldap ldapmodify -Y EXTERNAL -H ldapi:/// -f /container/service/slapd/assets/config/bootstrap/ldif/custom/3.ldif
+        sudo docker compose exec openldap ldapmodify -Y EXTERNAL -H ldapi:/// -f /container/service/slapd/assets/config/bootstrap/ldif/custom/4.ldif
     fi
 
     # if [[ "${APP_KEY}" == "dns" || "${APP_KEY}" == "ldap" ]]; then
@@ -601,11 +645,19 @@ setup_extras() {
     # fi
 
     # Final Permission Sweep
-    sudo chmod -R 2775 "${CONFIG_ROOT}"
+    sudo chmod -R 2775 "${APP_ROOT}"
 
     # Enable Services
     log_info "Enabling ${APP_NAME} service to start on boot..."
-    sudo systemctl enable --now "${APP_NAME}.service"
+
+    if [[ "${APP_KEY}" == "agent" ]]; then
+      sudo systemctl enable --now CHM_hostd.socket
+      sudo systemctl enable --now CHM_hostd.service
+      sudo systemctl enable --now CHM_agentd.service
+      return
+    else
+      sudo systemctl enable --now "${APP_NAME}.service"
+    fi
 }
 
 # =========================================================================== #
@@ -617,9 +669,9 @@ print_summary() {
     printf "${GREEN}${BOLD}---------------------------------------------------------------${RESET}\n"
     printf "${GREEN}${BOLD} Installation Complete: ${APP_NAME} ${RESET}\n"
     printf "${GREEN}${BOLD}---------------------------------------------------------------${RESET}\n"
-    log_info "Configuration Directory : ${CONFIG_ROOT}"
-    log_info "Database Directory      : ${CONFIG_ROOT}/db"
-    log_info "Certificate Directory   : ${CONFIG_ROOT}/certs"
+    log_info "Configuration Directory : ${APP_ROOT}"
+    log_info "Database Directory      : ${APP_ROOT}/db"
+    log_info "Certificate Directory   : ${APP_ROOT}/certs"
     log_info "Configuration File      : ${CONFIG_FILE}"
     echo ""
     if [[ "${APP_KEY}" == "agent" ]]; then
@@ -631,6 +683,15 @@ print_summary() {
       echo "  sudo systemctl stop CHM_hostd.service"
       echo "To check Agent OTP, run:"
       echo "  sudo journalctl -fu CHM_agentd.service"
+    if [[ "${APP_KEY}" == "controller" ]]; then
+      echo "To initialize the controller, run:"
+      echo "  sudo CHMcd init -H https://<CA_ip> -c <CA_OTP> -d <DNS_OTP>"
+      echo "To add other services, run:"
+      echo "  sudo CHMcd add -H https://<Service_ip> -p <Service_OTP>"
+      echo "To start the service, run:"
+      echo "  sudo systemctl start ${APP_NAME}.service"
+      echo "To stop the service, run:"
+      echo "  sudo systemctl stop ${APP_NAME}.service"
     else
       echo "To start the service, run:"
       echo "  sudo systemctl start ${APP_NAME}.service"
@@ -669,7 +730,7 @@ frontend_init() {
         log_error "Failed to retrieve the latest frontend tag."
         exit 1
     fi
-    log_info "Detected version: ${GREEN}${latest_tag}${RESET}"
+    log_info "Detected version: ${latest_tag}"
 
     # Download & Extract
     local asset_name="frontend-${latest_tag}.zip"
