@@ -9,9 +9,14 @@ mod unix_main {
     use argh::FromArgs;
     use caps::{CapSet, Capability};
     use chm_grpc::tonic::transport::Server;
-    use nix::unistd::{chown, geteuid, Gid, Uid};
+    use nix::unistd::{chown, close, geteuid, Gid, Uid};
     use std::{
-        os::unix::fs::PermissionsExt,
+        env,
+        os::unix::{
+            fs::PermissionsExt,
+            io::{FromRawFd, RawFd},
+            net::UnixListener as StdUnixListener,
+        },
         path::Path,
         sync::{atomic::Ordering::Relaxed, Arc},
         time::Duration,
@@ -20,6 +25,8 @@ mod unix_main {
     use tokio_stream::wrappers::UnixListenerStream;
     use tracing::{error, info, warn};
     use uzers::get_group_by_name;
+
+    const SD_LISTEN_FDS_START: RawFd = 3;
 
     #[derive(FromArgs, Debug, Clone)]
     /// HostD 執行參數
@@ -55,39 +62,22 @@ mod unix_main {
 
         let socket_path =
             GlobalConfig::with(|cfg| cfg.extend.socket_path.clone()).display().to_string();
-        if let Err(err) = fs::remove_file(&socket_path).await {
-            if err.kind() != std::io::ErrorKind::NotFound {
-                return Err(err.into());
+        let (listener, _guard, listener_label) = if !cfg!(debug_assertions) {
+            if let Some((systemd_listener, name)) =
+                take_systemd_socket().context("取得 systemd socket 失敗")?
+            {
+                let listener = UnixListener::from_std(systemd_listener)
+                    .context("將 systemd socket 轉為非同步監聽器失敗")?;
+                (listener, None, format!("unix://{name} (systemd)"))
+            } else {
+                let (listener, guard) =
+                    bind_unix_socket(&socket_path, cfg!(debug_assertions)).await?;
+                (listener, Some(guard), format!("unix://{socket_path} (fallback)"))
             }
-        }
-
-        let listener = UnixListener::bind(&socket_path)
-            .with_context(|| format!("無法綁定 UNIX socket {}", socket_path))?;
-        let _guard = SocketGuard::new(socket_path.clone());
-        if cfg!(debug_assertions) {
-            std::fs::set_permissions(&socket_path, std::fs::Permissions::from_mode(0o770))
-                .with_context(|| format!("設定 socket 權限失敗 {}", socket_path))?;
-
-            let run_as_group =
-                GlobalConfig::with(|cfg| cfg.extend.run_as_group.clone()).trim().to_owned();
-            if !run_as_group.is_empty() {
-                let group = get_group_by_name(&run_as_group).ok_or_else(|| {
-                    anyhow!("設定中的 run_as_group '{}' 在系統中不存在", run_as_group)
-                })?;
-                chown(
-                    Path::new(&socket_path),
-                    Some(Uid::from_raw(0)),
-                    Some(Gid::from_raw(group.gid())),
-                )
-                .map_err(|err| {
-                    anyhow!("設定 socket {} 群組為 {} 失敗: {}", socket_path, run_as_group, err)
-                })?;
-                info!(
-                    "[HostD] socket {} 擁有者已調整為 root:{} (mode 770)",
-                    socket_path, run_as_group
-                );
-            }
-        }
+        } else {
+            let (listener, guard) = bind_unix_socket(&socket_path, true).await?;
+            (listener, Some(guard), format!("unix://{socket_path}"))
+        };
 
         let concurrency = GlobalConfig::with(|cfg| cfg.extend.file_concurrency).max(1);
         let semaphore = Arc::new(Semaphore::new(concurrency));
@@ -102,7 +92,7 @@ mod unix_main {
             HostdGrpcService::new(Arc::clone(&semaphore), sysinfo_timeout, command_timeout);
 
         info!(
-            "[HostD] gRPC 服務啟動於 unix://{socket_path} (max_concurrency: {concurrency}, \
+            "[HostD] gRPC 服務啟動於 {listener_label} (max_concurrency: {concurrency}, \
              get_timeout: {:?}, command_timeout: {:?})",
             sysinfo_timeout, command_timeout
         );
@@ -211,6 +201,104 @@ mod unix_main {
                 }
             }
         }
+    }
+
+    fn take_systemd_socket() -> Result<Option<(StdUnixListener, String)>> {
+        let listen_pid_env = match env::var("LISTEN_PID") {
+            Ok(val) => val,
+            Err(_) => return Ok(None),
+        };
+
+        let listen_pid: u32 = listen_pid_env.parse().context("LISTEN_PID 不是有效的數字")?;
+        if listen_pid != std::process::id() {
+            return Ok(None);
+        }
+
+        let listen_fds_env = match env::var("LISTEN_FDS") {
+            Ok(val) => val,
+            Err(_) => return Ok(None),
+        };
+
+        let listen_fds: RawFd = listen_fds_env.parse().context("LISTEN_FDS 不是有效的數字")?;
+        if listen_fds <= 0 {
+            return Ok(None);
+        }
+
+        let fdnames = env::var("LISTEN_FDNAMES").unwrap_or_default();
+        let mut names_iter = fdnames.split(':').map(|s| s.trim().to_string());
+
+        let mut primary_fd: Option<RawFd> = None;
+        for offset in 0..listen_fds {
+            let fd = SD_LISTEN_FDS_START + offset;
+            if primary_fd.is_none() {
+                primary_fd = Some(fd);
+            } else {
+                let _ = close(fd);
+            }
+        }
+
+        env::remove_var("LISTEN_PID");
+        env::remove_var("LISTEN_FDS");
+        env::remove_var("LISTEN_FDNAMES");
+
+        let fd = match primary_fd {
+            Some(fd) => fd,
+            None => return Ok(None),
+        };
+
+        let label =
+            names_iter.next().filter(|s| !s.is_empty()).unwrap_or_else(|| format!("fd:{fd}"));
+
+        let listener = unsafe { StdUnixListener::from_raw_fd(fd) };
+        listener.set_nonblocking(true).context("設定 systemd socket nonblocking 失敗")?;
+
+        Ok(Some((listener, label)))
+    }
+
+    async fn bind_unix_socket(
+        socket_path: &str,
+        manage_permissions: bool,
+    ) -> Result<(UnixListener, SocketGuard)> {
+        if let Err(err) = fs::remove_file(socket_path).await {
+            if err.kind() != std::io::ErrorKind::NotFound {
+                return Err(err.into());
+            }
+        }
+
+        let std_listener = StdUnixListener::bind(socket_path)
+            .with_context(|| format!("無法綁定 UNIX socket {}", socket_path))?;
+        std_listener
+            .set_nonblocking(true)
+            .with_context(|| format!("設定 socket {} nonblocking 失敗", socket_path))?;
+
+        if manage_permissions {
+            std::fs::set_permissions(socket_path, std::fs::Permissions::from_mode(0o770))
+                .with_context(|| format!("設定 socket 權限失敗 {}", socket_path))?;
+
+            let run_as_group =
+                GlobalConfig::with(|cfg| cfg.extend.run_as_group.clone()).trim().to_owned();
+            if !run_as_group.is_empty() {
+                let group = get_group_by_name(&run_as_group).ok_or_else(|| {
+                    anyhow!("設定中的 run_as_group '{}' 在系統中不存在", run_as_group)
+                })?;
+                chown(
+                    Path::new(socket_path),
+                    Some(Uid::from_raw(0)),
+                    Some(Gid::from_raw(group.gid())),
+                )
+                .map_err(|err| {
+                    anyhow!("設定 socket {} 群組為 {} 失敗: {}", socket_path, run_as_group, err)
+                })?;
+                info!(
+                    "[HostD] socket {} 擁有者已調整為 root:{} (mode 770)",
+                    socket_path, run_as_group
+                );
+            }
+        }
+
+        let listener = UnixListener::from_std(std_listener)
+            .with_context(|| format!("建立非同步 UNIX listener 失敗 {}", socket_path))?;
+        Ok((listener, SocketGuard::new(socket_path.to_string())))
     }
 }
 
