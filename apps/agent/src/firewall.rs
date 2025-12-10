@@ -315,8 +315,32 @@ pub async fn execute_firewall_delete(argument: &str, sys: &SystemInfo) -> Result
         return Err("firewall_delete requires RuleId greater than 0".to_string());
     }
 
-    let args =
-        vec!["-D".to_string(), payload.chain.as_str().to_string(), payload.rule_id.to_string()];
+    let status = firewall_info_structured(sys)
+        .await
+        .map_err(|e| format!("failed to fetch firewall status: {}", e))?;
+    let chain_name = payload.chain.as_str();
+    let mut resolved_line: Option<i32> = None;
+
+    for chain in status.chains.iter().filter(|c| c.name.eq_ignore_ascii_case(chain_name)) {
+        let mut idx = 0;
+        for rule in &chain.rules {
+            if !matches!(
+                rule.target,
+                FirewallPolicy::Accept | FirewallPolicy::Drop | FirewallPolicy::Reject
+            ) {
+                continue;
+            }
+            idx += 1;
+            if idx == payload.rule_id as usize {
+                resolved_line = rule.id.parse::<i32>().ok();
+                break;
+            }
+        }
+    }
+
+    let real_line = resolved_line.ok_or_else(|| "firewall_delete: RuleId not found".to_string())?;
+
+    let args = vec!["-D".to_string(), chain_name.to_string(), real_line.to_string()];
 
     run_firewall_mutation(sys, &args).await?;
 
@@ -368,7 +392,14 @@ pub async fn execute_firewall_edit_policy(
 
 fn convert_firewall_status(dto: FirewallStatusDto) -> FirewallStatus {
     let status = parse_firewall_status_state(&dto.status);
-    let chains = dto.chains.into_iter().map(convert_firewall_chain).collect();
+    let chains = dto
+        .chains
+        .into_iter()
+        .filter(|chain| {
+            matches!(chain.name.to_ascii_uppercase().as_str(), "INPUT" | "FORWARD" | "OUTPUT")
+        })
+        .map(convert_firewall_chain)
+        .collect();
 
     FirewallStatus { status, chains }
 }

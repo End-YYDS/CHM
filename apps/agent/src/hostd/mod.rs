@@ -1100,7 +1100,7 @@ fn run_iptables_variant(
     cmd: &str,
     errors: &mut Vec<String>,
 ) -> Result<Option<FirewallStatusDto>, String> {
-    match Command::new(cmd).args(["-L", "-n", "-v"]).output() {
+    match Command::new(cmd).args(["-L", "-n", "-v", "-x", "--line-numbers"]).output() {
         Err(e) if e.kind() == io::ErrorKind::NotFound => {
             errors.push(format!("{} not found", cmd));
             Ok(None)
@@ -1474,6 +1474,26 @@ fn extract_interface(text: &str, key: &str) -> String {
     }
 }
 
+fn is_numeric_like(token: &str) -> bool {
+    if token.is_empty() {
+        return false;
+    }
+    let mut chars = token.chars().peekable();
+    while let Some(&ch) = chars.peek() {
+        if ch.is_ascii_digit() {
+            chars.next();
+        } else {
+            break;
+        }
+    }
+    if let Some(&suffix) = chars.peek() {
+        if matches!(suffix, 'k' | 'K' | 'm' | 'M' | 'g' | 'G') {
+            chars.next();
+        }
+    }
+    chars.peek().is_none()
+}
+
 fn extract_address(text: &str, key: &str) -> Option<String> {
     if let Some(idx) = text.find(key) {
         let rest = &text[idx + key.len()..];
@@ -1501,18 +1521,26 @@ fn parse_iptables_chain_header(line: &str) -> Option<(String, String)> {
     }
 }
 
-fn parse_iptables_rule_line(chain_name: &str, index: usize, line: &str) -> Option<FirewallRuleDto> {
+fn parse_iptables_rule_line(
+    _chain_name: &str,
+    index: usize,
+    line: &str,
+) -> Option<FirewallRuleDto> {
     let parts: Vec<&str> = line.split_whitespace().collect();
-    if parts.len() < 7 {
+    if parts.len() < 5 {
         return None;
     }
 
-    let has_number = parts[0].chars().all(|c| c.is_ascii_digit());
-    let offset = if has_number {
-        if parts.len() < 10 {
-            return None;
-        }
+    let first_numeric = parts.first().is_some_and(|p| is_numeric_like(p));
+    let second_numeric = parts.get(1).is_some_and(|p| is_numeric_like(p));
+    let third_numeric = parts.get(2).is_some_and(|p| is_numeric_like(p));
+
+    let offset = if first_numeric && second_numeric && third_numeric && parts.len() >= 9 {
+        // line number + pkts + bytes
         3
+    } else if first_numeric && second_numeric && parts.len() >= 8 {
+        // pkts + bytes
+        2
     } else {
         0
     };
@@ -1521,8 +1549,20 @@ fn parse_iptables_rule_line(chain_name: &str, index: usize, line: &str) -> Optio
         return None;
     }
 
-    let target = parts[offset].to_uppercase();
-    let protocol = parts[offset + 1].to_string();
+    let raw_target = parts[offset].to_uppercase();
+    let target = match raw_target.as_str() {
+        "ACCEPT" | "DROP" | "REJECT" => raw_target,
+        _ => return None,
+    };
+
+    let raw_proto = parts[offset + 1].to_ascii_lowercase();
+    let protocol = match raw_proto.as_str() {
+        "all" | "0" => "*".to_string(),
+        "6" => "tcp".to_string(),
+        "17" => "udp".to_string(),
+        "1" => "icmp".to_string(),
+        proto => proto.to_string(),
+    };
     let in_interface = parts[offset + 3].to_string();
     let out_interface = parts[offset + 4].to_string();
     let source = parts[offset + 5].to_string();
@@ -1530,7 +1570,8 @@ fn parse_iptables_rule_line(chain_name: &str, index: usize, line: &str) -> Optio
     let options =
         if parts.len() > offset + 7 { parts[offset + 7..].join(" ") } else { String::new() };
 
-    let id = format!("{}{:02}", chain_name.to_lowercase(), index + 1);
+    let id =
+        if first_numeric && third_numeric { parts[0].to_string() } else { (index + 1).to_string() };
 
     Some(FirewallRuleDto {
         id,
