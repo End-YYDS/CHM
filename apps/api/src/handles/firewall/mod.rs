@@ -18,17 +18,17 @@ use crate::{
 
 pub fn firewall_scope() -> Scope {
     web::scope("/firewall")
-        .service(_get_firewall_pcs)
-        .service(_get_firewall_status)
-        .service(_post_firewall_rule)
-        .service(_delete_firewall_rule)
-        .service(_put_firewall_status)
-        .service(_put_firewall_policy)
+        .service(get_firewall_pcs)
+        .service(get_firewall_status)
+        .service(post_firewall_rule)
+        .service(delete_firewall_rule)
+        .service(put_firewall_status)
+        .service(put_firewall_policy)
 }
 
 /// GET /api/firewall/pcs
 #[get("/pcs")]
-async fn _get_firewall_pcs(state: web::Data<AppState>) -> HttpResponse {
+async fn get_firewall_pcs(state: web::Data<AppState>) -> HttpResponse {
     let mut client: RestfulServiceClient<_> = state.gclient.clone();
     match client.get_firewall_pcs(restful::GetFirewallPcsRequest {}).await {
         Ok(resp) => {
@@ -46,7 +46,7 @@ async fn _get_firewall_pcs(state: web::Data<AppState>) -> HttpResponse {
 }
 
 #[get("")]
-async fn _get_firewall_status(
+async fn get_firewall_status(
     query: web::Query<UuidRequest>,
     state: web::Data<AppState>,
 ) -> HttpResponse {
@@ -75,7 +75,7 @@ async fn _get_firewall_status(
 }
 
 #[post("/rule")]
-async fn _post_firewall_rule(
+async fn post_firewall_rule(
     data: web::Json<AddRuleRequest>,
     state: web::Data<AppState>,
 ) -> HttpResponse {
@@ -111,7 +111,7 @@ async fn _post_firewall_rule(
 }
 
 #[delete("/rule")]
-async fn _delete_firewall_rule(
+async fn delete_firewall_rule(
     data: web::Json<DeleteRuleRequest>,
     state: web::Data<AppState>,
 ) -> HttpResponse {
@@ -143,7 +143,7 @@ async fn _delete_firewall_rule(
 }
 
 #[put("/status")]
-async fn _put_firewall_status(
+async fn put_firewall_status(
     data: web::Json<PutStatusRequest>,
     state: web::Data<AppState>,
 ) -> HttpResponse {
@@ -165,7 +165,7 @@ async fn _put_firewall_status(
 }
 
 #[put("/policy")]
-async fn _put_firewall_policy(
+async fn put_firewall_policy(
     data: web::Json<PutPolicyRequest>,
     state: web::Data<AppState>,
 ) -> HttpResponse {

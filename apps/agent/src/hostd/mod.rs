@@ -1545,17 +1545,17 @@ fn parse_iptables_rule_line(
         0
     };
 
-    if parts.len() <= offset + 6 {
+    if parts.len() <= offset {
         return None;
     }
 
-    let raw_target = parts[offset].to_uppercase();
+    let raw_target = parts.get(offset).map(|v| v.to_ascii_uppercase()).unwrap_or_default();
     let target = match raw_target.as_str() {
         "ACCEPT" | "DROP" | "REJECT" => raw_target,
         _ => return None,
     };
 
-    let raw_proto = parts[offset + 1].to_ascii_lowercase();
+    let raw_proto = parts.get(offset + 1).map(|v| v.to_ascii_lowercase()).unwrap_or_default();
     let protocol = match raw_proto.as_str() {
         "all" | "0" => "*".to_string(),
         "6" => "tcp".to_string(),
@@ -1563,10 +1563,10 @@ fn parse_iptables_rule_line(
         "1" => "icmp".to_string(),
         proto => proto.to_string(),
     };
-    let in_interface = parts[offset + 3].to_string();
-    let out_interface = parts[offset + 4].to_string();
-    let source = parts[offset + 5].to_string();
-    let destination = parts[offset + 6].to_string();
+    let in_interface = parts.get(offset + 3).unwrap_or(&"*").to_string();
+    let out_interface = parts.get(offset + 4).unwrap_or(&"*").to_string();
+    let source = parts.get(offset + 5).unwrap_or(&"*").to_string();
+    let destination = parts.get(offset + 6).unwrap_or(&"*").to_string();
     let options =
         if parts.len() > offset + 7 { parts[offset + 7..].join(" ") } else { String::new() };
 
