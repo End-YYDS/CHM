@@ -4,7 +4,7 @@
 use std::io;
 
 use crate::{
-    execute_host_body, family_commands, join_shell_args, make_sysinfo_command, send_to_hostd,
+    make_sysinfo_command, make_sysinfo_command_with_argument, parse_return_info, send_to_hostd,
     value_if_specified, ReturnInfo, SystemInfo,
 };
 use serde::{de, Deserialize, Serialize};
@@ -260,134 +260,72 @@ pub async fn firewall_info_structured(_sys: &SystemInfo) -> io::Result<FirewallS
     ))
 }
 
-pub async fn execute_firewall_add(argument: &str, sys: &SystemInfo) -> Result<String, String> {
+pub async fn execute_firewall_add(argument: &str, _sys: &SystemInfo) -> Result<String, String> {
     let payload: FirewallAddArg = serde_json::from_str(argument)
         .map_err(|e| format!("firewall_add payload parse error: {}", e))?;
-
-    let mut args = vec![
-        "-A".to_string(),
-        payload.chain.as_str().to_string(),
-        "-j".to_string(),
-        payload.target.as_str().to_string(),
-    ];
-
-    if let Some(protocol) = value_if_specified(&payload.protocol) {
-        args.push("-p".to_string());
-        args.push(protocol.to_string());
+    if value_if_specified(&payload.protocol).is_none()
+        && payload.options.to_ascii_lowercase().contains("port")
+    {
+        return Err("firewall_add: specifying ports requires Protocol".to_string());
     }
 
-    if let Some(in_iface) = value_if_specified(&payload.in_field) {
-        args.push("-i".to_string());
-        args.push(in_iface.to_string());
-    }
-
-    if let Some(out_iface) = value_if_specified(&payload.out_field) {
-        args.push("-o".to_string());
-        args.push(out_iface.to_string());
-    }
-
-    if let Some(source) = value_if_specified(&payload.source) {
-        args.push("-s".to_string());
-        args.push(source.to_string());
-    }
-
-    if let Some(destination) = value_if_specified(&payload.destination) {
-        args.push("-d".to_string());
-        args.push(destination.to_string());
-    }
-
-    args.extend(parse_options(&payload.options));
-
-    run_firewall_mutation(sys, &args).await?;
-
-    Ok(format!(
-        "firewall_add: added rule to {} with target {}",
-        payload.chain.as_str(),
-        payload.target.as_str()
-    ))
+    let cmd = make_sysinfo_command_with_argument("firewall_add", argument);
+    let output = send_to_hostd(&cmd).await.map_err(|e| format!("firewall_add via hostd: {}", e))?;
+    parse_return(output, "firewall_add")
 }
 
-pub async fn execute_firewall_delete(argument: &str, sys: &SystemInfo) -> Result<String, String> {
+pub async fn execute_firewall_delete(argument: &str, _sys: &SystemInfo) -> Result<String, String> {
     let payload: FirewallDeleteArg = serde_json::from_str(argument)
         .map_err(|e| format!("firewall_delete payload parse error: {}", e))?;
-
     if payload.rule_id <= 0 {
         return Err("firewall_delete requires RuleId greater than 0".to_string());
     }
 
-    let status = firewall_info_structured(sys)
-        .await
-        .map_err(|e| format!("failed to fetch firewall status: {}", e))?;
-    let chain_name = payload.chain.as_str();
-    let mut resolved_line: Option<i32> = None;
-
-    for chain in status.chains.iter().filter(|c| c.name.eq_ignore_ascii_case(chain_name)) {
-        let mut idx = 0;
-        for rule in &chain.rules {
-            if !matches!(
-                rule.target,
-                FirewallPolicy::Accept | FirewallPolicy::Drop | FirewallPolicy::Reject
-            ) {
-                continue;
-            }
-            idx += 1;
-            if idx == payload.rule_id as usize {
-                resolved_line = rule.id.parse::<i32>().ok();
-                break;
-            }
-        }
-    }
-
-    let real_line = resolved_line.ok_or_else(|| "firewall_delete: RuleId not found".to_string())?;
-
-    let args = vec!["-D".to_string(), chain_name.to_string(), real_line.to_string()];
-
-    run_firewall_mutation(sys, &args).await?;
-
-    Ok(format!("firewall_delete: removed rule from {}", payload.chain.as_str()))
+    let cmd = make_sysinfo_command_with_argument("firewall_delete", argument);
+    let output =
+        send_to_hostd(&cmd).await.map_err(|e| format!("firewall_delete via hostd: {}", e))?;
+    parse_return(output, "firewall_delete")
 }
 
 pub async fn execute_firewall_edit_status(
     argument: &str,
-    sys: &SystemInfo,
+    _sys: &SystemInfo,
 ) -> Result<String, String> {
-    let payload: FirewallEditStatusArg = serde_json::from_str(argument)
+    let _payload: FirewallEditStatusArg = serde_json::from_str(argument)
         .map_err(|e| format!("firewall_edit_status payload parse error: {}", e))?;
 
-    match payload.status {
-        FirewallStatusArg::Active => {
-            set_firewall_policies(
-                sys,
-                &[("INPUT", "DROP"), ("FORWARD", "DROP"), ("OUTPUT", "ACCEPT")],
-            )
-            .await?;
-            Ok("firewall_edit_status: firewall activated".to_string())
-        }
-        FirewallStatusArg::Inactive => {
-            set_firewall_policies(
-                sys,
-                &[("INPUT", "ACCEPT"), ("FORWARD", "ACCEPT"), ("OUTPUT", "ACCEPT")],
-            )
-            .await?;
-            Ok("firewall_edit_status: firewall deactivated".to_string())
-        }
-    }
+    let cmd = make_sysinfo_command_with_argument("firewall_edit_status", argument);
+    let output =
+        send_to_hostd(&cmd).await.map_err(|e| format!("firewall_edit_status via hostd: {}", e))?;
+    parse_return(output, "firewall_edit_status")
 }
 
 pub async fn execute_firewall_edit_policy(
     argument: &str,
-    sys: &SystemInfo,
+    _sys: &SystemInfo,
 ) -> Result<String, String> {
     let payload: FirewallEditPolicyArg = serde_json::from_str(argument)
         .map_err(|e| format!("firewall_edit_policy payload parse error: {}", e))?;
+    if matches!(payload.chain, FirewallChainArg::Forward) {
+        return Err("firewall_edit_policy: FORWARD chain is not managed".to_string());
+    }
 
-    set_firewall_policies(sys, &[(payload.chain.as_str(), payload.policy.as_str())]).await?;
+    let cmd = make_sysinfo_command_with_argument("firewall_edit_policy", argument);
+    let output =
+        send_to_hostd(&cmd).await.map_err(|e| format!("firewall_edit_policy via hostd: {}", e))?;
+    parse_return(output, "firewall_edit_policy")
+}
 
-    Ok(format!(
-        "firewall_edit_policy: set {} policy to {}",
-        payload.chain.as_str(),
-        payload.policy.as_str()
-    ))
+fn parse_return(raw: String, op: &str) -> Result<String, String> {
+    match parse_return_info(&raw) {
+        Ok(info) => match info.status {
+            crate::ReturnStatus::Ok => Ok(info.message),
+            crate::ReturnStatus::Err | crate::ReturnStatus::Other(_) => {
+                Err(format!("{} failed: {}", op, info.message))
+            }
+        },
+        Err(_) => Ok(raw.trim().to_string()),
+    }
 }
 
 fn convert_firewall_status(dto: FirewallStatusDto) -> FirewallStatus {
@@ -465,52 +403,4 @@ impl FirewallPolicy {
             FirewallPolicy::Other(value) => value.as_str(),
         }
     }
-}
-
-fn parse_options(options: &str) -> Vec<String> {
-    options
-        .split_whitespace()
-        .filter(|token| !token.is_empty())
-        .map(|token| token.to_string())
-        .collect()
-}
-
-async fn run_firewall_mutation(sys: &SystemInfo, args: &[String]) -> Result<(), String> {
-    if args.len() < 2 {
-        return Err("insufficient arguments for firewall mutation".to_string());
-    }
-
-    let joined_args = join_shell_args(args);
-    let commands = family_commands(sys);
-    let mut errors = Vec::new();
-
-    for cmd in commands.iptables_candidates.iter() {
-        let body = format!("{} {}\n", cmd, joined_args);
-        let result = execute_host_body(&body).await?;
-        if result.status == 0 {
-            return Ok(());
-        }
-
-        if result.output.trim().is_empty() {
-            errors.push(format!("{} exited with status {}", cmd, result.status));
-        } else {
-            errors.push(format!("{}: {}", cmd, result.output.trim()));
-        }
-    }
-
-    if errors.is_empty() {
-        Err("no firewall mutation commands available".to_string())
-    } else {
-        Err(errors.join("; "))
-    }
-}
-
-async fn set_firewall_policies(sys: &SystemInfo, policies: &[(&str, &str)]) -> Result<(), String> {
-    for (chain, policy) in policies {
-        let args = vec!["-P".to_string(), chain.to_string(), policy.to_string()];
-        run_firewall_mutation(sys, &args)
-            .await
-            .map_err(|e| format!("failed to set policy for {}: {}", chain, e))?;
-    }
-    Ok(())
 }
