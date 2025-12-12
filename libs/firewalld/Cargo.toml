@@ -1,0 +1,12 @@
+[package]
+name = "firewalld"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+anyhow = "1.0"
+nftables = "0.6.3"
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
