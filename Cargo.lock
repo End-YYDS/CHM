@@ -328,11 +328,11 @@ dependencies = [
  "chm-cert-utils",
  "chm-cluster-utils",
  "chm-config_bus",
+ "chm-firewall",
  "chm-grpc",
  "chm-password",
  "chm-project_const",
  "chrono",
- "firewalld",
  "http 1.3.1",
  "hyper-util",
  "nftables",
@@ -863,6 +863,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "chm-firewall"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "nftables",
+ "serde",
+ "serde_json",
+ "toml 0.8.23",
+]
+
+[[package]]
 name = "chm-grpc"
 version = "0.1.0"
 dependencies = [
@@ -1347,17 +1358,6 @@ name = "find-msvc-tools"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52051878f80a721bb68ebfbc930e07b65ba72f2da88968ea5c06fd6ca3d3a127"
-
-[[package]]
-name = "firewalld"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "nftables",
- "serde",
- "serde_json",
- "toml 0.8.23",
-]
 
 [[package]]
 name = "fixedbitset"
