@@ -193,11 +193,10 @@ fn parse_chain(raw: &str) -> Result<ChainKind, HttpResponse> {
     let normalized = raw.trim().to_ascii_uppercase();
     match normalized.as_str() {
         "INPUT" => Ok(ChainKind::Input),
-        "FORWARD" => Ok(ChainKind::Forward),
         "OUTPUT" => Ok(ChainKind::Output),
         _ => Err(HttpResponse::BadRequest().json(ResponseResult {
             r#type:  ResponseType::Err,
-            message: "Chain 必須為 INPUT/FORWARD/OUTPUT".into(),
+            message: "Chain 必須為 INPUT/OUTPUT".into(),
         })),
     }
 }
@@ -207,10 +206,9 @@ fn parse_verdict(raw: &str) -> Result<Verdict, HttpResponse> {
     match normalized.as_str() {
         "ACCEPT" => Ok(Verdict::Accept),
         "DROP" => Ok(Verdict::Drop),
-        "REJECT" => Ok(Verdict::Reject),
         _ => Err(HttpResponse::BadRequest().json(ResponseResult {
             r#type:  ResponseType::Err,
-            message: "Target/Policy 必須為 ACCEPT/DROP/REJECT".into(),
+            message: "Target/Policy 必須為 ACCEPT/DROP".into(),
         })),
     }
 }
@@ -272,7 +270,6 @@ fn map_verdict_enum(v: i32) -> Result<Target, String> {
     match Verdict::try_from(v).unwrap_or(Verdict::Unspecified) {
         Verdict::Accept => Ok(Target::Accept),
         Verdict::Drop => Ok(Target::Drop),
-        Verdict::Reject => Ok(Target::Reject),
         _ => Err("未知的 Target/Policy 值".into()),
     }
 }

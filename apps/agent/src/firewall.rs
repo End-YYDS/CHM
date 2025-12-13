@@ -86,7 +86,6 @@ struct FirewallRuleDto {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum FirewallChainArg {
     Input,
-    Forward,
     Output,
 }
 
@@ -94,7 +93,6 @@ impl FirewallChainArg {
     fn as_str(self) -> &'static str {
         match self {
             FirewallChainArg::Input => "INPUT",
-            FirewallChainArg::Forward => "FORWARD",
             FirewallChainArg::Output => "OUTPUT",
         }
     }
@@ -118,7 +116,6 @@ impl<'de> Deserialize<'de> for FirewallChainArg {
         let normalized = raw.trim().to_ascii_uppercase();
         match normalized.as_str() {
             "INPUT" => Ok(FirewallChainArg::Input),
-            "FORWARD" => Ok(FirewallChainArg::Forward),
             "OUTPUT" => Ok(FirewallChainArg::Output),
             other => Err(de::Error::custom(format!("unsupported chain: {}", other))),
         }
@@ -129,7 +126,6 @@ impl<'de> Deserialize<'de> for FirewallChainArg {
 enum FirewallTargetArg {
     Accept,
     Drop,
-    Reject,
 }
 
 impl FirewallTargetArg {
@@ -137,7 +133,6 @@ impl FirewallTargetArg {
         match self {
             FirewallTargetArg::Accept => "ACCEPT",
             FirewallTargetArg::Drop => "DROP",
-            FirewallTargetArg::Reject => "REJECT",
         }
     }
 }
@@ -161,7 +156,6 @@ impl<'de> Deserialize<'de> for FirewallTargetArg {
         match normalized.as_str() {
             "ACCEPT" => Ok(FirewallTargetArg::Accept),
             "DROP" => Ok(FirewallTargetArg::Drop),
-            "REJECT" => Ok(FirewallTargetArg::Reject),
             other => Err(de::Error::custom(format!("unsupported target: {}", other))),
         }
     }
@@ -330,9 +324,6 @@ pub async fn execute_firewall_edit_policy(
 ) -> Result<String, String> {
     let payload: FirewallEditPolicyArg = serde_json::from_str(argument)
         .map_err(|e| format!("firewall_edit_policy payload parse error: {}", e))?;
-    if matches!(payload.chain, FirewallChainArg::Forward) {
-        return Err("firewall_edit_policy: FORWARD chain is not managed".to_string());
-    }
 
     send_firewall_payload(FirewallHostdCommand::EditPolicy, &payload).await
 }
@@ -365,9 +356,7 @@ fn convert_firewall_status(dto: FirewallStatusDto) -> FirewallStatus {
     let chains = dto
         .chains
         .into_iter()
-        .filter(|chain| {
-            matches!(chain.name.to_ascii_uppercase().as_str(), "INPUT" | "FORWARD" | "OUTPUT")
-        })
+        .filter(|chain| matches!(chain.name.to_ascii_uppercase().as_str(), "INPUT" | "OUTPUT"))
         .map(convert_firewall_chain)
         .collect();
 

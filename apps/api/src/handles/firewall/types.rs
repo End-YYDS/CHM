@@ -13,8 +13,6 @@ pub enum Target {
     Accept,
     #[serde(rename = "DROP")]
     Drop,
-    #[serde(rename = "REJECT")]
-    Reject,
 }
 
 #[derive(Debug, Serialize)]

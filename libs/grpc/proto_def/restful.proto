@@ -969,15 +969,13 @@ enum FirewallStatus {
 enum ChainKind {
   CHAIN_KIND_UNSPECIFIED = 0;
   INPUT = 1;
-  FORWARD = 2;
-  OUTPUT = 3;
+  OUTPUT = 2;
 }
 
 enum Verdict {
   VERDICT_UNSPECIFIED = 0;
   ACCEPT = 1;
   DROP = 2;
-  REJECT = 3;
 }
 
 // 規則
@@ -993,7 +991,7 @@ message Rule {
 
 // 鏈（含預設策略與規則）
 message Chain {
-  string name = 1;     // INPUT / FORWARD / OUTPUT
+  string name = 1;     // INPUT / OUTPUT
   Verdict policy = 2;    // 預設策略
   repeated Rule rules = 3;
   uint64 rules_length = 4; // rules.len
@@ -1011,8 +1009,8 @@ message GetFirewallResponse {
 // 新增防火牆規則  POST /api/firewall/rule
 message AddFirewallRuleRequest {
   string uuid = 1;     // 主機 ID
-  ChainKind chain = 2;     // INPUT | FORWARD | OUTPUT
-  Verdict target = 3;     // ACCEPT | DROP | REJECT
+  ChainKind chain = 2;     // INPUT | OUTPUT
+  Verdict target = 3;     // ACCEPT | DROP
   string protocol = 4;
   string in_if = 5;
   string out_if = 6;
@@ -1027,7 +1025,7 @@ message AddFirewallRuleResponse {
 // 刪除防火牆規則  DELETE /api/firewall/rule
 message DeleteFirewallRuleRequest {
   string uuid = 1;   // 主機 ID
-  ChainKind chain = 2;   // INPUT | FORWARD | OUTPUT
+  ChainKind chain = 2;   // INPUT | OUTPUT
   uint64 rule_id = 3;   // 規則索引
 }
 message DeleteFirewallRuleResponse {
@@ -1046,8 +1044,8 @@ message PutFirewallStatusResponse {
 // 修改預設策略（Policy） PUT /api/firewall/policy
 message PutFirewallPolicyRequest {
   string uuid = 1;
-  ChainKind chain = 2;   // INPUT | FORWARD | OUTPUT
-  Verdict policy = 3;   // ACCEPT | DROP | REJECT
+  ChainKind chain = 2;   // INPUT | OUTPUT
+  Verdict policy = 3;   // ACCEPT | DROP
 }
 message PutFirewallPolicyResponse {
   common.ActionResult result = 1;

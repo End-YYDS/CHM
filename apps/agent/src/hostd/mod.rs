@@ -456,7 +456,6 @@ pub struct FirewallStatusDto {
 #[serde(rename_all = "UPPERCASE")]
 enum FirewallChainArg {
     Input,
-    Forward,
     Output,
 }
 
@@ -464,7 +463,6 @@ impl FirewallChainArg {
     fn as_str(self) -> &'static str {
         match self {
             FirewallChainArg::Input => "INPUT",
-            FirewallChainArg::Forward => "FORWARD",
             FirewallChainArg::Output => "OUTPUT",
         }
     }
@@ -475,7 +473,6 @@ impl FirewallChainArg {
 enum FirewallTargetArg {
     Accept,
     Drop,
-    Reject,
 }
 
 impl FirewallTargetArg {
@@ -483,7 +480,6 @@ impl FirewallTargetArg {
         match self {
             FirewallTargetArg::Accept => "ACCEPT",
             FirewallTargetArg::Drop => "DROP",
-            FirewallTargetArg::Reject => "REJECT",
         }
     }
 }
@@ -765,7 +761,7 @@ fn firewall_delete(argument: &str) -> Result<String, String> {
             continue;
         }
         let parsed = parse_firewalld_rule(rule);
-        if !matches!(parsed.target.as_str(), "ACCEPT" | "DROP" | "REJECT" | "UNKNOWN") {
+        if !matches!(parsed.target.as_str(), "ACCEPT" | "DROP") {
             continue;
         }
         counter += 1;
@@ -837,9 +833,6 @@ fn firewall_edit_policy(argument: &str) -> Result<String, String> {
         FirewallChainArg::Output => {
             config.output_policy = map_target_to_action(payload.policy)?;
             (config.output_chain.clone(), config.output_policy)
-        }
-        FirewallChainArg::Forward => {
-            return Err("firewalld does not manage FORWARD policy".to_string());
         }
     };
 
@@ -1463,13 +1456,6 @@ fn firewalld_status() -> Result<Option<FirewallStatusDto>, String> {
             map_rule_action_to_string(config.output_policy),
             &manager,
         ),
-        // FORWARD chain is not managed by firewalld; show empty with ACCEPT policy
-        FirewallChainDto {
-            name:         "FORWARD".to_string(),
-            policy:       "ACCEPT".to_string(),
-            rules:        Vec::new(),
-            rules_length: 0,
-        },
     ];
 
     let status = if config.enabled { "active" } else { "inactive" };
@@ -1496,6 +1482,9 @@ fn collect_firewalld_rules(chain_name: &str, manager: &RulesetManager) -> Vec<Fi
             continue;
         }
         let parsed = parse_firewalld_rule(rule);
+        if !matches!(parsed.target.as_str(), "ACCEPT" | "DROP") {
+            continue;
+        }
         collected.push(FirewallRuleDto {
             id:            collected.len().saturating_add(1).to_string(),
             target:        parsed.target,
@@ -1661,7 +1650,6 @@ fn resolve_chain_name(
     match chain {
         FirewallChainArg::Input => Ok(config.input_chain.clone()),
         FirewallChainArg::Output => Ok(config.output_chain.clone()),
-        FirewallChainArg::Forward => Err("firewalld does not manage FORWARD chain".to_string()),
     }
 }
 
@@ -1669,7 +1657,6 @@ fn map_target_to_action(target: FirewallTargetArg) -> Result<RuleAction, String>
     match target {
         FirewallTargetArg::Accept => Ok(RuleAction::Accept),
         FirewallTargetArg::Drop => Ok(RuleAction::Drop),
-        FirewallTargetArg::Reject => Err("firewalld does not support REJECT target".to_string()),
     }
 }
 
@@ -2249,6 +2236,10 @@ fn parse_iptables_rule_line(
 
     let id =
         if first_numeric && third_numeric { parts[0].to_string() } else { (index + 1).to_string() };
+
+    if !matches!(target.as_str(), "ACCEPT" | "DROP") {
+        return None;
+    }
 
     Some(FirewallRuleDto {
         id,

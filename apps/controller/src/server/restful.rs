@@ -550,10 +550,9 @@ fn convert_apache_date(date: agent::ApacheDate) -> Option<Date> {
 fn chain_kind_to_str(kind: restful::ChainKind) -> Result<&'static str, Status> {
     match kind {
         restful::ChainKind::Input => Ok("INPUT"),
-        restful::ChainKind::Forward => Ok("FORWARD"),
         restful::ChainKind::Output => Ok("OUTPUT"),
         restful::ChainKind::Unspecified => {
-            Err(Status::invalid_argument("Chain 必須為 INPUT/FORWARD/OUTPUT"))
+            Err(Status::invalid_argument("Chain 必須為 INPUT/OUTPUT"))
         }
     }
 }
@@ -563,9 +562,8 @@ fn verdict_to_str(verdict: restful::Verdict) -> Result<&'static str, Status> {
     match verdict {
         restful::Verdict::Accept => Ok("ACCEPT"),
         restful::Verdict::Drop => Ok("DROP"),
-        restful::Verdict::Reject => Ok("REJECT"),
         restful::Verdict::Unspecified => {
-            Err(Status::invalid_argument("Verdict 必須為 ACCEPT/DROP/REJECT"))
+            Err(Status::invalid_argument("Verdict 必須為 ACCEPT/DROP"))
         }
     }
 }
@@ -585,7 +583,6 @@ fn map_verdict_name(name: &str) -> restful::Verdict {
     match name.to_ascii_uppercase().as_str() {
         "ACCEPT" => restful::Verdict::Accept,
         "DROP" => restful::Verdict::Drop,
-        "REJECT" => restful::Verdict::Reject,
         _ => restful::Verdict::Unspecified,
     }
 }
