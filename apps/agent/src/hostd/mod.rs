@@ -24,13 +24,16 @@ use std::{
     os::unix::fs::{FileTypeExt, MetadataExt},
     path::Path,
     process::{Command, Output},
-    sync::{Arc, Mutex},
+    sync::Arc,
     time::Duration,
 };
 use sysinfo::{
     DiskRefreshKind, Disks, MemoryRefreshKind, ProcessRefreshKind, ProcessStatus, System,
 };
-use tokio::{sync::Semaphore, task};
+use tokio::{
+    sync::{Mutex, Semaphore},
+    task,
+};
 use uzers::get_user_by_uid;
 
 const META_PREFIX: &str = "# agent_meta:";
@@ -109,7 +112,7 @@ pub struct HostdGrpcService {
     semaphore:       Arc<Semaphore>,
     command_timeout: Duration,
     sysinfo_timeout: Duration,
-    firewalld:       Option<Arc<Mutex<RulesetManager>>>,
+    firewalld:       Arc<Mutex<RulesetManager>>,
 }
 
 impl HostdGrpcService {
@@ -117,7 +120,7 @@ impl HostdGrpcService {
         semaphore: Arc<Semaphore>,
         sysinfo_timeout: Duration,
         command_timeout: Duration,
-        firewalld: Option<Arc<Mutex<RulesetManager>>>,
+        firewalld: Arc<Mutex<RulesetManager>>,
     ) -> Self {
         Self { semaphore, sysinfo_timeout, command_timeout, firewalld }
     }
@@ -222,7 +225,7 @@ pub fn execute_command(command: &str) -> io::Result<Output> {
 /// Execute sysinfo-oriented requests
 pub fn execute_sysinfo(
     command: &str,
-    firewalld: Option<Arc<Mutex<RulesetManager>>>,
+    firewalld: Arc<Mutex<RulesetManager>>,
 ) -> Result<String, String> {
     let trimmed = command.trim();
     if trimmed.is_empty() {
@@ -272,26 +275,22 @@ pub fn execute_sysinfo(
         SysinfoKeyword::FirewallAdd => {
             let argument =
                 argument.ok_or_else(|| "firewall_add requires an argument".to_string())?;
-            let fw = firewalld.clone().ok_or_else(|| "firewalld unavailable".to_string())?;
-            firewall_add(argument, &fw)
+            firewall_add(argument, &firewalld)
         }
         SysinfoKeyword::FirewallDelete => {
             let argument =
                 argument.ok_or_else(|| "firewall_delete requires an argument".to_string())?;
-            let fw = firewalld.clone().ok_or_else(|| "firewalld unavailable".to_string())?;
-            firewall_delete(argument, &fw)
+            firewall_delete(argument, &firewalld)
         }
         SysinfoKeyword::FirewallEditStatus => {
             let argument =
                 argument.ok_or_else(|| "firewall_edit_status requires an argument".to_string())?;
-            let fw = firewalld.clone().ok_or_else(|| "firewalld unavailable".to_string())?;
-            firewall_edit_status(argument, &fw)
+            firewall_edit_status(argument, &firewalld)
         }
         SysinfoKeyword::FirewallEditPolicy => {
             let argument =
                 argument.ok_or_else(|| "firewall_edit_policy requires an argument".to_string())?;
-            let fw = firewalld.clone().ok_or_else(|| "firewalld unavailable".to_string())?;
-            firewall_edit_policy(argument, &fw)
+            firewall_edit_policy(argument, &firewalld)
         }
         SysinfoKeyword::NetifStatus => collect_network_interfaces().and_then(|dto| {
             serde_json::to_string(&dto)
@@ -673,18 +672,13 @@ pub struct DnsServersDto {
     secondary: String,
 }
 
-pub fn firewall_status(
-    firewalld: Option<Arc<Mutex<RulesetManager>>>,
-) -> Result<FirewallStatusDto, String> {
-    match firewalld_status(firewalld.as_ref())? {
-        Some(status) => Ok(status),
-        None => Err("firewalld unavailable; unable to inspect firewall status".to_string()),
-    }
+pub fn firewall_status(firewalld: Arc<Mutex<RulesetManager>>) -> Result<FirewallStatusDto, String> {
+    firewalld_status(&firewalld)
 }
 
 fn firewall_add(argument: &str, manager: &Arc<Mutex<RulesetManager>>) -> Result<String, String> {
     let payload: FirewallAddArg = parse_firewall_argument(argument, "firewall_add")?;
-    let mut manager = manager.lock().map_err(|e| format!("lock firewalld manager: {e}"))?;
+    let mut manager = manager.blocking_lock();
     let config = manager.get_hot_firewall_config();
     let chain_name = resolve_chain_name(payload.chain, &config)?;
     let action = map_target_to_action(payload.target)?;
@@ -737,7 +731,7 @@ fn firewall_delete(argument: &str, manager: &Arc<Mutex<RulesetManager>>) -> Resu
         return Err("firewall_delete requires RuleId greater than 0".to_string());
     }
 
-    let mut manager = manager.lock().map_err(|e| format!("lock firewalld manager: {e}"))?;
+    let mut manager = manager.blocking_lock();
     let config = manager.get_hot_firewall_config();
     let chain_name = resolve_chain_name(payload.chain, &config)?;
 
@@ -782,7 +776,7 @@ fn firewall_edit_status(
 ) -> Result<String, String> {
     let payload: FirewallEditStatusArg = parse_firewall_argument(argument, "firewall_edit_status")?;
 
-    let mut manager = manager.lock().map_err(|e| format!("lock firewalld manager: {e}"))?;
+    let mut manager = manager.blocking_lock();
     let mut config = manager.get_hot_firewall_config();
     let ruleset = manager.ruleset().clone();
 
@@ -813,7 +807,7 @@ fn firewall_edit_policy(
 ) -> Result<String, String> {
     let payload: FirewallEditPolicyArg = parse_firewall_argument(argument, "firewall_edit_policy")?;
 
-    let mut manager = manager.lock().map_err(|e| format!("lock firewalld manager: {e}"))?;
+    let mut manager = manager.blocking_lock();
     let mut config = manager.get_hot_firewall_config();
     let mut ruleset = manager.ruleset().clone();
 
@@ -1370,34 +1364,21 @@ fn build_fallback_log_entry(line: &str) -> LogEntryDto {
     }
 }
 
-fn firewalld_status(
-    firewalld: Option<&Arc<Mutex<RulesetManager>>>,
-) -> Result<Option<FirewallStatusDto>, String> {
-    let manager = match firewalld {
-        Some(mgr) => mgr,
-        None => {
-            tracing::warn!("firewalld unavailable");
-            return Ok(None);
-        }
-    };
-    let mut manager = manager.lock().map_err(|e| format!("lock firewalld manager: {e}"))?;
+fn firewalld_status(firewalld: &Arc<Mutex<RulesetManager>>) -> Result<FirewallStatusDto, String> {
+    let mut manager = firewalld.blocking_lock();
     let config = manager.get_hot_firewall_config();
 
     manager.ensure_basic_firewall();
     if config.enabled {
-        if let Err(e) = manager.apply_only_own_table() {
-            tracing::warn!("firewalld apply failed: {}", e);
-            return Ok(None);
-        }
+        manager.apply_only_own_table().map_err(|e| format!("firewalld apply failed: {}", e))?;
         let (config_path, ruleset_path) = firewalld_paths();
         let mut cfg = FirewalldConfig::load(config_path.as_path())
             .unwrap_or_else(|_| FirewalldConfig::default());
-        if let Err(e) = cfg.save(config_path.as_path(), manager.get_hot_firewall_config()) {
-            tracing::warn!("firewalld save config failed: {}", e);
-        }
-        if let Err(e) = manager.save_json(ruleset_path.as_path()) {
-            tracing::warn!("firewalld save ruleset failed: {}", e);
-        }
+        cfg.save(config_path.as_path(), manager.get_hot_firewall_config())
+            .map_err(|e| format!("firewalld save config failed: {}", e))?;
+        manager
+            .save_json(ruleset_path.as_path())
+            .map_err(|e| format!("firewalld save ruleset failed: {}", e))?;
     }
 
     let chains = vec![
@@ -1416,7 +1397,7 @@ fn firewalld_status(
     ];
 
     let status = if config.enabled { "active" } else { "inactive" };
-    Ok(Some(FirewallStatusDto { status: status.to_string(), chains }))
+    Ok(FirewallStatusDto { status: status.to_string(), chains })
 }
 
 fn build_firewalld_chain(

@@ -86,13 +86,8 @@ mod unix_main {
         });
         let sysinfo_timeout = Duration::from_secs(get_timeout_secs);
         let command_timeout = Duration::from_secs(command_timeout_secs);
-        let firewalld = match init_firewalld_manager().await {
-            Ok(mgr) => Some(mgr),
-            Err(e) => {
-                warn!("初始化 firewalld 失敗: {e}");
-                None
-            }
-        };
+        let firewalld =
+            init_firewalld_manager().await.unwrap_or_else(|e| panic!("初始化 firewalld 失敗: {e}"));
 
         let incoming = UnixListenerStream::new(listener);
         let service = HostdGrpcService::new(
