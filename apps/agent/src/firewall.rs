@@ -242,8 +242,40 @@ struct FirewallEditPolicyArg {
     policy: FirewallTargetArg,
 }
 
+#[derive(Clone, Copy)]
+enum FirewallHostdCommand {
+    Status,
+    Add,
+    Delete,
+    EditStatus,
+    EditPolicy,
+}
+
+impl FirewallHostdCommand {
+    fn as_str(self) -> &'static str {
+        match self {
+            FirewallHostdCommand::Status => "firewall_status",
+            FirewallHostdCommand::Add => "firewall_add",
+            FirewallHostdCommand::Delete => "firewall_delete",
+            FirewallHostdCommand::EditStatus => "firewall_edit_status",
+            FirewallHostdCommand::EditPolicy => "firewall_edit_policy",
+        }
+    }
+}
+
+trait HostdPayload: Serialize {
+    fn encode_payload(&self) -> Result<String, String> {
+        serde_json::to_string(self).map_err(|e| format!("encode payload: {}", e))
+    }
+}
+
+impl HostdPayload for FirewallAddArg {}
+impl HostdPayload for FirewallDeleteArg {}
+impl HostdPayload for FirewallEditStatusArg {}
+impl HostdPayload for FirewallEditPolicyArg {}
+
 pub async fn firewall_info_structured(_sys: &SystemInfo) -> io::Result<FirewallStatus> {
-    let cmd = make_sysinfo_command("firewall_status");
+    let cmd = make_sysinfo_command(FirewallHostdCommand::Status.as_str());
     let output = send_to_hostd(&cmd).await?;
 
     if let Ok(status) = serde_json::from_str::<FirewallStatusDto>(&output) {
@@ -269,9 +301,7 @@ pub async fn execute_firewall_add(argument: &str, _sys: &SystemInfo) -> Result<S
         return Err("firewall_add: specifying ports requires Protocol".to_string());
     }
 
-    let cmd = make_sysinfo_command_with_argument("firewall_add", argument);
-    let output = send_to_hostd(&cmd).await.map_err(|e| format!("firewall_add via hostd: {}", e))?;
-    parse_return(output, "firewall_add")
+    send_firewall_payload(FirewallHostdCommand::Add, &payload).await
 }
 
 pub async fn execute_firewall_delete(argument: &str, _sys: &SystemInfo) -> Result<String, String> {
@@ -281,23 +311,17 @@ pub async fn execute_firewall_delete(argument: &str, _sys: &SystemInfo) -> Resul
         return Err("firewall_delete requires RuleId greater than 0".to_string());
     }
 
-    let cmd = make_sysinfo_command_with_argument("firewall_delete", argument);
-    let output =
-        send_to_hostd(&cmd).await.map_err(|e| format!("firewall_delete via hostd: {}", e))?;
-    parse_return(output, "firewall_delete")
+    send_firewall_payload(FirewallHostdCommand::Delete, &payload).await
 }
 
 pub async fn execute_firewall_edit_status(
     argument: &str,
     _sys: &SystemInfo,
 ) -> Result<String, String> {
-    let _payload: FirewallEditStatusArg = serde_json::from_str(argument)
+    let payload: FirewallEditStatusArg = serde_json::from_str(argument)
         .map_err(|e| format!("firewall_edit_status payload parse error: {}", e))?;
 
-    let cmd = make_sysinfo_command_with_argument("firewall_edit_status", argument);
-    let output =
-        send_to_hostd(&cmd).await.map_err(|e| format!("firewall_edit_status via hostd: {}", e))?;
-    parse_return(output, "firewall_edit_status")
+    send_firewall_payload(FirewallHostdCommand::EditStatus, &payload).await
 }
 
 pub async fn execute_firewall_edit_policy(
@@ -310,10 +334,7 @@ pub async fn execute_firewall_edit_policy(
         return Err("firewall_edit_policy: FORWARD chain is not managed".to_string());
     }
 
-    let cmd = make_sysinfo_command_with_argument("firewall_edit_policy", argument);
-    let output =
-        send_to_hostd(&cmd).await.map_err(|e| format!("firewall_edit_policy via hostd: {}", e))?;
-    parse_return(output, "firewall_edit_policy")
+    send_firewall_payload(FirewallHostdCommand::EditPolicy, &payload).await
 }
 
 fn parse_return(raw: String, op: &str) -> Result<String, String> {
@@ -326,6 +347,17 @@ fn parse_return(raw: String, op: &str) -> Result<String, String> {
         },
         Err(_) => Ok(raw.trim().to_string()),
     }
+}
+
+async fn send_firewall_payload<T>(cmd: FirewallHostdCommand, payload: &T) -> Result<String, String>
+where
+    T: HostdPayload,
+{
+    let payload_json = payload.encode_payload()?;
+    let real = make_sysinfo_command_with_argument(cmd.as_str(), &payload_json);
+    let output =
+        send_to_hostd(&real).await.map_err(|e| format!("{} via hostd: {}", cmd.as_str(), e))?;
+    parse_return(output, cmd.as_str())
 }
 
 fn convert_firewall_status(dto: FirewallStatusDto) -> FirewallStatus {
