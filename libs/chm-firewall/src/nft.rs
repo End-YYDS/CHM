@@ -7,7 +7,7 @@ use nftables::{
     stmt::{Accept, Drop, Match, Operator, Statement},
     types,
 };
-use std::{borrow::Cow, fs, path::Path};
+use std::{borrow::Cow, fmt, fs, path::Path};
 
 use crate::config::AppConfig;
 
@@ -27,6 +27,15 @@ impl From<RuleAction> for types::NfChainPolicy {
         match action {
             RuleAction::Accept => types::NfChainPolicy::Accept,
             RuleAction::Drop => types::NfChainPolicy::Drop,
+        }
+    }
+}
+
+impl fmt::Display for RuleAction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RuleAction::Accept => write!(f, "ACCEPT"),
+            RuleAction::Drop => write!(f, "DROP"),
         }
     }
 }
