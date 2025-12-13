@@ -13,6 +13,7 @@ members = [
   "libs/config_loader",
   "libs/crl_cache",
   "libs/dns_resolver",
+  "libs/chm-firewall",
   "libs/grpc",
   "libs/password",
   "libs/project_const",
@@ -49,6 +50,7 @@ chm-grpc = { version = "0.1.0", path = "./libs/grpc" }
 chm-password = { version = "0.1.0", path = "./libs/password" }
 chm-project_const = { version = "0.1.0", path = "./libs/project_const" }
 chrono = { version = "0.4.41", features = ["serde"] }
+chm-firewall = { version = "0.1.0", path = "./libs/chm-firewall" }
 config = { version = "0.15.11", default-features = false, features = ["toml"] }
 dashmap = { version = "6.1.0", features = ["serde"] }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }

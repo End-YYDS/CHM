@@ -283,6 +283,7 @@ impl Status {
             "STATUS_UNSPECIFIED" => Some(Self::Unspecified),
             "ACTIVE" => Some(Self::Active),
             "STOPPED" => Some(Self::Stopped),
+            "UNINSTALLED" => Some(Self::Uninstalled),
             _ => None,
         }
     }

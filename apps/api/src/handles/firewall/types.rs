@@ -1,11 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize)]
-pub struct FirewallRequest {
-    #[serde(rename = "Uuid")]
-    pub uuid: String,
-}
-
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum FirewallStatus {
@@ -19,8 +13,6 @@ pub enum Target {
     Accept,
     #[serde(rename = "DROP")]
     Drop,
-    #[serde(rename = "REJECT")]
-    Reject,
 }
 
 #[derive(Debug, Serialize)]
