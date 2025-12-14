@@ -103,7 +103,7 @@ impl RulesetManager {
         temp
     }
 
-    pub fn reset_table(&self) -> Result<()> {
+    pub async fn reset_table(&self) -> Result<()> {
         if !self.kernel_has_table()? {
             return Ok(());
         }
@@ -113,7 +113,7 @@ impl RulesetManager {
             name: Cow::Owned(self.config.table.clone()),
             ..Default::default()
         }));
-        match nftables::helper::apply_ruleset(&batch.to_nftables()) {
+        match nftables::helper::apply_ruleset_async(&batch.to_nftables()).await {
             Ok(()) => Ok(()),
             Err(e) if e.to_string().contains("No such file or directory") => Ok(()),
 
@@ -121,12 +121,12 @@ impl RulesetManager {
         }
     }
 
-    pub fn apply_only_own_table(&mut self) -> Result<()> {
+    pub async fn apply_only_own_table(&mut self) -> Result<()> {
         if !self.config.enabled {
             bail!("Firewall is disabled; cannot apply ruleset");
         }
-        self.reset_table()?;
-        self.apply()
+        self.reset_table().await?;
+        self.apply().await
     }
 
     fn add_rule(&mut self, rule: schema::Rule<'static>) {
@@ -283,9 +283,9 @@ impl RulesetManager {
         Ok(serde_json::to_string_pretty(&self.ruleset)?)
     }
 
-    pub fn save_json(&self, path: impl AsRef<Path>) -> Result<()> {
+    pub async fn save_json(&self, path: impl AsRef<Path>) -> Result<()> {
         let json = self.to_json_string()?;
-        fs::write(path, json)?;
+        tokio::fs::write(path, json).await?;
         Ok(())
     }
 
@@ -299,7 +299,7 @@ impl RulesetManager {
         Self::from_json_str(config, &contents)
     }
 
-    pub fn enable(&mut self, ruleset_file: &Path, config_path: &Path) -> Result<()> {
+    pub async fn enable(&mut self, ruleset_file: &Path, config_path: &Path) -> Result<()> {
         if !self.has_table() {
             bail!("Firewall table does not exist; nothing to enable");
         }
@@ -311,10 +311,10 @@ impl RulesetManager {
         self.config.enabled = true;
         let hot_config = self.get_hot_firewall_config();
         self.app.save(config_path, hot_config)?;
-        self.apply_only_own_table()?;
+        self.apply_only_own_table().await?;
         Ok(())
     }
-    pub fn disable(&mut self, ruleset_file: &Path, config_path: &Path) -> Result<()> {
+    pub async fn disable(&mut self, ruleset_file: &Path, config_path: &Path) -> Result<()> {
         if !self.has_table() {
             bail!("Firewall table does not exist; nothing to disable");
         }
@@ -323,18 +323,18 @@ impl RulesetManager {
         }
         self.config.enabled = false;
         let hot_config = self.get_hot_firewall_config();
-        self.save_json(ruleset_file)?;
+        self.save_json(ruleset_file).await?;
         self.app.save(config_path, hot_config)?;
-        self.reset_table()?;
+        self.reset_table().await?;
         self.objects_mut().clear();
         Ok(())
     }
-    pub fn reload(&mut self, ruleset_file: &Path, config_path: &Path) -> Result<()> {
+    pub async fn reload(&mut self, ruleset_file: &Path, config_path: &Path) -> Result<()> {
         if !self.config.enabled {
             bail!("Firewall is disabled; cannot reload");
         }
-        self.disable(ruleset_file, config_path)?;
-        self.enable(ruleset_file, config_path)?;
+        self.disable(ruleset_file, config_path).await?;
+        self.enable(ruleset_file, config_path).await?;
         Ok(())
     }
     pub fn get_mode(&self) -> bool {
@@ -346,11 +346,11 @@ impl RulesetManager {
     pub fn get_hot_firewall_config(&self) -> BasicFirewallConfig {
         self.config.clone()
     }
-    pub fn apply(&mut self) -> Result<()> {
+    pub async fn apply(&mut self) -> Result<()> {
         if !self.config.enabled {
             bail!("Firewall is disabled; cannot apply ruleset");
         }
-        nftables::helper::apply_ruleset(&self.ruleset)?;
+        nftables::helper::apply_ruleset_async(&self.ruleset).await?;
         Ok(())
     }
 

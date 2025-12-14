@@ -31,10 +31,14 @@ use sysinfo::{
     DiskRefreshKind, Disks, MemoryRefreshKind, ProcessRefreshKind, ProcessStatus, System,
 };
 use tokio::{
+    runtime::Handle,
     sync::{Mutex, Semaphore},
     task,
+    time::Duration as TokioDuration,
 };
 use uzers::get_user_by_uid;
+
+use crate::GlobalConfig;
 
 const META_PREFIX: &str = "# agent_meta:";
 const SYSLOG_CANDIDATES: [&str; 2] = ["/var/log/syslog", "/var/log/messages"];
@@ -222,6 +226,14 @@ pub fn execute_command(command: &str) -> io::Result<Output> {
     Command::new("sh").arg("-c").arg(command).output()
 }
 
+fn block_on_firewall<F, T>(fut: F) -> Result<T, String>
+where
+    F: std::future::Future<Output = Result<T, String>> + Send + 'static,
+    T: Send + 'static,
+{
+    Handle::current().block_on(fut)
+}
+
 /// Execute sysinfo-oriented requests
 pub fn execute_sysinfo(
     command: &str,
@@ -268,29 +280,38 @@ pub fn execute_sysinfo(
         SysinfoKeyword::ProcessList => collect_process_info(&mut sys).and_then(|dto| {
             serde_json::to_string(&dto).map_err(|e| format!("failed to encode process info: {}", e))
         }),
-        SysinfoKeyword::FirewallStatus => firewall_status(firewalld.clone()).and_then(|status| {
-            serde_json::to_string(&status)
-                .map_err(|e| format!("failed to encode firewall status: {}", e))
-        }),
+        SysinfoKeyword::FirewallStatus => block_on_firewall(firewall_status(firewalld.clone()))
+            .and_then(|status| {
+                serde_json::to_string(&status)
+                    .map_err(|e| format!("failed to encode firewall status: {}", e))
+            }),
         SysinfoKeyword::FirewallAdd => {
             let argument =
                 argument.ok_or_else(|| "firewall_add requires an argument".to_string())?;
-            firewall_add(argument, &firewalld)
+            let arg_owned = argument.to_string();
+            let fw = firewalld.clone();
+            block_on_firewall(async move { firewall_add(&arg_owned, &fw).await })
         }
         SysinfoKeyword::FirewallDelete => {
             let argument =
                 argument.ok_or_else(|| "firewall_delete requires an argument".to_string())?;
-            firewall_delete(argument, &firewalld)
+            let arg_owned = argument.to_string();
+            let fw = firewalld.clone();
+            block_on_firewall(async move { firewall_delete(&arg_owned, &fw).await })
         }
         SysinfoKeyword::FirewallEditStatus => {
             let argument =
                 argument.ok_or_else(|| "firewall_edit_status requires an argument".to_string())?;
-            firewall_edit_status(argument, &firewalld)
+            let arg_owned = argument.to_string();
+            let fw = firewalld.clone();
+            block_on_firewall(async move { firewall_edit_status(&arg_owned, &fw).await })
         }
         SysinfoKeyword::FirewallEditPolicy => {
             let argument =
                 argument.ok_or_else(|| "firewall_edit_policy requires an argument".to_string())?;
-            firewall_edit_policy(argument, &firewalld)
+            let arg_owned = argument.to_string();
+            let fw = firewalld.clone();
+            block_on_firewall(async move { firewall_edit_policy(&arg_owned, &fw).await })
         }
         SysinfoKeyword::NetifStatus => collect_network_interfaces().and_then(|dto| {
             serde_json::to_string(&dto)
@@ -681,163 +702,196 @@ pub struct DnsServersDto {
     secondary: String,
 }
 
-pub fn firewall_status(firewalld: Arc<Mutex<RulesetManager>>) -> Result<FirewallStatusDto, String> {
-    firewalld_status(&firewalld)
+pub async fn firewall_status(
+    firewalld: Arc<Mutex<RulesetManager>>,
+) -> Result<FirewallStatusDto, String> {
+    firewalld_status(&firewalld).await
 }
 
-fn firewall_add(argument: &str, manager: &Arc<Mutex<RulesetManager>>) -> Result<String, String> {
+async fn firewall_add(
+    argument: &str,
+    manager: &Arc<Mutex<RulesetManager>>,
+) -> Result<String, String> {
     let payload: FirewallAddArg = parse_firewall_argument(argument, "firewall_add")?;
-    let mut manager = manager.blocking_lock();
-    let config = manager.get_hot_firewall_config();
-    let chain_name = resolve_chain_name(payload.chain, &config)?;
-    let action = map_target_to_action(payload.target)?;
-    let proto = value_if_specified(&payload.protocol).map(|p| p.to_ascii_lowercase());
-    let (sport, dport) = parse_ports_from_options(&payload.options)?;
+    let (config_snapshot, ruleset_snapshot) = {
+        let mut manager = manager.blocking_lock();
+        let config = manager.get_hot_firewall_config();
+        let chain_name = resolve_chain_name(payload.chain, &config)?;
+        let action = map_target_to_action(payload.target)?;
+        let proto = value_if_specified(&payload.protocol).map(|p| p.to_ascii_lowercase());
+        let (sport, dport) = parse_ports_from_options(&payload.options)?;
 
-    if (sport.is_some() || dport.is_some()) && proto.is_none() {
-        return Err("firewall_add: specifying ports requires Protocol".to_string());
-    }
+        if (sport.is_some() || dport.is_some()) && proto.is_none() {
+            return Err("firewall_add: specifying ports requires Protocol".to_string());
+        }
 
-    let mut statements = Vec::new();
-    if let Some(proto) = proto.clone() {
-        statements.push(l4proto_match(&proto));
-    }
-    if let Some(in_iface) = value_if_specified(&payload.in_field) {
-        statements.push(interface_match(MetaKey::Iifname, in_iface));
-    }
-    if let Some(out_iface) = value_if_specified(&payload.out_field) {
-        statements.push(interface_match(MetaKey::Oifname, out_iface));
-    }
-    if let Some(src) = value_if_specified(&payload.source) {
-        statements.push(address_match("saddr", src));
-    }
-    if let Some(dst) = value_if_specified(&payload.destination) {
-        statements.push(address_match("daddr", dst));
-    }
-    if let Some(port) = sport {
-        let proto = proto.as_deref().unwrap();
-        statements.push(port_match("sport", port, proto));
-    }
-    if let Some(port) = dport {
-        let proto = proto.as_deref().unwrap();
-        statements.push(port_match("dport", port, proto));
-    }
-    statements.push(map_action_to_statement(action));
+        let mut statements = Vec::new();
+        if let Some(proto) = proto.clone() {
+            statements.push(l4proto_match(&proto));
+        }
+        if let Some(in_iface) = value_if_specified(&payload.in_field) {
+            statements.push(interface_match(MetaKey::Iifname, in_iface));
+        }
+        if let Some(out_iface) = value_if_specified(&payload.out_field) {
+            statements.push(interface_match(MetaKey::Oifname, out_iface));
+        }
+        if let Some(src) = value_if_specified(&payload.source) {
+            statements.push(address_match("saddr", src));
+        }
+        if let Some(dst) = value_if_specified(&payload.destination) {
+            statements.push(address_match("daddr", dst));
+        }
+        if let Some(port) = sport {
+            let proto = proto.as_deref().unwrap();
+            statements.push(port_match("sport", port, proto));
+        }
+        if let Some(port) = dport {
+            let proto = proto.as_deref().unwrap();
+            statements.push(port_match("dport", port, proto));
+        }
+        statements.push(map_action_to_statement(action));
 
-    let mut ruleset = manager.ruleset().clone();
-    ruleset.objects.to_mut().push(schema::NfObject::ListObject(schema::NfListObject::Rule(
-        build_rule(&config, &chain_name, statements),
-    )));
+        let mut ruleset = manager.ruleset().clone();
+        ruleset.objects.to_mut().push(schema::NfObject::ListObject(schema::NfListObject::Rule(
+            build_rule(&config, &chain_name, statements),
+        )));
 
-    *manager = RulesetManager::from_ruleset(config, ruleset);
-    persist_and_apply(&mut manager)?;
+        *manager = RulesetManager::from_ruleset(config, ruleset);
+        manager.ensure_basic_firewall();
+        (manager.get_hot_firewall_config(), manager.ruleset().clone())
+    };
+
+    apply_and_persist_snapshot(config_snapshot, ruleset_snapshot).await?;
     Ok(format!("firewall_add: added rule to {}", payload.chain))
 }
 
-fn firewall_delete(argument: &str, manager: &Arc<Mutex<RulesetManager>>) -> Result<String, String> {
+async fn firewall_delete(
+    argument: &str,
+    manager: &Arc<Mutex<RulesetManager>>,
+) -> Result<String, String> {
     let payload: FirewallDeleteArg = parse_firewall_argument(argument, "firewall_delete")?;
     if payload.rule_id <= 0 {
         return Err("firewall_delete requires RuleId greater than 0".to_string());
     }
 
-    let mut manager = manager.blocking_lock();
-    let config = manager.get_hot_firewall_config();
-    let chain_name = resolve_chain_name(payload.chain, &config)?;
+    let (config_snapshot, ruleset_snapshot) = {
+        let mut manager = manager.blocking_lock();
+        let config = manager.get_hot_firewall_config();
+        let chain_name = resolve_chain_name(payload.chain, &config)?;
 
-    let mut counter = 0usize;
-    let mut matched_pos = None;
-    for (pos, object) in manager.ruleset().objects.iter().enumerate() {
-        let schema::NfObject::ListObject(schema::NfListObject::Rule(rule)) = object else {
-            continue;
-        };
-        if rule.chain.as_ref() != chain_name {
-            continue;
+        let mut counter = 0usize;
+        let mut matched_pos = None;
+        for (pos, object) in manager.ruleset().objects.iter().enumerate() {
+            let schema::NfObject::ListObject(schema::NfListObject::Rule(rule)) = object else {
+                continue;
+            };
+            if rule.chain.as_ref() != chain_name {
+                continue;
+            }
+            let parsed = parse_firewalld_rule(rule);
+            if !matches!(parsed.target.as_str(), "ACCEPT" | "DROP") {
+                continue;
+            }
+            counter += 1;
+            if counter == payload.rule_id as usize {
+                matched_pos = Some(pos);
+                break;
+            }
         }
-        let parsed = parse_firewalld_rule(rule);
-        if !matches!(parsed.target.as_str(), "ACCEPT" | "DROP") {
-            continue;
-        }
-        counter += 1;
-        if counter == payload.rule_id as usize {
-            matched_pos = Some(pos);
-            break;
-        }
-    }
 
-    let pos = matched_pos.ok_or_else(|| {
-        format!("firewall_delete: RuleId {} not found in chain {}", payload.rule_id, payload.chain)
-    })?;
+        let pos = matched_pos.ok_or_else(|| {
+            format!(
+                "firewall_delete: RuleId {} not found in chain {}",
+                payload.rule_id, payload.chain
+            )
+        })?;
 
-    let mut ruleset = manager.ruleset().clone();
-    ruleset.objects.to_mut().remove(pos);
-    *manager = RulesetManager::from_ruleset(config, ruleset);
-    persist_and_apply(&mut manager)?;
+        let mut ruleset = manager.ruleset().clone();
+        ruleset.objects.to_mut().remove(pos);
+        *manager = RulesetManager::from_ruleset(config, ruleset);
+        manager.ensure_basic_firewall();
+        (manager.get_hot_firewall_config(), manager.ruleset().clone())
+    };
+
+    apply_and_persist_snapshot(config_snapshot, ruleset_snapshot).await?;
     Ok(format!("firewall_delete: removed rule from {}", payload.chain))
 }
 
-fn firewall_edit_status(
+async fn firewall_edit_status(
     argument: &str,
     manager: &Arc<Mutex<RulesetManager>>,
 ) -> Result<String, String> {
     let payload: FirewallEditStatusArg = parse_firewall_argument(argument, "firewall_edit_status")?;
 
-    let mut manager = manager.blocking_lock();
-    let mut config = manager.get_hot_firewall_config();
-    let ruleset = manager.ruleset().clone();
+    let (config_snapshot, ruleset_snapshot) = {
+        let mut manager = manager.blocking_lock();
+        let mut config = manager.get_hot_firewall_config();
+        let ruleset = manager.ruleset().clone();
+
+        match payload.status {
+            FirewallStatusArg::Active => {
+                if !config.enabled {
+                    config.enabled = true;
+                }
+                *manager = RulesetManager::from_ruleset(config, ruleset);
+                manager.ensure_basic_firewall();
+            }
+            FirewallStatusArg::Inactive => {
+                if config.enabled {
+                    config.enabled = false;
+                }
+                *manager = RulesetManager::from_ruleset(config, ruleset);
+            }
+        }
+
+        (manager.get_hot_firewall_config(), manager.ruleset().clone())
+    };
+
+    apply_and_persist_snapshot(config_snapshot, ruleset_snapshot).await?;
 
     match payload.status {
-        FirewallStatusArg::Active => {
-            if !config.enabled {
-                config.enabled = true;
-            }
-            *manager = RulesetManager::from_ruleset(config, ruleset);
-            persist_and_apply(&mut manager)?;
-            Ok("firewall_edit_status: firewall activated".to_string())
-        }
-        FirewallStatusArg::Inactive => {
-            if config.enabled {
-                config.enabled = false;
-            }
-            *manager = RulesetManager::from_ruleset(config, ruleset);
-            manager.reset_table().map_err(|e| format!("firewalld reset table failed: {}", e))?;
-            persist_and_apply(&mut manager)?;
-            Ok("firewall_edit_status: firewall deactivated".to_string())
-        }
+        FirewallStatusArg::Active => Ok("firewall_edit_status: firewall activated".to_string()),
+        FirewallStatusArg::Inactive => Ok("firewall_edit_status: firewall deactivated".to_string()),
     }
 }
 
-fn firewall_edit_policy(
+async fn firewall_edit_policy(
     argument: &str,
     manager: &Arc<Mutex<RulesetManager>>,
 ) -> Result<String, String> {
     let payload: FirewallEditPolicyArg = parse_firewall_argument(argument, "firewall_edit_policy")?;
 
-    let mut manager = manager.blocking_lock();
-    let mut config = manager.get_hot_firewall_config();
-    let mut ruleset = manager.ruleset().clone();
+    let (config_snapshot, ruleset_snapshot) = {
+        let mut manager = manager.blocking_lock();
+        let mut config = manager.get_hot_firewall_config();
+        let mut ruleset = manager.ruleset().clone();
 
-    let (chain_name, action) = match payload.chain {
-        FirewallChainArg::Input => {
-            config.input_policy = map_target_to_action(payload.policy)?;
-            (config.input_chain.clone(), config.input_policy)
-        }
-        FirewallChainArg::Output => {
-            config.output_policy = map_target_to_action(payload.policy)?;
-            (config.output_chain.clone(), config.output_policy)
-        }
-    };
+        let (chain_name, action) = match payload.chain {
+            FirewallChainArg::Input => {
+                config.input_policy = map_target_to_action(payload.policy)?;
+                (config.input_chain.clone(), config.input_policy)
+            }
+            FirewallChainArg::Output => {
+                config.output_policy = map_target_to_action(payload.policy)?;
+                (config.output_chain.clone(), config.output_policy)
+            }
+        };
 
-    let policy_value = action.into();
-    for object in ruleset.objects.to_mut().iter_mut() {
-        if let schema::NfObject::ListObject(schema::NfListObject::Chain(chain)) = object {
-            if chain.name.as_ref() == chain_name {
-                chain.policy = Some(policy_value);
+        let policy_value = action.into();
+        for object in ruleset.objects.to_mut().iter_mut() {
+            if let schema::NfObject::ListObject(schema::NfListObject::Chain(chain)) = object {
+                if chain.name.as_ref() == chain_name {
+                    chain.policy = Some(policy_value);
+                }
             }
         }
-    }
 
-    *manager = RulesetManager::from_ruleset(config, ruleset);
-    persist_and_apply(&mut manager)?;
+        *manager = RulesetManager::from_ruleset(config, ruleset);
+        manager.ensure_basic_firewall();
+        (manager.get_hot_firewall_config(), manager.ruleset().clone())
+    };
+
+    apply_and_persist_snapshot(config_snapshot, ruleset_snapshot).await?;
 
     Ok(format!("firewall_edit_policy: set {} policy to {}", payload.chain, payload.policy))
 }
@@ -1365,39 +1419,33 @@ fn build_fallback_log_entry(line: &str) -> LogEntryDto {
     }
 }
 
-fn firewalld_status(firewalld: &Arc<Mutex<RulesetManager>>) -> Result<FirewallStatusDto, String> {
-    let mut manager = firewalld.blocking_lock();
-    let config = manager.get_hot_firewall_config();
+async fn firewalld_status(
+    firewalld: &Arc<Mutex<RulesetManager>>,
+) -> Result<FirewallStatusDto, String> {
+    let (config_snapshot, ruleset_snapshot) = {
+        let mut manager = firewalld.blocking_lock();
+        manager.ensure_basic_firewall();
+        (manager.get_hot_firewall_config(), manager.ruleset().clone())
+    };
 
-    manager.ensure_basic_firewall();
-    if config.enabled {
-        manager.apply_only_own_table().map_err(|e| format!("firewalld apply failed: {}", e))?;
-        let (config_path, ruleset_path) = firewalld_paths();
-        let mut cfg = FirewalldConfig::load(config_path.as_path())
-            .unwrap_or_else(|_| FirewalldConfig::default());
-        cfg.save(config_path.as_path(), manager.get_hot_firewall_config())
-            .map_err(|e| format!("firewalld save config failed: {}", e))?;
-        manager
-            .save_json(ruleset_path.as_path())
-            .map_err(|e| format!("firewalld save ruleset failed: {}", e))?;
-    }
+    let manager = apply_and_persist_snapshot(config_snapshot.clone(), ruleset_snapshot).await?;
 
     let chains = vec![
         build_firewalld_chain(
             "INPUT",
-            &config.input_chain,
-            config.input_policy.to_string(),
+            &config_snapshot.input_chain,
+            config_snapshot.input_policy.to_string(),
             &manager,
         ),
         build_firewalld_chain(
             "OUTPUT",
-            &config.output_chain,
-            config.output_policy.to_string(),
+            &config_snapshot.output_chain,
+            config_snapshot.output_policy.to_string(),
             &manager,
         ),
     ];
 
-    let status = if config.enabled { "active" } else { "inactive" };
+    let status = if config_snapshot.enabled { "active" } else { "inactive" };
     Ok(FirewallStatusDto { status: status.to_string(), chains })
 }
 
@@ -1523,6 +1571,56 @@ fn firewalld_paths() -> (std::path::PathBuf, std::path::PathBuf) {
     )
 }
 
+fn command_timeout() -> TokioDuration {
+    GlobalConfig::with(|cfg| TokioDuration::from_secs(cfg.extend.command_timeout_secs.max(1)))
+}
+
+async fn apply_and_persist_snapshot(
+    config: BasicFirewallConfig,
+    ruleset: schema::Nftables<'static>,
+) -> Result<RulesetManager, String> {
+    let mut manager = RulesetManager::from_ruleset(config.clone(), ruleset);
+    manager.ensure_basic_firewall();
+
+    let apply_future = async {
+        if manager.get_hot_firewall_config().enabled {
+            manager
+                .apply_only_own_table()
+                .await
+                .map_err(|e| format!("apply firewalld ruleset: {}", e))?;
+        } else {
+            manager
+                .reset_table()
+                .await
+                .map_err(|e| format!("firewalld reset table failed: {}", e))?;
+        }
+        Ok::<(), String>(())
+    };
+
+    tokio::time::timeout(command_timeout(), apply_future)
+        .await
+        .map_err(|_| "firewalld apply/reset timed out".to_string())??;
+
+    let (config_path, ruleset_path) = firewalld_paths();
+
+    let cfg_clone = manager.get_hot_firewall_config();
+    task::spawn_blocking(move || {
+        let mut cfg = FirewalldConfig::load(config_path.as_path())
+            .unwrap_or_else(|_| FirewalldConfig::default());
+        cfg.save(config_path.as_path(), cfg_clone)
+    })
+    .await
+    .map_err(|e| format!("firewalld config task join error: {}", e))?
+    .map_err(|e| format!("write firewalld config: {}", e))?;
+
+    manager
+        .save_json(ruleset_path.as_path())
+        .await
+        .map_err(|e| format!("persist firewalld ruleset: {}", e))?;
+
+    Ok(manager)
+}
+
 pub async fn init_firewalld_manager() -> Result<Arc<Mutex<RulesetManager>>, String> {
     let (config_path, ruleset_path) = firewalld_paths();
     let mut app_config =
@@ -1536,8 +1634,9 @@ pub async fn init_firewalld_manager() -> Result<Arc<Mutex<RulesetManager>>, Stri
     };
     manager.ensure_basic_firewall();
     if manager.get_hot_firewall_config().enabled {
-        manager
-            .apply_only_own_table()
+        tokio::time::timeout(command_timeout(), manager.apply_only_own_table())
+            .await
+            .map_err(|_| "apply initial firewalld ruleset timed out".to_string())?
             .map_err(|e| format!("apply initial firewalld ruleset: {}", e))?;
     }
     app_config
@@ -1545,6 +1644,7 @@ pub async fn init_firewalld_manager() -> Result<Arc<Mutex<RulesetManager>>, Stri
         .map_err(|e| format!("write firewalld config: {}", e))?;
     manager
         .save_json(ruleset_path.as_path())
+        .await
         .map_err(|e| format!("persist firewalld ruleset: {}", e))?;
     Ok(Arc::new(Mutex::new(manager)))
 }
@@ -1700,26 +1800,6 @@ fn build_rule(
         comment: None,
         ..Default::default()
     }
-}
-
-fn persist_and_apply(manager: &mut RulesetManager) -> Result<(), String> {
-    manager.ensure_basic_firewall();
-    let (config_path, ruleset_path) = firewalld_paths();
-
-    if manager.get_hot_firewall_config().enabled {
-        manager.apply_only_own_table().map_err(|e| format!("apply firewalld ruleset: {}", e))?;
-    }
-
-    let mut app_config =
-        FirewalldConfig::load(config_path.as_path()).unwrap_or_else(|_| FirewalldConfig::default());
-    app_config
-        .save(config_path.as_path(), manager.get_hot_firewall_config())
-        .map_err(|e| format!("write firewalld config: {}", e))?;
-    manager
-        .save_json(ruleset_path.as_path())
-        .map_err(|e| format!("persist firewalld ruleset: {}", e))?;
-
-    Ok(())
 }
 
 fn collect_dns_info() -> Result<DnsInfoDto, String> {
