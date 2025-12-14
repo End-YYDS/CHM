@@ -1,7 +1,7 @@
 // Functions: get_firewall, firewall_add, firewall_delete, firewall_edit_status,
 // firewall_edit_policy
 
-use std::io;
+use std::{fmt, io};
 
 use crate::{
     make_sysinfo_command, make_sysinfo_command_with_argument, parse_return_info, send_to_hostd,
@@ -17,12 +17,24 @@ pub enum FirewallStatusState {
     Unknown(String),
 }
 
+impl fmt::Display for FirewallStatusState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 #[derive(Debug)]
 pub enum FirewallPolicy {
     Accept,
     Drop,
     Reject,
     Other(String),
+}
+
+impl fmt::Display for FirewallPolicy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
 }
 
 #[derive(Debug)]
@@ -89,11 +101,11 @@ enum FirewallChainArg {
     Output,
 }
 
-impl FirewallChainArg {
-    fn as_str(self) -> &'static str {
+impl fmt::Display for FirewallChainArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FirewallChainArg::Input => "INPUT",
-            FirewallChainArg::Output => "OUTPUT",
+            FirewallChainArg::Input => write!(f, "INPUT"),
+            FirewallChainArg::Output => write!(f, "OUTPUT"),
         }
     }
 }
@@ -103,7 +115,7 @@ impl Serialize for FirewallChainArg {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(self.as_str())
+        serializer.collect_str(self)
     }
 }
 
@@ -128,11 +140,11 @@ enum FirewallTargetArg {
     Drop,
 }
 
-impl FirewallTargetArg {
-    fn as_str(self) -> &'static str {
+impl fmt::Display for FirewallTargetArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FirewallTargetArg::Accept => "ACCEPT",
-            FirewallTargetArg::Drop => "DROP",
+            FirewallTargetArg::Accept => write!(f, "ACCEPT"),
+            FirewallTargetArg::Drop => write!(f, "DROP"),
         }
     }
 }
@@ -142,7 +154,7 @@ impl Serialize for FirewallTargetArg {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(self.as_str())
+        serializer.collect_str(self)
     }
 }
 
@@ -167,11 +179,11 @@ enum FirewallStatusArg {
     Inactive,
 }
 
-impl FirewallStatusArg {
-    fn as_str(self) -> &'static str {
+impl fmt::Display for FirewallStatusArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FirewallStatusArg::Active => "ACTIVE",
-            FirewallStatusArg::Inactive => "INACTIVE",
+            FirewallStatusArg::Active => write!(f, "ACTIVE"),
+            FirewallStatusArg::Inactive => write!(f, "INACTIVE"),
         }
     }
 }
@@ -181,7 +193,7 @@ impl Serialize for FirewallStatusArg {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(self.as_str())
+        serializer.collect_str(self)
     }
 }
 
@@ -245,14 +257,14 @@ enum FirewallHostdCommand {
     EditPolicy,
 }
 
-impl FirewallHostdCommand {
-    fn as_str(self) -> &'static str {
+impl fmt::Display for FirewallHostdCommand {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FirewallHostdCommand::Status => "firewall_status",
-            FirewallHostdCommand::Add => "firewall_add",
-            FirewallHostdCommand::Delete => "firewall_delete",
-            FirewallHostdCommand::EditStatus => "firewall_edit_status",
-            FirewallHostdCommand::EditPolicy => "firewall_edit_policy",
+            FirewallHostdCommand::Status => write!(f, "firewall_status"),
+            FirewallHostdCommand::Add => write!(f, "firewall_add"),
+            FirewallHostdCommand::Delete => write!(f, "firewall_delete"),
+            FirewallHostdCommand::EditStatus => write!(f, "firewall_edit_status"),
+            FirewallHostdCommand::EditPolicy => write!(f, "firewall_edit_policy"),
         }
     }
 }
@@ -269,7 +281,8 @@ impl HostdPayload for FirewallEditStatusArg {}
 impl HostdPayload for FirewallEditPolicyArg {}
 
 pub async fn firewall_info_structured(_sys: &SystemInfo) -> io::Result<FirewallStatus> {
-    let cmd = make_sysinfo_command(FirewallHostdCommand::Status.as_str());
+    let cmd_name = FirewallHostdCommand::Status.to_string();
+    let cmd = make_sysinfo_command(&cmd_name);
     let output = send_to_hostd(&cmd).await?;
 
     if let Ok(status) = serde_json::from_str::<FirewallStatusDto>(&output) {
@@ -344,11 +357,12 @@ async fn send_firewall_payload<T>(cmd: FirewallHostdCommand, payload: &T) -> Res
 where
     T: HostdPayload,
 {
+    let cmd_name = cmd.to_string();
     let payload_json = payload.encode_payload()?;
-    let real = make_sysinfo_command_with_argument(cmd.as_str(), &payload_json);
+    let real = make_sysinfo_command_with_argument(&cmd_name, &payload_json);
     let output =
-        send_to_hostd(&real).await.map_err(|e| format!("{} via hostd: {}", cmd.as_str(), e))?;
-    parse_return(output, cmd.as_str())
+        send_to_hostd(&real).await.map_err(|e| format!("{} via hostd: {}", cmd_name, e))?;
+    parse_return(output, &cmd_name)
 }
 
 fn convert_firewall_status(dto: FirewallStatusDto) -> FirewallStatus {

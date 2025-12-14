@@ -18,7 +18,7 @@ use serde_json;
 use std::{
     borrow::Cow,
     collections::{BTreeMap, BTreeSet, VecDeque},
-    fs,
+    fmt, fs,
     io::{self, BufRead, BufReader},
     net::UdpSocket,
     os::unix::fs::{FileTypeExt, MetadataExt},
@@ -467,11 +467,11 @@ enum FirewallChainArg {
     Output,
 }
 
-impl FirewallChainArg {
-    fn as_str(self) -> &'static str {
+impl fmt::Display for FirewallChainArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FirewallChainArg::Input => "INPUT",
-            FirewallChainArg::Output => "OUTPUT",
+            FirewallChainArg::Input => write!(f, "INPUT"),
+            FirewallChainArg::Output => write!(f, "OUTPUT"),
         }
     }
 }
@@ -483,11 +483,11 @@ enum FirewallTargetArg {
     Drop,
 }
 
-impl FirewallTargetArg {
-    fn as_str(self) -> &'static str {
+impl fmt::Display for FirewallTargetArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            FirewallTargetArg::Accept => "ACCEPT",
-            FirewallTargetArg::Drop => "DROP",
+            FirewallTargetArg::Accept => write!(f, "ACCEPT"),
+            FirewallTargetArg::Drop => write!(f, "DROP"),
         }
     }
 }
@@ -497,6 +497,15 @@ impl FirewallTargetArg {
 enum FirewallStatusArg {
     Active,
     Inactive,
+}
+
+impl fmt::Display for FirewallStatusArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FirewallStatusArg::Active => write!(f, "ACTIVE"),
+            FirewallStatusArg::Inactive => write!(f, "INACTIVE"),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -722,7 +731,7 @@ fn firewall_add(argument: &str, manager: &Arc<Mutex<RulesetManager>>) -> Result<
 
     *manager = RulesetManager::from_ruleset(config, ruleset);
     persist_and_apply(&mut manager)?;
-    Ok(format!("firewall_add: added rule to {}", payload.chain.as_str()))
+    Ok(format!("firewall_add: added rule to {}", payload.chain))
 }
 
 fn firewall_delete(argument: &str, manager: &Arc<Mutex<RulesetManager>>) -> Result<String, String> {
@@ -756,18 +765,14 @@ fn firewall_delete(argument: &str, manager: &Arc<Mutex<RulesetManager>>) -> Resu
     }
 
     let pos = matched_pos.ok_or_else(|| {
-        format!(
-            "firewall_delete: RuleId {} not found in chain {}",
-            payload.rule_id,
-            payload.chain.as_str()
-        )
+        format!("firewall_delete: RuleId {} not found in chain {}", payload.rule_id, payload.chain)
     })?;
 
     let mut ruleset = manager.ruleset().clone();
     ruleset.objects.to_mut().remove(pos);
     *manager = RulesetManager::from_ruleset(config, ruleset);
     persist_and_apply(&mut manager)?;
-    Ok(format!("firewall_delete: removed rule from {}", payload.chain.as_str()))
+    Ok(format!("firewall_delete: removed rule from {}", payload.chain))
 }
 
 fn firewall_edit_status(
@@ -834,11 +839,7 @@ fn firewall_edit_policy(
     *manager = RulesetManager::from_ruleset(config, ruleset);
     persist_and_apply(&mut manager)?;
 
-    Ok(format!(
-        "firewall_edit_policy: set {} policy to {}",
-        payload.chain.as_str(),
-        payload.policy.as_str()
-    ))
+    Ok(format!("firewall_edit_policy: set {} policy to {}", payload.chain, payload.policy))
 }
 
 fn collect_network_interfaces() -> Result<NetworkInterfacesDto, String> {
