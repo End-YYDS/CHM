@@ -2,7 +2,7 @@
 mod unix_main {
     use agent::{
         config,
-        hostd::{proto::HostdServiceServer, HostdGrpcService},
+        hostd::{init_firewalld_manager, proto::HostdServiceServer, HostdGrpcService},
         GlobalConfig, ID, NEED_EXAMPLE,
     };
     use anyhow::{anyhow, Context, Result};
@@ -86,10 +86,16 @@ mod unix_main {
         });
         let sysinfo_timeout = Duration::from_secs(get_timeout_secs);
         let command_timeout = Duration::from_secs(command_timeout_secs);
+        let firewalld =
+            init_firewalld_manager().await.unwrap_or_else(|e| panic!("初始化 firewalld 失敗: {e}"));
 
         let incoming = UnixListenerStream::new(listener);
-        let service =
-            HostdGrpcService::new(Arc::clone(&semaphore), sysinfo_timeout, command_timeout);
+        let service = HostdGrpcService::new(
+            Arc::clone(&semaphore),
+            sysinfo_timeout,
+            command_timeout,
+            firewalld.clone(),
+        );
 
         info!(
             "[HostD] gRPC 服務啟動於 {listener_label} (max_concurrency: {concurrency}, \
@@ -237,9 +243,11 @@ mod unix_main {
             }
         }
 
-        env::remove_var("LISTEN_PID");
-        env::remove_var("LISTEN_FDS");
-        env::remove_var("LISTEN_FDNAMES");
+        unsafe {
+            env::remove_var("LISTEN_PID");
+            env::remove_var("LISTEN_FDS");
+            env::remove_var("LISTEN_FDNAMES");
+        }
 
         let fd = match primary_fd {
             Some(fd) => fd,

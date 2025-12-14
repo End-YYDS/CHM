@@ -1,8 +1,14 @@
 #![cfg(target_family = "unix")]
 
 use base64::{engine::general_purpose, Engine as _};
+use chm_firewall::{AppConfig as FirewalldConfig, BasicFirewallConfig, RuleAction, RulesetManager};
 use chm_grpc::tonic::{async_trait, Request, Response, Status};
 use chrono::{DateTime, Datelike, Local};
+use nftables::{
+    expr::{Expression, Meta, MetaKey, NamedExpression, Payload, Prefix},
+    schema,
+    stmt::{Match, Statement},
+};
 use pnet::{
     datalink::{interfaces, NetworkInterface},
     ipnetwork::IpNetwork,
@@ -10,8 +16,9 @@ use pnet::{
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::{
+    borrow::Cow,
     collections::{BTreeMap, BTreeSet, VecDeque},
-    fs,
+    fmt, fs,
     io::{self, BufRead, BufReader},
     net::UdpSocket,
     os::unix::fs::{FileTypeExt, MetadataExt},
@@ -23,12 +30,21 @@ use std::{
 use sysinfo::{
     DiskRefreshKind, Disks, MemoryRefreshKind, ProcessRefreshKind, ProcessStatus, System,
 };
-use tokio::{sync::Semaphore, task};
+use tokio::{
+    runtime::Handle,
+    sync::{Mutex, Semaphore},
+    task,
+    time::Duration as TokioDuration,
+};
 use uzers::get_user_by_uid;
+
+use crate::GlobalConfig;
 
 const META_PREFIX: &str = "# agent_meta:";
 const SYSLOG_CANDIDATES: [&str; 2] = ["/var/log/syslog", "/var/log/messages"];
 const LOG_ENTRY_LIMIT: usize = 20;
+const FIREWALLD_CONFIG_PATH: &str = "config/firewalld.toml";
+const FIREWALLD_RULESET_PATH: &str = "config/firewalld_ruleset.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SysinfoKeyword {
@@ -37,6 +53,10 @@ enum SysinfoKeyword {
     DiskStatus,
     ProcessList,
     FirewallStatus,
+    FirewallAdd,
+    FirewallDelete,
+    FirewallEditStatus,
+    FirewallEditPolicy,
     NetifStatus,
     RouteStatus,
     DnsStatus,
@@ -56,6 +76,10 @@ impl SysinfoKeyword {
             "disk_status" => Ok(Self::DiskStatus),
             "process_list" => Ok(Self::ProcessList),
             "firewall_status" => Ok(Self::FirewallStatus),
+            "firewall_add" => Ok(Self::FirewallAdd),
+            "firewall_delete" => Ok(Self::FirewallDelete),
+            "firewall_edit_status" => Ok(Self::FirewallEditStatus),
+            "firewall_edit_policy" => Ok(Self::FirewallEditPolicy),
             "netif_status" => Ok(Self::NetifStatus),
             "route_status" => Ok(Self::RouteStatus),
             "dns_status" => Ok(Self::DnsStatus),
@@ -92,6 +116,7 @@ pub struct HostdGrpcService {
     semaphore:       Arc<Semaphore>,
     command_timeout: Duration,
     sysinfo_timeout: Duration,
+    firewalld:       Arc<Mutex<RulesetManager>>,
 }
 
 impl HostdGrpcService {
@@ -99,8 +124,9 @@ impl HostdGrpcService {
         semaphore: Arc<Semaphore>,
         sysinfo_timeout: Duration,
         command_timeout: Duration,
+        firewalld: Arc<Mutex<RulesetManager>>,
     ) -> Self {
-        Self { semaphore, sysinfo_timeout, command_timeout }
+        Self { semaphore, sysinfo_timeout, command_timeout, firewalld }
     }
 }
 
@@ -115,7 +141,8 @@ impl proto::HostdService for HostdGrpcService {
         if command.trim().is_empty() {
             return Err(Status::invalid_argument("sysinfo command cannot be empty"));
         }
-        let handle = task::spawn_blocking(move || execute_sysinfo(&command));
+        let firewalld = self.firewalld.clone();
+        let handle = task::spawn_blocking(move || execute_sysinfo(&command, firewalld));
         tokio::pin!(handle);
         let join_result = match tokio::time::timeout(self.sysinfo_timeout, &mut handle).await {
             Ok(res) => {
@@ -199,8 +226,19 @@ pub fn execute_command(command: &str) -> io::Result<Output> {
     Command::new("sh").arg("-c").arg(command).output()
 }
 
+fn block_on_firewall<F, T>(fut: F) -> Result<T, String>
+where
+    F: std::future::Future<Output = Result<T, String>> + Send + 'static,
+    T: Send + 'static,
+{
+    Handle::current().block_on(fut)
+}
+
 /// Execute sysinfo-oriented requests
-pub fn execute_sysinfo(command: &str) -> Result<String, String> {
+pub fn execute_sysinfo(
+    command: &str,
+    firewalld: Arc<Mutex<RulesetManager>>,
+) -> Result<String, String> {
     let trimmed = command.trim();
     if trimmed.is_empty() {
         return Err("no sysinfo request provided".to_string());
@@ -242,10 +280,39 @@ pub fn execute_sysinfo(command: &str) -> Result<String, String> {
         SysinfoKeyword::ProcessList => collect_process_info(&mut sys).and_then(|dto| {
             serde_json::to_string(&dto).map_err(|e| format!("failed to encode process info: {}", e))
         }),
-        SysinfoKeyword::FirewallStatus => firewall_status().and_then(|status| {
-            serde_json::to_string(&status)
-                .map_err(|e| format!("failed to encode firewall status: {}", e))
-        }),
+        SysinfoKeyword::FirewallStatus => block_on_firewall(firewall_status(firewalld.clone()))
+            .and_then(|status| {
+                serde_json::to_string(&status)
+                    .map_err(|e| format!("failed to encode firewall status: {}", e))
+            }),
+        SysinfoKeyword::FirewallAdd => {
+            let argument =
+                argument.ok_or_else(|| "firewall_add requires an argument".to_string())?;
+            let arg_owned = argument.to_string();
+            let fw = firewalld.clone();
+            block_on_firewall(async move { firewall_add(&arg_owned, &fw).await })
+        }
+        SysinfoKeyword::FirewallDelete => {
+            let argument =
+                argument.ok_or_else(|| "firewall_delete requires an argument".to_string())?;
+            let arg_owned = argument.to_string();
+            let fw = firewalld.clone();
+            block_on_firewall(async move { firewall_delete(&arg_owned, &fw).await })
+        }
+        SysinfoKeyword::FirewallEditStatus => {
+            let argument =
+                argument.ok_or_else(|| "firewall_edit_status requires an argument".to_string())?;
+            let arg_owned = argument.to_string();
+            let fw = firewalld.clone();
+            block_on_firewall(async move { firewall_edit_status(&arg_owned, &fw).await })
+        }
+        SysinfoKeyword::FirewallEditPolicy => {
+            let argument =
+                argument.ok_or_else(|| "firewall_edit_policy requires an argument".to_string())?;
+            let arg_owned = argument.to_string();
+            let fw = firewalld.clone();
+            block_on_firewall(async move { firewall_edit_policy(&arg_owned, &fw).await })
+        }
         SysinfoKeyword::NetifStatus => collect_network_interfaces().and_then(|dto| {
             serde_json::to_string(&dto)
                 .map_err(|e| format!("failed to encode network interfaces: {}", e))
@@ -414,6 +481,54 @@ pub struct FirewallStatusDto {
     chains: Vec<FirewallChainDto>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+enum FirewallChainArg {
+    Input,
+    Output,
+}
+
+impl fmt::Display for FirewallChainArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FirewallChainArg::Input => write!(f, "INPUT"),
+            FirewallChainArg::Output => write!(f, "OUTPUT"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+enum FirewallTargetArg {
+    Accept,
+    Drop,
+}
+
+impl fmt::Display for FirewallTargetArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FirewallTargetArg::Accept => write!(f, "ACCEPT"),
+            FirewallTargetArg::Drop => write!(f, "DROP"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "UPPERCASE")]
+enum FirewallStatusArg {
+    Active,
+    Inactive,
+}
+
+impl fmt::Display for FirewallStatusArg {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FirewallStatusArg::Active => write!(f, "ACTIVE"),
+            FirewallStatusArg::Inactive => write!(f, "INACTIVE"),
+        }
+    }
+}
+
 #[derive(Serialize)]
 pub struct ProcessInfoDto {
     #[serde(rename = "Entries")]
@@ -468,6 +583,42 @@ pub struct FirewallRuleDto {
     destination:   String,
     #[serde(rename = "Options")]
     options:       String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct FirewallAddArg {
+    chain:       FirewallChainArg,
+    target:      FirewallTargetArg,
+    protocol:    String,
+    #[serde(rename = "In")]
+    in_field:    String,
+    #[serde(rename = "Out")]
+    out_field:   String,
+    source:      String,
+    destination: String,
+    options:     String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct FirewallDeleteArg {
+    chain:   FirewallChainArg,
+    #[serde(rename = "RuleId")]
+    rule_id: i32,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct FirewallEditStatusArg {
+    status: FirewallStatusArg,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct FirewallEditPolicyArg {
+    chain:  FirewallChainArg,
+    policy: FirewallTargetArg,
 }
 
 #[derive(Serialize)]
@@ -551,26 +702,198 @@ pub struct DnsServersDto {
     secondary: String,
 }
 
-pub fn firewall_status() -> Result<FirewallStatusDto, String> {
-    let mut errors = Vec::new();
+pub async fn firewall_status(
+    firewalld: Arc<Mutex<RulesetManager>>,
+) -> Result<FirewallStatusDto, String> {
+    firewalld_status(&firewalld).await
+}
 
-    if let Some(status) = run_iptables_variant("iptables", &mut errors)? {
-        return Ok(status);
+async fn firewall_add(
+    argument: &str,
+    manager: &Arc<Mutex<RulesetManager>>,
+) -> Result<String, String> {
+    let payload: FirewallAddArg = parse_firewall_argument(argument, "firewall_add")?;
+    let (config_snapshot, ruleset_snapshot) = {
+        let mut manager = manager.blocking_lock();
+        let config = manager.get_hot_firewall_config();
+        let chain_name = resolve_chain_name(payload.chain, &config)?;
+        let action = map_target_to_action(payload.target)?;
+        let proto = value_if_specified(&payload.protocol).map(|p| p.to_ascii_lowercase());
+        let (sport, dport) = parse_ports_from_options(&payload.options)?;
+
+        if (sport.is_some() || dport.is_some()) && proto.is_none() {
+            return Err("firewall_add: specifying ports requires Protocol".to_string());
+        }
+
+        let mut statements = Vec::new();
+        if let Some(proto) = proto.clone() {
+            statements.push(l4proto_match(&proto));
+        }
+        if let Some(in_iface) = value_if_specified(&payload.in_field) {
+            statements.push(interface_match(MetaKey::Iifname, in_iface));
+        }
+        if let Some(out_iface) = value_if_specified(&payload.out_field) {
+            statements.push(interface_match(MetaKey::Oifname, out_iface));
+        }
+        if let Some(src) = value_if_specified(&payload.source) {
+            statements.push(address_match("saddr", src));
+        }
+        if let Some(dst) = value_if_specified(&payload.destination) {
+            statements.push(address_match("daddr", dst));
+        }
+        if let Some(port) = sport {
+            let proto = proto.as_deref().unwrap();
+            statements.push(port_match("sport", port, proto));
+        }
+        if let Some(port) = dport {
+            let proto = proto.as_deref().unwrap();
+            statements.push(port_match("dport", port, proto));
+        }
+        statements.push(map_action_to_statement(action));
+
+        let mut ruleset = manager.ruleset().clone();
+        ruleset.objects.to_mut().push(schema::NfObject::ListObject(schema::NfListObject::Rule(
+            build_rule(&config, &chain_name, statements),
+        )));
+
+        *manager = RulesetManager::from_ruleset(config, ruleset);
+        manager.ensure_basic_firewall();
+        (manager.get_hot_firewall_config(), manager.ruleset().clone())
+    };
+
+    apply_and_persist_snapshot(config_snapshot, ruleset_snapshot).await?;
+    Ok(format!("firewall_add: added rule to {}", payload.chain))
+}
+
+async fn firewall_delete(
+    argument: &str,
+    manager: &Arc<Mutex<RulesetManager>>,
+) -> Result<String, String> {
+    let payload: FirewallDeleteArg = parse_firewall_argument(argument, "firewall_delete")?;
+    if payload.rule_id <= 0 {
+        return Err("firewall_delete requires RuleId greater than 0".to_string());
     }
 
-    if let Some(status) = run_iptables_variant("iptables-nft", &mut errors)? {
-        return Ok(status);
-    }
+    let (config_snapshot, ruleset_snapshot) = {
+        let mut manager = manager.blocking_lock();
+        let config = manager.get_hot_firewall_config();
+        let chain_name = resolve_chain_name(payload.chain, &config)?;
 
-    if let Some(status) = run_nft_fallback(&mut errors)? {
-        return Ok(status);
-    }
+        let mut counter = 0usize;
+        let mut matched_pos = None;
+        for (pos, object) in manager.ruleset().objects.iter().enumerate() {
+            let schema::NfObject::ListObject(schema::NfListObject::Rule(rule)) = object else {
+                continue;
+            };
+            if rule.chain.as_ref() != chain_name {
+                continue;
+            }
+            let parsed = parse_firewalld_rule(rule);
+            if !matches!(parsed.target.as_str(), "ACCEPT" | "DROP") {
+                continue;
+            }
+            counter += 1;
+            if counter == payload.rule_id as usize {
+                matched_pos = Some(pos);
+                break;
+            }
+        }
 
-    if errors.is_empty() {
-        Err("no firewall inspection commands available".to_string())
-    } else {
-        Err(format!("firewall inspection failed: {}", errors.join("; ")))
+        let pos = matched_pos.ok_or_else(|| {
+            format!(
+                "firewall_delete: RuleId {} not found in chain {}",
+                payload.rule_id, payload.chain
+            )
+        })?;
+
+        let mut ruleset = manager.ruleset().clone();
+        ruleset.objects.to_mut().remove(pos);
+        *manager = RulesetManager::from_ruleset(config, ruleset);
+        manager.ensure_basic_firewall();
+        (manager.get_hot_firewall_config(), manager.ruleset().clone())
+    };
+
+    apply_and_persist_snapshot(config_snapshot, ruleset_snapshot).await?;
+    Ok(format!("firewall_delete: removed rule from {}", payload.chain))
+}
+
+async fn firewall_edit_status(
+    argument: &str,
+    manager: &Arc<Mutex<RulesetManager>>,
+) -> Result<String, String> {
+    let payload: FirewallEditStatusArg = parse_firewall_argument(argument, "firewall_edit_status")?;
+
+    let (config_snapshot, ruleset_snapshot) = {
+        let mut manager = manager.blocking_lock();
+        let mut config = manager.get_hot_firewall_config();
+        let ruleset = manager.ruleset().clone();
+
+        match payload.status {
+            FirewallStatusArg::Active => {
+                if !config.enabled {
+                    config.enabled = true;
+                }
+                *manager = RulesetManager::from_ruleset(config, ruleset);
+                manager.ensure_basic_firewall();
+            }
+            FirewallStatusArg::Inactive => {
+                if config.enabled {
+                    config.enabled = false;
+                }
+                *manager = RulesetManager::from_ruleset(config, ruleset);
+            }
+        }
+
+        (manager.get_hot_firewall_config(), manager.ruleset().clone())
+    };
+
+    apply_and_persist_snapshot(config_snapshot, ruleset_snapshot).await?;
+
+    match payload.status {
+        FirewallStatusArg::Active => Ok("firewall_edit_status: firewall activated".to_string()),
+        FirewallStatusArg::Inactive => Ok("firewall_edit_status: firewall deactivated".to_string()),
     }
+}
+
+async fn firewall_edit_policy(
+    argument: &str,
+    manager: &Arc<Mutex<RulesetManager>>,
+) -> Result<String, String> {
+    let payload: FirewallEditPolicyArg = parse_firewall_argument(argument, "firewall_edit_policy")?;
+
+    let (config_snapshot, ruleset_snapshot) = {
+        let mut manager = manager.blocking_lock();
+        let mut config = manager.get_hot_firewall_config();
+        let mut ruleset = manager.ruleset().clone();
+
+        let (chain_name, action) = match payload.chain {
+            FirewallChainArg::Input => {
+                config.input_policy = map_target_to_action(payload.policy)?;
+                (config.input_chain.clone(), config.input_policy)
+            }
+            FirewallChainArg::Output => {
+                config.output_policy = map_target_to_action(payload.policy)?;
+                (config.output_chain.clone(), config.output_policy)
+            }
+        };
+
+        let policy_value = action.into();
+        for object in ruleset.objects.to_mut().iter_mut() {
+            if let schema::NfObject::ListObject(schema::NfListObject::Chain(chain)) = object {
+                if chain.name.as_ref() == chain_name {
+                    chain.policy = Some(policy_value);
+                }
+            }
+        }
+
+        *manager = RulesetManager::from_ruleset(config, ruleset);
+        manager.ensure_basic_firewall();
+        (manager.get_hot_firewall_config(), manager.ruleset().clone())
+    };
+
+    apply_and_persist_snapshot(config_snapshot, ruleset_snapshot).await?;
+
+    Ok(format!("firewall_edit_policy: set {} policy to {}", payload.chain, payload.policy))
 }
 
 fn collect_network_interfaces() -> Result<NetworkInterfacesDto, String> {
@@ -1096,40 +1419,386 @@ fn build_fallback_log_entry(line: &str) -> LogEntryDto {
     }
 }
 
-fn run_iptables_variant(
-    cmd: &str,
-    errors: &mut Vec<String>,
-) -> Result<Option<FirewallStatusDto>, String> {
-    match Command::new(cmd).args(["-L", "-n", "-v"]).output() {
-        Err(e) if e.kind() == io::ErrorKind::NotFound => {
-            errors.push(format!("{} not found", cmd));
-            Ok(None)
+async fn firewalld_status(
+    firewalld: &Arc<Mutex<RulesetManager>>,
+) -> Result<FirewallStatusDto, String> {
+    let (config_snapshot, ruleset_snapshot) = {
+        let mut manager = firewalld.blocking_lock();
+        manager.ensure_basic_firewall();
+        (manager.get_hot_firewall_config(), manager.ruleset().clone())
+    };
+
+    let manager = apply_and_persist_snapshot(config_snapshot.clone(), ruleset_snapshot).await?;
+
+    let chains = vec![
+        build_firewalld_chain(
+            "INPUT",
+            &config_snapshot.input_chain,
+            config_snapshot.input_policy.to_string(),
+            &manager,
+        ),
+        build_firewalld_chain(
+            "OUTPUT",
+            &config_snapshot.output_chain,
+            config_snapshot.output_policy.to_string(),
+            &manager,
+        ),
+    ];
+
+    let status = if config_snapshot.enabled { "active" } else { "inactive" };
+    Ok(FirewallStatusDto { status: status.to_string(), chains })
+}
+
+fn build_firewalld_chain(
+    display_name: &str,
+    actual_chain: &str,
+    policy: String,
+    manager: &RulesetManager,
+) -> FirewallChainDto {
+    let rules = collect_firewalld_rules(actual_chain, manager);
+    FirewallChainDto { name: display_name.to_string(), policy, rules_length: rules.len(), rules }
+}
+
+fn collect_firewalld_rules(chain_name: &str, manager: &RulesetManager) -> Vec<FirewallRuleDto> {
+    let mut collected = Vec::new();
+    for object in manager.ruleset().objects.iter() {
+        let schema::NfObject::ListObject(schema::NfListObject::Rule(rule)) = object else {
+            continue;
+        };
+        if rule.chain.as_ref() != chain_name {
+            continue;
         }
-        Err(e) => {
-            errors.push(format!("{} execution error: {}", cmd, e));
-            Ok(None)
+        let parsed = parse_firewalld_rule(rule);
+        if !matches!(parsed.target.as_str(), "ACCEPT" | "DROP") {
+            continue;
         }
-        Ok(output) => {
-            if !output.status.success() {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                errors.push(format!(
-                    "{} exited with status {}: {}",
-                    cmd,
-                    output.status.code().unwrap_or(-1),
-                    stderr.trim()
-                ));
-                Ok(None)
-            } else {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                match parse_iptables_output(&stdout) {
-                    Ok(status) => Ok(Some(status)),
-                    Err(e) => {
-                        errors.push(format!("{} output parse error: {}", cmd, e));
-                        Ok(None)
+        collected.push(FirewallRuleDto {
+            id:            collected.len().saturating_add(1).to_string(),
+            target:        parsed.target,
+            protocol:      parsed.protocol,
+            in_interface:  parsed.in_iface,
+            out_interface: parsed.out_iface,
+            source:        parsed.src,
+            destination:   parsed.dst,
+            options:       parsed.options,
+        });
+    }
+    collected
+}
+
+struct ParsedRule {
+    target:    String,
+    protocol:  String,
+    in_iface:  String,
+    out_iface: String,
+    src:       String,
+    dst:       String,
+    options:   String,
+}
+
+fn parse_firewalld_rule(rule: &schema::Rule<'_>) -> ParsedRule {
+    let mut protocol = String::new();
+    let mut in_iface = String::new();
+    let mut out_iface = String::new();
+    let mut src = String::new();
+    let mut dst = String::new();
+    let mut extras = Vec::new();
+    let mut target = String::from("UNKNOWN");
+
+    for stmt in rule.expr.iter() {
+        match stmt {
+            Statement::Accept(_) => target = "ACCEPT".to_string(),
+            Statement::Drop(_) => target = "DROP".to_string(),
+            Statement::Match(Match { left, right, .. }) => match left {
+                Expression::Named(NamedExpression::Meta(Meta { key, .. })) => match key {
+                    MetaKey::L4proto => protocol = expr_to_string(right),
+                    MetaKey::Iifname => in_iface = expr_to_string(right),
+                    MetaKey::Oifname => out_iface = expr_to_string(right),
+                    _ => extras.push(expr_to_string(right)),
+                },
+                Expression::Named(NamedExpression::Payload(Payload::PayloadField(field))) => {
+                    match field.field.as_ref() {
+                        "saddr" => src = expr_to_string(right),
+                        "daddr" => dst = expr_to_string(right),
+                        "sport" => extras.push(format!("sport={}", expr_to_string(right))),
+                        "dport" => extras.push(format!("dport={}", expr_to_string(right))),
+                        _ => extras.push(expr_to_string(right)),
                     }
                 }
+                Expression::Named(NamedExpression::Prefix(Prefix { addr, len })) => {
+                    extras.push(format!("{}/{}", expr_to_string(addr), len));
+                }
+                Expression::Named(NamedExpression::CT(_)) => {
+                    extras.push(format!("ct={}", expr_to_string(right)));
+                }
+                other => extras.push(expr_to_string(other)),
+            },
+            _ => {}
+        }
+    }
+
+    if let Some(comment) = rule.comment.as_deref() {
+        extras.push(format!("comment={}", comment));
+    }
+
+    ParsedRule {
+        target,
+        protocol: if protocol.is_empty() { "*".to_string() } else { protocol },
+        in_iface: if in_iface.is_empty() { "*".to_string() } else { in_iface },
+        out_iface: if out_iface.is_empty() { "*".to_string() } else { out_iface },
+        src: if src.is_empty() { "*".to_string() } else { src },
+        dst: if dst.is_empty() { "*".to_string() } else { dst },
+        options: extras.join(" "),
+    }
+}
+
+fn expr_to_string(expr: &Expression<'_>) -> String {
+    match expr {
+        Expression::String(value) => value.to_string(),
+        Expression::Number(value) => value.to_string(),
+        Expression::List(values) => values.iter().map(expr_to_string).collect::<Vec<_>>().join(","),
+        Expression::Named(NamedExpression::Prefix(Prefix { addr, len })) => {
+            format!("{}/{}", expr_to_string(addr), len)
+        }
+        other => format!("{other:?}"),
+    }
+}
+
+fn firewalld_paths() -> (std::path::PathBuf, std::path::PathBuf) {
+    (
+        std::path::PathBuf::from(FIREWALLD_CONFIG_PATH),
+        std::path::PathBuf::from(FIREWALLD_RULESET_PATH),
+    )
+}
+
+fn command_timeout() -> TokioDuration {
+    GlobalConfig::with(|cfg| TokioDuration::from_secs(cfg.extend.command_timeout_secs.max(1)))
+}
+
+async fn apply_and_persist_snapshot(
+    config: BasicFirewallConfig,
+    ruleset: schema::Nftables<'static>,
+) -> Result<RulesetManager, String> {
+    let mut manager = RulesetManager::from_ruleset(config.clone(), ruleset);
+    manager.ensure_basic_firewall();
+
+    let apply_future = async {
+        if manager.get_hot_firewall_config().enabled {
+            manager
+                .apply_only_own_table()
+                .await
+                .map_err(|e| format!("apply firewalld ruleset: {}", e))?;
+        } else {
+            manager
+                .reset_table()
+                .await
+                .map_err(|e| format!("firewalld reset table failed: {}", e))?;
+        }
+        Ok::<(), String>(())
+    };
+
+    tokio::time::timeout(command_timeout(), apply_future)
+        .await
+        .map_err(|_| "firewalld apply/reset timed out".to_string())??;
+
+    let (config_path, ruleset_path) = firewalld_paths();
+
+    let cfg_clone = manager.get_hot_firewall_config();
+    task::spawn_blocking(move || {
+        let mut cfg = FirewalldConfig::load(config_path.as_path())
+            .unwrap_or_else(|_| FirewalldConfig::default());
+        cfg.save(config_path.as_path(), cfg_clone)
+    })
+    .await
+    .map_err(|e| format!("firewalld config task join error: {}", e))?
+    .map_err(|e| format!("write firewalld config: {}", e))?;
+
+    manager
+        .save_json(ruleset_path.as_path())
+        .await
+        .map_err(|e| format!("persist firewalld ruleset: {}", e))?;
+
+    Ok(manager)
+}
+
+pub async fn init_firewalld_manager() -> Result<Arc<Mutex<RulesetManager>>, String> {
+    let (config_path, ruleset_path) = firewalld_paths();
+    let mut app_config =
+        FirewalldConfig::load(config_path.as_path()).unwrap_or_else(|_| FirewalldConfig::default());
+    let base_config: BasicFirewallConfig = app_config.get_firewall_config();
+    let mut manager = if ruleset_path.exists() {
+        RulesetManager::from_json_file(base_config.clone(), ruleset_path.as_path())
+            .map_err(|e| format!("load firewalld ruleset: {}", e))?
+    } else {
+        RulesetManager::new(base_config.clone())
+    };
+    manager.ensure_basic_firewall();
+    if manager.get_hot_firewall_config().enabled {
+        tokio::time::timeout(command_timeout(), manager.apply_only_own_table())
+            .await
+            .map_err(|_| "apply initial firewalld ruleset timed out".to_string())?
+            .map_err(|e| format!("apply initial firewalld ruleset: {}", e))?;
+    }
+    app_config
+        .save(config_path.as_path(), manager.get_hot_firewall_config())
+        .map_err(|e| format!("write firewalld config: {}", e))?;
+    manager
+        .save_json(ruleset_path.as_path())
+        .await
+        .map_err(|e| format!("persist firewalld ruleset: {}", e))?;
+    Ok(Arc::new(Mutex::new(manager)))
+}
+
+fn parse_firewall_argument<T: for<'de> Deserialize<'de>>(
+    encoded: &str,
+    op: &str,
+) -> Result<T, String> {
+    let bytes = general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|e| format!("{op}: invalid argument encoding: {e}"))?;
+    serde_json::from_slice::<T>(&bytes).map_err(|e| format!("{op}: invalid argument payload: {e}"))
+}
+
+fn value_if_specified(value: &str) -> Option<&str> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() || trimmed == "*" {
+        None
+    } else {
+        Some(trimmed)
+    }
+}
+
+fn resolve_chain_name(
+    chain: FirewallChainArg,
+    config: &BasicFirewallConfig,
+) -> Result<String, String> {
+    match chain {
+        FirewallChainArg::Input => Ok(config.input_chain.clone()),
+        FirewallChainArg::Output => Ok(config.output_chain.clone()),
+    }
+}
+
+fn map_target_to_action(target: FirewallTargetArg) -> Result<RuleAction, String> {
+    match target {
+        FirewallTargetArg::Accept => Ok(RuleAction::Accept),
+        FirewallTargetArg::Drop => Ok(RuleAction::Drop),
+    }
+}
+
+fn parse_ports_from_options(options: &str) -> Result<(Option<u16>, Option<u16>), String> {
+    let mut sport = None;
+    let mut dport = None;
+    let mut tokens = options.split_whitespace().peekable();
+
+    while let Some(token) = tokens.next() {
+        match token {
+            "--sport" | "-sport" => {
+                let val = tokens
+                    .next()
+                    .ok_or_else(|| "firewall_add: --sport requires a value".to_string())?;
+                sport = Some(parse_port_value(val)?);
+            }
+            "--dport" | "-dport" => {
+                let val = tokens
+                    .next()
+                    .ok_or_else(|| "firewall_add: --dport requires a value".to_string())?;
+                dport = Some(parse_port_value(val)?);
+            }
+            opt if opt.starts_with("--sport=") || opt.starts_with("sport=") => {
+                let (_, val) = opt
+                    .split_once('=')
+                    .ok_or_else(|| format!("firewall_add: malformed sport option '{opt}'"))?;
+                sport = Some(parse_port_value(val)?);
+            }
+            opt if opt.starts_with("--dport=") || opt.starts_with("dport=") => {
+                let (_, val) = opt
+                    .split_once('=')
+                    .ok_or_else(|| format!("firewall_add: malformed dport option '{opt}'"))?;
+                dport = Some(parse_port_value(val)?);
+            }
+            opt => {
+                return Err(format!(
+                    "firewall_add: unsupported option '{}' in firewalld mode",
+                    opt
+                ));
             }
         }
+    }
+
+    Ok((sport, dport))
+}
+
+fn parse_port_value(value: &str) -> Result<u16, String> {
+    value.parse::<u16>().map_err(|e| format!("firewall_add: invalid port '{}': {}", value, e))
+}
+
+fn l4proto_match(proto: &str) -> Statement<'static> {
+    Statement::Match(Match {
+        left:  Expression::Named(NamedExpression::Meta(Meta { key: MetaKey::L4proto })),
+        right: Expression::String(Cow::Owned(proto.to_ascii_lowercase())),
+        op:    nftables::stmt::Operator::EQ,
+    })
+}
+
+fn interface_match(key: MetaKey, iface: &str) -> Statement<'static> {
+    Statement::Match(Match {
+        left:  Expression::Named(NamedExpression::Meta(Meta { key })),
+        right: Expression::String(Cow::Owned(iface.to_string())),
+        op:    nftables::stmt::Operator::EQ,
+    })
+}
+
+fn address_match(field: &'static str, value: &str) -> Statement<'static> {
+    let protocol = if value.contains(':') { Cow::Borrowed("ip6") } else { Cow::Borrowed("ip") };
+    let expr = if let Some((addr, prefix_len)) = value.split_once('/') {
+        Expression::Named(NamedExpression::Prefix(Prefix {
+            addr: Box::new(Expression::String(Cow::Owned(addr.to_string()))),
+            len:  prefix_len.parse().unwrap_or(0),
+        }))
+    } else {
+        Expression::String(Cow::Owned(value.to_string()))
+    };
+    Statement::Match(Match {
+        left:  Expression::Named(NamedExpression::Payload(Payload::PayloadField(
+            nftables::expr::PayloadField { protocol, field: Cow::Borrowed(field) },
+        ))),
+        right: expr,
+        op:    nftables::stmt::Operator::EQ,
+    })
+}
+
+fn port_match(field: &'static str, port: u16, proto: &str) -> Statement<'static> {
+    Statement::Match(Match {
+        left:  Expression::Named(NamedExpression::Payload(Payload::PayloadField(
+            nftables::expr::PayloadField {
+                protocol: Cow::Owned(proto.to_ascii_lowercase()),
+                field:    Cow::Borrowed(field),
+            },
+        ))),
+        right: Expression::Number(port as u32),
+        op:    nftables::stmt::Operator::EQ,
+    })
+}
+
+fn map_action_to_statement(action: RuleAction) -> Statement<'static> {
+    match action {
+        RuleAction::Accept => Statement::Accept(Some(nftables::stmt::Accept {})),
+        RuleAction::Drop => Statement::Drop(Some(nftables::stmt::Drop {})),
+    }
+}
+
+fn build_rule(
+    config: &BasicFirewallConfig,
+    chain_name: &str,
+    statements: Vec<Statement<'static>>,
+) -> schema::Rule<'static> {
+    schema::Rule {
+        family: config.family,
+        table: Cow::Owned(config.table.clone()),
+        chain: Cow::Owned(chain_name.to_string()),
+        expr: statements.into(),
+        comment: None,
+        ..Default::default()
     }
 }
 
@@ -1257,291 +1926,6 @@ fn collect_fallback_processes(sys: &mut System) -> Result<ProcessInfoDto, String
         .collect::<Vec<ProcessEntryDto>>();
 
     Ok(ProcessInfoDto { length: processes.len(), entries: processes })
-}
-
-fn run_nft_fallback(errors: &mut Vec<String>) -> Result<Option<FirewallStatusDto>, String> {
-    match Command::new("nft").args(["list", "ruleset"]).output() {
-        Err(e) if e.kind() == io::ErrorKind::NotFound => {
-            errors.push("nft not found".to_string());
-            Ok(None)
-        }
-        Err(e) => {
-            errors.push(format!("nft execution error: {}", e));
-            Ok(None)
-        }
-        Ok(output) => {
-            if !output.status.success() {
-                let stderr = String::from_utf8_lossy(&output.stderr);
-                errors.push(format!(
-                    "nft exited with status {}: {}",
-                    output.status.code().unwrap_or(-1),
-                    stderr.trim()
-                ));
-                Ok(None)
-            } else {
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                match parse_nft_output(&stdout) {
-                    Ok(status) => Ok(Some(status)),
-                    Err(e) => {
-                        errors.push(format!("nft output parse error: {}", e));
-                        Ok(None)
-                    }
-                }
-            }
-        }
-    }
-}
-
-fn parse_iptables_output(output: &str) -> Result<FirewallStatusDto, String> {
-    let mut chains: Vec<FirewallChainDto> = Vec::new();
-    let mut current: Option<FirewallChainDto> = None;
-
-    for raw_line in output.lines() {
-        let line = raw_line.trim_end();
-        if line.is_empty() {
-            continue;
-        }
-
-        if line.starts_with("Chain ") {
-            if let Some(mut chain) = current.take() {
-                chain.rules_length = chain.rules.len();
-                chains.push(chain);
-            }
-
-            if let Some((name, policy)) = parse_iptables_chain_header(line) {
-                current =
-                    Some(FirewallChainDto { name, policy, rules: Vec::new(), rules_length: 0 });
-            }
-            continue;
-        }
-
-        if let Some(chain) = current.as_mut() {
-            let trimmed = line.trim_start();
-            if trimmed.starts_with("pkts ")
-                || trimmed.starts_with("num ")
-                || trimmed.starts_with("target ")
-            {
-                continue;
-            }
-
-            if let Some(rule) = parse_iptables_rule_line(&chain.name, chain.rules.len(), trimmed) {
-                chain.rules.push(rule);
-            }
-        }
-    }
-
-    if let Some(mut chain) = current.take() {
-        chain.rules_length = chain.rules.len();
-        chains.push(chain);
-    }
-
-    let status = if chains.is_empty() { "inactive".to_string() } else { "active".to_string() };
-
-    Ok(FirewallStatusDto { status, chains })
-}
-
-fn parse_nft_output(output: &str) -> Result<FirewallStatusDto, String> {
-    let mut chains: Vec<FirewallChainDto> = Vec::new();
-    let mut current: Option<FirewallChainDto> = None;
-
-    for raw_line in output.lines() {
-        let line = raw_line.trim();
-        if line.is_empty() {
-            continue;
-        }
-
-        if line.starts_with("table ") {
-            // reset current when table changes
-            if let Some(mut chain) = current.take() {
-                chain.rules_length = chain.rules.len();
-                chains.push(chain);
-            }
-            continue;
-        }
-
-        if line.starts_with("chain ") && line.ends_with('{') {
-            if let Some(mut chain) = current.take() {
-                chain.rules_length = chain.rules.len();
-                chains.push(chain);
-            }
-            let name_token = line.trim_end_matches('{').trim();
-            let name = name_token["chain ".len()..].trim().to_uppercase();
-            current = Some(FirewallChainDto {
-                name,
-                policy: "UNKNOWN".to_string(),
-                rules: Vec::new(),
-                rules_length: 0,
-            });
-            continue;
-        }
-
-        if line == "}" {
-            if let Some(mut chain) = current.take() {
-                chain.rules_length = chain.rules.len();
-                chains.push(chain);
-            }
-            continue;
-        }
-
-        if let Some(chain) = current.as_mut() {
-            if line.starts_with("type ") && line.contains("policy") {
-                if let Some(policy) = extract_policy_from_nft(line) {
-                    chain.policy = policy;
-                }
-                continue;
-            }
-
-            if let Some(rule) = parse_nft_rule(&chain.name, chain.rules.len(), line) {
-                chain.rules.push(rule);
-            }
-        }
-    }
-
-    if let Some(mut chain) = current.take() {
-        chain.rules_length = chain.rules.len();
-        chains.push(chain);
-    }
-
-    let status = if chains.is_empty() { "inactive".to_string() } else { "active".to_string() };
-
-    Ok(FirewallStatusDto { status, chains })
-}
-
-fn extract_policy_from_nft(line: &str) -> Option<String> {
-    if let Some(start) = line.find("policy") {
-        let tail = &line[start + "policy".len()..];
-        let token = tail.split(|c: char| c.is_whitespace() || c == ';').find(|s| !s.is_empty())?;
-        Some(token.to_uppercase())
-    } else {
-        None
-    }
-}
-
-fn parse_nft_rule(chain_name: &str, index: usize, line: &str) -> Option<FirewallRuleDto> {
-    let lower = line.to_ascii_lowercase();
-    let target = if lower.contains(" accept") || lower.starts_with("accept") {
-        "ACCEPT".to_string()
-    } else if lower.contains(" drop") || lower.starts_with("drop") {
-        "DROP".to_string()
-    } else if lower.contains(" reject") || lower.starts_with("reject") {
-        "REJECT".to_string()
-    } else {
-        "OTHER".to_string()
-    };
-
-    let protocol = if lower.contains(" tcp") || lower.starts_with("tcp ") {
-        "tcp"
-    } else if lower.contains(" udp") || lower.starts_with("udp ") {
-        "udp"
-    } else if lower.contains(" icmp") || lower.contains(" icmpv6") {
-        "icmp"
-    } else {
-        "*"
-    }
-    .to_string();
-
-    let in_interface = extract_interface(&lower, "iifname");
-    let out_interface = extract_interface(&lower, "oifname");
-    let source = extract_address(&lower, "saddr").unwrap_or_else(|| "*".to_string());
-    let destination = extract_address(&lower, "daddr").unwrap_or_else(|| "*".to_string());
-
-    let options = line.to_string();
-    let id = format!("{}{:02}", chain_name.to_lowercase(), index + 1);
-
-    Some(FirewallRuleDto {
-        id,
-        target,
-        protocol,
-        in_interface,
-        out_interface,
-        source,
-        destination,
-        options,
-    })
-}
-
-fn extract_interface(text: &str, key: &str) -> String {
-    if let Some(idx) = text.find(key) {
-        let rest = text[idx + key.len()..].trim_start();
-        let token = rest
-            .trim_start_matches('"')
-            .split(|c: char| c == '"' || c.is_whitespace())
-            .find(|s| !s.is_empty())
-            .unwrap_or("*");
-        token.to_string()
-    } else {
-        "*".to_string()
-    }
-}
-
-fn extract_address(text: &str, key: &str) -> Option<String> {
-    if let Some(idx) = text.find(key) {
-        let rest = &text[idx + key.len()..];
-        let token = rest.split(|c: char| c.is_whitespace() || c == '"').find(|s| !s.is_empty())?;
-        Some(token.to_string())
-    } else {
-        None
-    }
-}
-
-fn parse_iptables_chain_header(line: &str) -> Option<(String, String)> {
-    let mut parts = line.split_whitespace();
-    if parts.next()? != "Chain" {
-        return None;
-    }
-    let name = parts.next()?.to_string();
-
-    if let Some(start) = line.find("(policy ") {
-        let tail = &line[start + "(policy ".len()..];
-        let policy_token = tail.split_whitespace().next().unwrap_or("UNKNOWN");
-        let policy = policy_token.trim_end_matches([')', ',']).to_uppercase();
-        Some((name, policy))
-    } else {
-        Some((name, "UNKNOWN".to_string()))
-    }
-}
-
-fn parse_iptables_rule_line(chain_name: &str, index: usize, line: &str) -> Option<FirewallRuleDto> {
-    let parts: Vec<&str> = line.split_whitespace().collect();
-    if parts.len() < 7 {
-        return None;
-    }
-
-    let has_number = parts[0].chars().all(|c| c.is_ascii_digit());
-    let offset = if has_number {
-        if parts.len() < 10 {
-            return None;
-        }
-        3
-    } else {
-        0
-    };
-
-    if parts.len() <= offset + 6 {
-        return None;
-    }
-
-    let target = parts[offset].to_uppercase();
-    let protocol = parts[offset + 1].to_string();
-    let in_interface = parts[offset + 3].to_string();
-    let out_interface = parts[offset + 4].to_string();
-    let source = parts[offset + 5].to_string();
-    let destination = parts[offset + 6].to_string();
-    let options =
-        if parts.len() > offset + 7 { parts[offset + 7..].join(" ") } else { String::new() };
-
-    let id = format!("{}{:02}", chain_name.to_lowercase(), index + 1);
-
-    Some(FirewallRuleDto {
-        id,
-        target,
-        protocol,
-        in_interface,
-        out_interface,
-        source,
-        destination,
-        options,
-    })
 }
 
 fn serialize_cron_jobs() -> Result<String, io::Error> {

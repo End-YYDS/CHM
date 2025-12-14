@@ -261,17 +261,11 @@ pub struct SystemInfo {
 
 #[derive(Debug)]
 pub struct FamilyCommands {
-    pub crontab:             &'static str,
-    pub ip:                  &'static str,
-    pub iptables_candidates: &'static [&'static str],
+    pub crontab: &'static str,
+    pub ip:      &'static str,
 }
 
-static IPTABLES_STANDARD: [&str; 2] = ["iptables", "iptables-nft"];
-static FAMILY_COMMANDS: FamilyCommands = FamilyCommands {
-    crontab:             "crontab",
-    ip:                  "ip",
-    iptables_candidates: &IPTABLES_STANDARD,
-};
+static FAMILY_COMMANDS: FamilyCommands = FamilyCommands { crontab: "crontab", ip: "ip" };
 
 /// Detect linux distribution info
 pub fn detect_linux_info() -> SystemInfo {

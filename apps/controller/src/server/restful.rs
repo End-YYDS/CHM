@@ -375,6 +375,15 @@ fn extract_return_info(resp: agent::CommandResponse) -> Result<agent::ReturnInfo
     }
 }
 
+#[allow(clippy::result_large_err)]
+fn extract_firewall_status(resp: agent::CommandResponse) -> Result<agent::FirewallStatus, Status> {
+    match resp.payload {
+        Some(command_response::Payload::FirewallStatus(info)) => Ok(info),
+        Some(command_response::Payload::ReturnInfo(info)) => Err(Status::internal(info.message)),
+        _ => Err(Status::internal("Agent 傳回未知資料格式")),
+    }
+}
+
 fn convert_return_info_to_action_result(info: agent::ReturnInfo) -> ActionResult {
     let action_type = match info.r#type.to_ascii_uppercase().as_str() {
         "OK" => action_result::Type::Ok as i32,
@@ -535,6 +544,87 @@ fn convert_apache_date(date: agent::ApacheDate) -> Option<Date> {
     let day = u64::try_from(date.day).ok().unwrap_or(0);
 
     Some(Date { year, month, week, time, day })
+}
+
+#[allow(clippy::result_large_err)]
+fn chain_kind_to_str(kind: restful::ChainKind) -> Result<&'static str, Status> {
+    match kind {
+        restful::ChainKind::Input => Ok("INPUT"),
+        restful::ChainKind::Output => Ok("OUTPUT"),
+        restful::ChainKind::Unspecified => {
+            Err(Status::invalid_argument("Chain 必須為 INPUT/OUTPUT"))
+        }
+    }
+}
+
+#[allow(clippy::result_large_err)]
+fn verdict_to_str(verdict: restful::Verdict) -> Result<&'static str, Status> {
+    match verdict {
+        restful::Verdict::Accept => Ok("ACCEPT"),
+        restful::Verdict::Drop => Ok("DROP"),
+        restful::Verdict::Unspecified => {
+            Err(Status::invalid_argument("Verdict 必須為 ACCEPT/DROP"))
+        }
+    }
+}
+
+#[allow(clippy::result_large_err)]
+fn firewall_status_to_str(status: restful::FirewallStatus) -> Result<&'static str, Status> {
+    match status {
+        restful::FirewallStatus::Active => Ok("ACTIVE"),
+        restful::FirewallStatus::Inactive => Ok("INACTIVE"),
+        restful::FirewallStatus::Unspecified => {
+            Err(Status::invalid_argument("Status 必須為 ACTIVE/INACTIVE"))
+        }
+    }
+}
+
+fn map_verdict_name(name: &str) -> restful::Verdict {
+    match name.to_ascii_uppercase().as_str() {
+        "ACCEPT" => restful::Verdict::Accept,
+        "DROP" => restful::Verdict::Drop,
+        _ => restful::Verdict::Unspecified,
+    }
+}
+
+fn map_firewall_status_name(name: &str) -> restful::FirewallStatus {
+    match name.to_ascii_lowercase().as_str() {
+        "active" => restful::FirewallStatus::Active,
+        "inactive" => restful::FirewallStatus::Inactive,
+        _ => restful::FirewallStatus::Unspecified,
+    }
+}
+
+fn convert_agent_firewall(info: agent::FirewallStatus) -> GetFirewallResponse {
+    let status = map_firewall_status_name(&info.status) as i32;
+    let chains = info
+        .chains
+        .into_iter()
+        .map(|chain| {
+            let policy = map_verdict_name(&chain.policy) as i32;
+            let rules = chain
+                .rules
+                .into_iter()
+                .map(|rule| restful::Rule {
+                    target:      map_verdict_name(&rule.target) as i32,
+                    protocol:    rule.protocol,
+                    in_if:       rule.r#in,
+                    out_if:      rule.out,
+                    source:      rule.source,
+                    destination: rule.destination,
+                    options:     rule.options,
+                })
+                .collect();
+            restful::Chain {
+                name: chain.name,
+                policy,
+                rules,
+                rules_length: u64::from(chain.rules_length),
+            }
+        })
+        .collect();
+
+    GetFirewallResponse { status, chains }
 }
 
 #[tonic::async_trait]
@@ -2518,42 +2608,158 @@ impl RestfulService for ControllerRestfulServer {
         &self,
         request: Request<GetFirewallPcsRequest>,
     ) -> Result<Response<GetFirewallPcsResponse>, Status> {
-        todo!()
+        let _ = request.into_inner();
+        let agents: Vec<ServiceDescriptor> = GlobalConfig::with(|cfg| {
+            cfg.extend
+                .services_pool
+                .services
+                .iter()
+                .flat_map(|entry| {
+                    entry.value().clone().into_iter().filter(|svc| svc.kind == ServiceKind::Agent)
+                })
+                .collect()
+        });
+        let mut pcs = HashMap::new();
+        for agent in agents {
+            pcs.insert(agent.uuid.to_string(), agent.hostname);
+        }
+        let length = pcs.len() as u64;
+        Ok(Response::new(GetFirewallPcsResponse { pcs, length }))
     }
 
     async fn get_firewall(
         &self,
         request: Request<GetFirewallRequest>,
     ) -> Result<Response<GetFirewallResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let (parsed_uuid, uuid_str) = parse_agent_uuid_input(&req.uuid)?;
+        if !Self::agent_exists(&parsed_uuid) {
+            return Err(Status::not_found("指定的 Agent 不存在"));
+        }
+
+        let response =
+            self.execute_agent_command(&uuid_str, AgentCommand::GetFirewall, None).await?;
+        let info = extract_firewall_status(response)?;
+        let converted = convert_agent_firewall(info);
+
+        Ok(Response::new(converted))
     }
 
     async fn add_firewall_rule(
         &self,
         request: Request<AddFirewallRuleRequest>,
     ) -> Result<Response<AddFirewallRuleResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let (parsed_uuid, uuid_str) = parse_agent_uuid_input(&req.uuid)?;
+        if !Self::agent_exists(&parsed_uuid) {
+            return Err(Status::not_found("指定的 Agent 不存在"));
+        }
+
+        let chain_enum =
+            restful::ChainKind::try_from(req.chain).unwrap_or(restful::ChainKind::Unspecified);
+        let target_enum =
+            restful::Verdict::try_from(req.target).unwrap_or(restful::Verdict::Unspecified);
+        let chain = chain_kind_to_str(chain_enum)?;
+        let target = verdict_to_str(target_enum)?;
+        let payload = json!({
+            "Chain": chain,
+            "Target": target,
+            "Protocol": req.protocol,
+            "In": req.in_if,
+            "Out": req.out_if,
+            "Source": req.source,
+            "Destination": req.destination,
+            "Options": req.options,
+        })
+        .to_string();
+
+        let response =
+            self.execute_agent_command(&uuid_str, AgentCommand::FirewallAdd, Some(payload)).await?;
+        let info = extract_return_info(response)?;
+        let result = convert_return_info_to_action_result(info);
+
+        Ok(Response::new(AddFirewallRuleResponse { result: Some(result) }))
     }
 
     async fn delete_firewall_rule(
         &self,
         request: Request<DeleteFirewallRuleRequest>,
     ) -> Result<Response<DeleteFirewallRuleResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let (parsed_uuid, uuid_str) = parse_agent_uuid_input(&req.uuid)?;
+        if !Self::agent_exists(&parsed_uuid) {
+            return Err(Status::not_found("指定的 Agent 不存在"));
+        }
+
+        let chain_enum =
+            restful::ChainKind::try_from(req.chain).unwrap_or(restful::ChainKind::Unspecified);
+        let chain = chain_kind_to_str(chain_enum)?;
+        if req.rule_id == 0 {
+            return Err(Status::invalid_argument("RuleId 必須大於 0"));
+        }
+        if req.rule_id > i32::MAX as u64 {
+            return Err(Status::invalid_argument("RuleId 超過允許的最大值"));
+        }
+
+        let payload = json!({ "Chain": chain, "RuleId": req.rule_id as i64 }).to_string();
+        let response = self
+            .execute_agent_command(&uuid_str, AgentCommand::FirewallDelete, Some(payload))
+            .await?;
+        let info = extract_return_info(response)?;
+        let result = convert_return_info_to_action_result(info);
+
+        Ok(Response::new(DeleteFirewallRuleResponse { result: Some(result) }))
     }
 
     async fn put_firewall_status(
         &self,
         request: Request<PutFirewallStatusRequest>,
     ) -> Result<Response<PutFirewallStatusResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let (parsed_uuid, uuid_str) = parse_agent_uuid_input(&req.uuid)?;
+        if !Self::agent_exists(&parsed_uuid) {
+            return Err(Status::not_found("指定的 Agent 不存在"));
+        }
+
+        let status_enum = restful::FirewallStatus::try_from(req.status)
+            .unwrap_or(restful::FirewallStatus::Unspecified);
+        let status = firewall_status_to_str(status_enum)?;
+        let payload = json!({ "Status": status }).to_string();
+
+        let response = self
+            .execute_agent_command(&uuid_str, AgentCommand::FirewallEditStatus, Some(payload))
+            .await?;
+        let info = extract_return_info(response)?;
+        let result = convert_return_info_to_action_result(info);
+
+        Ok(Response::new(PutFirewallStatusResponse { result: Some(result) }))
     }
 
     async fn put_firewall_policy(
         &self,
         request: Request<PutFirewallPolicyRequest>,
     ) -> Result<Response<PutFirewallPolicyResponse>, Status> {
-        todo!()
+        let req = request.into_inner();
+        let (parsed_uuid, uuid_str) = parse_agent_uuid_input(&req.uuid)?;
+        if !Self::agent_exists(&parsed_uuid) {
+            return Err(Status::not_found("指定的 Agent 不存在"));
+        }
+
+        let chain_enum =
+            restful::ChainKind::try_from(req.chain).unwrap_or(restful::ChainKind::Unspecified);
+        let policy_enum =
+            restful::Verdict::try_from(req.policy).unwrap_or(restful::Verdict::Unspecified);
+        let chain = chain_kind_to_str(chain_enum)?;
+        let policy = verdict_to_str(policy_enum)?;
+        let payload = json!({ "Chain": chain, "Policy": policy }).to_string();
+
+        let response = self
+            .execute_agent_command(&uuid_str, AgentCommand::FirewallEditPolicy, Some(payload))
+            .await?;
+        let info = extract_return_info(response)?;
+        let result = convert_return_info_to_action_result(info);
+
+        Ok(Response::new(PutFirewallPolicyResponse { result: Some(result) }))
     }
 
     async fn get_all_net(
