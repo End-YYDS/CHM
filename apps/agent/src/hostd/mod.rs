@@ -19,6 +19,7 @@ use serde_json;
 use std::{
     borrow::Cow,
     collections::{BTreeMap, BTreeSet, VecDeque},
+    convert::TryFrom,
     fmt, fs,
     io::{self, BufRead, BufReader},
     net::UdpSocket,
@@ -32,7 +33,6 @@ use sysinfo::{
     DiskRefreshKind, Disks, MemoryRefreshKind, ProcessRefreshKind, ProcessStatus, System,
 };
 use tokio::{
-    runtime::Handle,
     sync::{Mutex, Semaphore},
     task,
     time::Duration as TokioDuration,
@@ -53,11 +53,6 @@ enum SysinfoKeyword {
     MemoryStatus,
     DiskStatus,
     ProcessList,
-    FirewallStatus,
-    FirewallAdd,
-    FirewallDelete,
-    FirewallEditStatus,
-    FirewallEditPolicy,
     NetifStatus,
     RouteStatus,
     DnsStatus,
@@ -76,11 +71,6 @@ impl SysinfoKeyword {
             "memory_status" => Ok(Self::MemoryStatus),
             "disk_status" => Ok(Self::DiskStatus),
             "process_list" => Ok(Self::ProcessList),
-            "firewall_status" => Ok(Self::FirewallStatus),
-            "firewall_add" => Ok(Self::FirewallAdd),
-            "firewall_delete" => Ok(Self::FirewallDelete),
-            "firewall_edit_status" => Ok(Self::FirewallEditStatus),
-            "firewall_edit_policy" => Ok(Self::FirewallEditPolicy),
             "netif_status" => Ok(Self::NetifStatus),
             "route_status" => Ok(Self::RouteStatus),
             "dns_status" => Ok(Self::DnsStatus),
@@ -142,26 +132,49 @@ impl proto::HostdService for HostdGrpcService {
         if command.trim().is_empty() {
             return Err(Status::invalid_argument("sysinfo command cannot be empty"));
         }
-        let firewalld = self.firewalld.clone();
-        let handle = task::spawn_blocking(move || execute_sysinfo(&command, firewalld));
-        tokio::pin!(handle);
-        let join_result = match tokio::time::timeout(self.sysinfo_timeout, &mut handle).await {
-            Ok(res) => {
-                res.map_err(|err| Status::internal(format!("sysinfo worker panic: {err}")))?
-            }
+        let output = match tokio::time::timeout(self.sysinfo_timeout, execute_sysinfo(&command))
+            .await
+        {
+            Ok(res) => res.map_err(|err| {
+                let message = err.to_string();
+                tracing::error!("HostD sysinfo command failed: {message}");
+                Status::internal(message)
+            })?,
             Err(_) => {
                 tracing::error!("HostD run_sys_info timed out after {:?}", self.sysinfo_timeout);
-                handle.abort();
                 return Err(Status::deadline_exceeded("sysinfo execution timed out"));
             }
         };
-
-        let output = join_result.map_err(|err| {
-            let message = err.to_string();
-            tracing::error!("HostD sysinfo command failed: {message}");
-            Status::internal(message)
-        })?;
         Ok(Response::new(proto::SysInfoResponse { output }))
+    }
+
+    async fn run_firewall(
+        &self,
+        request: Request<proto::FirewallRequest>,
+    ) -> Result<Response<proto::FirewallResponse>, Status> {
+        let payload = request.into_inner();
+        let op = proto::FirewallOp::try_from(payload.op)
+            .map_err(|_| Status::invalid_argument("invalid firewall op"))?;
+        let argument =
+            if payload.argument.trim().is_empty() { None } else { Some(payload.argument) };
+        let firewalld = self.firewalld.clone();
+        let output = match tokio::time::timeout(
+            self.sysinfo_timeout,
+            execute_firewall_command(op, argument, firewalld),
+        )
+        .await
+        {
+            Ok(res) => res.map_err(|err| {
+                let message = err.to_string();
+                tracing::error!("HostD firewall command failed: {message}");
+                Status::internal(message)
+            })?,
+            Err(_) => {
+                tracing::error!("HostD run_firewall timed out after {:?}", self.sysinfo_timeout);
+                return Err(Status::deadline_exceeded("firewall execution timed out"));
+            }
+        };
+        Ok(Response::new(proto::FirewallResponse { output }))
     }
 
     async fn run_host_command(
@@ -227,19 +240,8 @@ pub fn execute_command(command: &str) -> io::Result<Output> {
     Command::new("sh").arg("-c").arg(command).output()
 }
 
-fn block_on_firewall<F, T>(fut: F) -> Result<T, String>
-where
-    F: std::future::Future<Output = Result<T, String>> + Send + 'static,
-    T: Send + 'static,
-{
-    Handle::current().block_on(fut)
-}
-
 /// Execute sysinfo-oriented requests
-pub fn execute_sysinfo(
-    command: &str,
-    firewalld: Arc<Mutex<RulesetManager>>,
-) -> Result<String, String> {
+pub async fn execute_sysinfo(command: &str) -> Result<String, String> {
     let trimmed = command.trim();
     if trimmed.is_empty() {
         return Err("no sysinfo request provided".to_string());
@@ -281,39 +283,6 @@ pub fn execute_sysinfo(
         SysinfoKeyword::ProcessList => collect_process_info(&mut sys).and_then(|dto| {
             serde_json::to_string(&dto).map_err(|e| format!("failed to encode process info: {}", e))
         }),
-        SysinfoKeyword::FirewallStatus => block_on_firewall(firewall_status(firewalld.clone()))
-            .and_then(|status| {
-                serde_json::to_string(&status)
-                    .map_err(|e| format!("failed to encode firewall status: {}", e))
-            }),
-        SysinfoKeyword::FirewallAdd => {
-            let argument =
-                argument.ok_or_else(|| "firewall_add requires an argument".to_string())?;
-            let arg_owned = argument.to_string();
-            let fw = firewalld.clone();
-            block_on_firewall(async move { firewall_add(&arg_owned, &fw).await })
-        }
-        SysinfoKeyword::FirewallDelete => {
-            let argument =
-                argument.ok_or_else(|| "firewall_delete requires an argument".to_string())?;
-            let arg_owned = argument.to_string();
-            let fw = firewalld.clone();
-            block_on_firewall(async move { firewall_delete(&arg_owned, &fw).await })
-        }
-        SysinfoKeyword::FirewallEditStatus => {
-            let argument =
-                argument.ok_or_else(|| "firewall_edit_status requires an argument".to_string())?;
-            let arg_owned = argument.to_string();
-            let fw = firewalld.clone();
-            block_on_firewall(async move { firewall_edit_status(&arg_owned, &fw).await })
-        }
-        SysinfoKeyword::FirewallEditPolicy => {
-            let argument =
-                argument.ok_or_else(|| "firewall_edit_policy requires an argument".to_string())?;
-            let arg_owned = argument.to_string();
-            let fw = firewalld.clone();
-            block_on_firewall(async move { firewall_edit_policy(&arg_owned, &fw).await })
-        }
         SysinfoKeyword::NetifStatus => collect_network_interfaces().and_then(|dto| {
             serde_json::to_string(&dto)
                 .map_err(|e| format!("failed to encode network interfaces: {}", e))
@@ -354,6 +323,39 @@ pub fn execute_sysinfo(
             })
         }
         SysinfoKeyword::LocalIp => detect_local_ip(),
+    }
+}
+
+pub async fn execute_firewall_command(
+    op: proto::FirewallOp,
+    argument: Option<String>,
+    firewalld: Arc<Mutex<RulesetManager>>,
+) -> Result<String, String> {
+    match op {
+        proto::FirewallOp::Status => {
+            let status = firewall_status(firewalld).await?;
+            serde_json::to_string(&status)
+                .map_err(|e| format!("failed to encode firewall status: {}", e))
+        }
+        proto::FirewallOp::Add => {
+            let arg = argument.ok_or_else(|| "firewall_add requires an argument".to_string())?;
+            firewall_add(&arg, &firewalld).await
+        }
+        proto::FirewallOp::Delete => {
+            let arg = argument.ok_or_else(|| "firewall_delete requires an argument".to_string())?;
+            firewall_delete(&arg, &firewalld).await
+        }
+        proto::FirewallOp::EditStatus => {
+            let arg =
+                argument.ok_or_else(|| "firewall_edit_status requires an argument".to_string())?;
+            firewall_edit_status(&arg, &firewalld).await
+        }
+        proto::FirewallOp::EditPolicy => {
+            let arg =
+                argument.ok_or_else(|| "firewall_edit_policy requires an argument".to_string())?;
+            firewall_edit_policy(&arg, &firewalld).await
+        }
+        proto::FirewallOp::Unspecified => Err("firewall_op cannot be unspecified".to_string()),
     }
 }
 
@@ -715,7 +717,7 @@ async fn firewall_add(
 ) -> Result<String, String> {
     let payload: FirewallAddArg = parse_firewall_argument(argument, "firewall_add")?;
     let (config_snapshot, ruleset_snapshot) = {
-        let mut manager = manager.blocking_lock();
+        let mut manager = manager.lock().await;
         let config = manager.get_hot_firewall_config();
         let chain_name = resolve_chain_name(payload.chain, &config)?;
         let action = map_target_to_action(payload.target)?;
@@ -776,7 +778,7 @@ async fn firewall_delete(
     }
 
     let (config_snapshot, ruleset_snapshot) = {
-        let mut manager = manager.blocking_lock();
+        let mut manager = manager.lock().await;
         let config = manager.get_hot_firewall_config();
         let chain_name = resolve_chain_name(payload.chain, &config)?;
 
@@ -825,7 +827,7 @@ async fn firewall_edit_status(
     let payload: FirewallEditStatusArg = parse_firewall_argument(argument, "firewall_edit_status")?;
 
     let (config_snapshot, ruleset_snapshot) = {
-        let mut manager = manager.blocking_lock();
+        let mut manager = manager.lock().await;
         let mut config = manager.get_hot_firewall_config();
         let ruleset = manager.ruleset().clone();
 
@@ -863,7 +865,7 @@ async fn firewall_edit_policy(
     let payload: FirewallEditPolicyArg = parse_firewall_argument(argument, "firewall_edit_policy")?;
 
     let (config_snapshot, ruleset_snapshot) = {
-        let mut manager = manager.blocking_lock();
+        let mut manager = manager.lock().await;
         let mut config = manager.get_hot_firewall_config();
         let mut ruleset = manager.ruleset().clone();
 
@@ -1424,7 +1426,7 @@ async fn firewalld_status(
     firewalld: &Arc<Mutex<RulesetManager>>,
 ) -> Result<FirewallStatusDto, String> {
     let (config_snapshot, ruleset_snapshot) = {
-        let mut manager = firewalld.blocking_lock();
+        let mut manager = firewalld.lock().await;
         manager.ensure_basic_firewall();
         (manager.get_hot_firewall_config(), manager.ruleset().clone())
     };

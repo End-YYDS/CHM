@@ -23,6 +23,57 @@ pub struct HostCommandResponse {
     #[prost(string, tag = "3")]
     pub stderr: ::prost::alloc::string::String,
 }
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FirewallRequest {
+    #[prost(enumeration = "FirewallOp", tag = "1")]
+    pub op:       i32,
+    #[prost(string, tag = "2")]
+    pub argument: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct FirewallResponse {
+    #[prost(string, tag = "1")]
+    pub output: ::prost::alloc::string::String,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum FirewallOp {
+    Unspecified = 0,
+    Status = 1,
+    Add = 2,
+    Delete = 3,
+    EditStatus = 4,
+    EditPolicy = 5,
+}
+impl FirewallOp {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic
+    /// use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            Self::Unspecified => "FIREWALL_OP_UNSPECIFIED",
+            Self::Status => "FIREWALL_OP_STATUS",
+            Self::Add => "FIREWALL_OP_ADD",
+            Self::Delete => "FIREWALL_OP_DELETE",
+            Self::EditStatus => "FIREWALL_OP_EDIT_STATUS",
+            Self::EditPolicy => "FIREWALL_OP_EDIT_POLICY",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "FIREWALL_OP_UNSPECIFIED" => Some(Self::Unspecified),
+            "FIREWALL_OP_STATUS" => Some(Self::Status),
+            "FIREWALL_OP_ADD" => Some(Self::Add),
+            "FIREWALL_OP_DELETE" => Some(Self::Delete),
+            "FIREWALL_OP_EDIT_STATUS" => Some(Self::EditStatus),
+            "FIREWALL_OP_EDIT_POLICY" => Some(Self::EditPolicy),
+            _ => None,
+        }
+    }
+}
 /// Generated client implementations.
 #[cfg(feature = "hostd-client")]
 pub mod hostd_service_client {
@@ -140,6 +191,19 @@ pub mod hostd_service_client {
             req.extensions_mut().insert(GrpcMethod::new("hostd.HostdService", "RunHostCommand"));
             self.inner.unary(req, path, codec).await
         }
+        pub async fn run_firewall(
+            &mut self,
+            request: impl tonic::IntoRequest<super::FirewallRequest>,
+        ) -> std::result::Result<tonic::Response<super::FirewallResponse>, tonic::Status> {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static("/hostd.HostdService/RunFirewall");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("hostd.HostdService", "RunFirewall"));
+            self.inner.unary(req, path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -165,6 +229,10 @@ pub mod hostd_service_server {
             &self,
             request: tonic::Request<super::HostCommandRequest>,
         ) -> std::result::Result<tonic::Response<super::HostCommandResponse>, tonic::Status>;
+        async fn run_firewall(
+            &self,
+            request: tonic::Request<super::FirewallRequest>,
+        ) -> std::result::Result<tonic::Response<super::FirewallResponse>, tonic::Status>;
     }
     #[derive(Debug)]
     pub struct HostdServiceServer<T> {
@@ -305,6 +373,45 @@ pub mod hostd_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = RunHostCommandSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/hostd.HostdService/RunFirewall" => {
+                    #[allow(non_camel_case_types)]
+                    struct RunFirewallSvc<T: HostdService>(pub Arc<T>);
+                    impl<T: HostdService> tonic::server::UnaryService<super::FirewallRequest> for RunFirewallSvc<T> {
+                        type Response = super::FirewallResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::FirewallRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as HostdService>::run_firewall(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = RunFirewallSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
