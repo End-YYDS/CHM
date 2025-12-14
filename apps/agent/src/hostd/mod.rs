@@ -3,6 +3,7 @@
 use base64::{engine::general_purpose, Engine as _};
 use chm_firewall::{AppConfig as FirewalldConfig, BasicFirewallConfig, RuleAction, RulesetManager};
 use chm_grpc::tonic::{async_trait, Request, Response, Status};
+use chm_project_const::ProjectConst;
 use chrono::{DateTime, Datelike, Local};
 use nftables::{
     expr::{Expression, Meta, MetaKey, NamedExpression, Payload, Prefix},
@@ -1565,10 +1566,8 @@ fn expr_to_string(expr: &Expression<'_>) -> String {
 }
 
 fn firewalld_paths() -> (std::path::PathBuf, std::path::PathBuf) {
-    (
-        std::path::PathBuf::from(FIREWALLD_CONFIG_PATH),
-        std::path::PathBuf::from(FIREWALLD_RULESET_PATH),
-    )
+    let base = ProjectConst::config_path();
+    (base.join(FIREWALLD_CONFIG_PATH), base.join(FIREWALLD_RULESET_PATH))
 }
 
 fn command_timeout() -> TokioDuration {

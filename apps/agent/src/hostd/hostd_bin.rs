@@ -18,6 +18,7 @@ mod unix_main {
             net::UnixListener as StdUnixListener,
         },
         path::Path,
+        process::Command,
         sync::{atomic::Ordering::Relaxed, Arc},
         time::Duration,
     };
@@ -59,6 +60,8 @@ mod unix_main {
             ensure_root_user().context("確認 HostD 以 root 權限執行")?;
             ensure_firewall_capabilities().context("設定防火牆能力")?;
         }
+
+        ensure_nft_available().context("確認/安裝 nftables 套件")?;
 
         let socket_path =
             GlobalConfig::with(|cfg| cfg.extend.socket_path.clone()).display().to_string();
@@ -118,6 +121,69 @@ mod unix_main {
 
         info!("[HostD] gRPC 服務已停止");
         Ok(())
+    }
+
+    fn ensure_nft_available() -> Result<()> {
+        let nft_exists = Command::new("sh")
+            .arg("-c")
+            .arg("command -v nft >/dev/null 2>&1")
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if nft_exists {
+            return Ok(());
+        }
+
+        #[derive(Clone)]
+        struct InstallCmd<'a> {
+            cmd:   &'a [&'a str],
+            label: &'a str,
+        }
+
+        let installers: [InstallCmd; 3] = [
+            InstallCmd { cmd: &["dnf", "-y", "install", "nftables"], label: "dnf" },
+            InstallCmd { cmd: &["yum", "-y", "install", "nftables"], label: "yum" },
+            InstallCmd { cmd: &["apt-get", "install", "-y", "nftables"], label: "apt-get" },
+        ];
+
+        for installer in installers.iter() {
+            let available = Command::new("sh")
+                .arg("-c")
+                .arg(format!("command -v {} >/dev/null 2>&1", installer.cmd[0]))
+                .status()
+                .map(|s| s.success())
+                .unwrap_or(false);
+            if !available {
+                continue;
+            }
+
+            let status = Command::new(installer.cmd[0]).args(&installer.cmd[1..]).status();
+            match status {
+                Ok(s) if s.success() => {
+                    let nft_exists = Command::new("sh")
+                        .arg("-c")
+                        .arg("command -v nft >/dev/null 2>&1")
+                        .status()
+                        .map(|s| s.success())
+                        .unwrap_or(false);
+                    if nft_exists {
+                        return Ok(());
+                    }
+                }
+                Ok(s) => {
+                    warn!(
+                        "套件安裝指令 {} 退出狀態 {}，將嘗試其他安裝方式",
+                        installer.label,
+                        s.code().unwrap_or(-1)
+                    );
+                }
+                Err(e) => {
+                    warn!("執行套件安裝指令 {} 失敗: {}，將嘗試其他安裝方式", installer.label, e);
+                }
+            }
+        }
+
+        Err(anyhow!("找不到 nft，且自動安裝 nftables 失敗，請手動安裝"))
     }
 
     fn ensure_root_user() -> std::io::Result<()> {
