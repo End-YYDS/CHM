@@ -44,8 +44,8 @@ use crate::GlobalConfig;
 const META_PREFIX: &str = "# agent_meta:";
 const SYSLOG_CANDIDATES: [&str; 2] = ["/var/log/syslog", "/var/log/messages"];
 const LOG_ENTRY_LIMIT: usize = 20;
-const FIREWALLD_CONFIG_PATH: &str = "config/firewalld.toml";
-const FIREWALLD_RULESET_PATH: &str = "config/firewalld_ruleset.json";
+const FIREWALLD_CONFIG_PATH: &str = "firewalld.toml";
+const FIREWALLD_RULESET_PATH: &str = "firewalld_ruleset.json";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SysinfoKeyword {
