@@ -4,7 +4,7 @@
 use std::{fmt, io};
 
 use crate::{
-    make_sysinfo_command, make_sysinfo_command_with_argument, parse_return_info, send_to_hostd,
+    make_firewall_command, make_firewall_command_with_argument, parse_return_info, send_to_hostd,
     value_if_specified, ReturnInfo, SystemInfo,
 };
 use serde::{de, Deserialize, Serialize};
@@ -257,14 +257,24 @@ enum FirewallHostdCommand {
     EditPolicy,
 }
 
-impl fmt::Display for FirewallHostdCommand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl FirewallHostdCommand {
+    fn op(&self) -> crate::hostd::proto::FirewallOp {
         match self {
-            FirewallHostdCommand::Status => write!(f, "firewall_status"),
-            FirewallHostdCommand::Add => write!(f, "firewall_add"),
-            FirewallHostdCommand::Delete => write!(f, "firewall_delete"),
-            FirewallHostdCommand::EditStatus => write!(f, "firewall_edit_status"),
-            FirewallHostdCommand::EditPolicy => write!(f, "firewall_edit_policy"),
+            FirewallHostdCommand::Status => crate::hostd::proto::FirewallOp::Status,
+            FirewallHostdCommand::Add => crate::hostd::proto::FirewallOp::Add,
+            FirewallHostdCommand::Delete => crate::hostd::proto::FirewallOp::Delete,
+            FirewallHostdCommand::EditStatus => crate::hostd::proto::FirewallOp::EditStatus,
+            FirewallHostdCommand::EditPolicy => crate::hostd::proto::FirewallOp::EditPolicy,
+        }
+    }
+
+    fn name(&self) -> &'static str {
+        match self {
+            FirewallHostdCommand::Status => "firewall_status",
+            FirewallHostdCommand::Add => "firewall_add",
+            FirewallHostdCommand::Delete => "firewall_delete",
+            FirewallHostdCommand::EditStatus => "firewall_edit_status",
+            FirewallHostdCommand::EditPolicy => "firewall_edit_policy",
         }
     }
 }
@@ -281,8 +291,7 @@ impl HostdPayload for FirewallEditStatusArg {}
 impl HostdPayload for FirewallEditPolicyArg {}
 
 pub async fn firewall_info_structured(_sys: &SystemInfo) -> io::Result<FirewallStatus> {
-    let cmd_name = FirewallHostdCommand::Status.to_string();
-    let cmd = make_sysinfo_command(&cmd_name);
+    let cmd = make_firewall_command(FirewallHostdCommand::Status.op());
     let output = send_to_hostd(&cmd).await?;
 
     if let Ok(status) = serde_json::from_str::<FirewallStatusDto>(&output) {
@@ -357,12 +366,12 @@ async fn send_firewall_payload<T>(cmd: FirewallHostdCommand, payload: &T) -> Res
 where
     T: HostdPayload,
 {
-    let cmd_name = cmd.to_string();
+    let cmd_name = cmd.name();
     let payload_json = payload.encode_payload()?;
-    let real = make_sysinfo_command_with_argument(&cmd_name, &payload_json);
+    let real = make_firewall_command_with_argument(cmd.op(), &payload_json);
     let output =
         send_to_hostd(&real).await.map_err(|e| format!("{} via hostd: {}", cmd_name, e))?;
-    parse_return(output, &cmd_name)
+    parse_return(output, cmd_name)
 }
 
 fn convert_firewall_status(dto: FirewallStatusDto) -> FirewallStatus {
