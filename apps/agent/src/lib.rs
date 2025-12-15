@@ -261,17 +261,11 @@ pub struct SystemInfo {
 
 #[derive(Debug)]
 pub struct FamilyCommands {
-    pub crontab:             &'static str,
-    pub ip:                  &'static str,
-    pub iptables_candidates: &'static [&'static str],
+    pub crontab: &'static str,
+    pub ip:      &'static str,
 }
 
-static IPTABLES_STANDARD: [&str; 2] = ["iptables", "iptables-nft"];
-static FAMILY_COMMANDS: FamilyCommands = FamilyCommands {
-    crontab:             "crontab",
-    ip:                  "ip",
-    iptables_candidates: &IPTABLES_STANDARD,
-};
+static FAMILY_COMMANDS: FamilyCommands = FamilyCommands { crontab: "crontab", ip: "ip" };
 
 /// Detect linux distribution info
 pub fn detect_linux_info() -> SystemInfo {
@@ -301,10 +295,24 @@ pub enum ResponseKind {
     ReturnInfo,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum CommandKind {
+    SysInfo,
+    Firewall,
+    HostCommand,
+}
+
+impl CommandKind {
+    fn is_get(&self) -> bool {
+        matches!(self, CommandKind::SysInfo | CommandKind::Firewall)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct RealCommand {
     pub command:       String,
-    pub is_get:        bool,
+    pub kind:          CommandKind,
+    pub firewall_op:   Option<crate::hostd::proto::FirewallOp>,
     pub response_kind: ResponseKind,
 }
 
@@ -411,8 +419,8 @@ impl HostdClientPool {
         }
     }
 
-    fn semaphore(&self, is_get: bool) -> &Semaphore {
-        if is_get {
+    fn semaphore(&self, kind: CommandKind) -> &Semaphore {
+        if kind.is_get() {
             &self.get_sem
         } else {
             &self.command_sem
@@ -486,50 +494,77 @@ fn status_to_io_error(status: Status) -> io::Error {
 pub async fn send_to_hostd(real_command: &RealCommand) -> io::Result<String> {
     let pool = HOSTD_POOL.get_or_init(|| async { HostdClientPool::from_config() }).await;
     let permit = pool
-        .semaphore(real_command.is_get)
+        .semaphore(real_command.kind)
         .acquire()
         .await
         .map_err(|_| io::Error::other("HostD semaphore closed"))?;
 
     let mut client = pool.make_client().await?;
-    let timeout = if real_command.is_get { pool.get_timeout } else { pool.command_timeout };
+    let timeout = if real_command.kind.is_get() { pool.get_timeout } else { pool.command_timeout };
 
-    let result = if real_command.is_get {
-        let request = crate::hostd::proto::SysInfoRequest { command: real_command.command.clone() };
-        match tokio::time::timeout(timeout, client.run_sys_info(request)).await {
-            Ok(Ok(resp)) => Ok(resp.into_inner().output.trim().to_string()),
-            Ok(Err(status)) => {
-                if matches!(status.code(), Code::Unavailable | Code::Internal) {
-                    pool.invalidate().await;
+    let result = match real_command.kind {
+        CommandKind::SysInfo => {
+            let request =
+                crate::hostd::proto::SysInfoRequest { command: real_command.command.clone() };
+            match tokio::time::timeout(timeout, client.run_sys_info(request)).await {
+                Ok(Ok(resp)) => Ok(resp.into_inner().output.trim().to_string()),
+                Ok(Err(status)) => {
+                    if matches!(status.code(), Code::Unavailable | Code::Internal) {
+                        pool.invalidate().await;
+                    }
+                    Err(status_to_io_error(status))
                 }
-                Err(status_to_io_error(status))
-            }
-            Err(_) => {
-                tracing::warn!("HostD run_sys_info timed out after {:?}", timeout);
-                pool.invalidate().await;
-                Err(io::Error::new(io::ErrorKind::TimedOut, "HostD RPC timeout"))
+                Err(_) => {
+                    tracing::warn!("HostD run_sys_info timed out after {:?}", timeout);
+                    pool.invalidate().await;
+                    Err(io::Error::new(io::ErrorKind::TimedOut, "HostD RPC timeout"))
+                }
             }
         }
-    } else {
-        let request =
-            crate::hostd::proto::HostCommandRequest { command: real_command.command.clone() };
-        match tokio::time::timeout(timeout, client.run_host_command(request)).await {
-            Ok(Ok(resp)) => {
-                let inner = resp.into_inner();
-                let payload =
-                    if !inner.stdout.trim().is_empty() { inner.stdout } else { inner.stderr };
-                Ok(payload.trim().to_string())
-            }
-            Ok(Err(status)) => {
-                if matches!(status.code(), Code::Unavailable | Code::Internal) {
-                    pool.invalidate().await;
+        CommandKind::Firewall => {
+            let op = real_command
+                .firewall_op
+                .ok_or_else(|| io::Error::other("firewall op is required"))?;
+            let request = crate::hostd::proto::FirewallRequest {
+                op:       op as i32,
+                argument: real_command.command.clone(),
+            };
+            match tokio::time::timeout(timeout, client.run_firewall(request)).await {
+                Ok(Ok(resp)) => Ok(resp.into_inner().output.trim().to_string()),
+                Ok(Err(status)) => {
+                    if matches!(status.code(), Code::Unavailable | Code::Internal) {
+                        pool.invalidate().await;
+                    }
+                    Err(status_to_io_error(status))
                 }
-                Err(status_to_io_error(status))
+                Err(_) => {
+                    tracing::warn!("HostD run_firewall timed out after {:?}", timeout);
+                    pool.invalidate().await;
+                    Err(io::Error::new(io::ErrorKind::TimedOut, "HostD RPC timeout"))
+                }
             }
-            Err(_) => {
-                tracing::warn!("HostD run_host_command timed out after {:?}", timeout);
-                pool.invalidate().await;
-                Err(io::Error::new(io::ErrorKind::TimedOut, "HostD RPC timeout"))
+        }
+        CommandKind::HostCommand => {
+            let request =
+                crate::hostd::proto::HostCommandRequest { command: real_command.command.clone() };
+            match tokio::time::timeout(timeout, client.run_host_command(request)).await {
+                Ok(Ok(resp)) => {
+                    let inner = resp.into_inner();
+                    let payload =
+                        if !inner.stdout.trim().is_empty() { inner.stdout } else { inner.stderr };
+                    Ok(payload.trim().to_string())
+                }
+                Ok(Err(status)) => {
+                    if matches!(status.code(), Code::Unavailable | Code::Internal) {
+                        pool.invalidate().await;
+                    }
+                    Err(status_to_io_error(status))
+                }
+                Err(_) => {
+                    tracing::warn!("HostD run_host_command timed out after {:?}", timeout);
+                    pool.invalidate().await;
+                    Err(io::Error::new(io::ErrorKind::TimedOut, "HostD RPC timeout"))
+                }
             }
         }
     };
@@ -541,7 +576,8 @@ pub async fn send_to_hostd(real_command: &RealCommand) -> io::Result<String> {
 pub fn make_sysinfo_command(keyword: &str) -> RealCommand {
     RealCommand {
         command:       keyword.to_string(),
-        is_get:        true,
+        kind:          CommandKind::SysInfo,
+        firewall_op:   None,
         response_kind: ResponseKind::Raw,
     }
 }
@@ -551,14 +587,42 @@ pub fn make_sysinfo_command_with_argument(keyword: &str, argument_json: &str) ->
     let command =
         if encoded.is_empty() { keyword.to_string() } else { format!("{} {}", keyword, encoded) };
 
-    RealCommand { command, is_get: true, response_kind: ResponseKind::Raw }
+    RealCommand {
+        command,
+        kind: CommandKind::SysInfo,
+        firewall_op: None,
+        response_kind: ResponseKind::Raw,
+    }
+}
+
+pub fn make_firewall_command(op: crate::hostd::proto::FirewallOp) -> RealCommand {
+    RealCommand {
+        command:       String::new(),
+        kind:          CommandKind::Firewall,
+        firewall_op:   Some(op),
+        response_kind: ResponseKind::Raw,
+    }
+}
+
+pub fn make_firewall_command_with_argument(
+    op: crate::hostd::proto::FirewallOp,
+    argument_json: &str,
+) -> RealCommand {
+    let encoded = encode_base64(argument_json);
+    RealCommand {
+        command:       encoded,
+        kind:          CommandKind::Firewall,
+        firewall_op:   Some(op),
+        response_kind: ResponseKind::Raw,
+    }
 }
 
 pub async fn execute_host_body(body: &str) -> Result<HostCommandOutput, String> {
     let payload = wrap_body_for_host(body);
     let real = RealCommand {
         command:       payload,
-        is_get:        false,
+        kind:          CommandKind::HostCommand,
+        firewall_op:   None,
         response_kind: ResponseKind::Raw,
     };
 

@@ -1,0 +1,13 @@
+[package]
+name = "chm-firewall"
+version.workspace = true
+edition.workspace = true
+publish = false
+
+[dependencies]
+anyhow = "1.0"
+nftables = { version = "0.6.3", features = ["tokio"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+toml = { workspace = true }
+tokio = { workspace = true, features = ["fs"] }

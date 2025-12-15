@@ -907,9 +907,6 @@ pub mod put_ip_mode_response {
         }
     }
 }
-/// GET /api/chm/setting/values
-#[derive(Clone, Copy, PartialEq, ::prost::Message)]
-pub struct GetSettingValuesRequest {}
 #[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct MetricSetting {
     #[prost(double, tag = "1")]
@@ -917,7 +914,10 @@ pub struct MetricSetting {
     #[prost(double, tag = "2")]
     pub dang: f64,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
+/// GET /api/chm/setting/values
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
+pub struct GetSettingValuesRequest {}
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct Values {
     #[prost(message, optional, tag = "1")]
     pub cpu_usage:  ::core::option::Option<MetricSetting>,
@@ -926,13 +926,13 @@ pub struct Values {
     #[prost(message, optional, tag = "3")]
     pub memory:     ::core::option::Option<MetricSetting>,
 }
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct GetSettingValuesResponse {
     #[prost(message, optional, tag = "1")]
     pub values: ::core::option::Option<Values>,
 }
 /// PUT /api/chm/setting/values  (單一或整筆更新 -> 使用 optional 欄位)
-#[derive(Clone, PartialEq, ::prost::Message)]
+#[derive(Clone, Copy, PartialEq, ::prost::Message)]
 pub struct PutSettingValuesRequest {
     #[prost(message, optional, tag = "1")]
     pub cpu_usage:  ::core::option::Option<MetricSetting>,
@@ -1711,7 +1711,7 @@ pub struct Rule {
 /// 鏈（含預設策略與規則）
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Chain {
-    /// INPUT / FORWARD / OUTPUT
+    /// INPUT / OUTPUT
     #[prost(string, tag = "1")]
     pub name:         ::prost::alloc::string::String,
     /// 預設策略
@@ -1744,10 +1744,10 @@ pub struct AddFirewallRuleRequest {
     /// 主機 ID
     #[prost(string, tag = "1")]
     pub uuid:        ::prost::alloc::string::String,
-    /// INPUT | FORWARD | OUTPUT
+    /// INPUT | OUTPUT
     #[prost(enumeration = "ChainKind", tag = "2")]
     pub chain:       i32,
-    /// ACCEPT | DROP | REJECT
+    /// ACCEPT | DROP
     #[prost(enumeration = "Verdict", tag = "3")]
     pub target:      i32,
     #[prost(string, tag = "4")]
@@ -1775,7 +1775,7 @@ pub struct DeleteFirewallRuleRequest {
     /// 主機 ID
     #[prost(string, tag = "1")]
     pub uuid:    ::prost::alloc::string::String,
-    /// INPUT | FORWARD | OUTPUT
+    /// INPUT | OUTPUT
     #[prost(enumeration = "ChainKind", tag = "2")]
     pub chain:   i32,
     /// 規則索引
@@ -1806,10 +1806,10 @@ pub struct PutFirewallStatusResponse {
 pub struct PutFirewallPolicyRequest {
     #[prost(string, tag = "1")]
     pub uuid:   ::prost::alloc::string::String,
-    /// INPUT | FORWARD | OUTPUT
+    /// INPUT | OUTPUT
     #[prost(enumeration = "ChainKind", tag = "2")]
     pub chain:  i32,
-    /// ACCEPT | DROP | REJECT
+    /// ACCEPT | DROP
     #[prost(enumeration = "Verdict", tag = "3")]
     pub policy: i32,
 }
@@ -2363,6 +2363,53 @@ pub struct PackageActionResponse {
     /// packages.len
     #[prost(uint64, tag = "2")]
     pub length:   u64,
+}
+/// GET /api/server/install
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetServerInstalledPcsRequest {
+    /// Server name, e.g., "apache", "nginx"
+    #[prost(string, tag = "1")]
+    pub server: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetServerInstalledPcsResponse {
+    /// key = uuid, value = { Hostname, Status(active|stopped), Cpu, Memory }
+    #[prost(map = "string, message", tag = "1")]
+    pub pcs: ::std::collections::HashMap<::prost::alloc::string::String, super::common::CommonInfo>,
+    /// pcs.len
+    #[prost(uint64, tag = "2")]
+    pub length: u64,
+}
+/// GET /api/server/noinstall
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetServerNotInstalledPcsRequest {
+    /// Server name
+    #[prost(string, tag = "1")]
+    pub server: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetServerNotInstalledPcsResponse {
+    /// key = uuid
+    #[prost(map = "string, message", tag = "1")]
+    pub pcs: ::std::collections::HashMap<::prost::alloc::string::String, super::common::CommonInfo>,
+    /// pcs.len
+    #[prost(uint64, tag = "2")]
+    pub length: u64,
+}
+/// POST /api/server/install
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct InstallServerRequest {
+    #[prost(string, tag = "1")]
+    pub server: ::prost::alloc::string::String,
+    /// target machines
+    #[prost(string, repeated, tag = "2")]
+    pub uuids:  ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct InstallServerResponse {
+    /// {Type, Message}
+    #[prost(message, optional, tag = "1")]
+    pub result: ::core::option::Option<super::common::ActionResult>,
 }
 /// GET /api/server/apache
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -3630,53 +3677,6 @@ pub struct RestartSambaResponse {
     #[prost(message, optional, tag = "1")]
     pub result: ::core::option::Option<super::common::ActionResult>,
 }
-/// GET /api/server/installed
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetServerInstalledPcsRequest {
-    /// Server name, e.g., "apache", "nginx"
-    #[prost(string, tag = "1")]
-    pub server: ::prost::alloc::string::String,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetServerInstalledPcsResponse {
-    /// key = uuid, value = { Hostname, Status(active|stopped), Cpu, Memory }
-    #[prost(map = "string, message", tag = "1")]
-    pub pcs: ::std::collections::HashMap<::prost::alloc::string::String, super::common::CommonInfo>,
-    /// pcs.len
-    #[prost(uint64, tag = "2")]
-    pub length: u64,
-}
-/// GET /api/server/noinstall
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetServerNotInstalledPcsRequest {
-    /// Server name
-    #[prost(string, tag = "1")]
-    pub server: ::prost::alloc::string::String,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetServerNotInstalledPcsResponse {
-    /// key = uuid
-    #[prost(map = "string, message", tag = "1")]
-    pub pcs: ::std::collections::HashMap<::prost::alloc::string::String, super::common::CommonInfo>,
-    /// pcs.len
-    #[prost(uint64, tag = "2")]
-    pub length: u64,
-}
-/// POST /api/server/install
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct InstallServerRequest {
-    #[prost(string, tag = "1")]
-    pub server: ::prost::alloc::string::String,
-    /// target machines
-    #[prost(string, repeated, tag = "2")]
-    pub uuids:  ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct InstallServerResponse {
-    /// {Type, Message}
-    #[prost(message, optional, tag = "1")]
-    pub result: ::core::option::Option<super::common::ActionResult>,
-}
 /// GET /api/server/squid
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetSquidRequest {
@@ -3958,6 +3958,11 @@ pub enum InfoStatus {
     Unknown = 4,
 }
 impl InfoStatus {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic
+    /// use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
             Self::Unspecified => "INFO_STATUS_UNSPECIFIED",
@@ -3967,6 +3972,7 @@ impl InfoStatus {
             Self::Unknown => "INFO_STATUS_UNKNOWN",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
     pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
         match value {
             "INFO_STATUS_UNSPECIFIED" => Some(Self::Unspecified),
@@ -4228,8 +4234,7 @@ impl FirewallStatus {
 pub enum ChainKind {
     Unspecified = 0,
     Input = 1,
-    Forward = 2,
-    Output = 3,
+    Output = 2,
 }
 impl ChainKind {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -4241,7 +4246,6 @@ impl ChainKind {
         match self {
             Self::Unspecified => "CHAIN_KIND_UNSPECIFIED",
             Self::Input => "INPUT",
-            Self::Forward => "FORWARD",
             Self::Output => "OUTPUT",
         }
     }
@@ -4250,7 +4254,6 @@ impl ChainKind {
         match value {
             "CHAIN_KIND_UNSPECIFIED" => Some(Self::Unspecified),
             "INPUT" => Some(Self::Input),
-            "FORWARD" => Some(Self::Forward),
             "OUTPUT" => Some(Self::Output),
             _ => None,
         }
@@ -4262,7 +4265,6 @@ pub enum Verdict {
     Unspecified = 0,
     Accept = 1,
     Drop = 2,
-    Reject = 3,
 }
 impl Verdict {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -4275,7 +4277,6 @@ impl Verdict {
             Self::Unspecified => "VERDICT_UNSPECIFIED",
             Self::Accept => "ACCEPT",
             Self::Drop => "DROP",
-            Self::Reject => "REJECT",
         }
     }
     /// Creates an enum from field names used in the ProtoBuf definition.
@@ -4284,7 +4285,6 @@ impl Verdict {
             "VERDICT_UNSPECIFIED" => Some(Self::Unspecified),
             "ACCEPT" => Some(Self::Accept),
             "DROP" => Some(Self::Drop),
-            "REJECT" => Some(Self::Reject),
             _ => None,
         }
     }
@@ -6188,6 +6188,58 @@ pub mod restful_service_client {
                 .insert(GrpcMethod::new("restful.RestfulService", "DeleteSoftware"));
             self.inner.unary(req, path, codec).await
         }
+        /// Server Installed/Not Installed Lists & Install
+        pub async fn get_server_installed_pcs(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetServerInstalledPcsRequest>,
+        ) -> std::result::Result<tonic::Response<super::GetServerInstalledPcsResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetServerInstalledPcs",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetServerInstalledPcs"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn get_server_not_installed_pcs(
+            &mut self,
+            request: impl tonic::IntoRequest<super::GetServerNotInstalledPcsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetServerNotInstalledPcsResponse>,
+            tonic::Status,
+        > {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/restful.RestfulService/GetServerNotInstalledPcs",
+            );
+            let mut req = request.into_request();
+            req.extensions_mut()
+                .insert(GrpcMethod::new("restful.RestfulService", "GetServerNotInstalledPcs"));
+            self.inner.unary(req, path, codec).await
+        }
+        pub async fn install_server(
+            &mut self,
+            request: impl tonic::IntoRequest<super::InstallServerRequest>,
+        ) -> std::result::Result<tonic::Response<super::InstallServerResponse>, tonic::Status>
+        {
+            self.inner.ready().await.map_err(|e| {
+                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
+            })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path =
+                http::uri::PathAndQuery::from_static("/restful.RestfulService/InstallServer");
+            let mut req = request.into_request();
+            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "InstallServer"));
+            self.inner.unary(req, path, codec).await
+        }
         /// Apache Webserver
         pub async fn get_apache_status(
             &mut self,
@@ -6580,58 +6632,6 @@ pub mod restful_service_client {
             let path = http::uri::PathAndQuery::from_static("/restful.RestfulService/RestartSamba");
             let mut req = request.into_request();
             req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "RestartSamba"));
-            self.inner.unary(req, path, codec).await
-        }
-        /// Server Installed/Not Installed Lists & Install
-        pub async fn get_server_installed_pcs(
-            &mut self,
-            request: impl tonic::IntoRequest<super::GetServerInstalledPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetServerInstalledPcsResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/restful.RestfulService/GetServerInstalledPcs",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("restful.RestfulService", "GetServerInstalledPcs"));
-            self.inner.unary(req, path, codec).await
-        }
-        pub async fn get_server_not_installed_pcs(
-            &mut self,
-            request: impl tonic::IntoRequest<super::GetServerNotInstalledPcsRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetServerNotInstalledPcsResponse>,
-            tonic::Status,
-        > {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/restful.RestfulService/GetServerNotInstalledPcs",
-            );
-            let mut req = request.into_request();
-            req.extensions_mut()
-                .insert(GrpcMethod::new("restful.RestfulService", "GetServerNotInstalledPcs"));
-            self.inner.unary(req, path, codec).await
-        }
-        pub async fn install_server(
-            &mut self,
-            request: impl tonic::IntoRequest<super::InstallServerRequest>,
-        ) -> std::result::Result<tonic::Response<super::InstallServerResponse>, tonic::Status>
-        {
-            self.inner.ready().await.map_err(|e| {
-                tonic::Status::unknown(format!("Service was not ready: {}", e.into()))
-            })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path =
-                http::uri::PathAndQuery::from_static("/restful.RestfulService/InstallServer");
-            let mut req = request.into_request();
-            req.extensions_mut().insert(GrpcMethod::new("restful.RestfulService", "InstallServer"));
             self.inner.unary(req, path, codec).await
         }
         /// Squid
@@ -7188,6 +7188,22 @@ pub mod restful_service_server {
             &self,
             request: tonic::Request<super::DeleteSoftwareRequest>,
         ) -> std::result::Result<tonic::Response<super::PackageActionResponse>, tonic::Status>;
+        /// Server Installed/Not Installed Lists & Install
+        async fn get_server_installed_pcs(
+            &self,
+            request: tonic::Request<super::GetServerInstalledPcsRequest>,
+        ) -> std::result::Result<tonic::Response<super::GetServerInstalledPcsResponse>, tonic::Status>;
+        async fn get_server_not_installed_pcs(
+            &self,
+            request: tonic::Request<super::GetServerNotInstalledPcsRequest>,
+        ) -> std::result::Result<
+            tonic::Response<super::GetServerNotInstalledPcsResponse>,
+            tonic::Status,
+        >;
+        async fn install_server(
+            &self,
+            request: tonic::Request<super::InstallServerRequest>,
+        ) -> std::result::Result<tonic::Response<super::InstallServerResponse>, tonic::Status>;
         /// Apache Webserver
         async fn get_apache_status(
             &self,
@@ -7307,22 +7323,6 @@ pub mod restful_service_server {
             &self,
             request: tonic::Request<super::RestartSambaRequest>,
         ) -> std::result::Result<tonic::Response<super::RestartSambaResponse>, tonic::Status>;
-        /// Server Installed/Not Installed Lists & Install
-        async fn get_server_installed_pcs(
-            &self,
-            request: tonic::Request<super::GetServerInstalledPcsRequest>,
-        ) -> std::result::Result<tonic::Response<super::GetServerInstalledPcsResponse>, tonic::Status>;
-        async fn get_server_not_installed_pcs(
-            &self,
-            request: tonic::Request<super::GetServerNotInstalledPcsRequest>,
-        ) -> std::result::Result<
-            tonic::Response<super::GetServerNotInstalledPcsResponse>,
-            tonic::Status,
-        >;
-        async fn install_server(
-            &self,
-            request: tonic::Request<super::InstallServerRequest>,
-        ) -> std::result::Result<tonic::Response<super::InstallServerResponse>, tonic::Status>;
         /// Squid
         async fn get_squid(
             &self,
@@ -11499,6 +11499,133 @@ pub mod restful_service_server {
                     };
                     Box::pin(fut)
                 }
+                "/restful.RestfulService/GetServerInstalledPcs" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetServerInstalledPcsSvc<T: RestfulService>(pub Arc<T>);
+                    impl<T: RestfulService>
+                        tonic::server::UnaryService<super::GetServerInstalledPcsRequest>
+                        for GetServerInstalledPcsSvc<T>
+                    {
+                        type Response = super::GetServerInstalledPcsResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetServerInstalledPcsRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as RestfulService>::get_server_installed_pcs(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = GetServerInstalledPcsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/restful.RestfulService/GetServerNotInstalledPcs" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetServerNotInstalledPcsSvc<T: RestfulService>(pub Arc<T>);
+                    impl<T: RestfulService>
+                        tonic::server::UnaryService<super::GetServerNotInstalledPcsRequest>
+                        for GetServerNotInstalledPcsSvc<T>
+                    {
+                        type Response = super::GetServerNotInstalledPcsResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::GetServerNotInstalledPcsRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as RestfulService>::get_server_not_installed_pcs(&inner, request)
+                                    .await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = GetServerNotInstalledPcsSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/restful.RestfulService/InstallServer" => {
+                    #[allow(non_camel_case_types)]
+                    struct InstallServerSvc<T: RestfulService>(pub Arc<T>);
+                    impl<T: RestfulService> tonic::server::UnaryService<super::InstallServerRequest>
+                        for InstallServerSvc<T>
+                    {
+                        type Response = super::InstallServerResponse;
+                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::InstallServerRequest>,
+                        ) -> Self::Future {
+                            let inner = Arc::clone(&self.0);
+                            let fut = async move {
+                                <T as RestfulService>::install_server(&inner, request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let max_decoding_message_size = self.max_decoding_message_size;
+                    let max_encoding_message_size = self.max_encoding_message_size;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let method = InstallServerSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            )
+                            .apply_max_message_size_config(
+                                max_decoding_message_size,
+                                max_encoding_message_size,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
                 "/restful.RestfulService/GetApacheStatus" => {
                     #[allow(non_camel_case_types)]
                     struct GetApacheStatusSvc<T: RestfulService>(pub Arc<T>);
@@ -12598,133 +12725,6 @@ pub mod restful_service_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let method = RestartSambaSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/restful.RestfulService/GetServerInstalledPcs" => {
-                    #[allow(non_camel_case_types)]
-                    struct GetServerInstalledPcsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::GetServerInstalledPcsRequest>
-                        for GetServerInstalledPcsSvc<T>
-                    {
-                        type Response = super::GetServerInstalledPcsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::GetServerInstalledPcsRequest>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as RestfulService>::get_server_installed_pcs(&inner, request)
-                                    .await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let method = GetServerInstalledPcsSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/restful.RestfulService/GetServerNotInstalledPcs" => {
-                    #[allow(non_camel_case_types)]
-                    struct GetServerNotInstalledPcsSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService>
-                        tonic::server::UnaryService<super::GetServerNotInstalledPcsRequest>
-                        for GetServerNotInstalledPcsSvc<T>
-                    {
-                        type Response = super::GetServerNotInstalledPcsResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::GetServerNotInstalledPcsRequest>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as RestfulService>::get_server_not_installed_pcs(&inner, request)
-                                    .await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let method = GetServerNotInstalledPcsSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            )
-                            .apply_max_message_size_config(
-                                max_decoding_message_size,
-                                max_encoding_message_size,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/restful.RestfulService/InstallServer" => {
-                    #[allow(non_camel_case_types)]
-                    struct InstallServerSvc<T: RestfulService>(pub Arc<T>);
-                    impl<T: RestfulService> tonic::server::UnaryService<super::InstallServerRequest>
-                        for InstallServerSvc<T>
-                    {
-                        type Response = super::InstallServerResponse;
-                        type Future = BoxFuture<tonic::Response<Self::Response>, tonic::Status>;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::InstallServerRequest>,
-                        ) -> Self::Future {
-                            let inner = Arc::clone(&self.0);
-                            let fut = async move {
-                                <T as RestfulService>::install_server(&inner, request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let max_decoding_message_size = self.max_decoding_message_size;
-                    let max_encoding_message_size = self.max_encoding_message_size;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let method = InstallServerSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

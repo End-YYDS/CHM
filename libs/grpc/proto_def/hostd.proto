@@ -5,6 +5,7 @@ package hostd;
 service HostdService {
   rpc RunSysInfo(SysInfoRequest) returns (SysInfoResponse);
   rpc RunHostCommand(HostCommandRequest) returns (HostCommandResponse);
+  rpc RunFirewall(FirewallRequest) returns (FirewallResponse);
 }
 
 message SysInfoRequest {
@@ -23,4 +24,22 @@ message HostCommandResponse {
   int32 status = 1;
   string stdout = 2;
   string stderr = 3;
+}
+
+enum FirewallOp {
+  FIREWALL_OP_UNSPECIFIED = 0;
+  FIREWALL_OP_STATUS = 1;
+  FIREWALL_OP_ADD = 2;
+  FIREWALL_OP_DELETE = 3;
+  FIREWALL_OP_EDIT_STATUS = 4;
+  FIREWALL_OP_EDIT_POLICY = 5;
+}
+
+message FirewallRequest {
+  FirewallOp op = 1;
+  string argument = 2;
+}
+
+message FirewallResponse {
+  string output = 1;
 }
