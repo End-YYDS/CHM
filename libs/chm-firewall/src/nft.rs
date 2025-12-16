@@ -2,7 +2,10 @@
 use anyhow::{bail, Result};
 use nftables::{
     batch::Batch,
-    expr::{Expression, Meta, MetaKey, NamedExpression, Payload, PayloadField, Prefix, CT},
+    expr::{
+        Expression, Meta, MetaKey, NamedExpression, Payload, PayloadField, Prefix,
+        Range as ExprRange, CT,
+    },
     schema,
     stmt::{Accept, Drop, Match, Operator, Statement},
     types,
@@ -221,6 +224,27 @@ impl RulesetManager {
         self.ensure_rule_with_comment(
             ICMP6_COMMENT,
             vec![build_icmp_match(true), RuleAction::Accept.to_statement()],
+        );
+
+        const CHM_PORT_COMMENT: &str = "allow chm";
+        self.remove_rule_by_comment(CHM_PORT_COMMENT);
+        self.ensure_rule_with_comment(
+            CHM_PORT_COMMENT,
+            vec![
+                build_proto_match("tcp"),
+                build_port_statement("dport", 11209, "tcp"),
+                RuleAction::Accept.to_statement(),
+            ],
+        );
+
+        const TRACEROUTE_UDP_COMMENT: &str = "allow traceroute(UDP)";
+        self.ensure_rule_with_comment(
+            TRACEROUTE_UDP_COMMENT,
+            vec![
+                build_proto_match("udp"),
+                build_port_range_statement("dport", 33434, 33534, "udp"),
+                RuleAction::Accept.to_statement(),
+            ],
         );
     }
 
@@ -557,6 +581,19 @@ fn build_port_statement(field: &'static str, port: u16, proto: &str) -> Statemen
     build_payload_match(protocol, field, Expression::Number(port as u32))
 }
 
+fn build_port_range_statement(
+    field: &'static str,
+    start: u16,
+    end: u16,
+    proto: &str,
+) -> Statement<'static> {
+    let protocol = Cow::Owned(proto.to_ascii_lowercase());
+    let right = Expression::Range(Box::new(ExprRange {
+        range: [Expression::Number(start as u32), Expression::Number(end as u32)],
+    }));
+    build_payload_match(protocol, field, right)
+}
+
 fn build_icmp_match(is_ipv6: bool) -> Statement<'static> {
     if is_ipv6 {
         build_payload_match(
@@ -677,6 +714,23 @@ mod tests {
         let icmp6 = find_rule(&manager, "allow icmpv6");
         assert!(icmp6.expr.iter().any(|stmt| matches!(stmt,
             Statement::Match(Match { left: Expression::Named(NamedExpression::Payload(Payload::PayloadField(PayloadField { field, .. }))), .. }) if field.as_ref() == "nexthdr")));
+
+        let chm = find_rule(&manager, "allow chm");
+        assert!(chm.expr.iter().any(|stmt| matches!(stmt,
+            Statement::Match(Match {
+                left: Expression::Named(NamedExpression::Payload(Payload::PayloadField(PayloadField { field, .. }))),
+                right: Expression::Number(port),
+                ..
+            }) if field.as_ref() == "dport" && *port == 11209)));
+
+        let traceroute = find_rule(&manager, "allow traceroute(UDP)");
+        assert!(traceroute.expr.iter().any(|stmt| matches!(stmt,
+            Statement::Match(Match {
+                left: Expression::Named(NamedExpression::Payload(Payload::PayloadField(PayloadField { field, .. }))),
+                right: Expression::Range(range),
+                ..
+            }) if field.as_ref() == "dport"
+                && matches!(&range.range, [Expression::Number(start), Expression::Number(end)] if *start == 33434 && *end == 33534))));
     }
 
     #[test]
