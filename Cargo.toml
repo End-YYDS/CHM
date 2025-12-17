@@ -21,7 +21,7 @@ members = [
 ]
 resolver = "2"
 [workspace.package]
-version = "0.1.0"
+version = "1.1.3"
 edition = "2021"
 
 [workspace.dependencies]
@@ -40,17 +40,17 @@ argon2 = { version = "0.5.3", features = ["std"] }
 backoff = { version = "0.4.0", features = ["tokio"] }
 base64 = "0.22.1"
 cached = { version = "0.56.0", features = ["async", "proc_macro"] }
-chm-cert-utils = { version = "0.1.0", path = "./libs/cert-utils" }
-chm-cluster-utils = { version = "0.1.0", path = "./libs/cluster-utils" }
-chm-config_bus = { version = "0.1.0", path = "./libs/config-bus" }
-chm-config_loader = { version = "0.1.0", path = "./libs/config_loader", default-features = false }
-chm-crl_cache = { version = "0.1.0", path = "./libs/crl_cache" }
-chm-dns_resolver = { version = "0.1.0", path = "./libs/dns_resolver" }
-chm-grpc = { version = "0.1.0", path = "./libs/grpc" }
-chm-password = { version = "0.1.0", path = "./libs/password" }
-chm-project_const = { version = "0.1.0", path = "./libs/project_const" }
+chm-cert-utils = { version = "^1.1.3", path = "./libs/cert-utils" }
+chm-cluster-utils = { version = "^1.1.3", path = "./libs/cluster-utils" }
+chm-config_bus = { version = "^1.1.3", path = "./libs/config-bus" }
+chm-config_loader = { version = "^1.1.3", path = "./libs/config_loader", default-features = false }
+chm-crl_cache = { version = "^1.1.3", path = "./libs/crl_cache" }
+chm-dns_resolver = { version = "^1.1.3", path = "./libs/dns_resolver" }
+chm-grpc = { version = "^1.1.3", path = "./libs/grpc" }
+chm-password = { version = "^1.1.3", path = "./libs/password" }
+chm-project_const = { version = "^1.1.3", path = "./libs/project_const" }
 chrono = { version = "0.4.41", features = ["serde"] }
-chm-firewall = { version = "0.1.0", path = "./libs/chm-firewall" }
+chm-firewall = { version = "^1.1.3", path = "./libs/chm-firewall" }
 config = { version = "0.15.11", default-features = false, features = ["toml"] }
 dashmap = { version = "6.1.0", features = ["serde"] }
 futures = { version = "0.3.31", default-features = false, features = ["alloc"] }
